@@ -15,7 +15,7 @@
 1. **零 emoji**。所有图标一律 SVG。由 CI 脚本扫描源码强制执行，不靠自觉。
 2. **简约大方**。统一设计令牌，禁止硬编码颜色与尺寸。
 3. **无构建**。不需要 npm install，不需要打包器。
-4. **可扩展到几十个 app 而不互相污染**。这是整套架构最主要的设计目标。
+6. **可扩展到几十个 app 而不互相污染**。这是整套架构最主要的设计目标。
 
 ### 非目标
 
@@ -268,32 +268,40 @@ system/ 可以 import: ui/, icons/, vendor/
 - 朋友圈单条最多 9 张
 - 设置页提供存储占用统计与清理孤儿图片的入口
 
-### 3.8 layout 桌面布局
+### 3.8 layout 主界面布局
 
-桌面上哪个图标在第几页第几格、哪些进了文件夹、Dock 里放了谁,都是要持久化的状态。
+主界面的网格摆放、挂件尺寸、tab 栏内容都要持久化。
 
 ```js
 {
   pages: [
-    { id: 'p1', items: [
-        { type: 'app',    appId: 'chat' },
-        { type: 'folder', id: 'f1', name: '工具', appIds: ['lorebook','memory'] }
+    { id: 'p1', cells: [
+        { id, kind: 'widget', ref: 'header',        x: 0, y: 0, w: 4, h: 1 },
+        { id, kind: 'app',    ref: 'chat',          x: 0, y: 1, w: 1, h: 1 },
+        { id, kind: 'app',    ref: 'lorebook',      x: 1, y: 1, w: 1, h: 1 },
+        { id, kind: 'widget', ref: 'recent-chats',  x: 2, y: 1, w: 2, h: 2 },
+        { id, kind: 'app',    ref: 'memory',        x: 0, y: 2, w: 1, h: 1 },
+        { id, kind: 'app',    ref: 'settings',      x: 1, y: 2, w: 1, h: 1 },
+        { id, kind: 'widget', ref: 'moments-peek',  x: 0, y: 3, w: 2, h: 2 }
     ]}
   ],
-  dock: ['chat', 'settings'],
+  tabs: ['home', 'chat', 'moments', 'me'],
   wallpaper: { home: 'img_xxx', lock: 'img_xxx' }
 }
 ```
 
+坐标显式存储,`x` 取值 0-3。不使用 CSS 自动流: 混合尺寸下自动流的结果不可预测,
+且拖拽排序本来就需要显式坐标。
+
 **自愈规则**(与 4.2 的 `getInjectOrder()` 是同一类问题,同样必须有):
 
-- 布局里引用了已不存在的 appId -> 静默移除
-- 已注册但布局里没有的 app -> 追加到最后一页的第一个空位,不够则新建一页
-- 空文件夹 -> 自动解散
-- Dock 超过上限 -> 溢出项退回桌面
+- 单元引用了已不存在的 app 或挂件 -> 静默移除
+- 已注册但未出现在任何页面的 app -> 追加到最后一页的空位,不够则新建一页
+- 单元重叠或越界(`x + w > 4`)-> 按顺序重新落位
+- tabs 里引用了不存在的目标 -> 移除;tabs 为空 -> 回落到默认四项
 
-没有这套自愈,以后每删一个 app 或每加一个 app,桌面就可能出现空洞或漏图标,
-而且是静默的。
+没有这套自愈,以后每删一个 app 或每加一个挂件,主界面就可能出现空洞、
+重叠或漏图标,而且是静默的。
 
 ### 3.9 存储与迁移
 
@@ -609,20 +617,37 @@ const c = await phone.intent.request('pick:character');  // 要一个结果,带�
 
 ## 7. 导航模型
 
-双层栈,一开始就做对,否则加返回手势和多任务时必返工。
+底部 tab 栏是系统级常驻的,所以系统层不是单一栈,而是**每个 tab 一个独立栈**。
 
-**系统层栈**: `LockScreen -> Home -> App -> AppSwitcher`
-- 后台 app 保留状态不卸载,上限 5 个,超出按 LRU 回收
-- 通知点击可直达某 app 的某页面
+```
+系统层
+ |- tab: home     -> 主界面 -> App -> App 内页面
+ |- tab: chat     -> 会话列表 -> 会话详情
+ |- tab: moments  -> 信息流 -> 动态详情
+ |- tab: me       -> 我的主页 -> 编辑
+ |
+ |- 覆盖层(不属于任何 tab): LockScreen / AppSwitcher / Sheet / Modal
+```
+
+规则:
+
+- 切换 tab **不销毁**对方,各自保留滚动位置与页面栈
+- 返回手势只在**当前 tab 的栈**内退,退到栈底再返回不跨 tab
+- 重复点击当前 tab: 栈深度 > 1 时回到栈底,已在栈底时滚动到顶部
+- 从 home tab 打开的 app 活在 home 栈里;后台 app 上限 5 个,超出按 LRU 回收
+- 通知点击可直达: 先切到目标 tab,再在该栈内 push 到目标页面
 
 **应用层栈**: 每个 app 自己的页面栈
+
 ```js
 phone.nav.push('/character/char_xxx')
 phone.nav.pop()
 phone.nav.replace('/')
+phone.nav.switchTab('chat')
 ```
 
 chat app 内部是 tab + stack 混合:
+
 ```
 chat
  |- 消息    列表 -> 会话详情
@@ -633,6 +658,9 @@ chat
 
 角色主页与我的主页复用同一个 Profile 组件,只是 subject 不同。
 
+**注意**: 系统 tab 栏与 chat app 内部的 tab 是两层东西。
+如果系统 tab 已经有"聊天",chat app 就不该再叠一层四 tab——这一点待定,见 15。
+
 ---
 
 ## 8. 系统界面
@@ -642,13 +670,25 @@ chat
 整体取向: **不做拟物,不堆毛玻璃,不用彩色渐变图标。**
 单色 SVG 图标 + 低饱和底色,大量留白,系统字体栈。简约来自克制,不来自装饰。
 
-### 8.1 DeviceFrame 设备外壳
+### 8.1 全屏根容器
 
-- 逻辑尺寸 390 x 844(比例 9:19.5),内部一律用相对单位
-- 桌面端: 居中显示机身外框,深色描边 + 柔和投影,外框圆角 44
-- 移动端(视口宽度 < 500): 去掉外框,全屏铺满
-- 安全区暴露为 `--safe-top` / `--safe-bottom`,由外壳统一计算
-- 屏幕内容一律 `overflow: hidden`,滚动发生在 `<Page>` 内部
+**不画机身外框、不画刘海、不做投影。** 界面直接铺满视口,桌面与移动端一致。
+
+**整个项目只有一处使用视口单位**: 根容器的 `height: 100vh`。
+其余所有高度由 flex 与 grid 按比例分配,不再出现任何视口单位。
+这样连"混用"的机会都不存在。
+
+```css
+.root      { height: 100vh; display: flex; flex-direction: column; }
+.statusbar { height: var(--statusbar-h); flex: none; }
+.screen    { flex: 1; min-height: 0; overflow: hidden; }
+.tabbar    { height: var(--tabbar-h); flex: none; }
+```
+
+`min-height: 0` 不能省。flex 子项默认 `min-height: auto`,
+内容一旦超高就会把容器撑破,导致 tab 栏被挤出屏幕。
+
+禁止 `dvh` / `svh` / `lvh`,理由与强制手段见 `CLAUDE.md`。
 
 ### 8.2 StatusBar 状态栏
 
@@ -666,53 +706,82 @@ chat
 - 通知列表: 角色发来的消息聚合展示,点击直达该会话
 - 上滑解锁。无密码,这不是安全功能,只是一个入口仪式
 
-### 8.4 HomeScreen 桌面
+### 8.4 HomeScreen 主界面
 
-整套界面的核心。
+**不是 iOS 式的等距图标海。** 采用横条 + 方形挂件混排的卡片式布局。
+
+```
+┌──────────────────────────────┐
+│ 状态栏                        │
+├──────────────────────────────┤
+│ [       横条挂件           ]  │  4 x 1
+├─────────────┬────────────────┤
+│  app   app  │                │
+│             │   方形挂件      │  左 2x2 放四个 app
+│  app   app  │                │  右 2x2 一个方形
+├─────────────┼────────────────┤
+│             │  app   app     │
+│  方形挂件    │                │  下一块左右对调
+│             │  app   app     │
+├─────────────┴────────────────┤
+│  [tab]  [tab]  [tab]  [tab]  │  底部 tab 栏
+└──────────────────────────────┘
+```
 
 **网格**
 
-- 4 列,行数由可用高度决定,行列间距走 tokens
-- 图标 60 x 60,圆角 14,`accent` 作底色,内部 SVG 28px 居中
-- 图标下方名称: 11px,单行省略,最多 4 字宽度内不换行
-- 未读角标: 右上角,红点或数字,数字超过 99 显示 99+
+- 4 列,`grid-template-columns: repeat(4, 1fr)`
+- 行高由容器均分,`grid-auto-rows: 1fr`,**不写死像素也不用视口单位**
+- 单元支持跨格: app 为 1x1,方形挂件 2x2,横条挂件 4x1
+- 使用**显式坐标**而非 `auto-flow: dense`。自动流在混合尺寸下结果不可预测,
+  且拖拽排序本来就需要显式坐标
 
-**分页**
+**挂件(widget)**
 
-- 横向滑动翻页,底部页面指示点
-- 拖拽到屏幕边缘停留触发翻页
+挂件是主界面上的活内容,不是装饰:
 
-**Dock**
+| 挂件 | 尺寸 | 内容 |
+|---|---|---|
+| `header` | 4x1 | 日期、天气位、今日提示 |
+| `recent-chats` | 2x2 | 最近会话与未读 |
+| `moments-peek` | 2x2 | 最新一条朋友圈预览 |
+| `memory-count` | 2x2 | 记忆条数与最近新增 |
 
-- 底部固定 4 个,不随分页滚动
-- 半透明衬底,与桌面壁纸区分
+挂件与 app 一样由 manifest 声明(见 5. App 契约的 `widgets` 字段),
+主界面不认识具体挂件,只按 id 渲染。新增挂件不改主界面代码。
+
+**app 图标**
+
+- 圆角矩形,`accent` 作底色,内部 SVG 居中,尺寸由格子大小推导
+- 下方名称 11px 单行省略
+- 未读角标在右上角,数字超过 99 显示 99+
 
 **编辑模式**
 
-长按任意图标进入:
+长按进入: 图标与挂件一起抖动,可拖拽换位,挂件可换尺寸(1x1 / 2x2 / 4x1),
+可移除(移的是主界面上的位置,不删数据)。点空白处退出。
 
-- 全部图标轻微抖动
-- 拖拽排序,拖到另一个图标上合成文件夹
-- 图标左上角出现移除按钮(移除的是桌面快捷方式,不删数据)
-- 点击空白处或 Home 指示条退出
+**分页**
 
-**文件夹**
+主界面可以有多页,横向滑动切换,页面指示点在网格下方、tab 栏上方。
+第一版只做一页,但布局数据结构支持多页,不返工。
 
-- 点击展开为一个覆盖层,显示 3x3 预览网格
-- 名称可编辑,拖空后自动解散
+### 8.5 底部 TabBar
 
-### 8.5 AppSwitcher 多任务
+**系统级常驻**,不属于任何 app,取代传统的 Dock。
 
-- 从 Home 指示条上滑并停顿进入
-- 卡片横向排列,展示各 app 的最后状态快照
-- 上滑卡片关闭该 app(触发 unmount,释放内存)
-- 卡片顺序按最近使用
+- 固定高度 `--tabbar-h`,不随内容滚动
+- 每项为 SVG 图标 + 文字标签,选中态改变颜色与图标填充
+- 切换 tab **不销毁**已挂载的内容,各 tab 保留自己的滚动位置与页面栈
+
+这一条改变了导航模型: 系统层不再是单一栈,而是 **N 个并列的栈,每个 tab 一个**。
+见第 7 章。
 
 ### 8.6 壁纸
 
 - 用户从本地上传,走 images 域,压缩规格同 3.7
-- 桌面与锁屏可分别设置
-- 内置若干纯色与极简渐变作为默认选项,不内置照片类壁纸
+- 主界面与锁屏可分别设置
+- 内置若干纯色与极简渐变作为默认,不内置照片类壁纸
 
 ### 8.7 后续(P3)
 
@@ -741,8 +810,11 @@ Avatar / Badge / Toast / EmptyState / Spinner / Skeleton
 
 ### 9.3 尺寸与安全区
 
-- 外壳固定 aspect-ratio,桌面端显示机身外框,移动端自动全屏
-- 安全区暴露为 `--safe-top` / `--safe-bottom` 变量,app 不自己算刘海
+- 全屏铺满,不存在机身外框
+- 根容器 `height: 100vh`,是全项目唯一的视口单位
+- 其余高度由 flex 与 grid 分配,flex 子项记得 `min-height: 0`
+- 安全区用 `env(safe-area-inset-*)` 换算为 `--safe-top` / `--safe-bottom`,
+  由根容器统一计算,页面与 app 不自己算
 
 ### 9.4 图标
 
@@ -772,7 +844,8 @@ Avatar / Badge / Toast / EmptyState / Spinner / Skeleton
 | 世界书激活预览 | prompt 问题可调试而非盲猜 |
 | 图片上传强制压缩 + objectURL 回收 | 存储膨胀与滚动列表的内存泄漏 |
 | prompt 模板与代码分离 | 调语气不用改代码,也不会误伤逻辑 |
-| 桌面布局自愈 | 增删 app 后桌面出现空洞或漏图标 |
+| 主界面布局自愈 | 增删 app 或挂件后出现空洞、重叠、漏图标 |
+| 视口单位检查脚本 | dvh 混入导致地址栏显隐时界面抽动错位 |
 
 ---
 
@@ -792,15 +865,19 @@ phone/
 │  ├─ base.css
 │  └─ shell.css
 ├─ scripts/
+│  ├─ doctor.mjs           一次跑完下面全部检查
 │  ├─ check-no-emoji.mjs
+│  ├─ check-units.mjs      拦截 dvh / svh / lvh
 │  ├─ check-boundaries.mjs
+│  ├─ check-tokens.mjs     拦截硬编码颜色
 │  └─ new-app.mjs
 └─ src/
    ├─ main.js
    ├─ shell/
-   │  ├─ DeviceFrame.js       机身、屏幕、响应式外框
+   │  ├─ Root.js              100vh 根容器,全项目唯一视口单位
    │  ├─ StatusBar.js         时间、信号、Wi-Fi、电量
-   │  └─ HomeIndicator.js     上滑手势识别
+   │  ├─ TabBar.js            系统级底部 tab
+   │  └─ Gestures.js          上滑、返回手势
    ├─ system/
    │  ├─ registry.js          app 注册与 manifest 校验
    │  ├─ runtime.js           生命周期、前后台、ErrorBoundary
@@ -853,10 +930,10 @@ phone/
    ├─ screens/
    │  ├─ LockScreen.js        时钟、通知、上滑解锁
    │  ├─ home/
-   │  │  ├─ HomeScreen.js     分页网格 + Dock
-   │  │  ├─ AppIcon.js        图标、角标、抖动
-   │  │  ├─ Folder.js         文件夹展开层
-   │  │  ├─ EditMode.js       长按拖拽排序
+   │  │  ├─ HomeScreen.js     4 列网格,显式坐标
+   │  │  ├─ AppIcon.js        图标、角标
+   │  │  ├─ WidgetHost.js     按 id 渲染挂件,不认识具体挂件
+   │  │  ├─ EditMode.js       长按拖拽、改尺寸
    │  │  └─ layout.js         布局读写与自愈
    │  └─ AppSwitcher.js       多任务卡片
    └─ apps/
@@ -913,8 +990,8 @@ phone.settings.get(key) / set(key, v)
 
 **P0 骨架**
 - shell + 内核 + sdk + 令牌 + 图标系统 + Page 原语
-- 系统界面: 设备外壳、状态栏、锁屏、桌面(分页网格 + Dock + 编辑模式 + 文件夹)、多任务
-- 桌面布局持久化与自愈、壁纸上传
+- 系统界面: 全屏根容器、状态栏、底部 tab 栏、锁屏、主界面(4 列网格 + 挂件 + 编辑模式)、多任务
+- 主界面布局持久化与自愈、挂件宿主、壁纸上传
 - db 数据域(IndexedDB)+ 迁移机制 + 图片压缩存取
 - AI 引擎 + 队列 + Anthropic/OpenAI 兼容双 provider
 - 四个 app: settings / chat(四 tab) / lorebook / memory
@@ -999,3 +1076,13 @@ phone.settings.get(key) / set(key, v)
 4. **回复风格 prompt** 不采用 rainyword 的"一条消息就是一个念头",
    改为强调打字节奏的不均匀与不周到,见 4.2 B3。
 5. **所有 prompt 模板运行时可编辑**,代码里只留默认值,见 4.2 B4。
+6. **全屏,不画机身外壳**,桌面与移动端一致。
+7. **视口单位只用 `vh`**,禁止 dvh/svh/lvh 及混用。全项目只在根容器用一次,
+   其余走 flex 与 grid。见 `CLAUDE.md` 与 8.1。
+8. **主界面为横条 + 方形挂件混排**,4 列显式坐标网格,不是等距图标海。见 8.4。
+9. **底部 tab 栏系统级常驻**,取代 Dock;系统层导航因此变为每 tab 一栈。见 7 / 8.5。
+
+## 16. 待确认
+
+系统 tab 栏与 chat app 内部四 tab 存在重叠,需要确定取舍。见下一轮讨论。
+
