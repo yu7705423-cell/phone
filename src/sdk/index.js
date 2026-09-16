@@ -14,6 +14,10 @@ import * as loreCtx from '../system/ai/context/lorebook.js';
 import { extract, shouldAutoExtract, pendingOf } from '../system/ai/tasks/memory-extract.js';
 import * as momentTasks from '../system/ai/tasks/moments.js';
 import { DEFAULT_TEMPLATES } from '../system/ai/templates.js';
+import * as svc from '../system/ai/services.js';
+import { fetchModels, filterModels } from '../system/ai/models.js';
+import * as voice from '../system/ai/voice.js';
+import * as image from '../system/ai/image.js';
 import { BLOCKS, DEFAULT_ORDER, resolveOrder } from '../system/ai/context/index.js';
 import { toast, confirm, prompt } from '../ui/overlay.js';
 import { appLook, listAppLooks } from '../system/look.js';
@@ -57,6 +61,13 @@ export const phone = {
     memory: { ...memoryCtx, extract, shouldAutoExtract, pendingOf },
     lore: loreCtx,
     moments: momentTasks,
+    services: svc,
+    fetchModels,
+    filterModels,
+    voice,
+    image,
+    runWithPreset: engine.runWithPreset,
+
     queue: {
       cancel: queue.cancel,
       cancelAll: queue.cancelAll,

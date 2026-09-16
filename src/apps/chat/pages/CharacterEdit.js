@@ -70,6 +70,12 @@ export function CharacterEdit({ id }) {
           <${Textarea} rows=${5} value=${char.exampleDialogue || ''}
             onInput=${v => patch({ exampleDialogue: v })}/>
         <//>
+
+        <${Field} label="音色 ID"
+          desc="语音合成用哪个音色。接口和模型在「设置」的「语音」里配，这里只填这个角色用哪个音色。">
+          <${Input} value=${char.voiceId || ''} placeholder="例如 male-qn-qingse"
+            onInput=${v => patch({ voiceId: v })}/>
+        <//>
       </div>
 
       <${List} title="关联世界书">

@@ -2,6 +2,8 @@ import { html } from '../../lib.js';
 import { phone, useStore } from '../../sdk/index.js';
 import { Page, List, ListItem, Icon } from '../../ui/index.js';
 import { ApiPage } from './ApiPage.js';
+import { VoicePage } from './VoicePage.js';
+import { ImagePage } from './ImagePage.js';
 import { AppearancePage } from './AppearancePage.js';
 import { StoragePage } from './StoragePage.js';
 
@@ -9,15 +11,30 @@ const { db, nav } = phone;
 
 function Home() {
   const s = useStore(db.settings.store);
-  const configured = phone.ai.isConfigured();
+  const svc = phone.ai.services;
+  const chat = svc.services().chat;
+  const active = svc.activeChat();
+  const spare = svc.fallbackChat();
+  const chatDesc = active
+    ? `${active.name} · ${active.model || '未选模型'}${spare ? `，副用 ${spare.name}` : ''}`
+    : '未配置，聊天不可用';
+  const voice = svc.voiceConfig();
+  const voiceDesc = voice.enabled && voice.apiKey ? `已配置 · ${voice.model || '未选模型'}` : '未配置';
+  const imgActive = svc.activeImage();
+  const imageDesc = imgActive ? `${imgActive.name} · ${imgActive.model || '未选模型'}` : '未配置';
 
   return html`
     <${Page} title="设置">
-      <${List} title="模型">
-        <${ListItem} title="接口与密钥"
-          subtitle=${configured ? `${s.provider} · ${s.model}` : '未配置，聊天不可用'} arrow
-          left=${html`<${Icon} name="key" size=${18}/>`}
+      <${List} title="服务">
+        <${ListItem} title="接口" subtitle=${chatDesc} arrow
+          left=${html`<${Icon} name="key" size=${19}/>`}
           onClick=${() => nav.push('/api')}/>
+        <${ListItem} title="语音" subtitle=${voiceDesc} arrow
+          left=${html`<${Icon} name="headphone" size=${19}/>`}
+          onClick=${() => nav.push('/voice')}/>
+        <${ListItem} title="生图" subtitle=${imageDesc} arrow
+          left=${html`<${Icon} name="camera" size=${19}/>`}
+          onClick=${() => nav.push('/image')}/>
       <//>
 
       <${List} title="外观">
@@ -43,6 +60,8 @@ function Home() {
 
 export default function SettingsApp({ route }) {
   if (route === '/api') return html`<${ApiPage}/>`;
+  if (route === '/voice') return html`<${VoicePage}/>`;
+  if (route === '/image') return html`<${ImagePage}/>`;
   if (route === "/appearance") return html`<${AppearancePage}/>`;
   if (route === '/storage') return html`<${StoragePage}/>`;
   return html`<${Home}/>`;

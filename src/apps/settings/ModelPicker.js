@@ -1,0 +1,63 @@
+import { html, useState, useEffect } from '../../lib.js';
+import { phone } from '../../sdk/index.js';
+import { Sheet, Input, Button, Icon, EmptyState, Spinner, toast } from '../../ui/index.js';
+
+// 从接口拉模型列表，可搜索。拉不到就还能手填。
+export function ModelPicker({ open, preset, onPick, onClose }) {
+  const [list, setList] = useState([]);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(null);
+  const [q, setQ] = useState('');
+
+  useEffect(() => {
+    if (!open || !preset) return;
+    let alive = true;
+    setBusy(true); setErr(null); setList([]);
+    phone.ai.fetchModels({
+      provider: preset.provider === 'anthropic' ? 'anthropic' : 'openai',
+      baseUrl: preset.baseUrl, apiKey: preset.apiKey,
+    }).then(rows => { if (alive) setList(rows); })
+      .catch(e => { if (alive) setErr(String(e.message || e)); })
+      .finally(() => { if (alive) setBusy(false); });
+    return () => { alive = false; };
+  }, [open, preset?.id, preset?.baseUrl, preset?.apiKey, preset?.provider]);
+
+  if (!open) return null;
+  const shown = phone.ai.filterModels(list, q);
+
+  return html`
+    <${Sheet} open=${true} onClose=${onClose} title="选择模型" height="82%">
+      <${Input} value=${q} placeholder="搜索模型" onInput=${setQ}/>
+
+      ${busy ? html`<div class="picker-state"><${Spinner}/><span>正在拉取列表</span></div>` : null}
+
+      ${err ? html`
+        <div class="warn-box">
+          拉取失败：${err}<br/>
+          可以直接在下面手填模型名。
+        </div>` : null}
+
+      ${!busy && !err && !list.length ? html`
+        <${EmptyState} icon="layers" title="接口没有返回模型列表" desc="直接手填模型名即可。"/>` : null}
+
+      ${shown.length ? html`
+        <div class="model-list">
+          ${shown.map(m => html`
+            <button key=${m} class=${`model-row press${preset.model === m ? ' is-active' : ''}`}
+              onClick=${() => { onPick(m); onClose(); }}>
+              <span class="ellipsis">${m}</span>
+              ${preset.model === m ? html`<${Icon} name="check" size=${16}/>` : null}
+            </button>`)}
+        </div>` : null}
+
+      ${q && !shown.length && list.length ? html`
+        <div class="field-desc">没有匹配的模型</div>` : null}
+
+      <div class="sheet-acts">
+        <${Button} variant="ghost" full onClick=${() => {
+          if (!q.trim()) { toast('先在上面输入模型名'); return; }
+          onPick(q.trim()); onClose();
+        }}>用输入框里的名字<//>
+      </div>
+    <//>`;
+}

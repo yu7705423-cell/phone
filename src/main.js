@@ -5,6 +5,7 @@ import { setConcurrency } from './system/ai/queue.js';
 import { healAndSave } from './screens/home/layout.js';
 import { Root } from './shell/Root.js';
 import { applyLook, applyCustomCSS } from './system/look.js';
+import { migrateLegacy } from './system/ai/services.js';
 import { nav } from './system/nav.js';
 import './screens/home/widgets.js';
 
@@ -13,6 +14,7 @@ const mount = document.getElementById('app');
 render(html`<div class="boot"><span class="spinner"></span></div>`, mount);
 
 ready.then(() => {
+  migrateLegacy();
   registerApps();
   healAndSave();
 

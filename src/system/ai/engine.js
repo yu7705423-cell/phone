@@ -2,7 +2,8 @@ import { settings, persona, characters, chats, messagesOf } from '../db/index.js
 import { assemble } from './context/index.js';
 import { DEFAULT_TEMPLATES, fillTemplate } from './templates.js';
 import { getProvider } from './providers/index.js';
-import { enqueue, cancel, isRunning } from './queue.js';
+import { activeChat, fallbackChat } from './services.js';
+import { enqueue, cancel, isRunning, isAbort } from './queue.js';
 import { parseJSON } from './sse.js';
 import { estimate, takeLatestWithin } from './tokens.js';
 
@@ -14,24 +15,43 @@ export function template(id) {
   return (s.promptTemplates && s.promptTemplates[id]) || DEFAULT_TEMPLATES[id] || '';
 }
 
-export function config() {
-  const s = settings.get();
+function asConfig(preset) {
+  if (!preset) return null;
   return {
-    provider: s.provider,
-    apiKey: s.apiKey.trim(),
-    baseUrl: s.baseUrl.trim(),
-    model: s.model.trim(),
-    temperature: s.temperature,
-    effort: s.effort,
+    id: preset.id,
+    name: preset.name,
+    provider: preset.provider,
+    apiKey: (preset.apiKey || '').trim(),
+    baseUrl: (preset.baseUrl || '').trim(),
+    model: (preset.model || '').trim(),
+    temperature: preset.temperature,
+    effort: preset.effort,
     // 不设回复上限。接口要求必须带 max_tokens，这里给到模型的上限，
     // 不作为「截断长度」暴露给用户。
     maxTokens: MAX_OUTPUT,
   };
 }
 
+export function config() { return asConfig(activeChat()); }
+export function fallbackConfig() { return asConfig(fallbackChat()); }
+
 export function isConfigured() {
   const c = config();
-  return !!(c.apiKey && c.model);
+  return !!(c && c.apiKey && c.model);
+}
+
+// 主用失败时自动换副用再试一次。取消不算失败，不触发兜底。
+async function withFallback(run) {
+  const primary = config();
+  if (!primary) throw new Error('还没有配置接口');
+  try {
+    return await run(primary);
+  } catch (err) {
+    const spare = fallbackConfig();
+    if (!spare || isAbort(err)) throw err;
+    console.warn('[ai] 主用接口失败，改用副用', err.message);
+    return run(spare);
+  }
 }
 
 function budgets(total) {
@@ -107,27 +127,24 @@ export const isReplying = (chatId, charId) => isRunning(replyKey(chatId, charId)
 export const cancelReply = (chatId, charId) => cancel(replyKey(chatId, charId));
 
 export function streamReply({ chat, char, onDelta }) {
-  const c = config();
-  const provider = getProvider(c.provider);
   const msgs = messagesOf(chat.id).filter(m => m.status !== 'error');
   const { system } = buildChatSystem(chat, char, msgs);
   const history = buildHistory(chat, char, msgs);
 
   return enqueue(replyKey(chat.id, char.id), signal =>
-    provider.stream(c, { system, messages: history, maxTokens: c.maxTokens, signal, onDelta }),
+    withFallback(c => getProvider(c.provider)
+      .stream(c, { system, messages: history, maxTokens: c.maxTokens, signal, onDelta })),
     { replace: true, retries: 1 });
 }
 
 // 结构化任务:非流式 + 稳健 JSON 解析
 export async function runJSONTask(taskId, { system, user, key, maxTokens = 1400 }) {
-  const c = config();
-  const provider = getProvider(c.provider);
   const raw = await enqueue(key || `task:${taskId}:${Date.now()}`, signal =>
-    provider.complete(c, {
+    withFallback(c => getProvider(c.provider).complete(c, {
       system,
       messages: [{ role: 'user', content: user || '请按要求输出 JSON。' }],
       maxTokens, signal,
-    }), { retries: 1 });
+    })), { retries: 1 });
 
   const parsed = parseJSON(raw);
   if (!parsed) {
@@ -139,12 +156,19 @@ export async function runJSONTask(taskId, { system, user, key, maxTokens = 1400 
 }
 
 export async function runTextTask(taskId, { system, user, key, maxTokens = 900 }) {
-  const c = config();
-  const provider = getProvider(c.provider);
   return enqueue(key || `task:${taskId}:${Date.now()}`, signal =>
-    provider.complete(c, {
+    withFallback(c => getProvider(c.provider).complete(c, {
       system,
       messages: [{ role: 'user', content: user || '请按要求输出。' }],
       maxTokens, signal,
-    }), { retries: 1 });
+    })), { retries: 1 });
+}
+
+// 用指定预设跑一次，用于设置页的连接测试
+export function runWithPreset(preset, { system, user, maxTokens = 64 }) {
+  const c = asConfig(preset);
+  return enqueue(`test:${preset.id}:${Date.now()}`, signal =>
+    getProvider(c.provider).complete(c, {
+      system, messages: [{ role: 'user', content: user }], maxTokens, signal,
+    }), { retries: 0 });
 }

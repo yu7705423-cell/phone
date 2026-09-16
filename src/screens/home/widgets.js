@@ -25,9 +25,9 @@ export const LINE_SIZES = [
 export const PLAYER_DEFAULT = {
   cover: null,
   align: 'left',
-  line1: 'Cosy Hope',   size1: 'md',
-  line2: 'Sweet Serene', size2: 'xl',
-  line3: 'Tender Dawn',  size3: 'lg',
+  line1: '', size1: 'md',
+  line2: '', size2: 'xl',
+  line3: '', size3: 'lg',
   serif: true,
 };
 
@@ -50,17 +50,17 @@ registerWidget({
       <div class=${`wg wg-player${c.align === 'right' ? ' is-right' : ''}${c.serif ? ' is-serif' : ''}`}>
         <${Cover} id=${c.cover}/>
         <div class="pl-text">
-          <div class=${`pl-line pl-${c.size1}`}>${c.line1}</div>
-          <div class=${`pl-line pl-${c.size2}`}>${c.line2}</div>
-          <div class=${`pl-line pl-${c.size3}`}>${c.line3}</div>
+          ${[1, 2, 3].map(n => c[`line${n}`]
+            ? html`<div key=${n} class=${`pl-line pl-${c[`size${n}`]}`}>${c[`line${n}`]}</div>`
+            : null)}
         </div>
-        <${Icon} name="sparkle" size=${18} class="pl-mark"/>
+        <${Icon} name="music" size=${18} class="pl-mark"/>
       </div>`;
   },
 });
 
 // ---- 自由文字块，任意尺寸 ----
-export const NOTE_DEFAULT = { line1: '写点什么', size1: 'lg', line2: '', size2: 'sm', serif: false };
+export const NOTE_DEFAULT = { line1: '', size1: 'lg', line2: '', size2: 'sm', serif: false };
 
 registerWidget({
   id: 'note',

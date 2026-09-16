@@ -10,13 +10,20 @@ export const DEFAULT_SETTINGS = {
   statusBar: 'auto',              // auto | on | off  见 shell/StatusBar.js
   showLockScreen: true,
 
-  // AI
-  provider: 'anthropic',          // anthropic | openai
+  // AI 服务配置。聊天与生图是「预设列表 + 当前选中」，语音只有一份。
+  services: {
+    chat:  { presets: [], activeId: null, fallbackId: null },
+    image: { presets: [], activeId: null },
+    voice: { enabled: false, baseUrl: '', groupId: '', apiKey: '', model: '' },
+  },
+
+  // 旧版平铺字段，仅用于首次迁移，之后不再读写
+  provider: 'anthropic',
   apiKey: '',
   baseUrl: '',
   model: 'claude-opus-5',
-  temperature: 0.9,               // 仅 OpenAI 兼容接口使用
-  effort: 'low',                  // 仅 Anthropic 使用。Opus 5 一族不接受 temperature
+  temperature: 0.9,
+  effort: 'low',
 
   // 上下文
   injectOrder: ['character', 'lorebook', 'user', 'time', 'memory'],

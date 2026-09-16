@@ -1,0 +1,121 @@
+import { html, useState } from '../../lib.js';
+import { phone, useStore } from '../../sdk/index.js';
+import { Page, List, ListItem, Field, Input, Button, Switch, Segmented,
+         Sheet, EmptyState, toast, confirm } from '../../ui/index.js';
+import { ModelPicker } from './ModelPicker.js';
+
+const { db, nav, ai } = phone;
+const svc = ai.services;
+
+const SIZES = [
+  { value: '1024x1024', label: '1:1' },
+  { value: '1024x1536', label: '2:3' },
+  { value: '1536x1024', label: '3:2' },
+];
+
+function Editor({ id, onClose }) {
+  useStore(db.settings.store);
+  const [picking, setPicking] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const preset = svc.imagePresets().find(p => p.id === id);
+  if (!preset) return null;
+  const set = patch => svc.updateImagePreset(id, patch);
+
+  const test = async () => {
+    setBusy(true);
+    try {
+      const blob = await ai.image.generate({ prompt: 'a single small black circle on white', preset, key: 'img:test' });
+      const imgId = await db.images.put(new File([blob], 'test.png', { type: blob.type }), 512);
+      toast('生成成功，已存入图片库');
+      set({ lastTest: imgId });
+    } catch (err) { toast(String(err.message || err), 'error', 5000); }
+    finally { setBusy(false); }
+  };
+
+  const del = async () => {
+    if (!await confirm({ title: '删除这个生图接口', message: preset.name, danger: true })) return;
+    svc.removeImagePreset(id);
+    onClose();
+  };
+
+  return html`
+    <${Sheet} open=${true} onClose=${onClose} title=${preset.name || '生图接口'} height="86%">
+      <${Field} label="名称">
+        <${Input} value=${preset.name} onInput=${v => set({ name: v })}/>
+      <//>
+
+      <${Field} label="类型" desc="官方直连，或填中转站地址">
+        <${Segmented} value=${preset.kind} onChange=${v => set({ kind: v, baseUrl: '' })}
+          items=${[{ value: 'openai', label: 'OpenAI 官方' }, { value: 'relay', label: '中转站' }]}/>
+      <//>
+
+      <${Field} label="API Key">
+        <${Input} type="password" value=${preset.apiKey} onInput=${v => set({ apiKey: v })}/>
+      <//>
+
+      ${preset.kind === 'relay' ? html`
+        <${Field} label="接口地址" desc="填到 /v1 为止">
+          <${Input} value=${preset.baseUrl} placeholder="https://api.example.com/v1"
+            onInput=${v => set({ baseUrl: v })}/>
+        <//>` : null}
+
+      <${Field} label="模型">
+        <${Input} value=${preset.model} onInput=${v => set({ model: v })} placeholder="生图模型名"/>
+        <div class="pad-t">
+          <${Button} size="sm" variant="ghost" icon="search"
+            onClick=${() => setPicking(true)}>拉取并选择<//>
+        </div>
+      <//>
+
+      <${Field} label="尺寸">
+        <${Segmented} value=${preset.size || '1024x1024'} items=${SIZES}
+          onChange=${v => set({ size: v })}/>
+      <//>
+
+      <div class="sheet-acts">
+        <${Button} variant="ghost" onClick=${del}>删除<//>
+        <${Button} variant="ghost" disabled=${busy || !preset.apiKey || !preset.model}
+          onClick=${test}>${busy ? '生成中' : '试生成'}<//>
+        <${Button} onClick=${onClose}>完成<//>
+      </div>
+
+      <${ModelPicker} open=${picking}
+        preset=${{ ...preset, provider: 'openai' }}
+        onPick=${m => set({ model: m })} onClose=${() => setPicking(false)}/>
+    <//>`;
+}
+
+export function ImagePage() {
+  useStore(db.settings.store);
+  const [editing, setEditing] = useState(null);
+  const img = svc.services().image;
+
+  const add = kind => {
+    const p = svc.newImagePreset({ kind, name: kind === 'openai' ? 'OpenAI' : '中转站' });
+    setEditing(p.id);
+  };
+
+  return html`
+    <${Page} title="生图" onBack=${nav.pop}>
+      ${img.presets.length ? html`
+        <${List} title="已保存的接口">
+          ${img.presets.map(p => html`
+            <${ListItem} key=${p.id} title=${p.name}
+              subtitle=${`${p.kind === 'openai' ? 'OpenAI 官方' : '中转站'} · ${p.model || '未选模型'}`}
+              arrow right=${html`<${Switch} checked=${img.activeId === p.id}
+                onChange=${() => svc.setActiveImage(p.id)}/>`}
+              onClick=${() => setEditing(p.id)}/>`)}
+        <//>`
+      : html`<${EmptyState} icon="image" title="还没有配置生图接口"
+          desc="可以存官方直连和中转站两套，随时切换。"/>`}
+
+      <div class="pad">
+        <div class="btn-row">
+          <${Button} variant="ghost" icon="plus" onClick=${() => add('openai')}>OpenAI 官方<//>
+          <${Button} variant="ghost" icon="plus" onClick=${() => add('relay')}>中转站<//>
+        </div>
+      </div>
+
+      ${editing ? html`<${Editor} id=${editing} onClose=${() => setEditing(null)}/>` : null}
+    <//>`;
+}
