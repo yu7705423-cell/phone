@@ -76,7 +76,23 @@ export function CharacterEdit({ id }) {
           <${Input} value=${char.voiceId || ''} placeholder="例如 male-qn-qingse"
             onInput=${v => patch({ voiceId: v })}/>
         <//>
+
+        <${Field} label=${`语速　${(char.voiceSpeed ?? 1).toFixed(2)}`} desc="1 是正常速度">
+          <input type="range" min="0.5" max="2" step="0.05" value=${char.voiceSpeed ?? 1}
+            onInput=${e => patch({ voiceSpeed: parseFloat(e.target.value) })}/>
+        <//>
       </div>
+
+      <${List} title="她可以主动发什么">
+        <${ListItem} title="发语音" multiline
+          subtitle=${char.voiceId ? '模型觉得合适时会用说的代替打字' : '还没填音色 ID，填了才会生效'}
+          right=${html`<${Switch} checked=${char.canSendVoice !== false}
+            onChange=${v => patch({ canSendVoice: v })}/>`}/>
+        <${ListItem} title="发图片" subtitle="模型觉得合适时会描述一个画面，交给生图接口"
+          multiline
+          right=${html`<${Switch} checked=${char.canSendImage !== false}
+            onChange=${v => patch({ canSendImage: v })}/>`}/>
+      <//>
 
       <${List} title="关联世界书">
         ${db.lorebooks.all().map(b => html`

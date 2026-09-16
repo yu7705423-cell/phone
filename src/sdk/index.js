@@ -19,6 +19,9 @@ import { fetchModels, filterModels } from '../system/ai/models.js';
 import * as voice from '../system/ai/voice.js';
 import * as image from '../system/ai/image.js';
 import * as stickerApi from '../system/stickers.js';
+import * as replyApi from '../system/ai/reply.js';
+import { files, download } from '../system/db/files.js';
+import { useFile } from '../system/db/useFile.js';
 import { BLOCKS, DEFAULT_ORDER, resolveOrder } from '../system/ai/context/index.js';
 import { toast, confirm, prompt } from '../ui/overlay.js';
 import { appLook, listAppLooks } from '../system/look.js';
@@ -36,6 +39,8 @@ export const phone = {
 
   db,
   images,
+  files,
+  downloadFile: download,
   stickers: stickerApi,
 
   // 已注册的 app 及其外观（含用户在设置里的自定义）
@@ -68,6 +73,7 @@ export const phone = {
     filterModels,
     voice,
     image,
+    reply: replyApi,
     runWithPreset: engine.runWithPreset,
 
     queue: {
@@ -97,5 +103,5 @@ export const phone = {
   uid,
 };
 
-export { useStore, useImage, phone as default };
+export { useStore, useImage, useFile, phone as default };
 export function usePhone() { return phone; }

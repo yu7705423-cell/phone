@@ -5,6 +5,7 @@ import { Page, Avatar, Icon, IconButton, Sheet, List, ListItem,
 import { splitBubbles, relTime } from '../helpers.js';
 import { StickerPanel, StickerSuggest } from './StickerPanel.js';
 import { StickerImg } from './StickerBits.js';
+import { MediaBubble } from './MediaBubble.js';
 
 const { db, nav, ai } = phone;
 
@@ -14,6 +15,7 @@ function Bubble({ msg, char, onRetry, onSwipe, onDelete }) {
   const parts = splitBubbles(msg.content);
   const swipes = msg.swipes || [];
   const sticker = msg.kind === 'sticker' ? db.stickers.get(msg.stickerId) : null;
+  const typing = msg.kind === 'typing';
 
   return html`
     <div class=${`msg${mine ? ' is-mine' : ''}`}>
@@ -24,8 +26,11 @@ function Bubble({ msg, char, onRetry, onSwipe, onDelete }) {
               ${sticker ? html`<${StickerImg} sticker=${sticker} size=${112}/>`
                         : html`<span class="stk-miss">表情已删除</span>`}
             </div>`
+          : (msg.kind === 'image' || msg.kind === 'voice')
+          ? html`<${MediaBubble} msg=${msg} char=${char} onDelete=${onDelete}/>`
           : parts.length ? parts.map((p, i) => html`
-              <div key=${i} class="bubble" onDblClick=${() => onDelete(msg)}>${p}</div>`)
+              <div key=${i} class=${`bubble${typing ? ' is-typing' : ''}`}
+                onDblClick=${() => onDelete(msg)}>${p}</div>`)
           : html`<div class="bubble bubble-empty"><span class="spinner"></span></div>`}
 
         ${msg.status === 'error' ? html`
@@ -75,34 +80,32 @@ export function Conversation({ chatId }) {
     return html`<${Page} title="会话" onBack=${nav.pop}><${EmptyState} title="这个会话已不存在"/><//>`;
   }
 
-  async function generate(replaceMsgId) {
-    if (!ai.isConfigured()) {
-      toast('还没有配置模型接口', 'error');
-      return;
-    }
+  async function generate({ turnId: reuseTurn, swipes: prevSwipes } = {}) {
+    if (!ai.isConfigured()) { toast('还没有配置模型接口', 'error'); return; }
     setBusy(true);
-    const holder = replaceMsgId
-      ? db.messages.update(replaceMsgId, { content: '', status: 'sending' })
-      : db.messages.create({
-          chatId, role: 'char', authorId: char.id, content: '',
-          status: 'sending', swipes: [], swipeIndex: 0,
-        });
+
+    // 生成中先放一条「正在输入」，流式内容打在上面
+    const typing = db.messages.create({
+      chatId, role: 'char', authorId: char.id, kind: 'typing',
+      content: '', status: 'sending',
+    });
 
     try {
       const text = await ai.streamReply({
         chat, char,
-        onDelta: (_, full) => db.messages.update(holder.id, { content: full }),
+        onDelta: (_, full) => db.messages.update(typing.id, { content: full }),
       });
       const clean = String(text || '').trim();
       if (!clean) throw new Error('模型返回了空内容');
 
-      const cur = db.messages.get(holder.id);
-      const swipes = replaceMsgId ? [...(cur.swipes || []), clean] : [clean];
-      db.messages.update(holder.id, {
-        content: clean, status: 'done',
+      db.messages.remove(typing.id);
+
+      const turnId = reuseTurn || phone.uid('turn');
+      const swipes = prevSwipes ? [...prevSwipes, clean] : [clean];
+      await ai.reply.renderTurn({
+        chat, char, raw: clean, turnId,
         swipes, swipeIndex: swipes.length - 1,
       });
-      db.chats.update(chatId, { lastMessageAt: Date.now() });
 
       if (ai.memory.shouldAutoExtract(chatId, settings.autoSummarizeInterval)) {
         ai.memory.extract(chatId)
@@ -110,10 +113,12 @@ export function Conversation({ chatId }) {
           .catch(err => console.warn('[memory] 自动提取失败', err));
       }
     } catch (err) {
-      if (ai.queue.isAbort(err)) {
-        db.messages.remove(holder.id);
-      } else {
-        db.messages.update(holder.id, { status: 'error', error: String(err.message || err) });
+      db.messages.remove(typing.id);
+      if (!ai.queue.isAbort(err)) {
+        db.messages.create({
+          chatId, role: 'char', authorId: char.id, kind: 'text',
+          content: '', status: 'error', error: String(err.message || err),
+        });
         toast(String(err.message || err), 'error', 4500);
       }
     } finally { setBusy(false); }
@@ -124,7 +129,7 @@ export function Conversation({ chatId }) {
     const text = draft.trim();
     if (!text || busy) return;
     setDraft('');
-    db.messages.create({ chatId, role: 'user', authorId: 'me', content: text, status: 'done' });
+    db.messages.create({ chatId, role: 'user', authorId: 'me', kind: 'text', content: text, status: 'done' });
     db.chats.update(chatId, { lastMessageAt: Date.now() });
   };
 
@@ -140,16 +145,25 @@ export function Conversation({ chatId }) {
   };
 
   const regenerate = async () => {
-    const last = [...msgs].reverse().find(m => m.role === 'char');
-    if (!last) return;
-    await generate(last.id);
+    const last = [...msgs].reverse().find(m => m.role === 'char' && m.turnId);
+    if (!last) { generate(); return; }
+    const head = ai.reply.turnMessages(chatId, last.turnId)[0];
+    const swipes = head?.swipes || [];
+    ai.reply.clearTurn(chatId, last.turnId);
+    await generate({ turnId: last.turnId, swipes });
   };
 
-  const onSwipe = (msg, dir) => {
+  // 切换候选不再调接口，拿存下来的原文整轮重放
+  const onSwipe = async (msg, dir) => {
     const swipes = msg.swipes || [];
     if (swipes.length < 2) return;
     const i = ((msg.swipeIndex || 0) + dir + swipes.length) % swipes.length;
-    db.messages.update(msg.id, { swipeIndex: i, content: swipes[i] });
+    const turnId = msg.turnId;
+    ai.reply.clearTurn(chatId, turnId);
+    await ai.reply.renderTurn({
+      chat, char, raw: swipes[i], turnId, swipes, swipeIndex: i,
+      instant: true,                 // 重放不需要逐条停顿
+    });
   };
 
   const onDelete = async msg => {
@@ -159,7 +173,7 @@ export function Conversation({ chatId }) {
 
   const onRetry = msg => {
     db.messages.remove(msg.id);
-    generate(null);
+    generate();
   };
 
   const summarize = async () => {
@@ -228,7 +242,7 @@ export function Conversation({ chatId }) {
               ? html`<button class="send-btn is-stop press"
                   onClick=${() => ai.cancelReply(chatId, char.id)} aria-label="停止">
                   <${Icon} name="close" size=${17}/></button>`
-              : html`<button class="send-btn press" onClick=${() => generate(null)}
+              : html`<button class="send-btn press" onClick=${() => generate()}
                   aria-label="让对方回复"><${Icon} name="sparkle" size=${17}/></button>`}
         </div>
 

@@ -1,4 +1,5 @@
-import { moments, characters, persona } from '../../db/index.js';
+import { moments, characters, persona, images } from '../../db/index.js';
+import * as imageSvc from '../image.js';
 import { template, runJSONTask } from '../engine.js';
 import { fillTemplate } from '../templates.js';
 import { listFor } from '../context/memory.js';
@@ -20,10 +21,23 @@ export async function createMoment(charId) {
 
   const r = await runJSONTask('moment.create', { system, key: `moment-create:${charId}`, maxTokens: 500 });
   if (!r?.text) throw new Error('模型没有返回动态内容');
-  return moments.create({
+  const mo = moments.create({
     authorId: charId, text: String(r.text).trim(), mood: r.mood || '',
     images: [], likes: [], comments: [],
   });
+
+  // 模型给了画面描述且配了生图接口，就顺带配一张图
+  const prompt = (r.imagePrompt || '').trim();
+  if (prompt && prompt !== 'null' && imageSvc.isImageReady()) {
+    moments.update(mo.id, { imagePending: true, imagePrompt: prompt });
+    imageSvc.generate({ prompt, key: `moment-img:${mo.id}` })
+      .then(async blob => {
+        const id = await images.put(new File([blob], 'moment.png', { type: blob.type || 'image/png' }), 1024);
+        moments.update(mo.id, { images: [id], imagePending: false });
+      })
+      .catch(err => moments.update(mo.id, { imagePending: false, imageError: String(err.message || err) }));
+  }
+  return mo;
 }
 
 export async function commentMoment(momentId, charId) {

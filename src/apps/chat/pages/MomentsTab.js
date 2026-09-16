@@ -50,6 +50,9 @@ function MomentCard({ mo, onComment }) {
       <div class="mo-main">
         <div class="mo-name">${author?.name || '已删除'}</div>
         <div class="mo-text">${mo.text}</div>
+        ${mo.imagePending ? html`
+          <div class="mo-genning"><span class="spinner"></span>正在配图</div>` : null}
+        ${mo.imageError ? html`<div class="mo-genfail">配图没生成出来：${mo.imageError}</div>` : null}
         ${(mo.images || []).length ? html`
           <div class=${`mo-photos n${Math.min(mo.images.length, 9)}`}>
             ${mo.images.slice(0, 9).map(id => html`<${Photo} key=${id} id=${id}/>`)}

@@ -67,7 +67,7 @@ export const DEFAULT_TEMPLATES = {
 - 可以不完整，可以只是一个画面
 
 ## 只输出 JSON
-{"text":"动态正文","mood":"当下心情一词"}`,
+{"text":"动态正文","mood":"当下心情一词","imagePrompt":"想配图就写画面描述，不配就写 null"}`,
 
   'task.moment-comment':
 `你是{{charName}}。下面是{{authorName}}发的一条动态：

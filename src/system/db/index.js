@@ -1,6 +1,7 @@
 import { idb } from './idb.js';
 import { makeCollection } from './collection.js';
 import { images } from './images.js';
+import { files } from './files.js';
 import { KV, DATA_VERSION, runMigrations } from './schema.js';
 import { DEFAULT_SETTINGS, DEFAULT_PERSONA, DEFAULT_LAYOUT } from './defaults.js';
 import { createStore } from '../store.js';
@@ -48,7 +49,7 @@ export const settings = makeKV(KV.settings, DEFAULT_SETTINGS, { deep: true });
 export const persona  = makeKV(KV.persona, DEFAULT_PERSONA);
 export const layout   = makeKV(KV.layout, DEFAULT_LAYOUT);
 
-export { images };
+export { images, files };
 
 // ---- 消息按会话索引 ----
 export function messagesOf(chatId) {
@@ -63,6 +64,7 @@ export const ready = (async function boot() {
   await Promise.all([
     ...Object.values(COLLECTIONS).map(c => c.load()),
     images.load(),
+    files.load(),
     settings.load(),
     persona.load(),
     layout.load(),
@@ -78,10 +80,10 @@ export const ready = (async function boot() {
   }
 })();
 
-window.addEventListener('pagehide', () => images.revokeAll());
+window.addEventListener('pagehide', () => { images.revokeAll(); files.revokeAll(); });
 
 export const db = {
   characters, lorebooks, memories, chats, messages, moments, stickers,
-  images, settings, persona, layout,
+  images, files, settings, persona, layout,
   messagesOf, lastMessageOf, ready,
 };

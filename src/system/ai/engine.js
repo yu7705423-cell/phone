@@ -3,6 +3,7 @@ import { assemble } from './context/index.js';
 import { DEFAULT_TEMPLATES, fillTemplate } from './templates.js';
 import { getProvider } from './providers/index.js';
 import { activeChat, fallbackChat } from './services.js';
+import { mediaInstruction } from './reply.js';
 import { enqueue, cancel, isRunning, isAbort } from './queue.js';
 import { parseJSON } from './sse.js';
 import { estimate, takeLatestWithin } from './tokens.js';
@@ -92,6 +93,7 @@ export function buildChatSystem(chat, char, msgs) {
   }
 
   out += '\n\n' + template('skeleton.closing');
+  out += mediaInstruction(char);
   return { system: out, failed, tokens: estimate(out) };
 }
 
