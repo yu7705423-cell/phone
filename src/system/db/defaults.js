@@ -71,8 +71,6 @@ export const DEFAULT_LAYOUT = {
         { id: 'd1', kind: 'app', ref: 'stub-mail', x: 0, y: 0, w: 1, h: 1 },
         { id: 'd2', kind: 'app', ref: 'stub-map',  x: 1, y: 0, w: 1, h: 1 },
         { id: 'd3', kind: 'widget', ref: 'clock',  x: 2, y: 0, w: 2, h: 1 },
-        { id: 'd4', kind: 'placeholder', label: '空位', x: 0, y: 1, w: 1, h: 1 },
-        { id: 'd5', kind: 'placeholder', label: '空位', x: 1, y: 1, w: 1, h: 1 },
       ],
     },
   ],

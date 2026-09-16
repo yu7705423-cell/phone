@@ -1,31 +1,52 @@
 import { layout } from '../../system/db/index.js';
-import { hasApp, hasWidget, listApps } from '../../system/registry.js';
+import { hasApp, hasWidget, listApps, getWidget } from '../../system/registry.js';
 import { GRID_COLS, DOCK_SIZE } from '../../system/db/defaults.js';
 import { uid } from '../../system/store.js';
 
-const ph = (x, y) => ({ id: uid('c'), kind: 'placeholder', label: '空位', x, y, w: 1, h: 1 });
+export const MIN_ROWS = 6;
 
-function occupy(cells) {
-  const taken = new Set();
+// 没有「占位格」这种记录。空位是算出来的：网格里凡是没被占的坐标都可以点。
+// 这样图标可以直接挪到任何空白处，而不是只能和同样大小的位置交换。
+export function occupied(cells, skipId) {
+  const taken = new Map();
   for (const c of cells) {
+    if (c.id === skipId) continue;
     for (let dy = 0; dy < c.h; dy++) {
-      for (let dx = 0; dx < c.w; dx++) taken.add(`${c.x + dx},${c.y + dy}`);
+      for (let dx = 0; dx < c.w; dx++) taken.set(`${c.x + dx},${c.y + dy}`, c);
     }
   }
   return taken;
 }
 
-function fits(taken, x, y, w, h) {
-  if (x < 0 || x + w > GRID_COLS) return false;
+export function fits(taken, x, y, w, h) {
+  if (x < 0 || x + w > GRID_COLS || y < 0) return false;
   for (let dy = 0; dy < h; dy++) {
     for (let dx = 0; dx < w; dx++) if (taken.has(`${x + dx},${y + dy}`)) return false;
   }
   return true;
 }
 
-function place(cells, w, h) {
-  const taken = occupy(cells);
-  for (let y = 0; y < 40; y++) {
+// 整理时多留一行，页面摆满了也有地方可以放东西
+export function rowsOf(page, editing = false) {
+  const need = Math.max(0, ...(page.cells || []).map(c => c.y + c.h));
+  return Math.max(MIN_ROWS, need + (editing ? 1 : 0));
+}
+
+// 页面里所有空坐标，供渲染成可点的空格子
+export function freeSlots(page, rows) {
+  const taken = occupied(page.cells || []);
+  const out = [];
+  for (let y = 0; y < rows; y++) {
+    for (let x = 0; x < GRID_COLS; x++) {
+      if (!taken.has(`${x},${y}`)) out.push({ x, y });
+    }
+  }
+  return out;
+}
+
+function findSpot(page, w, h, skipId) {
+  const taken = occupied(page.cells || [], skipId);
+  for (let y = 0; y < 60; y++) {
     for (let x = 0; x <= GRID_COLS - w; x++) {
       if (fits(taken, x, y, w, h)) return { x, y };
     }
@@ -33,76 +54,149 @@ function place(cells, w, h) {
   return null;
 }
 
-// 自愈。引用失效的单元转成 placeholder 而不是直接删,否则版式会塌。
-// 见 ARCHITECTURE 3.8
+// 把被挤走的格子安置到别处：本页空位优先，其次下一页，都没有就新建一页
+function relocate(lay, pageIdx, cell) {
+  const spot = findSpot(lay.pages[pageIdx], cell.w, cell.h);
+  if (spot) { lay.pages[pageIdx].cells.push({ ...cell, ...spot }); return; }
+  for (let i = pageIdx + 1; i < lay.pages.length; i++) {
+    const s = findSpot(lay.pages[i], cell.w, cell.h);
+    if (s) { lay.pages[i].cells.push({ ...cell, ...s }); return; }
+  }
+  lay.pages.push({ id: uid('p'), cells: [{ ...cell, x: 0, y: 0 }] });
+}
+
+// 在指定坐标放东西。挡路的格子会被挪走，而不是拒绝放置。
+export function placeAtXY(pageIdx, x, y, next) {
+  const lay = structuredClone(layout.get());
+  const page = lay.pages[pageIdx];
+  if (!page) return { ok: false, reason: '页面不存在' };
+
+  const w = Math.max(1, Math.min(GRID_COLS, next.w || 1));
+  const h = Math.max(1, next.h || 1);
+  const px = Math.min(x, GRID_COLS - w);
+  if (px < 0) return { ok: false, reason: '一行只有四格，放不下这个宽度' };
+
+  const displaced = page.cells.filter(c =>
+    c.x < px + w && c.x + c.w > px && c.y < y + h && c.y + c.h > y);
+  page.cells = page.cells.filter(c => !displaced.some(d => d.id === c.id));
+  page.cells.push({ id: uid('c'), x: px, y, w, h, ...next });
+  displaced.forEach(c => relocate(lay, pageIdx, c));
+
+  layout.replace(lay);
+  return { ok: true };
+}
+
+export function placeAt(pageIdx, cellId, next) {
+  const page = layout.get().pages[pageIdx];
+  const cell = page?.cells.find(c => c.id === cellId);
+  if (!cell) return { ok: false, reason: '位置不存在' };
+  const lay = structuredClone(layout.get());
+  lay.pages[pageIdx].cells = lay.pages[pageIdx].cells.filter(c => c.id !== cellId);
+  layout.replace(lay);
+  return placeAtXY(pageIdx, cell.x, cell.y, next);
+}
+
+// 移到某个坐标。目标被占就交换，占不下就把对方挪走。
+export function moveTo(pageIdx, cellId, x, y) {
+  const lay = structuredClone(layout.get());
+  const page = lay.pages[pageIdx];
+  const cell = page?.cells.find(c => c.id === cellId);
+  if (!cell) return { ok: false, reason: '位置不存在' };
+
+  const px = Math.min(Math.max(0, x), GRID_COLS - cell.w);
+  const others = page.cells.filter(c => c.id !== cellId);
+  const hit = others.filter(c =>
+    c.x < px + cell.w && c.x + c.w > px && c.y < y + cell.h && c.y + c.h > y);
+
+  // 正好和一个同样大小的格子重合：直接对调，最符合直觉
+  if (hit.length === 1 && hit[0].w === cell.w && hit[0].h === cell.h) {
+    const other = hit[0];
+    const ox = other.x, oy = other.y;
+    other.x = cell.x; other.y = cell.y;
+    cell.x = ox; cell.y = oy;
+    layout.replace(lay);
+    return { ok: true };
+  }
+
+  page.cells = page.cells.filter(c => !hit.some(v => v.id === c.id));
+  cell.x = px; cell.y = y;
+  hit.forEach(c => relocate(lay, pageIdx, c));
+  layout.replace(lay);
+  return { ok: true };
+}
+
+export function clearCell(pageIdx, cellId) {
+  const lay = structuredClone(layout.get());
+  const page = lay.pages[pageIdx];
+  if (!page) return false;
+  const before = page.cells.length;
+  page.cells = page.cells.filter(c => c.id !== cellId);
+  if (page.cells.length === before) return false;
+  layout.replace(lay);
+  return true;
+}
+
+// 自愈。引用失效的直接去掉，留下的空位本来就可点，不需要再造占位记录。
 export function heal(raw) {
   const lay = structuredClone(raw);
   lay.pages = Array.isArray(lay.pages) && lay.pages.length ? lay.pages : [{ id: uid('p'), cells: [] }];
-
-  const placed = new Set();
+  const seen = new Set();
 
   for (const page of lay.pages) {
     const kept = [];
     for (const cell of (page.cells || [])) {
-      let c = { ...cell };
+      const c = { ...cell };
       c.w = Math.max(1, Math.min(GRID_COLS, c.w | 0 || 1));
       c.h = Math.max(1, Math.min(6, c.h | 0 || 1));
+      if (!c.id) c.id = uid('c');
 
-      if (c.kind === 'app' && !hasApp(c.ref)) c = { ...ph(c.x, c.y), x: c.x, y: c.y, w: c.w, h: c.h };
-      else if (c.kind === 'widget' && !hasWidget(c.ref)) c = { ...ph(c.x, c.y), x: c.x, y: c.y, w: c.w, h: c.h };
       if (c.kind === 'app') {
-        if (placed.has(c.ref)) c = { ...ph(c.x, c.y), x: c.x, y: c.y, w: 1, h: 1 };
-        else placed.add(c.ref);
+        if (!hasApp(c.ref) || seen.has(c.ref)) continue;
+        seen.add(c.ref);
+      } else if (c.kind === 'widget') {
+        if (!hasWidget(c.ref)) continue;
+      } else {
+        continue;                       // 旧数据里的 placeholder 记录一并清掉
       }
 
-      // 越界或重叠:重新落位
-      const taken = occupy(kept);
+      const taken = occupied(kept);
       if (!fits(taken, c.x, c.y, c.w, c.h)) {
-        const spot = place(kept, c.w, c.h);
+        const spot = findSpot({ cells: kept }, c.w, c.h);
         if (!spot) continue;
         c.x = spot.x; c.y = spot.y;
       }
-      if (!c.id) c.id = uid('c');
       kept.push(c);
     }
     page.cells = kept;
   }
 
-  // Dock
   const dock = Array.from({ length: DOCK_SIZE }, (_, i) => {
     const id = (lay.dock || [])[i];
     return id && hasApp(id) ? id : null;
   });
-  dock.forEach(id => id && placed.add(id));
+  dock.forEach(id => id && seen.add(id));
   lay.dock = dock;
 
-  // 已注册但没摆出来的 app:优先占用最近的 placeholder,否则追加
-  const missing = listApps().filter(a => a.showOnHome !== false && !placed.has(a.id));
-  for (const app of missing) {
+  // 已注册但没摆出来的 app：找个空位放上
+  for (const app of listApps()) {
+    if (app.showOnHome === false || seen.has(app.id)) continue;
     let done = false;
-    for (const page of lay.pages) {
-      const slot = page.cells.find(c => c.kind === 'placeholder' && c.w === 1 && c.h === 1);
-      if (slot) {
-        slot.kind = 'app'; slot.ref = app.id; delete slot.label;
-        done = true; break;
+    for (let i = 0; i < lay.pages.length && !done; i++) {
+      const spot = findSpot(lay.pages[i], 1, 1);
+      if (spot) {
+        lay.pages[i].cells.push({ id: uid('c'), kind: 'app', ref: app.id, ...spot, w: 1, h: 1 });
+        done = true;
       }
     }
-    if (done) continue;
-    const last = lay.pages[lay.pages.length - 1];
-    const spot = place(last.cells, 1, 1);
-    if (spot) last.cells.push({ id: uid('c'), kind: 'app', ref: app.id, ...spot, w: 1, h: 1 });
-    else {
-      const page = { id: uid('p'), cells: [{ id: uid('c'), kind: 'app', ref: app.id, x: 0, y: 0, w: 1, h: 1 }] };
-      lay.pages.push(page);
+    if (!done) {
+      lay.pages.push({ id: uid('p'), cells: [{ id: uid('c'), kind: 'app', ref: app.id, x: 0, y: 0, w: 1, h: 1 }] });
     }
+    seen.add(app.id);
   }
 
-  // 空页删除(第一页除外)
   lay.pages = lay.pages.filter((p, i) => i === 0 || p.cells.length > 0);
   if (!lay.pages.length) lay.pages = [{ id: uid('p'), cells: [] }];
-
-  const n = lay.pages.length;
-  lay.currentPage = Math.min(Math.max(0, lay.currentPage | 0), n - 1);
+  lay.currentPage = Math.min(Math.max(0, lay.currentPage | 0), lay.pages.length - 1);
   return lay;
 }
 
@@ -112,8 +206,11 @@ export function healAndSave() {
   return healed;
 }
 
-export function rowsOf(page) {
-  return Math.max(4, ...(page.cells || []).map(c => c.y + c.h));
+export function addPage() {
+  const lay = structuredClone(layout.get());
+  lay.pages.push({ id: uid('p'), cells: [] });
+  lay.currentPage = lay.pages.length - 1;
+  layout.replace(lay);
 }
 
 export function removePage(i) {
@@ -126,80 +223,10 @@ export function removePage(i) {
   return true;
 }
 
-export function addPage() {
-  const lay = structuredClone(layout.get());
-  lay.pages.push({ id: uid('p'), cells: [] });
-  lay.currentPage = lay.pages.length - 1;
-  layout.replace(lay);
-}
-
 export function setPage(i) {
   const lay = layout.get();
   if (i < 0 || i >= lay.pages.length || i === lay.currentPage) return;
   layout.set({ currentPage: i });
-}
-
-export function moveCell(pageIdx, cellId, x, y) {
-  const lay = structuredClone(layout.get());
-  const page = lay.pages[pageIdx];
-  const cell = page?.cells.find(c => c.id === cellId);
-  if (!cell) return;
-  const others = page.cells.filter(c => c.id !== cellId);
-  if (!fits(occupy(others), x, y, cell.w, cell.h)) return;
-  cell.x = x; cell.y = y;
-  layout.replace(lay);
-}
-
-export function swapCells(pageIdx, aId, bId) {
-  const lay = structuredClone(layout.get());
-  const page = lay.pages[pageIdx];
-  const a = page?.cells.find(c => c.id === aId);
-  const b = page?.cells.find(c => c.id === bId);
-  if (!a || !b || a.w !== b.w || a.h !== b.h) return;
-  [a.x, b.x] = [b.x, a.x];
-  [a.y, b.y] = [b.y, a.y];
-  layout.replace(lay);
-}
-
-// 把某个位置换成别的内容。新内容比原位置大时，会吃掉被覆盖的占位格；
-// 若压到了非占位的格子则拒绝，由调用方提示。
-export function placeAt(pageIdx, cellId, next) {
-  const lay = structuredClone(layout.get());
-  const page = lay.pages[pageIdx];
-  if (!page) return { ok: false, reason: '页面不存在' };
-  const target = page.cells.find(c => c.id === cellId);
-  if (!target) return { ok: false, reason: '位置不存在' };
-
-  const w = Math.max(1, Math.min(GRID_COLS, next.w || 1));
-  const h = Math.max(1, next.h || 1);
-  const x = target.x, y = target.y;
-  if (x + w > GRID_COLS) return { ok: false, reason: '这个位置右边放不下' };
-
-  const covered = page.cells.filter(c =>
-    c.x < x + w && c.x + c.w > x && c.y < y + h && c.y + c.h > y);
-  const blocking = covered.filter(c => c.id !== cellId && c.kind !== 'placeholder');
-  if (blocking.length) return { ok: false, reason: '这里放不下，先把周围的挪开' };
-
-  page.cells = page.cells.filter(c => !covered.some(v => v.id === c.id));
-  page.cells.push({ id: uid('c'), x, y, w, h, ...next });
-  layout.replace(lay);
-  return { ok: true };
-}
-
-// 移除某个位置的内容，原地留下等大的占位格
-export function clearCell(pageIdx, cellId) {
-  const lay = structuredClone(layout.get());
-  const page = lay.pages[pageIdx];
-  const cell = page?.cells.find(c => c.id === cellId);
-  if (!cell) return false;
-  page.cells = page.cells.filter(c => c.id !== cellId);
-  for (let dy = 0; dy < cell.h; dy++) {
-    for (let dx = 0; dx < cell.w; dx++) {
-      page.cells.push(ph(cell.x + dx, cell.y + dy));
-    }
-  }
-  layout.replace(lay);
-  return true;
 }
 
 export function setCellConfig(cellId, config) {
@@ -211,14 +238,6 @@ export function setCellConfig(cellId, config) {
       layout.replace(lay);
       return cell.config;
     }
-  }
-  return null;
-}
-
-export function findCellByWidget(widgetId) {
-  for (const page of layout.get().pages) {
-    const cell = page.cells.find(c => c.kind === 'widget' && c.ref === widgetId);
-    if (cell) return cell;
   }
   return null;
 }

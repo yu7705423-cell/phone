@@ -9,7 +9,7 @@ import { WidgetEditor } from './WidgetEditor.js';
 import { CellEditor } from './CellEditor.js';
 import { openApp } from '../../system/nav.js';
 import { GRID_COLS } from '../../system/db/defaults.js';
-import { rowsOf, setPage, swapCells, healAndSave, addPage, removePage } from './layout.js';
+import { rowsOf, setPage, moveTo, healAndSave, addPage, removePage, freeSlots } from './layout.js';
 import { toast } from '../../ui/overlay.js';
 
 function unreadFor(appId) {
@@ -19,15 +19,6 @@ function unreadFor(appId) {
 
 function Cell({ cell, edit, onPick, picked, onEditWidget }) {
   const style = `grid-column:${cell.x + 1}/span ${cell.w};grid-row:${cell.y + 1}/span ${cell.h}`;
-
-  if (cell.kind === 'placeholder') {
-    return html`
-      <div class=${`cell cell-ph${edit ? ' is-edit' : ''}`} style=${style}
-        onClick=${() => edit ? onPick(cell) : toast('长按主界面可以往这里放东西')}>
-        <${Icon} name="plus" size=${18}/>
-        <span>${cell.label || '空位'}</span>
-      </div>`;
-  }
 
   if (cell.kind === 'widget') {
     const wg = getWidget(cell.ref);
@@ -79,7 +70,8 @@ export function HomeScreen() {
   const pages = lay.pages || [];
   const idx = Math.min(lay.currentPage || 0, Math.max(0, pages.length - 1));
   const page = pages[idx] || { cells: [] };
-  const rows = rowsOf(page);
+  const rows = rowsOf(page, edit);
+  const slots = edit ? freeSlots(page, rows) : [];
 
   // 格子边长取「按宽度均分」与「按高度均分」中较小的那个:
   // 前者保证 1x1 是方的,后者保证整页不溢出。
@@ -101,18 +93,26 @@ export function HomeScreen() {
   }, [rows]);
 
   // 整理模式:没有待交换目标时点开这个位置的菜单;有目标时完成交换
+  // 整理模式：没有待移动目标时点开菜单；有目标时把它挪到这里
   const onPick = cell => {
     if (swallowTap.current) return;
     if (!picked) { setEditingCell(cell); return; }
     if (picked === cell.id) { setPicked(null); return; }
-    const a = page.cells.find(c => c.id === picked);
-    if (a && (a.w !== cell.w || a.h !== cell.h)) {
-      toast('只能和同样大小的位置交换');
+    const r = moveTo(idx, picked, cell.x, cell.y);
+    if (!r.ok) toast(r.reason, 'error');
+    setPicked(null);
+  };
+
+  // 点空位：有待移动目标就挪过来，否则打开菜单往这里放东西
+  const onPickSlot = (x, y) => {
+    if (swallowTap.current) return;
+    if (picked) {
+      const r = moveTo(idx, picked, x, y);
+      if (!r.ok) toast(r.reason, 'error');
       setPicked(null);
       return;
     }
-    swapCells(idx, picked, cell.id);
-    setPicked(null);
+    setEditingCell({ slot: true, x, y, w: 1, h: 1 });
   };
 
   const startPress = () => {
@@ -160,6 +160,12 @@ export function HomeScreen() {
         ${page.cells.map(c => html`
           <${Cell} key=${c.id} cell=${c} edit=${edit} picked=${picked === c.id}
             onPick=${onPick} onEditWidget=${setEditingWidget}/>`)}
+        ${edit ? slots.map(sl => html`
+          <div key=${`${sl.x},${sl.y}`} class="cell cell-slot"
+            style=${`grid-column:${sl.x + 1};grid-row:${sl.y + 1}`}
+            onClick=${() => onPickSlot(sl.x, sl.y)}>
+            <${Icon} name="plus" size=${16}/>
+          </div>`) : null}
       </div>
 
       <div class="page-dots">

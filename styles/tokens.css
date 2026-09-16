@@ -89,7 +89,8 @@
 
   /* 结构尺寸 */
   --statusbar-h: 26px;
-  --dock-h:      88px;
+  --dock-h:      84px;
+  --grid-gap:    10px;
   --navbar-h:    48px;
   --tabbar-h:    54px;
 

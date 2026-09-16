@@ -2,7 +2,7 @@ import { html, useState } from '../../lib.js';
 import { Sheet, List, ListItem, Icon, Button, toast } from '../../ui/index.js';
 import { listWidgets } from '../../system/registry.js';
 import { listAppLooks } from '../../system/look.js';
-import { placeAt, clearCell } from './layout.js';
+import { placeAt, placeAtXY, clearCell } from './layout.js';
 
 const sizeLabel = (w, h) => `${w} x ${h}`;
 
@@ -14,8 +14,10 @@ export function CellEditor({ cell, pageIdx, onClose, onSwapFrom }) {
   const widgets = listWidgets();
   const apps = listAppLooks();
 
+  const isSlot = !!cell.slot;
   const put = next => {
-    const r = placeAt(pageIdx, cell.id, next);
+    const r = isSlot ? placeAtXY(pageIdx, cell.x, cell.y, next)
+                     : placeAt(pageIdx, cell.id, next);
     if (!r.ok) { toast(r.reason, 'error'); return; }
     onClose();
   };
@@ -41,16 +43,17 @@ export function CellEditor({ cell, pageIdx, onClose, onSwapFrom }) {
         left=${html`<${Icon} name="grid" size=${18}/>`} onClick=${() => setTab('widget')}/>
       <${ListItem} title="放一个应用" arrow
         left=${html`<${Icon} name="layers" size=${18}/>`} onClick=${() => setTab('app')}/>
-      <${ListItem} title="和别的位置交换" subtitle="接着点另一个同样大小的位置" arrow
-        left=${html`<${Icon} name="drag" size=${18}/>`}
-        onClick=${() => { onSwapFrom(cell.id); onClose(); }}/>
-      ${cell.kind !== 'placeholder' ? html`
+      ${!isSlot ? html`
+        <${ListItem} title="移动到别处" subtitle="接着点想放到的位置，占着的会自动让开" arrow multiline
+          left=${html`<${Icon} name="drag" size=${18}/>`}
+          onClick=${() => { onSwapFrom(cell.id); onClose(); }}/>
         <${ListItem} title="移除" danger arrow
           left=${html`<${Icon} name="trash" size=${18}/>`}
           onClick=${() => { clearCell(pageIdx, cell.id); onClose(); }}/>` : null}
     <//>`;
 
-  const title = tab === 'widget' ? '选一个小组件' : tab === 'app' ? '选一个应用' : '这个位置';
+  const title = tab === 'widget' ? '选一个小组件' : tab === 'app' ? '选一个应用'
+    : (isSlot ? '这个空位' : '这个位置');
 
   return html`
     <${Sheet} open=${true} onClose=${onClose} title=${title} height=${tab === 'root' ? null : '72%'}>
