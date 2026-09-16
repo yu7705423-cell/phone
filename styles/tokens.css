@@ -41,6 +41,10 @@
   --capsule-border: transparent;
   --glass-blur:     18px;
 
+  /* 分组胶囊：极浅的灰底，不描边 */
+  --group-fill: #F5F5F5;
+  --group-line: rgba(0, 0, 0, .07);
+
   /* 圆角 */
   --r-xs: 6px;
   --r-sm: 10px;
@@ -147,6 +151,9 @@
   --wg-solid:    #0B0B0B;
   --capsule-bg:     rgba(255, 255, 255, .08);
   --capsule-border: transparent;
+
+  --group-fill: #121212;
+  --group-line: rgba(255, 255, 255, .08);
 
   --shadow-1: 0 1px 2px rgba(0, 0, 0, .5);
   --shadow-2: 0 4px 16px rgba(0, 0, 0, .6);
