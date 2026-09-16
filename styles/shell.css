@@ -67,7 +67,11 @@
   box-shadow: none;
 }
 .app-tile svg { color: var(--icon-color); width: 52%; height: 52%; }
-.app-tile.has-image { background-size: cover; background-position: center; }
+/* 图标整张放进去，永远不裁。存的时候已经补成方图带透明边，
+   这里再用 contain 兜一层：格子万一不是正方也不会切掉。 */
+.app-tile.has-image {
+  background-size: contain; background-position: center; background-repeat: no-repeat;
+}
 .app-name {
   font-size: var(--fs-11); color: var(--text-2); max-width: 100%;
   text-align: center; line-height: 1.2;
