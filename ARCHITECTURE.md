@@ -149,18 +149,41 @@ system/ 可以 import: ui/, icons/, vendor/
 
 ### 3.3 memories 记忆
 
+沿用 rainyword 的 rank + category + keywords 三件套,补上 scope 分层。
+
 ```js
 {
   id: 'mem_xxx',
   scope: 'global' | 'character:<id>' | 'chat:<id>',
-  content: '一条事实性记忆',
-  importance: 1..5,
+  content: '简洁的第三人称陈述',
+  category: 'fact'|'emotion'|'pending'|'pattern'|'relation'|'profile',
+  rank: 'S'|'A'|'B'|'C',
+  keywords: ['关键词'],        // B 级必须有,用于命中判定
   source: 'auto' | 'manual',
-  tags: [],
-  createdAt,
-  lastUsedAt
+  createdAt, updatedAt
 }
 ```
+
+六类语义(针对陪伴型对话设计,不要换成通用分类):
+
+| category | 含义 |
+|---|---|
+| `fact` | 关键事实: 姓名、年龄、职业、学校、喜好、经历 |
+| `emotion` | 情绪印记: 表达过的情绪、什么让人开心/难过、有效的安慰方式 |
+| `pending` | 未完结事项: 提到但没结果的事,如考试、面试、等结果 |
+| `pattern` | 互动模式: 说话习惯、称呼偏好、聊天风格偏好 |
+| `relation` | 关系阶段: 与角色的关系状态和重要转折 |
+| `profile` | 用户画像: 沟通风格、性格特点、价值观 |
+
+`pending` 是让角色能主动追问"上次说的面试怎么样了"的来源,不要省略。
+
+**注入规则**(见 4.5):
+- S / A 级全量注入
+- B 级在扫描窗口中命中 `keywords` 才注入
+- C 级不注入,仅在记忆管理页可见
+
+**记忆缓冲区** `memoryBuffer[chatId]`: 尚未总结的原始对话,与 messages 分开存,
+总结完成后清空。上限 200 条,超出丢弃最旧的。
 
 ### 3.4 chats / messages 会话与消息
 
@@ -280,6 +303,47 @@ export const momentCreate = {
 
 **新增一种 AI 行为 = 新增一个 TaskSpec 文件,引擎代码零改动。** 这是防返工的核心机制。
 
+**B2. 可排序注入与容错**(继承自 rainyword 的 PROMPT_BLOCKS)
+
+`chat.reply` 的上下文区块顺序对用户可配,存在 `settings.injectOrder`。
+两条防御性写法必须保留,它们是"加功能不炸老数据"的实际保障:
+
+```js
+// 1. 读顺序时做清洗: 丢掉不认识的 id,补上配置里缺失的
+function getInjectOrder() {
+  const known = Object.keys(CONTEXT_BLOCKS);
+  const seen = new Set(), out = [];
+  (settings.injectOrder || []).forEach(id => {
+    if (known.includes(id) && !seen.has(id)) { seen.add(id); out.push(id); }
+  });
+  DEFAULT_ORDER.forEach(id => { if (!seen.has(id)) { seen.add(id); out.push(id); } });
+  return out;
+}
+
+// 2. 每个区块单独 try/catch,一个区块出错不拖垮整个 prompt
+for (const id of getInjectOrder()) {
+  let text = '';
+  try { text = CONTEXT_BLOCKS[id].build(ctx) || ''; } catch (e) { text = ''; report(id, e); }
+  if (text) prompt += text;
+}
+```
+
+没有第 1 条,以后每新增一个区块,老用户的 `injectOrder` 里就缺一项,
+该区块永远不注入,而且是静默失败,最难排查。
+
+**B3. 骨架的固定段落**
+
+身份开场与风格收尾不参与排序,固定在首尾:
+
+```
+开场: 你不是AI助手。你不是在扮演角色。你就是<角色名>，正在用手机和<用户名>发消息。
+收尾: 你的每次回复由1条或多条消息组成（\n\n分隔）。
+      这是手机聊天。一条消息就是一个念头。
+      你有自己的情绪和立场。你的反应忠于你这个人，不迁就对方。
+```
+
+"一条消息就是一个念头"直接约束了模型写长段落的倾向,是这段骨架里最有效的一句。
+
 **C. Provider 适配层** - 统一请求与流式解析:
 
 - Anthropic 原生 (默认模型 `claude-opus-5`)
@@ -315,12 +379,47 @@ Anthropic SSE 事件流按 `content_block_delta` 逐字追加。
 世界书 app 必须提供**激活预览**: 输入一段文本,显示会激活哪些条目、各占多少 token。
 没有这个调试视图,后期排查 prompt 问题只能盲猜。
 
-### 4.5 记忆检索
+### 4.5 记忆注入与提取
 
-- 短期: 最近 N 条消息原文直接进 prompt
-- 长期: 按 scope 过滤 -> 按关键词命中 / importance / 新近度打分 -> 取 top N
-- 自动提取: 每累计 N 条消息触发一次 `memory.extract`
-- 用户可在记忆 app 手动增删改,并能区分自动与手动来源
+**注入**(`context/memory.js`):
+
+1. 按 scope 收集: `global` + `character:<当前角色>` + `chat:<当前会话>`
+2. S / A 级直接入选
+3. B 级在**扫描窗口**中匹配 `keywords` 才入选
+   - 扫描窗口 = 最近 N 条消息拼接的文本,与世界书共用同一个窗口
+   - rainyword 原实现只扫最后一条用户消息,窗口过窄:
+     上一句说"下周面试"、这一句说"好紧张",记忆就命中不了。必须改
+4. C 级不注入
+5. 按 rank -> 更新时间排序,**截断到 token 预算内**
+   - rainyword 原实现无预算控制,记忆攒到两百条时 prompt 会溢出
+   - 记忆管理页需显示"当前注入约 N token"
+
+输出格式:
+
+```
+[对话记忆 — 基于历史对话的客观分析结果，请自然地运用这些信息]
+[S/事实] ...
+[A/情绪] ...
+```
+
+**提取**(`tasks/memory-extract.js`):
+
+- 触发: 每累计 N 轮 AI 回复(`settings.autoSummarizeInterval`,0 为关闭),
+  或用户在会话菜单手动"立即总结记忆"
+- 输入: 记忆缓冲区的原始对话 + **已有记忆档案全文**
+- 要求模型以客观第三方视角分析,明确声明"你不是对话中的任何一方"
+- 去重靠两条: 提示词里要求"与已有记忆重复的不要输出",
+  以及模型可返回 `updateId` 指定更新某条已有记忆而非新增
+- `pending` 已有结果的标注"（已完结）",更新过的内容标注"（更新）"
+- 输出严格 JSON:
+
+```json
+{"memories":[{"content":"","category":"fact","rank":"A","keywords":[],"updateId":""}]}
+```
+
+**JSON 解析必须比原实现稳。** rainyword 用 `raw.match(/\{[\s\S]*\}/)` 贪婪匹配,
+模型若在 JSON 前后各写一段含大括号的文字就会连带吞掉。正确做法:
+先尝试整体 `JSON.parse`,失败再扫描第一个括号平衡的对象,再失败才报错重试。
 
 ### 4.6 朋友圈闭环
 
@@ -627,7 +726,51 @@ phone.settings.get(key) / set(key, v)
 
 ---
 
-## 13. 待确认
+## 13. 从 rainyword 继承的设计
+
+来源: `yu7705423-cell/rainyword`(单词学习陪伴 app,单文件 index.html)。
+其 V2 的 prompt 架构与记忆系统已在真实使用中验证过,直接作为本项目的基础。
+
+### 13.1 原样继承
+
+| 设计 | 说明 |
+|---|---|
+| 可排序 prompt 区块 | 每个上下文一个 `build()`,按用户可配顺序拼接;顺序清洗 + 逐块 try/catch |
+| 固定开场与收尾 | 身份声明与"一条消息就是一个念头"的回复风格约束 |
+| 记忆 rank S/A/B/C | S/A 全注入,B 关键词命中,C 仅存档。可解释,用户在管理页能看懂为什么某条没生效 |
+| 记忆六分类 | fact / emotion / pending / pattern / relation / profile |
+| `updateId` 更新机制 | 模型指定更新已有条目而非重复新增,防记忆膨胀 |
+| 提取时带入已有档案 | 配合"重复的不要输出",构成去重的另一半 |
+| 记忆缓冲区独立存储 | 未总结的对话与 messages 分开,总结后清空 |
+| 时间情境注入 | 现在几点 + 距上次聊天多久,转自然语言表述 |
+
+### 13.2 搬运时必须修正
+
+| 问题 | 原实现 | 本项目 |
+|---|---|---|
+| 记忆无 scope 分层 | `charMemories[charId]` 一个角色一份 | 加 `global` / `character` / `chat` 三层 |
+| B 级扫描窗口过窄 | 只扫最后一条用户消息 | 扫最近 N 条消息,与世界书共用窗口 |
+| 无 token 预算 | S/A 无条件全注入 | 按 rank 与新近度排序后截断,管理页显示占用 |
+| 世界书过于简陋 | 仅 enabled + global/local | 补齐关键词触发、优先级、插入位置、预算(见 3.2 / 4.4) |
+| JSON 解析不稳 | 贪婪正则 `/\{[\s\S]*\}/` | 整体 parse -> 括号平衡扫描 -> 报错重试 |
+| 硬编码 OpenAI 格式 | 直接拼 `/chat/completions` | 走 provider 适配层 |
+| 无请求队列 | 直接 fetch,总结与回复可能并发 | 统一走 AIQueue |
+
+### 13.3 改造复用
+
+`generateScenarioSeeds` 在原项目中为目标词生成"不含该词的话题线索",
+其**两步法**(先单独生成角色近况,再由角色自然聊起)正是朋友圈动态该用的套路:
+
+```
+第一步  生成角色最近经历了什么(独立调用,产出若干条近况)
+第二步  以近况为素材产出朋友圈动态 / 主动发起的聊天话题
+```
+
+对应 `tasks/moment-create.js` 与后续的"角色主动发消息"能力。
+
+---
+
+## 14. 待确认
 
 1. 四个 tab 的"主页"理解为**我的**主页(我的人设、我发的动态、设置入口),
    角色主页从联系人进入,两者复用同一 Profile 组件。是否正确?
