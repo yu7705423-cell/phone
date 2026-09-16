@@ -5,7 +5,8 @@ import { manifest as chat } from './chat/manifest.js';
 import { manifest as lorebook } from './lorebook/manifest.js';
 import { manifest as memory } from './memory/manifest.js';
 import { manifest as settingsApp } from './settings/manifest.js';
+import { stubManifests } from './stub/manifests.js';
 
 export function registerApps() {
-  [chat, lorebook, memory, settingsApp].forEach(registerApp);
+  [chat, lorebook, memory, settingsApp, ...stubManifests].forEach(registerApp);
 }

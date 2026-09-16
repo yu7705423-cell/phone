@@ -3,7 +3,7 @@ import { PATHS } from './paths.js';
 
 const missing = new Set();
 
-export function Icon({ name, size = 22, stroke = 1.5, fill = 'none', class: cls = '', style = '' }) {
+export function Icon({ name, size = 24, stroke = 1.6, fill = 'none', class: cls = '', style = '' }) {
   const d = PATHS[name];
   if (!d) {
     if (!missing.has(name)) { missing.add(name); console.warn('[icon] 未注册的图标:', name); }

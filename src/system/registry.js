@@ -21,7 +21,6 @@ export function registerApp(manifest) {
     return false;
   }
   apps.set(manifest.id, {
-    accent: 'var(--tile-1)',
     permissions: [],
     showOnHome: true,
     ...manifest,
@@ -35,7 +34,7 @@ export function registerWidget(spec) {
     console.error('[registry] 挂件注册失败', spec?.id);
     return false;
   }
-  widgets.set(spec.id, { sizes: ['2x2'], editable: false, ...spec });
+  widgets.set(spec.id, { sizes: [[2, 2]], editable: false, ...spec });
   registryStore.set({ v: registryStore.get().v + 1 });
   return true;
 }

@@ -16,7 +16,7 @@ import * as momentTasks from '../system/ai/tasks/moments.js';
 import { DEFAULT_TEMPLATES } from '../system/ai/templates.js';
 import { BLOCKS, DEFAULT_ORDER, resolveOrder } from '../system/ai/context/index.js';
 import { toast, confirm, prompt } from '../ui/overlay.js';
-import { appLook, listAppLooks, TILE_SHADES } from '../system/look.js';
+import { appLook, listAppLooks } from '../system/look.js';
 import { registryStore } from '../system/registry.js';
 
 export const phone = {
@@ -36,7 +36,6 @@ export const phone = {
   apps: {
     list: listAppLooks,
     get: appLook,
-    shades: TILE_SHADES,
     store: registryStore,
   },
 

@@ -4,6 +4,7 @@ import { registerApps } from './apps/index.js';
 import { setConcurrency } from './system/ai/queue.js';
 import { healAndSave } from './screens/home/layout.js';
 import { Root } from './shell/Root.js';
+import { applyLook, applyCustomCSS } from './system/look.js';
 import { nav } from './system/nav.js';
 import './screens/home/widgets.js';
 
@@ -17,6 +18,8 @@ ready.then(() => {
 
   const s = settings.get();
   document.documentElement.dataset.theme = s.theme;
+  applyLook(s);
+  applyCustomCSS(s.customCSS);
   setConcurrency(2);
   if (!s.showLockScreen) nav.set({ screen: 'home' });
 

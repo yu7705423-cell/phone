@@ -52,6 +52,19 @@ export const PATHS = {
   filter:   '<path d="M3 4h18l-7 8.5V20l-4-2v-5.5z"/>',
   eye:      '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/>',
   power:    '<path d="M12 3v9"/><path d="M6.6 6.6a9 9 0 1010.8 0"/>',
+
+  // 装饰用
+  music:    '<circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/><path d="M9 18V5l12-2v13"/><path d="M9 9l12-2"/>',
+  calendar: '<rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+  camera:   '<path d="M3 8.5A2.5 2.5 0 015.5 6h1.7l1.2-2h7.2l1.2 2h1.7A2.5 2.5 0 0121 8.5v9A2.5 2.5 0 0118.5 20h-13A2.5 2.5 0 013 17.5z"/><circle cx="12" cy="13" r="3.6"/>',
+  mail:     '<rect x="2.5" y="5" width="19" height="14" rx="2.5"/><path d="M3 7l9 6 9-6"/>',
+  map:      '<path d="M9 3L3 5.5v15L9 18l6 3 6-2.5v-15L15 6z"/><path d="M9 3v15M15 6v15"/>',
+  wallet:   '<path d="M3 7.5A2.5 2.5 0 015.5 5H18v3"/><rect x="3" y="7.5" width="18" height="12.5" rx="2.5"/><circle cx="17" cy="14" r="1.2" fill="currentColor" stroke="none"/>',
+  cloud:    '<path d="M7 18a4.5 4.5 0 01-.5-9 6 6 0 0111.4 1.6A3.7 3.7 0 0117 18z"/>',
+  headphone:'<path d="M4 16v-4a8 8 0 1116 0v4"/><rect x="2.5" y="14" width="4.5" height="7" rx="2"/><rect x="17" y="14" width="4.5" height="7" rx="2"/>',
+  bookmark: '<path d="M6 3h12v18l-6-4.5L6 21z"/>',
+  film:     '<rect x="2.5" y="4.5" width="19" height="15" rx="2.5"/><path d="M8 4.5v15M16 4.5v15M2.5 12h19M2.5 8.2h5.5M2.5 15.8h5.5M16 8.2h5.5M16 15.8h5.5"/>',
+  cup:      '<path d="M4 8h13v6a5 5 0 01-5 5H9a5 5 0 01-5-5z"/><path d="M17 9.5h1.8a2.7 2.7 0 010 5.4H17"/><path d="M7 2.5v2.5M11 2.5v2.5"/>',
 };
 
 export const ICON_NAMES = Object.keys(PATHS);

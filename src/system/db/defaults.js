@@ -2,7 +2,11 @@ import { DEFAULT_TEMPLATES } from '../ai/templates.js';
 
 export const DEFAULT_SETTINGS = {
   theme: 'light',                 // light | dark
-  appIcons: {},                   // appId -> { icon, tile }  自定义图标与底色
+  appIcons: {},                   // appId -> { icon }  单独换某个 app 的图标
+  iconColor: '#000000',           // SVG 颜色
+  iconShadow: true,               // 图标阴影
+  iconLabels: true,               // 图标下的名称
+  customCSS: '',                  // 用户自定义 CSS，注入到独立 style 节点
   statusBar: 'auto',              // auto | on | off  见 shell/StatusBar.js
   showLockScreen: true,
 
@@ -48,26 +52,27 @@ export const DEFAULT_LAYOUT = {
     {
       id: 'p1',
       cells: [
-        { id: 'c1',  kind: 'widget',      ref: 'header',       x: 0, y: 0, w: 4, h: 2 },
-        { id: 'c2',  kind: 'app',         ref: 'lorebook',     x: 0, y: 2, w: 1, h: 1 },
-        { id: 'c3',  kind: 'app',         ref: 'memory',       x: 1, y: 2, w: 1, h: 1 },
-        { id: 'c4',  kind: 'widget',      ref: 'recent-chats', x: 2, y: 2, w: 2, h: 2 },
-        { id: 'c5',  kind: 'placeholder', label: '待开发',      x: 0, y: 3, w: 1, h: 1 },
-        { id: 'c6',  kind: 'placeholder', label: '待开发',      x: 1, y: 3, w: 1, h: 1 },
-        { id: 'c7',  kind: 'widget',      ref: 'moments-peek', x: 0, y: 4, w: 2, h: 2 },
-        { id: 'c8',  kind: 'placeholder', label: '待开发',      x: 2, y: 4, w: 1, h: 1 },
-        { id: 'c9',  kind: 'placeholder', label: '待开发',      x: 3, y: 4, w: 1, h: 1 },
-        { id: 'c10', kind: 'placeholder', label: '待开发',      x: 2, y: 5, w: 1, h: 1 },
-        { id: 'c11', kind: 'placeholder', label: '待开发',      x: 3, y: 5, w: 1, h: 1 },
+        { id: 'c1',  kind: 'widget', ref: 'player',        x: 0, y: 0, w: 4, h: 2 },
+        { id: 'c2',  kind: 'app',    ref: 'lorebook',      x: 0, y: 2, w: 1, h: 1 },
+        { id: 'c3',  kind: 'app',    ref: 'memory',        x: 1, y: 2, w: 1, h: 1 },
+        { id: 'c4',  kind: 'widget', ref: 'recent-chats',  x: 2, y: 2, w: 2, h: 2 },
+        { id: 'c5',  kind: 'app',    ref: 'stub-photos',   x: 0, y: 3, w: 1, h: 1 },
+        { id: 'c6',  kind: 'app',    ref: 'stub-music',    x: 1, y: 3, w: 1, h: 1 },
+        { id: 'c7',  kind: 'widget', ref: 'moments-peek',  x: 0, y: 4, w: 2, h: 2 },
+        { id: 'c8',  kind: 'app',    ref: 'stub-calendar', x: 2, y: 4, w: 1, h: 1 },
+        { id: 'c9',  kind: 'app',    ref: 'stub-weather',  x: 3, y: 4, w: 1, h: 1 },
+        { id: 'c10', kind: 'app',    ref: 'stub-clock',    x: 2, y: 5, w: 1, h: 1 },
+        { id: 'c11', kind: 'app',    ref: 'stub-notes',    x: 3, y: 5, w: 1, h: 1 },
       ],
     },
     {
       id: 'p2',
       cells: [
-        { id: 'd1', kind: 'placeholder', label: '待开发', x: 0, y: 0, w: 1, h: 1 },
-        { id: 'd2', kind: 'placeholder', label: '待开发', x: 1, y: 0, w: 1, h: 1 },
-        { id: 'd3', kind: 'placeholder', label: '待开发', x: 2, y: 0, w: 1, h: 1 },
-        { id: 'd4', kind: 'placeholder', label: '待开发', x: 3, y: 0, w: 1, h: 1 },
+        { id: 'd1', kind: 'app', ref: 'stub-mail', x: 0, y: 0, w: 1, h: 1 },
+        { id: 'd2', kind: 'app', ref: 'stub-map',  x: 1, y: 0, w: 1, h: 1 },
+        { id: 'd3', kind: 'widget', ref: 'clock',  x: 2, y: 0, w: 2, h: 1 },
+        { id: 'd4', kind: 'placeholder', label: '空位', x: 0, y: 1, w: 1, h: 1 },
+        { id: 'd5', kind: 'placeholder', label: '空位', x: 1, y: 1, w: 1, h: 1 },
       ],
     },
   ],

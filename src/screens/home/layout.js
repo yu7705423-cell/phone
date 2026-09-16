@@ -3,7 +3,7 @@ import { hasApp, hasWidget, listApps } from '../../system/registry.js';
 import { GRID_COLS, DOCK_SIZE } from '../../system/db/defaults.js';
 import { uid } from '../../system/store.js';
 
-const ph = (x, y) => ({ id: uid('c'), kind: 'placeholder', label: '待开发', x, y, w: 1, h: 1 });
+const ph = (x, y) => ({ id: uid('c'), kind: 'placeholder', label: '空位', x, y, w: 1, h: 1 });
 
 function occupy(cells) {
   const taken = new Set();
@@ -159,6 +159,47 @@ export function swapCells(pageIdx, aId, bId) {
   [a.x, b.x] = [b.x, a.x];
   [a.y, b.y] = [b.y, a.y];
   layout.replace(lay);
+}
+
+// 把某个位置换成别的内容。新内容比原位置大时，会吃掉被覆盖的占位格；
+// 若压到了非占位的格子则拒绝，由调用方提示。
+export function placeAt(pageIdx, cellId, next) {
+  const lay = structuredClone(layout.get());
+  const page = lay.pages[pageIdx];
+  if (!page) return { ok: false, reason: '页面不存在' };
+  const target = page.cells.find(c => c.id === cellId);
+  if (!target) return { ok: false, reason: '位置不存在' };
+
+  const w = Math.max(1, Math.min(GRID_COLS, next.w || 1));
+  const h = Math.max(1, next.h || 1);
+  const x = target.x, y = target.y;
+  if (x + w > GRID_COLS) return { ok: false, reason: '这个位置右边放不下' };
+
+  const covered = page.cells.filter(c =>
+    c.x < x + w && c.x + c.w > x && c.y < y + h && c.y + c.h > y);
+  const blocking = covered.filter(c => c.id !== cellId && c.kind !== 'placeholder');
+  if (blocking.length) return { ok: false, reason: '这里放不下，先把周围的挪开' };
+
+  page.cells = page.cells.filter(c => !covered.some(v => v.id === c.id));
+  page.cells.push({ id: uid('c'), x, y, w, h, ...next });
+  layout.replace(lay);
+  return { ok: true };
+}
+
+// 移除某个位置的内容，原地留下等大的占位格
+export function clearCell(pageIdx, cellId) {
+  const lay = structuredClone(layout.get());
+  const page = lay.pages[pageIdx];
+  const cell = page?.cells.find(c => c.id === cellId);
+  if (!cell) return false;
+  page.cells = page.cells.filter(c => c.id !== cellId);
+  for (let dy = 0; dy < cell.h; dy++) {
+    for (let dx = 0; dx < cell.w; dx++) {
+      page.cells.push(ph(cell.x + dx, cell.y + dy));
+    }
+  }
+  layout.replace(lay);
+  return true;
 }
 
 export function setCellConfig(cellId, config) {

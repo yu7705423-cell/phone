@@ -16,7 +16,7 @@
   box-sizing: content-box;
   display: flex; align-items: center; justify-content: space-between;
   font-size: var(--fs-12); font-weight: var(--fw-medium);
-  color: var(--text); background: var(--bg);
+  color: var(--text); background: transparent;
 }
 .sb-icons { display: flex; align-items: center; gap: var(--sp-1); }
 .sb-level { font-size: var(--fs-11); color: var(--text-2); }
@@ -40,19 +40,28 @@
 
 .cell { min-width: 0; min-height: 0; display: flex; flex-direction: column; }
 .cell-app {
-  align-items: center; justify-content: center; gap: 5px; cursor: pointer;
+  align-items: center; justify-content: center; gap: 6px; cursor: pointer;
+  overflow: hidden;
 }
 .cell-app:active .app-tile { transform: scale(.93); }
 .app-tile {
-  position: relative; width: 74%; aspect-ratio: 1; max-width: 60px;
-  border-radius: var(--r-md); display: flex; align-items: center; justify-content: center;
-  box-shadow: var(--shadow-1); transition: transform var(--dur-fast) var(--ease);
+  position: relative; height: 54%; width: auto; aspect-ratio: 1;
+  max-width: 100%; flex: none;
+  border-radius: 24%; background: var(--tile-bg);
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: var(--tile-shadow);
+  transition: transform var(--dur-fast) var(--ease);
 }
+:root[data-icon-label="off"] .app-tile { height: 68%; }
+:root[data-icon-shadow="off"] .app-tile { box-shadow: none; }
+.app-tile svg { color: var(--icon-color); width: 54%; height: 54%; }
 .app-name {
   font-size: var(--fs-11); color: var(--text-2); max-width: 100%; text-align: center;
 }
+:root[data-icon-label="off"] .app-name,
+:root[data-icon-label="off"] .dock-name { display: none; }
 .tile-badge {
-  position: absolute; top: -5px; right: -5px; min-width: 17px; height: 17px;
+  position: absolute; top: -4px; right: -4px; min-width: 17px; height: 17px;
   padding: 0 5px; border-radius: var(--r-full); background: var(--accent);
   color: var(--on-accent); font-size: var(--fs-11); line-height: 17px;
   text-align: center; box-shadow: 0 0 0 2px var(--bg);
@@ -71,44 +80,80 @@
 }
 .cell.is-picked { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--r-md); }
 
-/* 挂件内部 */
-.wg { height: 100%; padding: var(--sp-3); display: flex; flex-direction: column; gap: 5px; min-width: 0; }
-.wg-head {
-  display: flex; align-items: center; gap: 5px;
-  font-size: var(--fs-11); color: var(--text-3); margin-bottom: 2px;
+/* 挂件。白底卡片，留白给足，不显得局促 */
+.cell-widget {
+  background: var(--wg-solid); border-radius: var(--r-lg);
+  box-shadow: var(--shadow-2); overflow: hidden; cursor: pointer;
 }
-/* 顶部横条:播放器版式 */
+.wg {
+  height: 100%; padding: var(--sp-4); display: flex; flex-direction: column;
+  gap: var(--sp-2); min-width: 0; color: var(--text);
+}
+.wg-head {
+  display: flex; align-items: center; gap: 6px;
+  font-size: var(--fs-12); color: var(--text-3);
+}
+.wg-head svg { color: var(--text-3); }
+.wg-rows { display: flex; flex-direction: column; gap: var(--sp-2); margin-top: auto; margin-bottom: auto; }
+.wg-row { min-width: 0; }
+.wg-row-title { font-size: var(--fs-14); font-weight: var(--fw-medium); }
+.wg-row-sub { font-size: var(--fs-12); color: var(--text-3); margin-top: 2px; }
+.wg-moment-text {
+  font-size: var(--fs-13); color: var(--text-2); line-height: 1.55; margin: 4px 0;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+.wg-empty { font-size: var(--fs-12); color: var(--text-3); margin: auto; }
+.wg-stat-num { font-size: var(--fs-56); font-weight: var(--fw-bold); line-height: 1; margin-top: auto; letter-spacing: -2px; }
+.wg-clock { justify-content: center; }
+.wg-clock-time { font-size: var(--fs-56); font-weight: 200; line-height: 1; letter-spacing: -2px; }
+
+/* 播放器横条 */
 .wg-player {
-  flex-direction: row; align-items: center; gap: var(--sp-4);
-  padding: var(--sp-4);
+  flex-direction: row; align-items: center; gap: var(--sp-5);
+  padding: var(--sp-5); position: relative;
 }
 .wg-player.is-right { flex-direction: row-reverse; }
+.wg-player.is-serif .pl-line { font-family: var(--font-serif); }
 .pl-cover {
-  flex: none; height: 100%; aspect-ratio: 1; max-height: 100%;
+  flex: none; height: 100%; aspect-ratio: 1;
   border-radius: var(--r-md); background: var(--surface-2);
   background-size: cover; background-position: center;
   display: flex; align-items: center; justify-content: center;
   color: var(--text-3);
 }
+.pl-cover svg { color: var(--text-3); }
 .pl-text {
   flex: 1; min-width: 0; display: flex; flex-direction: column;
-  justify-content: center; gap: 3px;
+  justify-content: center; gap: 2px;
 }
 .wg-player.is-right .pl-text { text-align: right; }
-.pl-l1 { font-size: var(--fs-20); font-weight: var(--fw-semi); letter-spacing: -.2px; }
-.pl-l2 { font-size: var(--fs-13); color: var(--text-2); }
-.pl-l3 { font-size: var(--fs-11); color: var(--text-3); }
-.wg-edit-cover { display: flex; gap: var(--sp-2); }
-.wg-row { min-width: 0; }
-.wg-row-title { font-size: var(--fs-12); font-weight: var(--fw-medium); }
-.wg-row-sub { font-size: var(--fs-11); color: var(--text-3); margin-top: 1px; }
-.wg-moment { min-width: 0; }
-.wg-moment-text {
-  font-size: var(--fs-12); color: var(--text-2); line-height: 1.5; margin: 3px 0;
-  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+.pl-mark { position: absolute; top: var(--sp-4); right: var(--sp-4); color: var(--text-3); }
+.wg-player.is-right .pl-mark { right: auto; left: var(--sp-4); }
+
+.pl-line { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.25; }
+.pl-sm { font-size: var(--fs-12); color: var(--text-3); }
+.pl-md { font-size: var(--fs-15); color: var(--text-2); }
+.pl-lg { font-size: var(--fs-20); font-weight: var(--fw-medium); }
+.pl-xl { font-size: var(--fs-28); font-weight: var(--fw-bold); letter-spacing: -.5px; }
+
+/* 文字块与图片块 */
+.wg-note { justify-content: center; gap: var(--sp-1); }
+.wg-note.is-serif .pl-line { font-family: var(--font-serif); }
+.wg-note .pl-line { white-space: normal; }
+.wg-photo {
+  padding: 0; background-size: cover; background-position: center;
+  justify-content: flex-end; position: relative;
 }
-.wg-empty { font-size: var(--fs-11); color: var(--text-3); margin: auto; }
-.wg-stat-num { font-size: var(--fs-28); font-weight: var(--fw-semi); margin-top: auto; }
+.wg-photo-empty {
+  position: absolute; inset: 0; display: flex; align-items: center;
+  justify-content: center; color: var(--text-3); background: var(--surface-2);
+}
+.wg-photo-empty svg { color: var(--text-3); }
+.wg-photo-cap {
+  position: relative; padding: var(--sp-3); font-size: var(--fs-13);
+  color: var(--on-scrim); background: linear-gradient(transparent, rgba(0, 0, 0, .55));
+}
+.wg-edit-cover { display: flex; gap: var(--sp-2); }
 
 .page-dots { flex: none; display: flex; justify-content: center; gap: 6px; padding: var(--sp-3) 0; }
 .dot { width: 6px; height: 6px; border-radius: var(--r-full); background: var(--border-2); }
@@ -125,19 +170,30 @@
 
 /* ---- Dock ---- */
 .dock {
-  flex: none; height: var(--dock-h); padding: var(--sp-2) var(--sp-3);
+  flex: none; height: var(--dock-h); padding: var(--sp-2) var(--sp-4);
   padding-bottom: calc(var(--sp-2) + var(--safe-bottom));
-  display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--sp-3);
-  background: var(--surface-2); border-top: 1px solid var(--border);
-  z-index: var(--z-dock);
+  background: transparent; z-index: var(--z-dock);
 }
-.dock-slot { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; }
-.dock-empty { border: 1px dashed var(--border-2); border-radius: var(--r-md); opacity: .5; }
-.dock-name { font-size: var(--fs-11); color: var(--text-2); max-width: 100%; }
+.dock-capsule {
+  height: 100%; display: grid; grid-template-columns: repeat(4, 1fr);
+  align-items: center; gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--wg-bg); border-radius: var(--r-xl);
+  backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+}
+.dock-slot {
+  display: flex; align-items: center; justify-content: center;
+  min-width: 0; height: 100%; overflow: hidden;
+}
+.dock-slot .app-tile { height: 86%; }
+.dock-empty {
+  border: 1px dashed var(--border-2); border-radius: 24%; opacity: .4;
+  height: 86%; width: auto; aspect-ratio: 1; align-self: center;
+}
 
 .home-indicator {
-  flex: none; height: 20px; display: flex; align-items: center; justify-content: center;
-  background: var(--bg); cursor: pointer;
+  flex: none; height: 22px; display: flex; align-items: center; justify-content: center;
+  background: transparent; cursor: pointer;
 }
 .hi-bar { width: 108px; height: 4px; border-radius: var(--r-full); background: var(--text-3); opacity: .5; }
 

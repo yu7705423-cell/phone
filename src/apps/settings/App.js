@@ -29,8 +29,8 @@ function Home() {
       <//>
 
       <${List} title="外观">
-        <${ListItem} title="主题、壁纸与图标"
-          subtitle="深色模式、状态栏、主界面与锁屏壁纸、各 app 的图标和底色" arrow multiline
+        <${ListItem} title="主题"
+          subtitle="深色模式、壁纸、图标颜色与阴影、自定义 CSS" arrow multiline
           left=${html`<${Icon} name="grid" size=${18}/>`}
           onClick=${() => nav.push('/appearance')}/>
       <//>
@@ -50,7 +50,7 @@ function Home() {
 
 export default function SettingsApp({ route }) {
   if (route === '/api') return html`<${ApiPage}/>`;
-  if (route === '/appearance') return html`<${AppearancePage}/>`;
+  if (route === "/appearance") return html`<${AppearancePage}/>`;
   if (route === '/context') return html`<${ContextPage}/>`;
   if (route === '/templates') return html`<${TemplatesPage}/>`;
   if (route === '/storage') return html`<${StoragePage}/>`;

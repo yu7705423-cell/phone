@@ -6,6 +6,7 @@ import { layout, chats } from '../../system/db/index.js';
 import { getWidget, registryStore } from '../../system/registry.js';
 import { appLook } from '../../system/look.js';
 import { WidgetEditor } from './WidgetEditor.js';
+import { CellEditor } from './CellEditor.js';
 import { openApp } from '../../system/nav.js';
 import { GRID_COLS } from '../../system/db/defaults.js';
 import { rowsOf, setPage, swapCells, healAndSave, addPage, removePage } from './layout.js';
@@ -22,9 +23,9 @@ function Cell({ cell, edit, onPick, picked, onEditWidget }) {
   if (cell.kind === 'placeholder') {
     return html`
       <div class=${`cell cell-ph${edit ? ' is-edit' : ''}`} style=${style}
-        onClick=${() => edit ? onPick(cell) : toast('这个位置还没有 app')}>
+        onClick=${() => edit ? onPick(cell) : toast('长按主界面可以往这里放东西')}>
         <${Icon} name="plus" size=${18}/>
-        <span>${cell.label || '待开发'}</span>
+        <span>${cell.label || '空位'}</span>
       </div>`;
   }
 
@@ -47,8 +48,8 @@ function Cell({ cell, edit, onPick, picked, onEditWidget }) {
   return html`
     <div class=${`cell cell-app${edit ? ' is-edit' : ''}${picked ? ' is-picked' : ''}`} style=${style}
       onClick=${() => edit ? onPick(cell) : openApp(cell.ref)}>
-      <div class="app-tile" style=${`background:${app.accent}`}>
-        <${Icon} name=${app.icon} size=${25} style="color:var(--on-tile)"/>
+      <div class="app-tile">
+        <${Icon} name=${app.icon} size=${25} />
         ${badge ? html`<span class="tile-badge">${badge > 99 ? '99+' : badge}</span>` : null}
       </div>
       <span class="app-name ellipsis">${app.name}</span>
@@ -64,8 +65,12 @@ export function HomeScreen() {
   const [edit, setEdit] = useState(false);
   const [picked, setPicked] = useState(null);
   const [editingWidget, setEditingWidget] = useState(null);
+  const [editingCell, setEditingCell] = useState(null);
   const pressTimer = useRef(null);
   const touch = useRef(null);
+  // 长按松手时浏览器还会补一次 click，会把刚进入的整理模式立刻弹出菜单。
+  // 这里吞掉紧随长按的那一次点击。
+  const swallowTap = useRef(false);
   const gridRef = useRef(null);
   const [cell, setCell] = useState(0);
 
@@ -95,8 +100,10 @@ export function HomeScreen() {
     return () => ro.disconnect();
   }, [rows]);
 
+  // 整理模式:没有待交换目标时点开这个位置的菜单;有目标时完成交换
   const onPick = cell => {
-    if (!picked) { setPicked(cell.id); return; }
+    if (swallowTap.current) return;
+    if (!picked) { setEditingCell(cell); return; }
     if (picked === cell.id) { setPicked(null); return; }
     const a = page.cells.find(c => c.id === picked);
     if (a && (a.w !== cell.w || a.h !== cell.h)) {
@@ -110,7 +117,13 @@ export function HomeScreen() {
 
   const startPress = () => {
     clearTimeout(pressTimer.current);
-    pressTimer.current = setTimeout(() => { setEdit(true); setPicked(null); }, 550);
+    pressTimer.current = setTimeout(() => {
+      setEdit(true);
+      setPicked(null);
+      swallowTap.current = true;
+      // 若松手后没有补 click（鼠标场景），过一会儿自行解除，不能一直吞
+      setTimeout(() => { swallowTap.current = false; }, 500);
+    }, 550);
   };
   const endPress = () => clearTimeout(pressTimer.current);
 
@@ -172,5 +185,7 @@ export function HomeScreen() {
         </div>` : null}
 
       <${WidgetEditor} cell=${editingWidget} onClose=${() => setEditingWidget(null)}/>
+      <${CellEditor} cell=${editingCell} pageIdx=${idx}
+        onClose=${() => setEditingCell(null)} onSwapFrom=${setPicked}/>
     </div>`;
 }

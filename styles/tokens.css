@@ -1,53 +1,49 @@
-/* 设计令牌。全项目只用黑白灰冷色调，不出现任何有彩色。
+/* 设计令牌。黑白，不用灰作为填充色。
+   层次靠留白、发丝线和阴影做；次级文字用黑或白降低不透明度，不引入灰色相。
    禁止在组件里硬编码颜色、圆角、间距、字号、动效。 */
 
 :root {
-  /* 中性色。灰阶统一偏冷（蓝向），饱和度极低 */
-  --bg:          #F2F3F5;
+  --bg:          #FFFFFF;
   --surface:     #FFFFFF;
-  --surface-2:   #E9EAEE;
-  --surface-3:   #DCDEE3;
-  --border:      #E1E3E8;
-  --border-2:    #CDD0D7;
+  --surface-2:   #F4F4F4;
+  --surface-3:   #ECECEC;
+  --border:      #EDEDED;
+  --border-2:    #DCDCDC;
 
-  --text:        #16171A;
-  --text-2:      #5E616B;
-  --text-3:      #9498A3;
+  --text:        #000000;
+  --text-2:      rgba(0, 0, 0, .56);
+  --text-3:      rgba(0, 0, 0, .34);
 
-  /* 强调色就是近黑，不引入色相 */
-  --accent:      #26282E;
-  --accent-weak: #E3E5EA;
+  --accent:      #000000;
+  --accent-weak: #F1F1F1;
   --on-accent:   #FFFFFF;
 
-  /* 破坏性操作靠对比度和措辞区分，不靠红色 */
-  --danger:      #16171A;
-  --danger-weak: #DCDEE3;
+  --danger:      #000000;
+  --danger-weak: #ECECEC;
 
-  /* app 图标底色。同一套冷灰的不同明度 */
-  --tile-1: #2B2E35;
-  --tile-2: #3D4048;
-  --tile-3: #4E525B;
-  --tile-4: #5F636D;
-  --tile-5: #71757F;
-  --tile-6: #838791;
-  --tile-7: #9599A2;
-  --tile-8: #34373E;
-  --on-tile: #FFFFFF;
+  /* 应用图标：纯白底 + 黑色 SVG。颜色与阴影可在主题设置里改 */
+  --tile-bg:     #FFFFFF;
+  --icon-color:  #000000;
+  --tile-shadow: 0 2px 8px rgba(0, 0, 0, .13);
 
   /* 浮层 */
-  --scrim:        rgba(10, 11, 13, .38);
-  --scrim-strong: rgba(10, 11, 13, .52);
+  --scrim:        rgba(0, 0, 0, .40);
+  --scrim-strong: rgba(0, 0, 0, .56);
   --on-scrim:     #FFFFFF;
-  --toast-bg:     rgba(22, 23, 26, .93);
+  --toast-bg:     rgba(0, 0, 0, .92);
   --toast-fg:     #FFFFFF;
-  --toast-error:  rgba(22, 23, 26, .93);
+  --toast-error:  rgba(0, 0, 0, .92);
+
+  /* 挂件底：浅色下压在壁纸上是半透明黑，深色下是半透明白 */
+  --wg-bg:       rgba(0, 0, 0, .055);
+  --wg-solid:    #FFFFFF;
 
   /* 圆角 */
   --r-xs: 6px;
-  --r-sm: 9px;
-  --r-md: 12px;
-  --r-lg: 16px;
-  --r-xl: 22px;
+  --r-sm: 10px;
+  --r-md: 14px;
+  --r-lg: 18px;
+  --r-xl: 24px;
   --r-full: 999px;
 
   /* 间距 */
@@ -67,6 +63,7 @@
   --fs-15: 15px;
   --fs-17: 17px;
   --fs-20: 20px;
+  --fs-24: 24px;
   --fs-28: 28px;
   --fs-56: 56px;
 
@@ -74,6 +71,7 @@
   --fw-normal: 400;
   --fw-medium: 500;
   --fw-semi:   600;
+  --fw-bold:   700;
 
   /* 动效 */
   --ease:      cubic-bezier(.32, .72, 0, 1);
@@ -91,60 +89,59 @@
 
   /* 结构尺寸 */
   --statusbar-h: 26px;
-  --dock-h:      84px;
-  --navbar-h:    46px;
-  --tabbar-h:    52px;
+  --dock-h:      88px;
+  --navbar-h:    48px;
+  --tabbar-h:    54px;
 
   /* 安全区。由根容器换算，组件不自己算 */
   --safe-top:    0px;
   --safe-bottom: 0px;
 
-  --shadow-1: 0 1px 2px rgba(10, 11, 13, .06);
-  --shadow-2: 0 4px 16px rgba(10, 11, 13, .09);
-  --shadow-3: 0 12px 40px rgba(10, 11, 13, .16);
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, .06);
+  --shadow-2: 0 4px 16px rgba(0, 0, 0, .10);
+  --shadow-3: 0 12px 40px rgba(0, 0, 0, .18);
 
   --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
           "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  --font-serif: "Songti SC", "Times New Roman", Georgia, serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 :root[data-theme="dark"] {
-  --bg:          #0D0E10;
-  --surface:     #17181B;
-  --surface-2:   #1F2024;
-  --surface-3:   #2A2C31;
-  --border:      #25262A;
-  --border-2:    #34363C;
+  --bg:          #000000;
+  --surface:     #0B0B0B;
+  --surface-2:   #141414;
+  --surface-3:   #1E1E1E;
+  --border:      #1A1A1A;
+  --border-2:    #2A2A2A;
 
-  --text:        #EDEEF0;
-  --text-2:      #9296A0;
-  --text-3:      #62656D;
+  --text:        #FFFFFF;
+  --text-2:      rgba(255, 255, 255, .58);
+  --text-3:      rgba(255, 255, 255, .36);
 
-  --accent:      #E4E6EA;
-  --accent-weak: #22242A;
-  --on-accent:   #16171A;
+  --accent:      #FFFFFF;
+  --accent-weak: #161616;
+  --on-accent:   #000000;
 
-  --danger:      #EDEEF0;
-  --danger-weak: #2A2C31;
+  --danger:      #FFFFFF;
+  --danger-weak: #1E1E1E;
 
-  --tile-1: #D5D7DC;
-  --tile-2: #C2C5CB;
-  --tile-3: #AFB2BA;
-  --tile-4: #9C9FA8;
-  --tile-5: #8A8E97;
-  --tile-6: #787C85;
-  --tile-7: #676A73;
-  --tile-8: #CBCDD3;
-  --on-tile: #16171A;
+  /* 图标在深色下仍是白底黑图，与浅色一致 */
+  --tile-bg:     #FFFFFF;
+  --icon-color:  #000000;
+  --tile-shadow: 0 2px 10px rgba(0, 0, 0, .55);
 
-  --scrim:        rgba(0, 0, 0, .55);
-  --scrim-strong: rgba(0, 0, 0, .68);
+  --scrim:        rgba(0, 0, 0, .62);
+  --scrim-strong: rgba(0, 0, 0, .76);
   --on-scrim:     #FFFFFF;
-  --toast-bg:     rgba(237, 238, 240, .95);
-  --toast-fg:     #16171A;
-  --toast-error:  rgba(237, 238, 240, .95);
+  --toast-bg:     rgba(255, 255, 255, .95);
+  --toast-fg:     #000000;
+  --toast-error:  rgba(255, 255, 255, .95);
 
-  --shadow-1: 0 1px 2px rgba(0, 0, 0, .4);
-  --shadow-2: 0 4px 16px rgba(0, 0, 0, .5);
-  --shadow-3: 0 12px 40px rgba(0, 0, 0, .65);
+  --wg-bg:       rgba(255, 255, 255, .08);
+  --wg-solid:    #0B0B0B;
+
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, .5);
+  --shadow-2: 0 4px 16px rgba(0, 0, 0, .6);
+  --shadow-3: 0 12px 40px rgba(0, 0, 0, .75);
 }

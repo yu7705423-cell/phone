@@ -9,6 +9,7 @@ import { HomeScreen } from '../screens/home/HomeScreen.js';
 import { AppSwitcher } from '../screens/AppSwitcher.js';
 import { AppHost } from '../system/runtime.js';
 import { useImage } from '../system/db/useImage.js';
+import { applyLook, applyCustomCSS } from '../system/look.js';
 import { layout } from '../system/db/index.js';
 
 export function Root() {
@@ -20,6 +21,11 @@ export function Root() {
   useEffect(() => {
     document.documentElement.dataset.theme = cfg.theme;
   }, [cfg.theme]);
+
+  useEffect(() => { applyLook(cfg); },
+    [cfg.iconColor, cfg.iconShadow, cfg.iconLabels]);
+
+  useEffect(() => { applyCustomCSS(cfg.customCSS); }, [cfg.customCSS]);
 
   // 手机浏览器里 100vh 算的是地址栏收起后的高度，比实际可视区高一截，
   // 底部会被压到屏幕外。这里量一次真实可视高度写进 --app-h。
