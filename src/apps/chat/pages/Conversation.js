@@ -242,8 +242,8 @@ export function Conversation({ chatId }) {
               ? html`<button class="send-btn is-stop press"
                   onClick=${() => ai.cancelReply(chatId, char.id)} aria-label="停止">
                   <${Icon} name="close" size=${17}/></button>`
-              : html`<button class="send-btn press" onClick=${() => generate()}
-                  aria-label="让对方回复"><${Icon} name="sparkle" size=${17}/></button>`}
+              : html`<button class="send-btn is-ghost press" onClick=${() => generate()}
+                  aria-label="让对方回复"><${Icon} name="reply" size=${22}/></button>`}
         </div>
 
         ${panel ? html`

@@ -18,6 +18,7 @@ export const PATHS = {
   copy:         '<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 012-2h8"/>',
   refresh:      '<path d="M21 12a9 9 0 11-3-6.7"/><path d="M21 4v5h-5"/>',
   send:         '<path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4z"/>',
+  reply:        '<path d="M9.5 7.5L4.5 12l5 4.5"/><path d="M4.5 12h9.2a5.8 5.8 0 015.8 5.8v1.2"/>',
   image:        '<rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/>',
   upload:       '<path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><path d="M17 8l-5-5-5 5M12 3v12"/>',
   download:     '<path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><path d="M7 10l5 5 5-5M12 15V3"/>',

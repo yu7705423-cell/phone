@@ -152,6 +152,8 @@ input[type="range"] {
 }
 .send-btn:disabled { opacity: .35; }
 .send-btn.is-stop { background: var(--surface-3); color: var(--text); }
+/* 让对方回复：不要底色，只留图标 */
+.send-btn.is-ghost { background: none; color: var(--text); }
 
 /* 主页 */
 .profile-cover {
