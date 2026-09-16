@@ -268,7 +268,34 @@ system/ 可以 import: ui/, icons/, vendor/
 - 朋友圈单条最多 9 张
 - 设置页提供存储占用统计与清理孤儿图片的入口
 
-### 3.8 存储与迁移
+### 3.8 layout 桌面布局
+
+桌面上哪个图标在第几页第几格、哪些进了文件夹、Dock 里放了谁,都是要持久化的状态。
+
+```js
+{
+  pages: [
+    { id: 'p1', items: [
+        { type: 'app',    appId: 'chat' },
+        { type: 'folder', id: 'f1', name: '工具', appIds: ['lorebook','memory'] }
+    ]}
+  ],
+  dock: ['chat', 'settings'],
+  wallpaper: { home: 'img_xxx', lock: 'img_xxx' }
+}
+```
+
+**自愈规则**(与 4.2 的 `getInjectOrder()` 是同一类问题,同样必须有):
+
+- 布局里引用了已不存在的 appId -> 静默移除
+- 已注册但布局里没有的 app -> 追加到最后一页的第一个空位,不够则新建一页
+- 空文件夹 -> 自动解散
+- Dock 超过上限 -> 溢出项退回桌面
+
+没有这套自愈,以后每删一个 app 或每加一个 app,桌面就可能出现空洞或漏图标,
+而且是静默的。
+
+### 3.9 存储与迁移
 
 **主存储是 IndexedDB。** localStorage 仅用于极小的配置(当前主题、上次打开的 app)。
 
@@ -608,9 +635,95 @@ chat
 
 ---
 
-## 8. 设计系统
+## 8. 系统界面
 
-### 8.1 布局原语
+手机壳这一层是用户第一眼看到的东西,单独定义清楚,不要留给实现时临时发挥。
+
+整体取向: **不做拟物,不堆毛玻璃,不用彩色渐变图标。**
+单色 SVG 图标 + 低饱和底色,大量留白,系统字体栈。简约来自克制,不来自装饰。
+
+### 8.1 DeviceFrame 设备外壳
+
+- 逻辑尺寸 390 x 844(比例 9:19.5),内部一律用相对单位
+- 桌面端: 居中显示机身外框,深色描边 + 柔和投影,外框圆角 44
+- 移动端(视口宽度 < 500): 去掉外框,全屏铺满
+- 安全区暴露为 `--safe-top` / `--safe-bottom`,由外壳统一计算
+- 屏幕内容一律 `overflow: hidden`,滚动发生在 `<Page>` 内部
+
+### 8.2 StatusBar 状态栏
+
+左侧真实时间(HH:MM),右侧信号、Wi-Fi、电量三个 SVG 图标。
+
+- 时间每分钟更新,对齐到整分而不是每秒轮询
+- 电量优先读 `navigator.getBattery()`,不可用时显示固定值
+- 前景色由当前页面声明: `<Page statusBarStyle="light|dark">`,
+  壁纸深浅不同时状态栏需要反色,这个不能写死
+
+### 8.3 LockScreen 锁屏
+
+- 壁纸(用户上传,走 images 域)
+- 大时钟 + 日期,字重轻,居上
+- 通知列表: 角色发来的消息聚合展示,点击直达该会话
+- 上滑解锁。无密码,这不是安全功能,只是一个入口仪式
+
+### 8.4 HomeScreen 桌面
+
+整套界面的核心。
+
+**网格**
+
+- 4 列,行数由可用高度决定,行列间距走 tokens
+- 图标 60 x 60,圆角 14,`accent` 作底色,内部 SVG 28px 居中
+- 图标下方名称: 11px,单行省略,最多 4 字宽度内不换行
+- 未读角标: 右上角,红点或数字,数字超过 99 显示 99+
+
+**分页**
+
+- 横向滑动翻页,底部页面指示点
+- 拖拽到屏幕边缘停留触发翻页
+
+**Dock**
+
+- 底部固定 4 个,不随分页滚动
+- 半透明衬底,与桌面壁纸区分
+
+**编辑模式**
+
+长按任意图标进入:
+
+- 全部图标轻微抖动
+- 拖拽排序,拖到另一个图标上合成文件夹
+- 图标左上角出现移除按钮(移除的是桌面快捷方式,不删数据)
+- 点击空白处或 Home 指示条退出
+
+**文件夹**
+
+- 点击展开为一个覆盖层,显示 3x3 预览网格
+- 名称可编辑,拖空后自动解散
+
+### 8.5 AppSwitcher 多任务
+
+- 从 Home 指示条上滑并停顿进入
+- 卡片横向排列,展示各 app 的最后状态快照
+- 上滑卡片关闭该 app(触发 unmount,释放内存)
+- 卡片顺序按最近使用
+
+### 8.6 壁纸
+
+- 用户从本地上传,走 images 域,压缩规格同 3.7
+- 桌面与锁屏可分别设置
+- 内置若干纯色与极简渐变作为默认选项,不内置照片类壁纸
+
+### 8.7 后续(P3)
+
+控制中心(上滑/下拉面板: 主题切换、字号、勿扰)、通知中心、桌面小组件。
+这三项的入口手势在 8.1 的外壳层预留,实现推迟。
+
+---
+
+## 9. 设计系统
+
+### 9.1 布局原语
 
 所有页面必须包在 `<Page>` 里。`<Page>` 负责 NavBar、滚动容器、安全区、底部 TabBar。
 **禁止 app 自己写 overflow 和安全区计算**,这是样式 bug 的主要来源。
@@ -621,17 +734,17 @@ Button / IconButton / Input / Textarea / Switch / Slider / Segmented
 Avatar / Badge / Toast / EmptyState / Spinner / Skeleton
 ```
 
-### 8.2 设计令牌
+### 9.2 设计令牌
 
 颜色、圆角、间距、字号、动效曲线全部在 `styles/tokens.css`。
 禁止在组件里写死颜色值。深浅色主题靠覆盖变量实现。
 
-### 8.3 尺寸与安全区
+### 9.3 尺寸与安全区
 
 - 外壳固定 aspect-ratio,桌面端显示机身外框,移动端自动全屏
 - 安全区暴露为 `--safe-top` / `--safe-bottom` 变量,app 不自己算刘海
 
-### 8.4 图标
+### 9.4 图标
 
 统一入口:
 
@@ -645,7 +758,7 @@ Avatar / Badge / Toast / EmptyState / Spinner / Skeleton
 
 ---
 
-## 9. 工程护栏
+## 10. 工程护栏
 
 | 措施 | 挡住什么 |
 |---|---|
@@ -659,10 +772,11 @@ Avatar / Badge / Toast / EmptyState / Spinner / Skeleton
 | 世界书激活预览 | prompt 问题可调试而非盲猜 |
 | 图片上传强制压缩 + objectURL 回收 | 存储膨胀与滚动列表的内存泄漏 |
 | prompt 模板与代码分离 | 调语气不用改代码,也不会误伤逻辑 |
+| 桌面布局自愈 | 增删 app 后桌面出现空洞或漏图标 |
 
 ---
 
-## 10. 目录结构
+## 11. 目录结构
 
 ```
 phone/
@@ -684,9 +798,9 @@ phone/
 └─ src/
    ├─ main.js
    ├─ shell/
-   │  ├─ DeviceFrame.js
-   │  ├─ StatusBar.js
-   │  └─ HomeIndicator.js
+   │  ├─ DeviceFrame.js       机身、屏幕、响应式外框
+   │  ├─ StatusBar.js         时间、信号、Wi-Fi、电量
+   │  └─ HomeIndicator.js     上滑手势识别
    ├─ system/
    │  ├─ registry.js          app 注册与 manifest 校验
    │  ├─ runtime.js           生命周期、前后台、ErrorBoundary
@@ -704,6 +818,7 @@ phone/
    │  │  ├─ chats.js
    │  │  ├─ moments.js
    │  │  ├─ images.js         图片 Blob 读写与压缩
+   │  │  ├─ layout.js         桌面布局
    │  │  └─ persona.js
    │  └─ ai/
    │     ├─ queue.js
@@ -736,9 +851,14 @@ phone/
    │  ├─ Icon.js
    │  └─ paths.js
    ├─ screens/
-   │  ├─ LockScreen.js
-   │  ├─ HomeScreen.js
-   │  └─ AppSwitcher.js
+   │  ├─ LockScreen.js        时钟、通知、上滑解锁
+   │  ├─ home/
+   │  │  ├─ HomeScreen.js     分页网格 + Dock
+   │  │  ├─ AppIcon.js        图标、角标、抖动
+   │  │  ├─ Folder.js         文件夹展开层
+   │  │  ├─ EditMode.js       长按拖拽排序
+   │  │  └─ layout.js         布局读写与自愈
+   │  └─ AppSwitcher.js       多任务卡片
    └─ apps/
       ├─ index.js             唯一一处列出所有 app
       ├─ chat/
@@ -759,7 +879,7 @@ phone/
 
 ---
 
-## 11. SDK 接口
+## 12. SDK 接口
 
 app 能接触到的全部系统能力:
 
@@ -789,11 +909,12 @@ phone.settings.get(key) / set(key, v)
 
 ---
 
-## 12. 路线图
+## 13. 路线图
 
 **P0 骨架**
 - shell + 内核 + sdk + 令牌 + 图标系统 + Page 原语
-- 锁屏 / 桌面 / 多任务
+- 系统界面: 设备外壳、状态栏、锁屏、桌面(分页网格 + Dock + 编辑模式 + 文件夹)、多任务
+- 桌面布局持久化与自愈、壁纸上传
 - db 数据域(IndexedDB)+ 迁移机制 + 图片压缩存取
 - AI 引擎 + 队列 + Anthropic/OpenAI 兼容双 provider
 - 四个 app: settings / chat(四 tab) / lorebook / memory
@@ -822,12 +943,12 @@ phone.settings.get(key) / set(key, v)
 
 ---
 
-## 13. 从 rainyword 继承的设计
+## 14. 从 rainyword 继承的设计
 
 来源: `yu7705423-cell/rainyword`(单词学习陪伴 app,单文件 index.html)。
 其 V2 的 prompt 架构与记忆系统已在真实使用中验证过,直接作为本项目的基础。
 
-### 13.1 原样继承
+### 14.1 原样继承
 
 | 设计 | 说明 |
 |---|---|
@@ -840,7 +961,7 @@ phone.settings.get(key) / set(key, v)
 | 记忆缓冲区独立存储 | 未总结的对话与 messages 分开,总结后清空 |
 | 时间情境注入 | 现在几点 + 距上次聊天多久,转自然语言表述 |
 
-### 13.2 搬运时必须修正
+### 14.2 搬运时必须修正
 
 | 问题 | 原实现 | 本项目 |
 |---|---|---|
@@ -854,7 +975,7 @@ phone.settings.get(key) / set(key, v)
 | 回复风格收尾 | "一条消息就是一个念头" | 改为强调节奏不均匀与不周到,见 4.2 B3 |
 | prompt 写死在代码里 | 骨架与分析提示词均为字符串字面量 | 全部移入可编辑模板,代码只留默认值 |
 
-### 13.3 改造复用
+### 14.3 改造复用
 
 `generateScenarioSeeds` 在原项目中为目标词生成"不含该词的话题线索",
 其**两步法**(先单独生成角色近况,再由角色自然聊起)正是朋友圈动态该用的套路:
@@ -868,7 +989,7 @@ phone.settings.get(key) / set(key, v)
 
 ---
 
-## 14. 已确认的设计决定
+## 15. 已确认的设计决定
 
 1. **主页**指"我的"主页(我的人设、我发的动态、设置入口);
    角色主页从联系人进入。两者复用同一个 Profile 组件,subject 不同。
