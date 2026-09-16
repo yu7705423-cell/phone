@@ -34,9 +34,12 @@
   --toast-fg:     #FFFFFF;
   --toast-error:  rgba(0, 0, 0, .92);
 
-  /* 挂件底：浅色下压在壁纸上是半透明黑，深色下是半透明白 */
-  --wg-bg:       rgba(0, 0, 0, .055);
+  /* 面底。铺了壁纸时换成更透的一套，免得白板或灰板压在壁纸上很突兀 */
+  --wg-bg:       rgba(0, 0, 0, .045);
   --wg-solid:    #FFFFFF;
+  --capsule-bg:     rgba(0, 0, 0, .045);
+  --capsule-border: transparent;
+  --glass-blur:     18px;
 
   /* 圆角 */
   --r-xs: 6px;
@@ -142,8 +145,23 @@
 
   --wg-bg:       rgba(255, 255, 255, .08);
   --wg-solid:    #0B0B0B;
+  --capsule-bg:     rgba(255, 255, 255, .08);
+  --capsule-border: transparent;
 
   --shadow-1: 0 1px 2px rgba(0, 0, 0, .5);
   --shadow-2: 0 4px 16px rgba(0, 0, 0, .6);
   --shadow-3: 0 12px 40px rgba(0, 0, 0, .75);
+}
+
+/* 铺了壁纸：胶囊与小组件都改成半透明毛玻璃，让壁纸透上来 */
+:root[data-wallpaper="on"] {
+  --capsule-bg:     rgba(255, 255, 255, .22);
+  --capsule-border: rgba(255, 255, 255, .30);
+  --wg-solid:       rgba(255, 255, 255, .34);
+  --glass-blur:     22px;
+}
+:root[data-theme="dark"][data-wallpaper="on"] {
+  --capsule-bg:     rgba(0, 0, 0, .34);
+  --capsule-border: rgba(255, 255, 255, .14);
+  --wg-solid:       rgba(0, 0, 0, .40);
 }

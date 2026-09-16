@@ -27,6 +27,11 @@ export function Root() {
 
   useEffect(() => { applyCustomCSS(cfg.customCSS); }, [cfg.customCSS]);
 
+  // 铺了壁纸就换成毛玻璃那套底色，避免白板灰板压在壁纸上
+  useEffect(() => {
+    document.documentElement.dataset.wallpaper = wallpaper ? 'on' : 'off';
+  }, [wallpaper]);
+
   // 手机浏览器里 100vh 算的是地址栏收起后的高度，比实际可视区高一截，
   // 底部会被压到屏幕外。这里量一次真实可视高度写进 --app-h。
   // 只在宽度变化（横竖屏切换）时重算：地址栏显隐只改高度，忽略它，

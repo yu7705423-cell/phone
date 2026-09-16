@@ -60,6 +60,14 @@
   font-size: var(--fs-11); color: var(--text-2); max-width: 100%;
   text-align: center; line-height: 1.2;
 }
+/* 壁纸下用白字加投影，否则深色壁纸上读不清 */
+:root[data-wallpaper="on"] .app-name {
+  color: var(--on-scrim); text-shadow: 0 1px 3px rgba(0, 0, 0, .55);
+}
+:root[data-wallpaper="on"] .page-dots .dot { background: rgba(255, 255, 255, .45); }
+:root[data-wallpaper="on"] .page-dots .dot.is-active { background: var(--on-scrim); }
+:root[data-wallpaper="on"] .statusbar { color: var(--on-scrim); }
+:root[data-wallpaper="on"] .hi-bar { background: var(--on-scrim); opacity: .7; }
 :root[data-icon-label="off"] .app-name,
 :root[data-icon-label="off"] .dock-name { display: none; }
 .tile-badge {
@@ -86,6 +94,10 @@
 .cell-widget {
   background: var(--wg-solid); border-radius: var(--r-lg);
   box-shadow: var(--shadow-2); overflow: hidden; cursor: pointer;
+}
+:root[data-wallpaper="on"] .cell-widget {
+  backdrop-filter: blur(var(--glass-blur)); -webkit-backdrop-filter: blur(var(--glass-blur));
+  box-shadow: none; border: 1px solid var(--capsule-border);
 }
 .wg {
   height: 100%; padding: var(--sp-4); display: flex; flex-direction: column;
@@ -173,7 +185,8 @@
 /* ---- Dock ---- */
 .dock {
   flex: none;
-  height: calc(var(--cell, 76px) * var(--tile-ratio) + var(--sp-6) + var(--safe-bottom));
+  /* 图标(cell*ratio) + 胶囊上下内边距(sp-2 x2) + Dock 上下内边距(sp-2 x2) */
+  height: calc(var(--cell, 76px) * var(--tile-ratio) + var(--sp-8) + var(--safe-bottom));
   min-height: calc(var(--dock-h) + var(--safe-bottom));
   padding: var(--sp-2) var(--sp-5) calc(var(--sp-2) + var(--safe-bottom));
   background: transparent; z-index: var(--z-dock);
@@ -183,12 +196,13 @@
   align-items: center; gap: var(--sp-2);
   padding: var(--sp-2) var(--sp-3);
   min-height: calc(var(--cell, 76px) * var(--tile-ratio) + var(--sp-4));
-  background: var(--wg-bg); border-radius: var(--r-xl);
-  backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+  background: var(--capsule-bg); border-radius: var(--r-xl);
+  border: 1px solid var(--capsule-border);
+  backdrop-filter: blur(var(--glass-blur)); -webkit-backdrop-filter: blur(var(--glass-blur));
 }
 .dock-slot {
   display: flex; align-items: center; justify-content: center;
-  min-width: 0; height: 100%; overflow: hidden;
+  min-width: 0; height: 100%;
 }
 
 .dock-empty {
