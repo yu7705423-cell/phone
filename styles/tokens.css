@@ -1,0 +1,139 @@
+/* 设计令牌。禁止在组件里硬编码颜色、圆角、间距、字号、动效。 */
+
+:root {
+  /* 中性色 */
+  --bg:          #F4F4F2;
+  --surface:     #FFFFFF;
+  --surface-2:   #EFEFEC;
+  --surface-3:   #E6E6E2;
+  --border:      #E2E2DE;
+  --border-2:    #D3D3CE;
+
+  --text:        #1A1A19;
+  --text-2:      #6C6C68;
+  --text-3:      #9E9E99;
+  --text-on:     #FFFFFF;
+
+  /* 功能色 */
+  --accent:      #5F7688;
+  --accent-weak: #E8EDF0;
+  --danger:      #B85A55;
+  --danger-weak: #F6E9E8;
+  --success:     #6B9179;
+  --warning:     #B39159;
+
+  /* app 图标底色。低饱和,不用渐变 */
+  --a-slate:  #6B7F8C;
+  --a-sage:   #85977F;
+  --a-sand:   #B0A183;
+  --a-clay:   #B08C7A;
+  --a-rose:   #AE8A8C;
+  --a-mist:   #93939F;
+  --a-stone:  #8A8A84;
+  --a-ink:    #55565A;
+
+  /* 圆角 */
+  --r-xs: 6px;
+  --r-sm: 9px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --r-xl: 22px;
+  --r-full: 999px;
+
+  /* 间距 */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+
+  /* 字号 */
+  --fs-11: 11px;
+  --fs-12: 12px;
+  --fs-13: 13px;
+  --fs-14: 14px;
+  --fs-15: 15px;
+  --fs-17: 17px;
+  --fs-20: 20px;
+  --fs-28: 28px;
+  --fs-56: 56px;
+
+  /* 字重 */
+  --fw-normal: 400;
+  --fw-medium: 500;
+  --fw-semi:   600;
+
+  /* 动效 */
+  --ease:      cubic-bezier(.32, .72, 0, 1);
+  --ease-out:  cubic-bezier(.16, 1, .3, 1);
+  --dur-fast:  140ms;
+  --dur:       240ms;
+  --dur-slow:  380ms;
+
+  /* 层级 */
+  --z-dock:    30;
+  --z-app:     40;
+  --z-sheet:   60;
+  --z-modal:   70;
+  --z-toast:   80;
+
+  /* 结构尺寸 */
+  --statusbar-h: 26px;
+  --dock-h:      84px;
+  --navbar-h:    46px;
+  --tabbar-h:    52px;
+
+  /* 安全区。由根容器换算,组件不自己算 */
+  --safe-top:    0px;
+  --safe-bottom: 0px;
+
+  /* 浮层专用 */
+  --scrim:        rgba(0, 0, 0, .35);
+  --scrim-strong: rgba(0, 0, 0, .45);
+  --on-scrim:     #FFFFFF;
+  --toast-bg:     rgba(28, 28, 28, .92);
+  --toast-error:  rgba(150, 50, 46, .94);
+
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, .05);
+  --shadow-2: 0 4px 16px rgba(0, 0, 0, .08);
+  --shadow-3: 0 12px 40px rgba(0, 0, 0, .14);
+
+  --toast-fg:     #FFFFFF;
+
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+          "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+:root[data-theme="dark"] {
+  --bg:          #141415;
+  --surface:     #1E1E20;
+  --surface-2:   #272729;
+  --surface-3:   #313134;
+  --border:      #2E2E31;
+  --border-2:    #3A3A3E;
+
+  --text:        #F2F2F0;
+  --text-2:      #9A9A96;
+  --text-3:      #6A6A67;
+  --on-scrim:    #FFFFFF;
+  --toast-fg:    #1A1A19;
+
+  --accent:      #8AA3B5;
+  --accent-weak: #253038;
+  --danger:      #D07C77;
+  --danger-weak: #33211F;
+  --success:     #8CB398;
+  --warning:     #C9A970;
+
+  --scrim:        rgba(0, 0, 0, .5);
+  --scrim-strong: rgba(0, 0, 0, .62);
+  --toast-bg:     rgba(240, 240, 238, .94);
+  --toast-error:  rgba(190, 88, 82, .96);
+
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, .3);
+  --shadow-2: 0 4px 16px rgba(0, 0, 0, .4);
+  --shadow-3: 0 12px 40px rgba(0, 0, 0, .55);
+}

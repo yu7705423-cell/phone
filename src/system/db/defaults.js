@@ -1,0 +1,79 @@
+import { DEFAULT_TEMPLATES } from '../ai/templates.js';
+
+export const DEFAULT_SETTINGS = {
+  theme: 'light',                 // light | dark
+  statusBar: 'auto',              // auto | on | off  见 shell/StatusBar.js
+  showLockScreen: true,
+
+  // AI
+  provider: 'anthropic',          // anthropic | openai
+  apiKey: '',
+  baseUrl: '',
+  model: 'claude-opus-5',
+  temperature: 0.9,               // 仅 OpenAI 兼容接口使用
+  effort: 'low',                  // 仅 Anthropic 使用。Opus 5 一族不接受 temperature
+  maxTokens: 2048,
+
+  // 上下文
+  injectOrder: ['character', 'lorebook', 'user', 'time', 'memory'],
+  injectTime: true,
+  historyLimit: 20,
+  scanWindow: 6,                  // 世界书与 B 级记忆的扫描窗口(条)
+  contextBudget: 6000,            // 注入内容的 token 预算(粗估)
+
+  // 记忆
+  memoryEnabled: true,
+  autoSummarizeInterval: 0,       // 0 = 关闭
+
+  // 群聊
+  groupMode: 'per-character',     // per-character | single-call
+  groupSpeakersPerTurn: 2,
+
+  promptTemplates: { ...DEFAULT_TEMPLATES },
+};
+
+export const DEFAULT_PERSONA = {
+  name: '我',
+  avatar: null,
+  cover: null,
+  signature: '',
+  description: '',
+};
+
+// 主界面默认版式: 顶部横条,其下四个 app 与一个方形并列,左右交替。
+// 还没有对应 app 的位置一律用 placeholder 占住,保证版式从第一天就是完整的。
+export const DEFAULT_LAYOUT = {
+  pages: [
+    {
+      id: 'p1',
+      cells: [
+        { id: 'c1',  kind: 'widget',      ref: 'header',       x: 0, y: 0, w: 4, h: 1 },
+        { id: 'c2',  kind: 'app',         ref: 'lorebook',     x: 0, y: 1, w: 1, h: 1 },
+        { id: 'c3',  kind: 'app',         ref: 'memory',       x: 1, y: 1, w: 1, h: 1 },
+        { id: 'c4',  kind: 'widget',      ref: 'recent-chats', x: 2, y: 1, w: 2, h: 2 },
+        { id: 'c5',  kind: 'placeholder', label: '待开发',      x: 0, y: 2, w: 1, h: 1 },
+        { id: 'c6',  kind: 'placeholder', label: '待开发',      x: 1, y: 2, w: 1, h: 1 },
+        { id: 'c7',  kind: 'widget',      ref: 'moments-peek', x: 0, y: 3, w: 2, h: 2 },
+        { id: 'c8',  kind: 'placeholder', label: '待开发',      x: 2, y: 3, w: 1, h: 1 },
+        { id: 'c9',  kind: 'placeholder', label: '待开发',      x: 3, y: 3, w: 1, h: 1 },
+        { id: 'c10', kind: 'placeholder', label: '待开发',      x: 2, y: 4, w: 1, h: 1 },
+        { id: 'c11', kind: 'placeholder', label: '待开发',      x: 3, y: 4, w: 1, h: 1 },
+      ],
+    },
+    {
+      id: 'p2',
+      cells: [
+        { id: 'd1', kind: 'placeholder', label: '待开发', x: 0, y: 0, w: 1, h: 1 },
+        { id: 'd2', kind: 'placeholder', label: '待开发', x: 1, y: 0, w: 1, h: 1 },
+        { id: 'd3', kind: 'placeholder', label: '待开发', x: 2, y: 0, w: 1, h: 1 },
+        { id: 'd4', kind: 'placeholder', label: '待开发', x: 3, y: 0, w: 1, h: 1 },
+      ],
+    },
+  ],
+  dock: ['chat', 'settings', null, null],
+  currentPage: 0,
+  wallpaper: { home: null, lock: null },
+};
+
+export const GRID_COLS = 4;
+export const DOCK_SIZE = 4;

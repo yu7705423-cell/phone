@@ -1,0 +1,57 @@
+// 全部图标。24px 网格,stroke 1.5,currentColor。零 emoji。
+// 值为 <path>/<circle> 等元素的内容字符串。
+
+export const PATHS = {
+  // 系统
+  chevronLeft:  '<path d="M15 18l-6-6 6-6"/>',
+  chevronRight: '<path d="M9 18l6-6-6-6"/>',
+  chevronDown:  '<path d="M6 9l6 6 6-6"/>',
+  chevronUp:    '<path d="M18 15l-6-6-6 6"/>',
+  close:        '<path d="M18 6L6 18M6 6l12 12"/>',
+  plus:         '<path d="M12 5v14M5 12h14"/>',
+  minus:        '<path d="M5 12h14"/>',
+  check:        '<path d="M20 6L9 17l-5-5"/>',
+  more:         '<circle cx="5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/>',
+  search:       '<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>',
+  trash:        '<path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v5M14 11v5"/>',
+  edit:         '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/>',
+  copy:         '<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 012-2h8"/>',
+  refresh:      '<path d="M21 12a9 9 0 11-3-6.7"/><path d="M21 4v5h-5"/>',
+  send:         '<path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4z"/>',
+  image:        '<rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/>',
+  upload:       '<path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><path d="M17 8l-5-5-5 5M12 3v12"/>',
+  download:     '<path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><path d="M7 10l5 5 5-5M12 15V3"/>',
+  drag:         '<circle cx="9" cy="6" r="1.3"/><circle cx="15" cy="6" r="1.3"/><circle cx="9" cy="12" r="1.3"/><circle cx="15" cy="12" r="1.3"/><circle cx="9" cy="18" r="1.3"/><circle cx="15" cy="18" r="1.3"/>',
+
+  // 状态栏
+  signal:  '<path d="M2 20h3v-5H2zM7.5 20h3V11h-3zM13 20h3V7h-3zM18.5 20h3V3h-3z" fill="currentColor" stroke="none"/>',
+  wifi:    '<path d="M5 12.5a10 10 0 0114 0"/><path d="M8.5 16a5.5 5.5 0 017 0"/><circle cx="12" cy="19.5" r="1" fill="currentColor" stroke="none"/>',
+  battery: '<rect x="2" y="8" width="17" height="10" rx="2.5"/><path d="M21.5 11.5v3"/>',
+
+  // app
+  message:  '<path d="M21 11.5a8.4 8.4 0 01-9 8.4 8.9 8.9 0 01-4-.9L3 21l1.9-4.6A8.4 8.4 0 013 11.5a8.4 8.4 0 019-8.4 8.4 8.4 0 019 8.4z"/>',
+  users:    '<path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 00-3-3.9"/><path d="M16 3.1a4 4 0 010 7.8"/>',
+  compass:  '<circle cx="12" cy="12" r="9"/><path d="M16.2 7.8l-2.1 6.3-6.3 2.1 2.1-6.3z"/>',
+  user:     '<circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 016-6h4a6 6 0 016 6v1"/>',
+  book:     '<path d="M4 4.5A2.5 2.5 0 016.5 2H20v18H6.5A2.5 2.5 0 014 17.5z"/><path d="M4 17.5A2.5 2.5 0 016.5 15H20"/>',
+  brain:    '<path d="M12 5a3 3 0 00-6 .5A3 3 0 004 9a3 3 0 001.5 2.6A3 3 0 007 17a3 3 0 005 1.5z"/><path d="M12 5a3 3 0 016 .5A3 3 0 0120 9a3 3 0 01-1.5 2.6A3 3 0 0117 17a3 3 0 01-5 1.5z"/><path d="M12 5v14"/>',
+  settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.6 1.6 0 00-1.8-.3 1.6 1.6 0 00-1 1.5V21a2 2 0 11-4 0v-.1A1.6 1.6 0 008.6 19a1.6 1.6 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.6 1.6 0 00.3-1.8 1.6 1.6 0 00-1.5-1H2a2 2 0 110-4h.1A1.6 1.6 0 004.3 8.6a1.6 1.6 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.6 1.6 0 001.8.3H9a1.6 1.6 0 001-1.5V2a2 2 0 114 0v.1a1.6 1.6 0 001 1.5 1.6 1.6 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.6 1.6 0 00-.3 1.8V9a1.6 1.6 0 001.5 1H22a2 2 0 110 4h-.1a1.6 1.6 0 00-1.5 1z"/>',
+  notes:    '<path d="M4 4a2 2 0 012-2h9l5 5v13a2 2 0 01-2 2H6a2 2 0 01-2-2z"/><path d="M15 2v5h5M8 13h8M8 17h5"/>',
+  clock:    '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/>',
+  heart:    '<path d="M20.4 5.6a5 5 0 00-7.1 0L12 6.9l-1.3-1.3a5 5 0 10-7.1 7.1l8.4 8.4 8.4-8.4a5 5 0 000-7.1z"/>',
+  star:     '<path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5-5.9-3.1-5.9 3.1 1.2-6.5L2.5 9.4l6.6-.9z"/>',
+  bell:     '<path d="M18 8a6 6 0 10-12 0c0 7-3 8-3 8h18s-3-1-3-8"/><path d="M13.7 21a2 2 0 01-3.4 0"/>',
+  lock:     '<rect x="4" y="10" width="16" height="11" rx="2.5"/><path d="M8 10V7a4 4 0 018 0v3"/>',
+  grid:     '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
+  layers:   '<path d="M12 2.5L2.5 7 12 11.5 21.5 7z"/><path d="M2.5 12L12 16.5 21.5 12"/><path d="M2.5 17L12 21.5 21.5 17"/>',
+  sparkle:  '<path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M18.5 15.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8z"/>',
+  key:      '<circle cx="8" cy="15" r="4.5"/><path d="M11.2 11.8L19 4h2.5v2.5L21 7h-2v2h-2v2l-1.8-1.8"/>',
+  sun:      '<circle cx="12" cy="12" r="4.5"/><path d="M12 2v2M12 20v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M2 12h2M20 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4"/>',
+  moon:     '<path d="M20.5 14.5A8.5 8.5 0 019.5 3.5a8.5 8.5 0 1011 11z"/>',
+  database: '<ellipse cx="12" cy="5.5" rx="8" ry="3"/><path d="M4 5.5v13c0 1.7 3.6 3 8 3s8-1.3 8-3v-13"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/>',
+  filter:   '<path d="M3 4h18l-7 8.5V20l-4-2v-5.5z"/>',
+  eye:      '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/>',
+  power:    '<path d="M12 3v9"/><path d="M6.6 6.6a9 9 0 1010.8 0"/>',
+};
+
+export const ICON_NAMES = Object.keys(PATHS);
