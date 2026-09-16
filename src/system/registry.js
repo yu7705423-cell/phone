@@ -21,7 +21,7 @@ export function registerApp(manifest) {
     return false;
   }
   apps.set(manifest.id, {
-    accent: 'var(--a-slate)',
+    accent: 'var(--tile-1)',
     permissions: [],
     showOnHome: true,
     ...manifest,

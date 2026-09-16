@@ -1,36 +1,46 @@
-/* 设计令牌。禁止在组件里硬编码颜色、圆角、间距、字号、动效。 */
+/* 设计令牌。全项目只用黑白灰冷色调，不出现任何有彩色。
+   禁止在组件里硬编码颜色、圆角、间距、字号、动效。 */
 
 :root {
-  /* 中性色 */
-  --bg:          #F4F4F2;
+  /* 中性色。灰阶统一偏冷（蓝向），饱和度极低 */
+  --bg:          #F2F3F5;
   --surface:     #FFFFFF;
-  --surface-2:   #EFEFEC;
-  --surface-3:   #E6E6E2;
-  --border:      #E2E2DE;
-  --border-2:    #D3D3CE;
+  --surface-2:   #E9EAEE;
+  --surface-3:   #DCDEE3;
+  --border:      #E1E3E8;
+  --border-2:    #CDD0D7;
 
-  --text:        #1A1A19;
-  --text-2:      #6C6C68;
-  --text-3:      #9E9E99;
-  --text-on:     #FFFFFF;
+  --text:        #16171A;
+  --text-2:      #5E616B;
+  --text-3:      #9498A3;
 
-  /* 功能色 */
-  --accent:      #5F7688;
-  --accent-weak: #E8EDF0;
-  --danger:      #B85A55;
-  --danger-weak: #F6E9E8;
-  --success:     #6B9179;
-  --warning:     #B39159;
+  /* 强调色就是近黑，不引入色相 */
+  --accent:      #26282E;
+  --accent-weak: #E3E5EA;
+  --on-accent:   #FFFFFF;
 
-  /* app 图标底色。低饱和,不用渐变 */
-  --a-slate:  #6B7F8C;
-  --a-sage:   #85977F;
-  --a-sand:   #B0A183;
-  --a-clay:   #B08C7A;
-  --a-rose:   #AE8A8C;
-  --a-mist:   #93939F;
-  --a-stone:  #8A8A84;
-  --a-ink:    #55565A;
+  /* 破坏性操作靠对比度和措辞区分，不靠红色 */
+  --danger:      #16171A;
+  --danger-weak: #DCDEE3;
+
+  /* app 图标底色。同一套冷灰的不同明度 */
+  --tile-1: #2B2E35;
+  --tile-2: #3D4048;
+  --tile-3: #4E525B;
+  --tile-4: #5F636D;
+  --tile-5: #71757F;
+  --tile-6: #838791;
+  --tile-7: #9599A2;
+  --tile-8: #34373E;
+  --on-tile: #FFFFFF;
+
+  /* 浮层 */
+  --scrim:        rgba(10, 11, 13, .38);
+  --scrim-strong: rgba(10, 11, 13, .52);
+  --on-scrim:     #FFFFFF;
+  --toast-bg:     rgba(22, 23, 26, .93);
+  --toast-fg:     #FFFFFF;
+  --toast-error:  rgba(22, 23, 26, .93);
 
   /* 圆角 */
   --r-xs: 6px;
@@ -85,22 +95,13 @@
   --navbar-h:    46px;
   --tabbar-h:    52px;
 
-  /* 安全区。由根容器换算,组件不自己算 */
+  /* 安全区。由根容器换算，组件不自己算 */
   --safe-top:    0px;
   --safe-bottom: 0px;
 
-  /* 浮层专用 */
-  --scrim:        rgba(0, 0, 0, .35);
-  --scrim-strong: rgba(0, 0, 0, .45);
-  --on-scrim:     #FFFFFF;
-  --toast-bg:     rgba(28, 28, 28, .92);
-  --toast-error:  rgba(150, 50, 46, .94);
-
-  --shadow-1: 0 1px 2px rgba(0, 0, 0, .05);
-  --shadow-2: 0 4px 16px rgba(0, 0, 0, .08);
-  --shadow-3: 0 12px 40px rgba(0, 0, 0, .14);
-
-  --toast-fg:     #FFFFFF;
+  --shadow-1: 0 1px 2px rgba(10, 11, 13, .06);
+  --shadow-2: 0 4px 16px rgba(10, 11, 13, .09);
+  --shadow-3: 0 12px 40px rgba(10, 11, 13, .16);
 
   --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
           "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
@@ -108,32 +109,42 @@
 }
 
 :root[data-theme="dark"] {
-  --bg:          #141415;
-  --surface:     #1E1E20;
-  --surface-2:   #272729;
-  --surface-3:   #313134;
-  --border:      #2E2E31;
-  --border-2:    #3A3A3E;
+  --bg:          #0D0E10;
+  --surface:     #17181B;
+  --surface-2:   #1F2024;
+  --surface-3:   #2A2C31;
+  --border:      #25262A;
+  --border-2:    #34363C;
 
-  --text:        #F2F2F0;
-  --text-2:      #9A9A96;
-  --text-3:      #6A6A67;
-  --on-scrim:    #FFFFFF;
-  --toast-fg:    #1A1A19;
+  --text:        #EDEEF0;
+  --text-2:      #9296A0;
+  --text-3:      #62656D;
 
-  --accent:      #8AA3B5;
-  --accent-weak: #253038;
-  --danger:      #D07C77;
-  --danger-weak: #33211F;
-  --success:     #8CB398;
-  --warning:     #C9A970;
+  --accent:      #E4E6EA;
+  --accent-weak: #22242A;
+  --on-accent:   #16171A;
 
-  --scrim:        rgba(0, 0, 0, .5);
-  --scrim-strong: rgba(0, 0, 0, .62);
-  --toast-bg:     rgba(240, 240, 238, .94);
-  --toast-error:  rgba(190, 88, 82, .96);
+  --danger:      #EDEEF0;
+  --danger-weak: #2A2C31;
 
-  --shadow-1: 0 1px 2px rgba(0, 0, 0, .3);
-  --shadow-2: 0 4px 16px rgba(0, 0, 0, .4);
-  --shadow-3: 0 12px 40px rgba(0, 0, 0, .55);
+  --tile-1: #D5D7DC;
+  --tile-2: #C2C5CB;
+  --tile-3: #AFB2BA;
+  --tile-4: #9C9FA8;
+  --tile-5: #8A8E97;
+  --tile-6: #787C85;
+  --tile-7: #676A73;
+  --tile-8: #CBCDD3;
+  --on-tile: #16171A;
+
+  --scrim:        rgba(0, 0, 0, .55);
+  --scrim-strong: rgba(0, 0, 0, .68);
+  --on-scrim:     #FFFFFF;
+  --toast-bg:     rgba(237, 238, 240, .95);
+  --toast-fg:     #16171A;
+  --toast-error:  rgba(237, 238, 240, .95);
+
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, .4);
+  --shadow-2: 0 4px 16px rgba(0, 0, 0, .5);
+  --shadow-3: 0 12px 40px rgba(0, 0, 0, .65);
 }

@@ -41,7 +41,7 @@ function Cell({ cell, edit, onPick, picked }) {
     <div class=${`cell cell-app${edit ? ' is-edit' : ''}${picked ? ' is-picked' : ''}`} style=${style}
       onClick=${() => edit ? onPick(cell) : openApp(cell.ref)}>
       <div class="app-tile" style=${`background:${app.accent}`}>
-        <${Icon} name=${app.icon} size=${25} style="color:var(--text-on)"/>
+        <${Icon} name=${app.icon} size=${25} style="color:var(--on-tile)"/>
         ${badge ? html`<span class="tile-badge">${badge > 99 ? '99+' : badge}</span>` : null}
       </div>
       <span class="app-name ellipsis">${app.name}</span>

@@ -22,7 +22,7 @@ export function AppSwitcher() {
               </button>
               <button class="sw-body press" onClick=${() => openApp(app.id)}>
                 <div class="app-tile" style=${`background:${app.accent}`}>
-                  <${Icon} name=${app.icon} size=${26} style="color:var(--text-on)"/>
+                  <${Icon} name=${app.icon} size=${26} style="color:var(--on-tile)"/>
                 </div>
                 <span class="sw-name">${app.name}</span>
               </button>

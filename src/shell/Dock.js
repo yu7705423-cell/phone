@@ -28,7 +28,7 @@ export function Dock() {
         return html`
           <button key=${i} class="dock-slot press" onClick=${() => openApp(appId)}>
             <div class="app-tile" style=${`background:${app.accent}`}>
-              <${Icon} name=${app.icon} size=${24} style="color:var(--text-on)"/>
+              <${Icon} name=${app.icon} size=${24} style="color:var(--on-tile)"/>
               ${badge ? html`<span class="tile-badge">${badge > 99 ? '99+' : badge}</span>` : null}
             </div>
             <span class="dock-name ellipsis">${app.name}</span>
