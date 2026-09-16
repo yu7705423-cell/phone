@@ -33,7 +33,7 @@
 | 渲染 | Preact + htm (vendor 本地文件) | 约 12KB。流式追加、长列表、输入焦点保持这些场景需要成熟的 diff 算法 |
 | 样式 | 原生 CSS + CSS 变量令牌 | 主题切换、深浅色、安全区全靠变量 |
 | 状态 | 自写轻量 store + hooks | 数据域集中,订阅式更新 |
-| 存储 | localStorage (适配层预留 IndexedDB) | 起步够用,适配层保证可替换 |
+| 存储 | IndexedDB (小配置走 localStorage) | 朋友圈与头像需要存图片 Blob,localStorage 5MB 上限不够用 |
 | 图标 | 自维护 SVG path 表 | 24px 网格, stroke-width 1.5, currentColor |
 
 ### 运行方式
@@ -225,7 +225,7 @@ system/ 可以 import: ui/, icons/, vendor/
   id: 'mo_xxx',
   authorId: 'char_xxx' | 'me',
   text: '动态正文',
-  images: [],
+  images: ['img_xxx'],          // 图片 id 数组,数据本身在 images 表
   location: '',
   createdAt,
   likes: ['char_xxx', 'me'],
@@ -247,13 +247,40 @@ system/ 可以 import: ui/, icons/, vendor/
 }
 ```
 
-### 3.7 存储与迁移
+### 3.7 images 图片
+
+朋友圈配图、角色头像、背景图全部由用户本地上传,不走网络。
+
+```js
+// images 表
+{ id: 'img_xxx', blob: Blob, w, h, bytes, createdAt }
+```
+
+规则:
+
+- **以 Blob 存 IndexedDB,不存 base64。** base64 体积涨约 33%,
+  且会让承载它的 JSON 记录变得极大,解析明显变慢
+- 上传即压缩: canvas 缩放到长边 1280,`toBlob('image/webp', 0.82)`;
+  头像长边 256。原图不保留
+- 展示用 `URL.createObjectURL(blob)`,组件卸载时必须 `revokeObjectURL`,
+  否则每次滚动朋友圈都在泄漏内存
+- 业务记录里只存图片 id,取用时按 id 拉 Blob
+- 朋友圈单条最多 9 张
+- 设置页提供存储占用统计与清理孤儿图片的入口
+
+### 3.8 存储与迁移
+
+**主存储是 IndexedDB。** localStorage 仅用于极小的配置(当前主题、上次打开的 app)。
+
+早前曾计划 localStorage 先行、后续再切 IndexedDB,该方案已作废:
+本地上传图片使得容量需求远超 localStorage 的 5MB 上限,而超限是抛异常,
+会导致该域下所有写入一起失败,不是可以推迟处理的问题。
 
 - 键名统一 `phone:<collection>` 与 `phone:app:<appId>:<key>`
 - 全局 `schemaVersion`,每次数据结构变更写一个 `migrate_N_to_N+1` 函数
-- 适配层接口固定为 `get/set/remove/keys`,以后从 localStorage 换到 IndexedDB 不动业务代码
-- localStorage 容量约 5MB,消息量大时必须切 IndexedDB,适配层保证这一步是局部改动
-- 角色卡、世界书支持单文件 JSON 导入导出
+- 适配层接口固定为 `get/set/remove/list/query`,业务代码不直接碰 IndexedDB API
+- 角色卡、世界书支持单文件 JSON 导入导出;
+  含图片时打包为 zip 或内联 base64(仅导出时转换)
 
 ---
 
@@ -333,16 +360,47 @@ for (const id of getInjectOrder()) {
 
 **B3. 骨架的固定段落**
 
-身份开场与风格收尾不参与排序,固定在首尾:
+身份开场与风格收尾不参与排序,固定在首尾。
 
 ```
-开场: 你不是AI助手。你不是在扮演角色。你就是<角色名>，正在用手机和<用户名>发消息。
-收尾: 你的每次回复由1条或多条消息组成（\n\n分隔）。
-      这是手机聊天。一条消息就是一个念头。
-      你有自己的情绪和立场。你的反应忠于你这个人，不迁就对方。
+开场:
+你不是AI助手。你不是在扮演角色。你就是<角色名>，正在用手机和<用户名>发消息。
+
+收尾:
+你的每次回复由1条或多条消息组成（\n\n 分隔）。
+
+这是手机聊天。真人打字是不均匀的：
+有时候一条很长，有时候几个字就发出去；
+一句话可能拆成两条，三件事也可能挤在一条里。
+说岔了会补一句，想起来还会再补一句。
+不是每条消息都有信息量——废话、语气词、没说完的半句，都正常。
+对方说了三件事，你可能只接住了其中一件。
+
+你有自己的情绪和立场。你的反应忠于你这个人，不迁就对方。
 ```
 
-"一条消息就是一个念头"直接约束了模型写长段落的倾向,是这段骨架里最有效的一句。
+关于收尾这段的取舍: rainyword 原文是"一条消息就是一个念头"。
+它确实压住了长段落,但把模型推向了另一个极端——每条消息都成为
+干净、完整、有信息量的单元,气泡长度趋于一致,每条都在推进对话。
+真人聊天的本质特征是**不均匀**,以及**不周到**(对方说三件事,
+真人常常只接住一件)。现在这版针对的是后者。
+
+**B4. prompt 模板可编辑**
+
+骨架的开场、收尾,以及每个 TaskSpec 的 instruction,**一律不写死在代码里**,
+而是作为默认值存入 `settings.promptTemplates`,在设置页可编辑,并提供"恢复默认"。
+
+```js
+settings.promptTemplates = {
+  'skeleton.opening': '...',
+  'skeleton.closing': '...',
+  'task.memory-extract': '...',
+  'task.moment-create': '...'
+}
+```
+
+这类 prompt 需要长期反复调整,写死意味着每次改语气都要改代码。
+代码里只保留 `DEFAULT_TEMPLATES`,运行时一律从 settings 读取,缺失时回落到默认值。
 
 **C. Provider 适配层** - 统一请求与流式解析:
 
@@ -440,6 +498,37 @@ moment.reply  角色回复
 ```
 
 触发时机: 手动下拉刷新 / 聊天结束后按概率触发 / 模拟时间流逝。
+
+朋友圈配图由用户本地上传,不由 AI 生成。`moment.create` 产出的是文字,
+是否配图、配什么图由用户在发布时自行选择。
+
+### 4.7 群聊
+
+一个会话可以挂多个角色(`chat.characterIds` 为数组)。
+
+**生成方式**: 默认每个角色独立调用,各自只看到自己的角色卡。
+
+| | A. 独立调用(默认) | B. 一次生成整段 |
+|---|---|---|
+| 人设纯粹度 | 高,角色之间不串味 | 低,角色容易同质化 |
+| token 成本 | 高,N 个角色 N 次请求 | 低 |
+| 节奏 | 由调度器决定谁开口 | 由模型自行安排 |
+
+选 A 为默认: 角色人设不互相污染是角色扮演的核心价值,
+B 生成出的多个角色往往说话像同一个人。B 作为设置项保留,不改变数据结构。
+
+**发言调度器** (`system/ai/scheduler.js`) 决定一轮里谁开口、开口几个、顺序如何:
+
+- 被 `@` 或被点名的角色必定开口,优先级最高
+- 其余角色按话题相关度(关键词命中角色卡与记忆)加随机权重抽取
+- 单轮开口角色数有上限,默认 1-2 个,可配
+- 同一角色不连续开口两轮,除非被点名
+
+**群聊 prompt 附加**:
+
+- 注入"当前群里有谁"(其他成员的名字与一句话印象,不注入完整角色卡)
+- 最近若干条消息需带说话人姓名,角色才知道在跟谁对话
+- 记忆 scope 用 `chat:<id>`,群里发生的事不污染与该角色的私聊
 
 ---
 
@@ -568,6 +657,8 @@ Avatar / Badge / Toast / EmptyState / Spinner / Skeleton
 | 开发模式 manifest 校验 | id 重复、图标缺失、权限未声明直接报错 |
 | AIQueue 统一出口 | 并发打爆、请求泄漏、无法取消 |
 | 世界书激活预览 | prompt 问题可调试而非盲猜 |
+| 图片上传强制压缩 + objectURL 回收 | 存储膨胀与滚动列表的内存泄漏 |
+| prompt 模板与代码分离 | 调语气不用改代码,也不会误伤逻辑 |
 
 ---
 
@@ -612,10 +703,13 @@ phone/
    │  │  ├─ memories.js
    │  │  ├─ chats.js
    │  │  ├─ moments.js
+   │  │  ├─ images.js         图片 Blob 读写与压缩
    │  │  └─ persona.js
    │  └─ ai/
    │     ├─ queue.js
    │     ├─ engine.js
+   │     ├─ scheduler.js      群聊发言调度
+   │     ├─ templates.js      prompt 默认模板
    │     ├─ tokens.js         粗略 token 估算与预算分配
    │     ├─ context/
    │     │  ├─ persona.js
@@ -700,7 +794,7 @@ phone.settings.get(key) / set(key, v)
 **P0 骨架**
 - shell + 内核 + sdk + 令牌 + 图标系统 + Page 原语
 - 锁屏 / 桌面 / 多任务
-- db 数据域 + 迁移机制
+- db 数据域(IndexedDB)+ 迁移机制 + 图片压缩存取
 - AI 引擎 + 队列 + Anthropic/OpenAI 兼容双 provider
 - 四个 app: settings / chat(四 tab) / lorebook / memory
 - 检查脚本: 零 emoji、依赖边界
@@ -713,8 +807,10 @@ phone.settings.get(key) / set(key, v)
 
 **P2 朋友圈闭环**
 - 动态生成、点赞、评论、回复
+- 本地图片上传、九宫格、存储占用统计
 - 角色主页与我的主页
 - 内容写回记忆
+- 群聊与发言调度
 
 **P3 系统能力**
 - 通知中心、控制中心、桌面小组件
@@ -736,7 +832,7 @@ phone.settings.get(key) / set(key, v)
 | 设计 | 说明 |
 |---|---|
 | 可排序 prompt 区块 | 每个上下文一个 `build()`,按用户可配顺序拼接;顺序清洗 + 逐块 try/catch |
-| 固定开场与收尾 | 身份声明与"一条消息就是一个念头"的回复风格约束 |
+| 固定开场 | 身份声明: "你不是AI助手...你就是X,正在用手机发消息" |
 | 记忆 rank S/A/B/C | S/A 全注入,B 关键词命中,C 仅存档。可解释,用户在管理页能看懂为什么某条没生效 |
 | 记忆六分类 | fact / emotion / pending / pattern / relation / profile |
 | `updateId` 更新机制 | 模型指定更新已有条目而非重复新增,防记忆膨胀 |
@@ -755,6 +851,8 @@ phone.settings.get(key) / set(key, v)
 | JSON 解析不稳 | 贪婪正则 `/\{[\s\S]*\}/` | 整体 parse -> 括号平衡扫描 -> 报错重试 |
 | 硬编码 OpenAI 格式 | 直接拼 `/chat/completions` | 走 provider 适配层 |
 | 无请求队列 | 直接 fetch,总结与回复可能并发 | 统一走 AIQueue |
+| 回复风格收尾 | "一条消息就是一个念头" | 改为强调节奏不均匀与不周到,见 4.2 B3 |
+| prompt 写死在代码里 | 骨架与分析提示词均为字符串字面量 | 全部移入可编辑模板,代码只留默认值 |
 
 ### 13.3 改造复用
 
@@ -770,9 +868,13 @@ phone.settings.get(key) / set(key, v)
 
 ---
 
-## 14. 待确认
+## 14. 已确认的设计决定
 
-1. 四个 tab 的"主页"理解为**我的**主页(我的人设、我发的动态、设置入口),
-   角色主页从联系人进入,两者复用同一 Profile 组件。是否正确?
-2. 是否需要群聊(多角色同一会话)。数据结构已用 `characterIds` 数组预留。
-3. 朋友圈是否需要图片。若需要,是占位色块还是接图片生成 API。
+1. **主页**指"我的"主页(我的人设、我发的动态、设置入口);
+   角色主页从联系人进入。两者复用同一个 Profile 组件,subject 不同。
+2. **群聊**要做。见 4.7,默认每角色独立调用 + 发言调度器。
+3. **朋友圈图片**全部由用户本地上传并本地存储,不接图片生成 API。
+   这决定了主存储必须是 IndexedDB,见 3.7 / 3.8。
+4. **回复风格 prompt** 不采用 rainyword 的"一条消息就是一个念头",
+   改为强调打字节奏的不均匀与不周到,见 4.2 B3。
+5. **所有 prompt 模板运行时可编辑**,代码里只留默认值,见 4.2 B4。
