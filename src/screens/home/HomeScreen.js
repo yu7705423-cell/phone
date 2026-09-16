@@ -9,7 +9,9 @@ import { WidgetEditor } from './WidgetEditor.js';
 import { CellEditor } from './CellEditor.js';
 import { openApp } from '../../system/nav.js';
 import { GRID_COLS } from '../../system/db/defaults.js';
-import { rowsOf, setPage, moveTo, healAndSave, addPage, removePage, freeSlots } from './layout.js';
+import { rowsOf, setPage, movePicked, healAndSave, addPage, removePage, freeSlots } from './layout.js';
+import { editState, setEdit, setPicked, clearPicked } from './editState.js';
+import { AppTile } from './AppTile.js';
 import { toast } from '../../ui/overlay.js';
 
 function unreadFor(appId) {
@@ -53,8 +55,7 @@ export function HomeScreen() {
   useStore(chats.store);
   useStore(settings.store);
 
-  const [edit, setEdit] = useState(false);
-  const [picked, setPicked] = useState(null);
+  const { edit, picked } = useStore(editState);
   const [editingWidget, setEditingWidget] = useState(null);
   const [editingCell, setEditingCell] = useState(null);
   const pressTimer = useRef(null);
@@ -104,24 +105,23 @@ export function HomeScreen() {
 
   // 整理模式:没有待交换目标时点开这个位置的菜单;有目标时完成交换
   // 整理模式：没有待移动目标时点开菜单；有目标时把它挪到这里
+  const drop = target => {
+    const r = movePicked(idx, picked, target);
+    if (!r.ok) toast(r.reason, 'error');
+    clearPicked();
+  };
+
   const onPick = cell => {
     if (swallowTap.current) return;
     if (!picked) { setEditingCell(cell); return; }
-    if (picked === cell.id) { setPicked(null); return; }
-    const r = moveTo(idx, picked, cell.x, cell.y);
-    if (!r.ok) toast(r.reason, 'error');
-    setPicked(null);
+    if (picked.type === 'cell' && picked.id === cell.id) { clearPicked(); return; }
+    drop({ type: 'cell', id: cell.id });
   };
 
   // 点空位：有待移动目标就挪过来，否则打开菜单往这里放东西
   const onPickSlot = (x, y) => {
     if (swallowTap.current) return;
-    if (picked) {
-      const r = moveTo(idx, picked, x, y);
-      if (!r.ok) toast(r.reason, 'error');
-      setPicked(null);
-      return;
-    }
+    if (picked) { drop({ type: 'slot', x, y }); return; }
     setEditingCell({ slot: true, x, y, w: 1, h: 1 });
   };
 
@@ -129,7 +129,6 @@ export function HomeScreen() {
     clearTimeout(pressTimer.current);
     pressTimer.current = setTimeout(() => {
       setEdit(true);
-      setPicked(null);
       swallowTap.current = true;
       // 若松手后没有补 click（鼠标场景），过一会儿自行解除，不能一直吞
       setTimeout(() => { swallowTap.current = false; }, 500);
@@ -168,7 +167,8 @@ export function HomeScreen() {
           ? `grid-template-columns:repeat(${GRID_COLS},${cell}px);grid-auto-rows:${cell}px`
           : `grid-template-columns:repeat(${GRID_COLS},1fr);grid-auto-rows:1fr`}>
         ${page.cells.map(c => html`
-          <${Cell} key=${c.id} cell=${c} edit=${edit} picked=${picked === c.id}
+          <${Cell} key=${c.id} cell=${c} edit=${edit}
+            picked=${picked?.type === 'cell' && picked.id === c.id}
             onPick=${onPick} onEditWidget=${setEditingWidget}/>`)}
         ${edit ? slots.map(sl => html`
           <div key=${`${sl.x},${sl.y}`} class="cell cell-slot"
@@ -196,12 +196,13 @@ export function HomeScreen() {
                 <${Icon} name="trash" size=${17}/>
               </button>` : null}
             <button class="btn btn-primary btn-sm press"
-              onClick=${() => { setEdit(false); setPicked(null); healAndSave(); }}>完成</button>
+              onClick=${() => { setEdit(false); healAndSave(); }}>完成</button>
           </div>
         </div>` : null}
 
       <${WidgetEditor} cell=${editingWidget} onClose=${() => setEditingWidget(null)}/>
       <${CellEditor} cell=${editingCell} pageIdx=${idx}
-        onClose=${() => setEditingCell(null)} onSwapFrom=${setPicked}/>
+        onClose=${() => setEditingCell(null)}
+        onSwapFrom=${id => setPicked({ type: 'cell', id })}/>
     </div>`;
 }

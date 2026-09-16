@@ -1,14 +1,23 @@
 import { html, useRef, useState } from '../../lib.js';
 import { phone, useStore, useImage } from '../../sdk/index.js';
 import { Page, List, ListItem, Field, Input, Textarea, Switch, Segmented,
-         Button, Icon, Sheet, toast, confirm } from '../../ui/index.js';
-import { PHOTO_MAX } from '../../system/db/images.js';
+         Button, Icon, Sheet, toast, confirm, prompt } from '../../ui/index.js';
+import { PHOTO_MAX, ICON_MAX } from '../../system/db/images.js';
 import { ICON_NAMES } from '../../icons/paths.js';
 
 const { db, nav, apps: appsApi } = phone;
 
 const PRESET_COLORS = ['#000000', '#1A1A1A', '#3D3D3D', '#6B6B6B',
                        '#9A9A9A', '#C4C4C4', '#FFFFFF'];
+
+function MiniTile({ app }) {
+  const url = useImage(app.imageId);
+  return html`
+    <div class=${`app-tile app-tile-mini${url ? ' has-image' : ''}`}
+      style=${url ? `background-image:url(${url})` : ''}>
+      ${url ? null : html`<${Icon} name=${app.icon} size=${18}/>`}
+    </div>`;
+}
 
 function WallpaperRow({ slot, label, desc }) {
   const lay = useStore(db.layout.store);
@@ -51,34 +60,98 @@ function WallpaperRow({ slot, label, desc }) {
 }
 
 function IconPicker({ appId, onClose }) {
-  const s = useStore(db.settings.store);
+  const st = useStore(db.settings.store);
+  const fileRef = useRef(null);
+  const [busy, setBusy] = useState(false);
   if (!appId) return null;
+
   const app = appsApi.get(appId);
-  const cur = (s.appIcons || {})[appId] || {};
+  const cur = (st.appIcons || {})[appId] || {};
   const icon = cur.icon || app?.icon;
+  const preview = useImage(cur.imageId);
 
   const set = patch => db.settings.set({
-    appIcons: { ...(s.appIcons || {}), [appId]: { ...cur, ...patch } },
+    appIcons: { ...(st.appIcons || {}), [appId]: { ...cur, ...patch } },
   });
+
   const reset = () => {
-    const next = { ...(s.appIcons || {}) };
+    if (cur.imageId) db.images.remove(cur.imageId);
+    const next = { ...(st.appIcons || {}) };
     delete next[appId];
-    db.settings.replace({ ...s, appIcons: next });
+    db.settings.replace({ ...st, appIcons: next });
+  };
+
+  const useImageFile = async file => {
+    setBusy(true);
+    try {
+      const id = await db.images.putSquare(file, ICON_MAX);
+      if (cur.imageId) db.images.remove(cur.imageId);
+      set({ imageId: id });
+      toast(`已换成图片，裁成 ${ICON_MAX} x ${ICON_MAX}`);
+    } catch (err) { toast('图片处理失败：' + err.message, 'error', 4000); }
+    finally { setBusy(false); }
+  };
+
+  const pickFile = async e => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (file) await useImageFile(file);
+  };
+
+  // 链接同样落到本地，不做远程引用
+  const fromUrl = async () => {
+    const url = await prompt({ title: '图片链接', placeholder: 'https://...' });
+    if (!url) return;
+    setBusy(true);
+    try {
+      const res = await fetch(url.trim());
+      if (!res.ok) throw new Error(String(res.status));
+      const blob = await res.blob();
+      if (!/^image\//.test(blob.type)) throw new Error('这个链接不是图片');
+      await useImageFile(new File([blob], 'icon', { type: blob.type }));
+    } catch (err) {
+      toast('取不回来：' + err.message + '。多半是跨域，可以先存到相册再选图。', 'error', 6000);
+      setBusy(false);
+    }
   };
 
   return html`
-    <${Sheet} open=${true} onClose=${onClose} title=${app?.name || appId} height="80%">
+    <${Sheet} open=${true} onClose=${onClose} title=${app?.name || appId} height="86%">
       <${Field} label="名称">
         <${Input} value=${app?.name || ''} onInput=${v => set({ name: v })}/>
       <//>
-      <${Field} label="图标"/>
-      <div class="icon-grid">
-        ${ICON_NAMES.map(n => html`
-          <button key=${n} class=${`icon-pick${icon === n ? ' is-active' : ''}`}
-            onClick=${() => set({ icon: n })} aria-label=${n}>
-            <${Icon} name=${n} size=${22}/>
-          </button>`)}
-      </div>
+
+      <${Field} label="换成图片" desc=${`居中裁成正方形并缩到 ${ICON_MAX} x ${ICON_MAX}，存在本地`}>
+        <div class="icon-upload">
+          <div class=${`app-tile app-tile-preview${preview ? ' has-image' : ''}`}
+            style=${preview ? `background-image:url(${preview})` : ''}>
+            ${preview ? null : html`<${Icon} name=${icon} size=${24}/>`}
+          </div>
+          <div class="icon-upload-acts">
+            <${Button} size="sm" variant="ghost" icon="upload" disabled=${busy}
+              onClick=${() => fileRef.current?.click()}>选图片<//>
+            <${Button} size="sm" variant="ghost" icon="layers" disabled=${busy}
+              onClick=${fromUrl}>用链接<//>
+            ${cur.imageId ? html`
+              <${Button} size="sm" variant="ghost" icon="close"
+                onClick=${() => { db.images.remove(cur.imageId); set({ imageId: null }); }}>改回图标<//>` : null}
+          </div>
+        </div>
+        <input type="file" accept="image/*" ref=${fileRef} onChange=${pickFile} style="display:none"/>
+      <//>
+
+      ${cur.imageId ? html`
+        <div class="field-desc">正在用图片。想换回线条图标，点上面的「改回图标」。</div>`
+      : html`
+        <${Field} label="或者挑一个图标"/>
+        <div class="icon-grid">
+          ${ICON_NAMES.map(n => html`
+            <button key=${n} class=${`icon-pick${icon === n ? ' is-active' : ''}`}
+              onClick=${() => set({ icon: n })} aria-label=${n}>
+              <${Icon} name=${n} size=${22}/>
+            </button>`)}
+        </div>`}
+
       <div class="sheet-acts">
         <${Button} variant="ghost" onClick=${reset}>恢复默认<//>
         <${Button} onClick=${onClose}>完成<//>
@@ -195,7 +268,7 @@ export function AppearancePage() {
           const cur = (s.appIcons || {})[a.id] || {};
           return html`
             <${ListItem} key=${a.id} title=${a.name}
-              subtitle=${cur.icon ? '已自定义' : '默认'} arrow
+              subtitle=${cur.imageId ? '用了图片' : cur.icon ? '换了图标' : '默认'} arrow
               left=${html`<div class="app-tile app-tile-mini"><${Icon} name=${a.icon} size=${18}/></div>`}
               onClick=${() => setPicking(a.id)}/>`;
         })}

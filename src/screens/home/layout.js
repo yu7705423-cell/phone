@@ -125,6 +125,74 @@ export function moveTo(pageIdx, cellId, x, y) {
   return { ok: true };
 }
 
+// 统一的挪动入口。来源和目标都可能是网格里的格子、网格里的空位，或 Dock 的槽位。
+// 网格与 Dock 之间也要能互换，所以放在一个函数里处理，而不是各写各的。
+export function movePicked(pageIdx, source, target) {
+  const lay = structuredClone(layout.get());
+  const page = lay.pages[pageIdx];
+  if (!page) return { ok: false, reason: '页面不存在' };
+  lay.dock = Array.from({ length: DOCK_SIZE }, (_, i) => (lay.dock || [])[i] || null);
+
+  const cellOf = id => page.cells.find(c => c.id === id);
+
+  // Dock 只放应用
+  if (target.type === 'dock') {
+    if (source.type === 'dock') {
+      const t = lay.dock[target.i];
+      lay.dock[target.i] = lay.dock[source.i];
+      lay.dock[source.i] = t;
+      layout.replace(lay);
+      return { ok: true };
+    }
+    const cell = cellOf(source.id);
+    if (!cell) return { ok: false, reason: '来源不存在' };
+    if (cell.kind !== 'app') return { ok: false, reason: '底部那一排只能放应用' };
+    if (cell.w !== 1 || cell.h !== 1) return { ok: false, reason: '只能放 1x1 的应用' };
+
+    const displaced = lay.dock[target.i];
+    lay.dock[target.i] = cell.ref;
+    page.cells = page.cells.filter(c => c.id !== cell.id);
+    if (displaced) {
+      page.cells.push({ id: uid('c'), kind: 'app', ref: displaced, x: cell.x, y: cell.y, w: 1, h: 1 });
+    }
+    layout.replace(lay);
+    return { ok: true };
+  }
+
+  if (source.type === 'dock') {
+    const appId = lay.dock[source.i];
+    if (!appId) return { ok: false, reason: '这个位置是空的' };
+
+    if (target.type === 'slot') {
+      lay.dock[source.i] = null;
+      page.cells.push({ id: uid('c'), kind: 'app', ref: appId, x: target.x, y: target.y, w: 1, h: 1 });
+      layout.replace(lay);
+      return { ok: true };
+    }
+    const cell = cellOf(target.id);
+    if (!cell) return { ok: false, reason: '目标不存在' };
+    if (cell.kind !== 'app' || cell.w !== 1 || cell.h !== 1) {
+      return { ok: false, reason: '底部那一排只能和 1x1 的应用互换' };
+    }
+    lay.dock[source.i] = cell.ref;
+    cell.kind = 'app'; cell.ref = appId;
+    layout.replace(lay);
+    return { ok: true };
+  }
+
+  // 网格内部的挪动交给 moveTo
+  const dest = target.type === 'slot' ? target : cellOf(target.id);
+  if (!dest) return { ok: false, reason: '目标不存在' };
+  return moveTo(pageIdx, source.id, dest.x, dest.y);
+}
+
+export function clearDockSlot(i) {
+  const lay = structuredClone(layout.get());
+  lay.dock = Array.from({ length: DOCK_SIZE }, (_, k) => (lay.dock || [])[k] || null);
+  lay.dock[i] = null;
+  layout.replace(lay);
+}
+
 export function clearCell(pageIdx, cellId) {
   const lay = structuredClone(layout.get());
   const page = lay.pages[pageIdx];

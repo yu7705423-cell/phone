@@ -7,7 +7,12 @@ export function appLook(appId) {
   const app = getApp(appId);
   if (!app) return null;
   const custom = (settings.get().appIcons || {})[appId] || {};
-  return { ...app, icon: custom.icon || app.icon, name: custom.name || app.name };
+  return {
+    ...app,
+    icon: custom.icon || app.icon,
+    name: custom.name || app.name,
+    imageId: custom.imageId || null,     // 自定义图片，有则盖过 SVG
+  };
 }
 
 export function listAppLooks() {

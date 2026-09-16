@@ -67,6 +67,7 @@
   box-shadow: none;
 }
 .app-tile svg { color: var(--icon-color); width: 52%; height: 52%; }
+.app-tile.has-image { background-size: cover; background-position: center; }
 .app-name {
   font-size: var(--fs-11); color: var(--text-2); max-width: 100%;
   text-align: center; line-height: 1.2;
@@ -203,6 +204,10 @@
   padding: var(--sp-2) var(--sp-5) calc(var(--sp-2) + var(--safe-bottom));
   background: transparent; z-index: var(--z-dock);
 }
+.dock-capsule.is-edit .app-tile { animation: jiggle .5s ease-in-out infinite; }
+.dock-slot.is-picked .app-tile { outline: 2px solid var(--text); outline-offset: 3px; }
+.dock-empty.is-edit { border-style: solid; opacity: .7; }
+
 .dock-capsule {
   height: 100%; display: grid; grid-template-columns: repeat(4, 1fr);
   align-items: center; gap: var(--sp-2);

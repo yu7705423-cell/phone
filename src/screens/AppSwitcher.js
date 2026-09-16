@@ -4,6 +4,7 @@ import { useStore } from '../system/store.js';
 import { nav, openApp, closeApp, setSwitcher } from '../system/nav.js';
 import { registryStore } from '../system/registry.js';
 import { appLook } from '../system/look.js';
+import { AppTile } from './home/AppTile.js';
 import { EmptyState } from '../ui/basic.js';
 
 export function AppSwitcher() {
