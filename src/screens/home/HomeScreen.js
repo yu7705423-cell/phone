@@ -37,14 +37,10 @@ function Cell({ cell, edit, onPick, picked, onEditWidget }) {
 
   const app = appLook(cell.ref);
   if (!app) return null;
-  const badge = unreadFor(cell.ref);
   return html`
     <div class=${`cell cell-app${edit ? ' is-edit' : ''}${picked ? ' is-picked' : ''}`} style=${style}
       onClick=${() => edit ? onPick(cell) : openApp(cell.ref)}>
-      <div class="app-tile">
-        <${Icon} name=${app.icon} size=${25} />
-        ${badge ? html`<span class="tile-badge">${badge > 99 ? '99+' : badge}</span>` : null}
-      </div>
+      <${AppTile} app=${app} badge=${unreadFor(cell.ref)}/>
       <span class="app-name ellipsis">${app.name}</span>
     </div>`;
 }

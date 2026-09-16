@@ -60,15 +60,18 @@ function WallpaperRow({ slot, label, desc }) {
 }
 
 function IconPicker({ appId, onClose }) {
+  // 所有 hook 都要在任何提前返回之前调用，否则关闭和打开时 hook 数量不一致，
+  // 顺序一错预览就不跟着刷新了
   const st = useStore(db.settings.store);
   const fileRef = useRef(null);
   const [busy, setBusy] = useState(false);
+  const cur = (st.appIcons || {})[appId] || {};
+  const preview = useImage(cur.imageId);
+
   if (!appId) return null;
 
   const app = appsApi.get(appId);
-  const cur = (st.appIcons || {})[appId] || {};
   const icon = cur.icon || app?.icon;
-  const preview = useImage(cur.imageId);
 
   const set = patch => db.settings.set({
     appIcons: { ...(st.appIcons || {}), [appId]: { ...cur, ...patch } },
