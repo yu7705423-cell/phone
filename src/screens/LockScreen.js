@@ -30,8 +30,8 @@ export function LockScreen() {
   };
 
   return html`
-    <div class="lock" onTouchStart=${onTouchStart} onTouchEnd=${onTouchEnd}
-      style=${wallpaper ? `background-image:url(${wallpaper})` : ''}>
+    <div class=${`lock${wallpaper ? ' has-wallpaper' : ''}`}
+      onTouchStart=${onTouchStart} onTouchEnd=${onTouchEnd}>
       <div class="lock-clock">
         <div class="lock-time">${hh}:${mm}</div>
         <div class="lock-date">${date}</div>

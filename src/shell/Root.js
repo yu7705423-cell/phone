@@ -16,7 +16,10 @@ export function Root() {
   const s = useStore(nav);
   const cfg = useStore(settings.store);
   const lay = useStore(layout.store);
-  const wallpaper = useImage(lay.wallpaper?.home);
+  const homeWall = useImage(lay.wallpaper?.home);
+  const lockWall = useImage(lay.wallpaper?.lock);
+  const wallpaper = s.screen === 'lock' ? (lockWall || homeWall)
+    : s.screen === 'home' ? homeWall : null;
 
   useEffect(() => {
     document.documentElement.dataset.theme = cfg.theme;
@@ -70,13 +73,13 @@ export function Root() {
 
   return html`
     <div class="root">
+      ${wallpaper ? html`
+        <div class="wallpaper" style=${`background-image:url(${wallpaper})`}></div>` : null}
       <${StatusBar}/>
       <div class="screen">
         ${s.screen === 'lock' ? html`<${LockScreen}/>` : null}
         ${s.screen === 'home' ? html`
-          <div class="home-layer" style=${wallpaper ? `background-image:url(${wallpaper})` : ''}>
-            <${HomeScreen}/>
-          </div>` : null}
+          <div class="home-layer"><${HomeScreen}/></div>` : null}
         ${s.screen === 'app' && s.appId ? html`
           <div class="app-layer"><${AppHost} appId=${s.appId} route=${route}/></div>` : null}
         ${s.switcher ? html`<${AppSwitcher}/>` : null}

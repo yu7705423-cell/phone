@@ -11,6 +11,7 @@
 
 /* ---- 状态栏 ---- */
 .statusbar {
+  position: relative; z-index: 1;
   flex: none; height: var(--statusbar-h); padding: 0 var(--sp-4);
   padding-top: var(--safe-top);
   box-sizing: content-box;
@@ -21,11 +22,13 @@
 .sb-icons { display: flex; align-items: center; gap: var(--sp-1); }
 .sb-level { font-size: var(--fs-11); color: var(--text-2); }
 
-.screen { flex: 1; min-height: 0; position: relative; overflow: hidden; }
-.home-layer, .app-layer {
-  position: absolute; inset: 0;
+.wallpaper {
+  position: absolute; inset: 0; z-index: 0;
   background-size: cover; background-position: center;
 }
+
+.screen { flex: 1; min-height: 0; position: relative; overflow: hidden; z-index: 1; }
+.home-layer, .app-layer { position: absolute; inset: 0; }
 .app-layer { background: var(--bg); animation: fade-in var(--dur-fast) var(--ease); }
 
 /* ---- 主界面 ---- */
@@ -55,6 +58,11 @@
 }
 :root[data-icon-label="off"] .app-tile { height: calc(var(--cell, 76px) * .74); }
 :root[data-icon-shadow="off"] .app-tile { box-shadow: none; }
+:root[data-wallpaper="on"] .app-tile {
+  background: var(--capsule-bg); border: 1px solid var(--capsule-border);
+  backdrop-filter: blur(var(--glass-blur)); -webkit-backdrop-filter: blur(var(--glass-blur));
+  box-shadow: none;
+}
 .app-tile svg { color: var(--icon-color); width: 52%; height: 52%; }
 .app-name {
   font-size: var(--fs-11); color: var(--text-2); max-width: 100%;
@@ -130,7 +138,7 @@
 .wg-player.is-serif .pl-line { font-family: var(--font-serif); }
 .pl-cover {
   flex: none; height: 100%; aspect-ratio: 1;
-  border-radius: var(--r-md); background: var(--surface-2);
+  border-radius: var(--r-md); background: var(--capsule-bg);
   background-size: cover; background-position: center;
   display: flex; align-items: center; justify-content: center;
   color: var(--text-3);
@@ -184,6 +192,7 @@
 
 /* ---- Dock ---- */
 .dock {
+  position: relative; z-index: var(--z-dock);
   flex: none;
   /* 图标(cell*ratio) + 胶囊上下内边距(sp-2 x2) + Dock 上下内边距(sp-2 x2) */
   height: calc(var(--cell, 76px) * var(--tile-ratio) + var(--sp-8) + var(--safe-bottom));
@@ -212,6 +221,7 @@
 }
 
 .home-indicator {
+  position: relative; z-index: 1;
   flex: none; height: 22px; display: flex; align-items: center; justify-content: center;
   background: transparent; cursor: pointer;
 }
@@ -221,7 +231,12 @@
 .lock {
   height: 100%; display: flex; flex-direction: column; padding: var(--sp-6) var(--sp-4);
   background: linear-gradient(170deg, var(--surface-2), var(--bg));
-  background-size: cover; background-position: center;
+}
+.lock.has-wallpaper { background: none; }
+.lock.has-wallpaper .lock-time,
+.lock.has-wallpaper .lock-date,
+.lock.has-wallpaper .lock-unlock {
+  color: var(--on-scrim); text-shadow: 0 1px 6px rgba(0, 0, 0, .5);
 }
 .lock-clock { text-align: center; margin-top: var(--sp-8); }
 .lock-time { font-size: var(--fs-56); font-weight: 200; letter-spacing: -2px; line-height: 1.05; }
