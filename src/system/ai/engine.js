@@ -6,6 +6,9 @@ import { enqueue, cancel, isRunning } from './queue.js';
 import { parseJSON } from './sse.js';
 import { estimate, takeLatestWithin } from './tokens.js';
 
+// 接口协议要求带 max_tokens，取一个足够大的值，等同于不限制
+export const MAX_OUTPUT = 32000;
+
 export function template(id) {
   const s = settings.get();
   return (s.promptTemplates && s.promptTemplates[id]) || DEFAULT_TEMPLATES[id] || '';
@@ -20,7 +23,9 @@ export function config() {
     model: s.model.trim(),
     temperature: s.temperature,
     effort: s.effort,
-    maxTokens: s.maxTokens,
+    // 不设回复上限。接口要求必须带 max_tokens，这里给到模型的上限，
+    // 不作为「截断长度」暴露给用户。
+    maxTokens: MAX_OUTPUT,
   };
 }
 

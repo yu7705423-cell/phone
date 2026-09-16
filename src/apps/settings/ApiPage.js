@@ -77,12 +77,6 @@ export function ApiPage() {
               onInput=${e => db.settings.set({ temperature: parseFloat(e.target.value) })}/>
           <//>` : null}
 
-        <${Field} label=${`单次回复上限　${s.maxTokens} tokens`}
-          desc="角色扮演的回复不该太长，2048 通常足够">
-          <input type="range" min="256" max="8192" step="128" value=${s.maxTokens}
-            onInput=${e => db.settings.set({ maxTokens: parseInt(e.target.value, 10) })}/>
-        <//>
-
         <${Button} full variant="ghost" disabled=${testing || !s.apiKey}
           onClick=${test}>${testing ? '测试中…' : '测试连接'}<//>
       </div>

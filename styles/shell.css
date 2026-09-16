@@ -29,7 +29,7 @@
 .app-layer { background: var(--bg); animation: fade-in var(--dur-fast) var(--ease); }
 
 /* ---- 主界面 ---- */
-.home { height: 100%; display: flex; flex-direction: column; padding: var(--sp-3) var(--sp-4) 0; }
+.home { height: 100%; display: flex; flex-direction: column; padding: var(--sp-3) var(--sp-5) 0; }
 .home-grid {
   flex: 1; min-height: 0; display: grid;
   gap: var(--grid-gap);
@@ -45,14 +45,15 @@
 }
 .cell-app:active .app-tile { transform: scale(.93); }
 .app-tile {
-  position: relative; height: 72%; width: auto; aspect-ratio: 1;
+  position: relative; height: calc(var(--cell, 76px) * var(--tile-ratio));
+  width: auto; aspect-ratio: 1;
   max-width: 100%; flex: none;
   border-radius: 24%; background: var(--tile-bg);
   display: flex; align-items: center; justify-content: center;
   box-shadow: var(--tile-shadow);
   transition: transform var(--dur-fast) var(--ease);
 }
-:root[data-icon-label="off"] .app-tile { height: 88%; }
+:root[data-icon-label="off"] .app-tile { height: calc(var(--cell, 76px) * .74); }
 :root[data-icon-shadow="off"] .app-tile { box-shadow: none; }
 .app-tile svg { color: var(--icon-color); width: 52%; height: 52%; }
 .app-name {
@@ -172,15 +173,16 @@
 /* ---- Dock ---- */
 .dock {
   flex: none;
-  height: calc(var(--dock-h) + var(--safe-bottom));
-  padding: var(--sp-2) var(--sp-4) calc(var(--sp-2) + var(--safe-bottom));
+  height: calc(var(--cell, 76px) * var(--tile-ratio) + var(--sp-6) + var(--safe-bottom));
+  min-height: calc(var(--dock-h) + var(--safe-bottom));
+  padding: var(--sp-2) var(--sp-5) calc(var(--sp-2) + var(--safe-bottom));
   background: transparent; z-index: var(--z-dock);
 }
 .dock-capsule {
   height: 100%; display: grid; grid-template-columns: repeat(4, 1fr);
   align-items: center; gap: var(--sp-2);
   padding: var(--sp-2) var(--sp-3);
-  min-height: 60px;
+  min-height: calc(var(--cell, 76px) * var(--tile-ratio) + var(--sp-4));
   background: var(--wg-bg); border-radius: var(--r-xl);
   backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
 }
@@ -188,10 +190,11 @@
   display: flex; align-items: center; justify-content: center;
   min-width: 0; height: 100%; overflow: hidden;
 }
-.dock-slot .app-tile { height: 86%; }
+
 .dock-empty {
   border: 1px dashed var(--border-2); border-radius: 24%; opacity: .4;
-  height: 86%; width: auto; aspect-ratio: 1; align-self: center;
+  height: calc(var(--cell, 76px) * var(--tile-ratio));
+  width: auto; aspect-ratio: 1; align-self: center;
 }
 
 .home-indicator {

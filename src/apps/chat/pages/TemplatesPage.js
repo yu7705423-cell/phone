@@ -1,6 +1,6 @@
-import { html, useState } from '../../lib.js';
-import { phone, useStore } from '../../sdk/index.js';
-import { Page, List, ListItem, Textarea, Button, Icon, toast, confirm } from '../../ui/index.js';
+import { html, useState } from '../../../lib.js';
+import { phone, useStore } from '../../../sdk/index.js';
+import { Page, List, ListItem, Textarea, Button, Icon, toast, confirm } from '../../../ui/index.js';
 
 const { db, nav, ai } = phone;
 

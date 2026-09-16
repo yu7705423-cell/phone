@@ -7,6 +7,8 @@ import { MomentsTab } from './pages/MomentsTab.js';
 import { Profile } from './pages/Profile.js';
 import { CharacterEdit } from './pages/CharacterEdit.js';
 import { Conversation } from './pages/Conversation.js';
+import { ContextPage } from './pages/ContextPage.js';
+import { TemplatesPage } from './pages/TemplatesPage.js';
 
 const { db, nav } = phone;
 
@@ -17,7 +19,7 @@ const tabState = { current: 'messages' };
 const TABS = [
   { id: 'messages', label: '消息', icon: 'message' },
   { id: 'contacts', label: '联系人', icon: 'users' },
-  { id: 'moments', label: '朋友圈', icon: 'compass' },
+  { id: 'moments', label: '朋友圈', icon: 'moments' },
   { id: 'me', label: '主页', icon: 'user' },
 ];
 
@@ -50,6 +52,8 @@ export default function ChatApp({ route }) {
   const edit = route?.match(/^\/edit\/(.+)$/);
   if (edit) return html`<${CharacterEdit} id=${edit[1]}/>`;
 
+  if (route === '/context') return html`<${ContextPage}/>`;
+  if (route === '/templates') return html`<${TemplatesPage}/>`;
   if (route === '/moments') return html`<${Tabs} initial="moments"/>`;
   return html`<${Tabs}/>`;
 }

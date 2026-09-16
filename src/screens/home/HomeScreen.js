@@ -64,13 +64,17 @@ export function HomeScreen() {
   const swallowTap = useRef(false);
   const gridRef = useRef(null);
   const [cell, setCell] = useState(0);
+  const [autoRows, setAutoRows] = useState(6);
 
   useEffect(() => { healAndSave(); }, []);
 
   const pages = lay.pages || [];
   const idx = Math.min(lay.currentPage || 0, Math.max(0, pages.length - 1));
   const page = pages[idx] || { cells: [] };
-  const rows = rowsOf(page, edit);
+  // 行数按屏高自动撑满：格子边长先由宽度定死（保证是方的），
+  // 再看这个高度能放下几行。大屏就多出几行可用，不会空一大片。
+  const needRows = rowsOf(page, edit);
+  const rows = Math.max(needRows, autoRows);
   const slots = edit ? freeSlots(page, rows) : [];
 
   // 格子边长取「按宽度均分」与「按高度均分」中较小的那个:
@@ -83,14 +87,20 @@ export function HomeScreen() {
       const { width, height } = el.getBoundingClientRect();
       if (!width || !height) return;
       const byW = (width - gap * (GRID_COLS - 1)) / GRID_COLS;
-      const byH = (height - gap * (rows - 1)) / rows;
-      setCell(Math.max(44, Math.floor(Math.min(byW, byH))));
+      const fitRows = Math.max(4, Math.floor((height + gap) / (byW + gap)));
+      setAutoRows(fitRows);
+      const useRows = Math.max(needRows, fitRows);
+      const byH = (height - gap * (useRows - 1)) / useRows;
+      const size = Math.max(44, Math.floor(Math.min(byW, byH)));
+      setCell(size);
+      // Dock 里的图标要和网格里一样大，所以把格子边长共享出去
+      document.documentElement.style.setProperty('--cell', size + 'px');
     };
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [rows]);
+  }, [needRows]);
 
   // 整理模式:没有待交换目标时点开这个位置的菜单;有目标时完成交换
   // 整理模式：没有待移动目标时点开菜单；有目标时把它挪到这里

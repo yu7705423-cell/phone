@@ -133,7 +133,7 @@ registerWidget({
     const author = mo ? (mo.authorId === 'me' ? persona.get().name : characters.get(mo.authorId)?.name) : null;
     return html`
       <div class="wg wg-list" onClick=${() => openApp('chat', '/moments')}>
-        <div class="wg-head"><${Icon} name="compass" size=${15}/><span>朋友圈</span></div>
+        <div class="wg-head"><${Icon} name="moments" size=${15}/><span>朋友圈</span></div>
         ${mo ? html`
           <div class="wg-rows">
             <div class="wg-row-title ellipsis">${author || '某人'}</div>

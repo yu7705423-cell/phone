@@ -70,7 +70,7 @@ export function Profile({ subjectId, embedded }) {
 
       <div class="profile-head">
         <button class="press" onClick=${() => isMe && avatarRef.current?.click()}>
-          <${Avatar} src=${avatar} name=${subject.name} size=${68}/>
+          <${Avatar} src=${avatar} name=${subject.name} size=${72} radius=${36}/>
         </button>
         <input type="file" accept="image/*" ref=${avatarRef}
           onChange=${pickImage(avatarRef, 'avatar', AVATAR_MAX)} style="display:none"/>

@@ -90,7 +90,8 @@
   /* 结构尺寸 */
   --statusbar-h: 26px;
   --dock-h:      84px;
-  --grid-gap:    10px;
+  --grid-gap:    14px;
+  --tile-ratio:  .6;
   --navbar-h:    48px;
   --tabbar-h:    54px;
 

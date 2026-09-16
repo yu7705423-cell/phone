@@ -64,6 +64,7 @@ export const PATHS = {
   headphone:'<path d="M4 16v-4a8 8 0 1116 0v4"/><rect x="2.5" y="14" width="4.5" height="7" rx="2"/><rect x="17" y="14" width="4.5" height="7" rx="2"/>',
   bookmark: '<path d="M6 3h12v18l-6-4.5L6 21z"/>',
   film:     '<rect x="2.5" y="4.5" width="19" height="15" rx="2.5"/><path d="M8 4.5v15M16 4.5v15M2.5 12h19M2.5 8.2h5.5M2.5 15.8h5.5M16 8.2h5.5M16 15.8h5.5"/>',
+  moments:  '<circle cx="12" cy="12" r="3.2"/><circle cx="12" cy="12" r="8.4"/><path d="M12 3.6v1.6M12 18.8v1.6M3.6 12h1.6M18.8 12h1.6"/>',
   cup:      '<path d="M4 8h13v6a5 5 0 01-5 5H9a5 5 0 01-5-5z"/><path d="M17 9.5h1.8a2.7 2.7 0 010 5.4H17"/><path d="M7 2.5v2.5M11 2.5v2.5"/>',
 };
 

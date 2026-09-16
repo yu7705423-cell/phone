@@ -88,7 +88,7 @@ input[type="range"] {
 .chat-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; font-size: var(--fs-11); }
 
 .conv { height: 100%; display: flex; flex-direction: column; }
-.conv-body { flex: 1; min-height: 0; padding: var(--sp-4) var(--sp-3); display: flex; flex-direction: column; gap: var(--sp-3); }
+.conv-body { flex: 1; min-height: 0; padding: var(--sp-4) var(--sp-3); display: flex; flex-direction: column; gap: var(--sp-4); }
 .conv-hint { margin: auto; color: var(--text-3); font-size: var(--fs-12); }
 
 .msg { display: flex; gap: var(--sp-2); align-items: flex-start; }
@@ -106,13 +106,41 @@ input[type="range"] {
 .swipes { display: flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-11); color: var(--text-3); }
 .swipe-btn { color: var(--text-2); display: flex; }
 
-.composer {
+/* 输入区与消息区同底，不要分隔线也不要换颜色 */
+.composer-bar {
   flex: none; display: flex; gap: var(--sp-2); align-items: flex-end;
   padding: var(--sp-2) var(--sp-3);
   padding-bottom: calc(var(--sp-2) + var(--safe-bottom));
-  background: var(--surface); border-top: 1px solid var(--border);
+  background: var(--bg);
 }
-.composer-inline { border-top: none; background: none; padding: var(--sp-3) 0 0; }
+.composer-side {
+  width: 38px; height: 38px; flex: none; border-radius: var(--r-full);
+  display: flex; align-items: center; justify-content: center; color: var(--text-2);
+}
+.composer-input {
+  flex: 1; max-height: 110px; min-height: 38px; border-radius: var(--r-lg);
+  padding: var(--sp-2) var(--sp-3); resize: none;
+  background: var(--surface-2); border: 1px solid var(--border);
+}
+.composer-panel {
+  flex: none; background: var(--bg); padding: var(--sp-3) var(--sp-4) var(--sp-5);
+  border-top: 1px solid var(--border);
+}
+.panel-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--sp-4) var(--sp-2); }
+.panel-item {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  font-size: var(--fs-11); color: var(--text-2);
+}
+.panel-icon {
+  width: 52px; height: 52px; border-radius: var(--r-md);
+  background: var(--surface-2); display: flex; align-items: center; justify-content: center;
+  color: var(--text);
+}
+.panel-empty { font-size: var(--fs-12); color: var(--text-3); line-height: 1.7; padding: var(--sp-4) 0; }
+
+/* 兼容朋友圈评论区里那个内联输入 */
+.composer { display: flex; gap: var(--sp-2); align-items: flex-end; }
+.composer-inline { padding: var(--sp-3) 0 0; }
 .composer textarea {
   flex: 1; max-height: 110px; min-height: 38px; border-radius: var(--r-lg);
   padding: var(--sp-2) var(--sp-3); resize: none;
@@ -137,18 +165,44 @@ input[type="range"] {
   background: var(--scrim-strong); color: var(--on-scrim);
   display: flex; align-items: center; justify-content: center;
 }
+.profile-cover { z-index: 0; }
 .profile-head {
+  position: relative; z-index: 1;
   display: flex; align-items: flex-end; gap: var(--sp-3);
-  padding: 0 var(--sp-4); margin-top: -28px;
+  padding: 0 var(--sp-4); margin-top: -34px;
 }
-.profile-head .avatar { box-shadow: 0 0 0 3px var(--bg); }
+.profile-head .avatar {
+  box-shadow: 0 0 0 3px var(--bg); border-radius: var(--r-full);
+}
 .profile-meta { padding-bottom: var(--sp-2); min-width: 0; }
 .profile-name { font-size: var(--fs-17); font-weight: var(--fw-semi); }
 .profile-sign { font-size: var(--fs-12); color: var(--text-3); margin-top: 2px; }
 
 /* 朋友圈 */
 .moments { padding-bottom: var(--sp-6); }
-.mo-bar { display: flex; gap: var(--sp-2); padding: var(--sp-3) var(--sp-4); }
+.mo-header {
+  position: relative; height: 210px; margin-bottom: 34px;
+  background: var(--surface-3); background-size: cover; background-position: center;
+}
+.mo-header-acts {
+  position: absolute; top: var(--sp-3); right: var(--sp-3);
+  display: flex; gap: var(--sp-2);
+}
+.mo-header-btn {
+  width: 34px; height: 34px; border-radius: var(--r-full);
+  background: var(--scrim); color: var(--on-scrim);
+  display: flex; align-items: center; justify-content: center;
+}
+.mo-header-btn svg { color: var(--on-scrim); }
+.mo-header-me {
+  position: absolute; right: var(--sp-4); bottom: -28px;
+  display: flex; align-items: flex-end; gap: var(--sp-3);
+}
+.mo-header-name {
+  font-size: var(--fs-15); font-weight: var(--fw-semi); color: var(--on-scrim);
+  text-shadow: 0 1px 6px rgba(0, 0, 0, .55); padding-bottom: 34px;
+}
+.mo-header-me .avatar { box-shadow: 0 0 0 3px var(--bg); }
 .mo-card {
   display: flex; gap: var(--sp-3); padding: var(--sp-4);
   border-bottom: 1px solid var(--border); background: var(--surface);

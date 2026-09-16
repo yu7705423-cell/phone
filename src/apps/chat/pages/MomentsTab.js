@@ -12,6 +12,26 @@ function Photo({ id }) {
   return html`<div class="mo-photo" style=${url ? `background-image:url(${url})` : ''}></div>`;
 }
 
+// 顶部是我自己的背景、头像和 ID，发布按钮在右上角
+function MomentsHeader({ onPost, onRefresh, busy }) {
+  const me = db.persona.get();
+  const cover = useImage(me.cover);
+  const avatar = useImage(me.avatar);
+  return html`
+    <div class="mo-header" style=${cover ? `background-image:url(${cover})` : ''}>
+      <div class="mo-header-acts">
+        <button class="mo-header-btn press" onClick=${onRefresh} disabled=${busy}
+          aria-label="刷新"><${Icon} name="refresh" size=${17}/></button>
+        <button class="mo-header-btn press" onClick=${onPost}
+          aria-label="发布"><${Icon} name="camera" size=${17}/></button>
+      </div>
+      <div class="mo-header-me">
+        <div class="mo-header-name">${me.name || '我'}</div>
+        <${Avatar} src=${avatar} name=${me.name} size=${62} radius=${14}/>
+      </div>
+    </div>`;
+}
+
 function MomentCard({ mo, onComment }) {
   const isMe = mo.authorId === 'me';
   const author = isMe ? db.persona.get() : db.characters.get(mo.authorId);
@@ -26,7 +46,7 @@ function MomentCard({ mo, onComment }) {
 
   return html`
     <div class="mo-card">
-      <${Avatar} src=${avatar} name=${author?.name} size=${38}/>
+      <${Avatar} src=${avatar} name=${author?.name} size=${40} radius=${8}/>
       <div class="mo-main">
         <div class="mo-name">${author?.name || '已删除'}</div>
         <div class="mo-text">${mo.text}</div>
@@ -125,15 +145,11 @@ export function MomentsTab() {
 
   return html`
     <div class="moments">
-      <div class="mo-bar">
-        <${Button} size="sm" variant="ghost" icon="edit" onClick=${() => setComposing(true)}>发一条<//>
-        <${Button} size="sm" variant="ghost" icon="sparkle" disabled=${busy}
-          onClick=${genMoment}>${busy ? '生成中' : '让角色发'}<//>
-      </div>
+      <${MomentsHeader} onPost=${() => setComposing(true)} onRefresh=${genMoment} busy=${busy}/>
 
       ${list.length ? list.map(mo => html`
         <${MomentCard} key=${mo.id} mo=${mo} onComment=${m => { setTarget(m); setComment(''); }}/>`)
-      : html`<${EmptyState} icon="compass" title="还没有动态"
+      : html`<${EmptyState} icon="moments" title="还没有动态"
           desc="你可以自己发，也可以让角色根据人设和最近的聊天自动发一条。图片从本地上传，存在这台设备上。"/>`}
 
       <${Sheet} open=${composing} onClose=${() => setComposing(false)} title="发动态">

@@ -17,7 +17,6 @@ export const DEFAULT_SETTINGS = {
   model: 'claude-opus-5',
   temperature: 0.9,               // 仅 OpenAI 兼容接口使用
   effort: 'low',                  // 仅 Anthropic 使用。Opus 5 一族不接受 temperature
-  maxTokens: 2048,
 
   // 上下文
   injectOrder: ['character', 'lorebook', 'user', 'time', 'memory'],

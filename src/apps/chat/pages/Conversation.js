@@ -14,7 +14,7 @@ function Bubble({ msg, char, onRetry, onSwipe, onDelete }) {
 
   return html`
     <div class=${`msg${mine ? ' is-mine' : ''}`}>
-      <${Avatar} src=${avatar} name=${mine ? db.persona.get().name : char?.name} size=${34}/>
+      <${Avatar} src=${avatar} name=${mine ? db.persona.get().name : char?.name} size=${36} radius=${18}/>
       <div class="msg-col">
         ${parts.length ? parts.map((p, i) => html`
           <div key=${i} class="bubble" onDblClick=${() => onDelete(msg)}>${p}</div>`)
@@ -46,6 +46,7 @@ export function Conversation({ chatId }) {
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
   const [menu, setMenu] = useState(false);
+  const [panel, setPanel] = useState(null);      // menu | sticker | null
   const bodyRef = useRef(null);
 
   const chat = db.chats.get(chatId);
@@ -109,13 +110,13 @@ export function Conversation({ chatId }) {
     } finally { setBusy(false); }
   }
 
-  const send = async () => {
+  // 发出去就只是发出去。要不要回复、什么时候回复由你按下面那个按钮决定。
+  const send = () => {
     const text = draft.trim();
     if (!text || busy) return;
     setDraft('');
     db.messages.create({ chatId, role: 'user', authorId: 'me', content: text, status: 'done' });
     db.chats.update(chatId, { lastMessageAt: Date.now() });
-    await generate(null);
   };
 
   const regenerate = async () => {
@@ -158,6 +159,17 @@ export function Conversation({ chatId }) {
 
   const pending = ai.memory.pendingOf(chatId).length;
 
+  const MENU_ITEMS = [
+    { id: 'photo', icon: 'image', label: '图片' },
+    { id: 'voice', icon: 'headphone', label: '语音' },
+    { id: 'redpack', icon: 'wallet', label: '红包' },
+    { id: 'call', icon: 'bell', label: '来电' },
+    { id: 'gift', icon: 'cup', label: '礼物' },
+    { id: 'location', icon: 'map', label: '位置' },
+    { id: 'file', icon: 'notes', label: '文件' },
+    { id: 'more', icon: 'more', label: '更多' },
+  ].map(it => ({ ...it, onTap: () => toast(`「${it.label}」还没做`) }));
+
   return html`
     <${Page} title=${char.name} onBack=${nav.pop} noScroll
       right=${html`<${IconButton} name="more" onClick=${() => setMenu(true)} label="更多"/>`}>
@@ -173,31 +185,73 @@ export function Conversation({ chatId }) {
             <div class="conv-hint">发第一条消息开始吧</div>` : null}
         </div>
 
-        <div class="composer">
-          <textarea rows="1" value=${draft} placeholder="说点什么"
+        <div class="composer-bar">
+          <button class="composer-side press" onClick=${() => setPanel(panel === 'menu' ? null : 'menu')}
+            aria-label="更多"><${Icon} name="plus" size=${20}/></button>
+
+          <textarea class="composer-input" rows="1" value=${draft} placeholder="说点什么"
             onInput=${e => setDraft(e.target.value)}
             onKeyDown=${e => {
               if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); }
             }}></textarea>
-          ${busy
-            ? html`<button class="send-btn is-stop press"
-                onClick=${() => ai.cancelReply(chatId, char.id)} aria-label="停止">
-                <${Icon} name="close" size=${17}/></button>`
-            : html`<button class="send-btn press" disabled=${!draft.trim()}
-                onClick=${send} aria-label="发送"><${Icon} name="send" size=${17}/></button>`}
+
+          <button class="composer-side press" onClick=${() => setPanel(panel === 'sticker' ? null : 'sticker')}
+            aria-label="表情"><${Icon} name="heart" size=${20}/></button>
+
+          ${draft.trim()
+            ? html`<button class="send-btn press" onClick=${send} aria-label="发送">
+                <${Icon} name="send" size=${17}/></button>`
+            : busy
+              ? html`<button class="send-btn is-stop press"
+                  onClick=${() => ai.cancelReply(chatId, char.id)} aria-label="停止">
+                  <${Icon} name="close" size=${17}/></button>`
+              : html`<button class="send-btn press" onClick=${() => generate(null)}
+                  aria-label="让对方回复"><${Icon} name="sparkle" size=${17}/></button>`}
         </div>
+
+        ${panel ? html`
+          <div class="composer-panel">
+            ${panel === 'menu'
+              ? html`<div class="panel-grid">
+                  ${MENU_ITEMS.map(it => html`
+                    <button key=${it.id} class="panel-item press"
+                      onClick=${() => { setPanel(null); it.onTap && it.onTap(); }}>
+                      <div class="panel-icon"><${Icon} name=${it.icon} size=${20}/></div>
+                      <span>${it.label}</span>
+                    </button>`)}
+                </div>`
+              : html`<div class="panel-empty">
+                  表情包还没做，接下来会支持导入 docx、txt 和批量导入，
+                  以及按关键词在输入时推荐。
+                </div>`}
+          </div>` : null}
       </div>
 
-      <${Sheet} open=${menu} onClose=${() => setMenu(false)} title=${char.name}>
+      <${Sheet} open=${menu} onClose=${() => setMenu(false)} title=${char.name} height="76%">
         <${List} inset=${false}>
+          <${ListItem} title="角色卡" subtitle="人设、开场白、说话示例、关联世界书" arrow multiline
+            left=${html`<${Icon} name="user" size=${18}/>`}
+            onClick=${() => { setMenu(false); nav.push(`/edit/${char.id}`); }}/>
+          <${ListItem} title="角色主页" arrow
+            left=${html`<${Icon} name="camera" size=${18}/>`}
+            onClick=${() => { setMenu(false); nav.push(`/profile/${char.id}`); }}/>
+        <//>
+
+        <${List} inset=${false} title="上下文">
+          <${ListItem} title="上下文与记忆" subtitle="注入顺序、扫描窗口、历史轮次、自动总结" arrow multiline
+            left=${html`<${Icon} name="layers" size=${18}/>`}
+            onClick=${() => { setMenu(false); nav.push('/context'); }}/>
+          <${ListItem} title="Prompt 模板" subtitle="骨架与各任务的提示词" arrow
+            left=${html`<${Icon} name="sparkle" size=${18}/>`}
+            onClick=${() => { setMenu(false); nav.push('/templates'); }}/>
+          <${ListItem} title="立即总结记忆" subtitle=${`还有 ${pending} 条未总结`} arrow
+            left=${html`<${Icon} name="brain" size=${18}/>`} onClick=${summarize}/>
+        <//>
+
+        <${List} inset=${false} title="这段对话">
           <${ListItem} title="重新生成上一条" arrow
             left=${html`<${Icon} name="refresh" size=${18}/>`}
             onClick=${() => { setMenu(false); regenerate(); }}/>
-          <${ListItem} title="立即总结记忆" subtitle=${`还有 ${pending} 条未总结`} arrow
-            left=${html`<${Icon} name="brain" size=${18}/>`} onClick=${summarize}/>
-          <${ListItem} title="角色主页" arrow
-            left=${html`<${Icon} name="user" size=${18}/>`}
-            onClick=${() => { setMenu(false); nav.push(`/profile/${char.id}`); }}/>
           <${ListItem} title="清空聊天记录" danger arrow
             left=${html`<${Icon} name="trash" size=${18}/>`} onClick=${clearHistory}/>
         <//>

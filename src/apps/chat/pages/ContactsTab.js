@@ -8,7 +8,7 @@ function Row({ char }) {
   const avatar = useImage(char.avatar);
   return html`
     <${ListItem} title=${char.name} subtitle=${char.signature || char.persona?.slice(0, 30) || '还没有设定'}
-      arrow left=${html`<${Avatar} src=${avatar} name=${char.name} size=${40}/>`}
+      arrow left=${html`<${Avatar} src=${avatar} name=${char.name} size=${42} radius=${21}/>`}
       onClick=${() => nav.push(`/profile/${char.id}`)}/>`;
 }
 

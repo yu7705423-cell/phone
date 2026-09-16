@@ -17,7 +17,7 @@ function Row({ chat }) {
 
   return html`
     <${ListItem} title=${title} subtitle=${preview} arrow=${false}
-      left=${html`<${Avatar} src=${avatar} name=${title} size=${44}/>`}
+      left=${html`<${Avatar} src=${avatar} name=${title} size=${46} radius=${23}/>`}
       right=${html`
         <div class="chat-meta">
           <span>${relTime(chat.lastMessageAt)}</span>
