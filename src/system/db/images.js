@@ -24,15 +24,18 @@ export async function compress(file, maxEdge = PHOTO_MAX) {
   return { blob, w, h };
 }
 
-// 居中裁成正方形再缩放，用于应用图标
-export async function compressSquare(file, size = ICON_MAX) {
+// 整张图完整放进正方形画布，留白透明。用于应用图标。
+// 不做居中裁切：宽图被裁掉两边就只剩中间一小块，什么都看不出来。
+export async function compressFit(file, size = ICON_MAX) {
   const bmp = await createImageBitmap(file);
-  const edge = Math.min(bmp.width, bmp.height);
-  const sx = (bmp.width - edge) / 2;
-  const sy = (bmp.height - edge) / 2;
+  const scale = Math.min(size / bmp.width, size / bmp.height);
+  const w = Math.max(1, Math.round(bmp.width * scale));
+  const h = Math.max(1, Math.round(bmp.height * scale));
   const canvas = document.createElement('canvas');
   canvas.width = size; canvas.height = size;
-  canvas.getContext('2d').drawImage(bmp, sx, sy, edge, edge, 0, 0, size, size);
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, size, size);
+  ctx.drawImage(bmp, Math.round((size - w) / 2), Math.round((size - h) / 2), w, h);
   bmp.close && bmp.close();
   const blob = await new Promise(res => canvas.toBlob(res, 'image/webp', QUALITY))
     || await new Promise(res => canvas.toBlob(res, 'image/png'));
@@ -45,8 +48,8 @@ export const images = {
     rows.forEach(r => sizes.set(r.id, r.bytes || 0));
   },
 
-  async putSquare(file, size = ICON_MAX) {
-    const { blob, w, h } = await compressSquare(file, size);
+  async putIcon(file, size = ICON_MAX) {
+    const { blob, w, h } = await compressFit(file, size);
     const row = { id: uid('img'), blob, w, h, bytes: blob.size, createdAt: Date.now() };
     sizes.set(row.id, row.bytes);
     await write('images', () => idb.put('images', row));

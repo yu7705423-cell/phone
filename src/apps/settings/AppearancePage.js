@@ -4,6 +4,7 @@ import { Page, List, ListItem, Field, Input, Textarea, Switch, Segmented,
          Button, Icon, Sheet, toast, confirm, prompt } from '../../ui/index.js';
 import { PHOTO_MAX, ICON_MAX } from '../../system/db/images.js';
 import { ICON_NAMES } from '../../icons/paths.js';
+import { BatchIcons } from './BatchIcons.js';
 
 const { db, nav, apps: appsApi } = phone;
 
@@ -87,10 +88,10 @@ function IconPicker({ appId, onClose }) {
   const useImageFile = async file => {
     setBusy(true);
     try {
-      const id = await db.images.putSquare(file, ICON_MAX);
+      const id = await db.images.putIcon(file, ICON_MAX);
       if (cur.imageId) db.images.remove(cur.imageId);
       set({ imageId: id });
-      toast(`已换成图片，裁成 ${ICON_MAX} x ${ICON_MAX}`);
+      toast('已换成图片');
     } catch (err) { toast('图片处理失败：' + err.message, 'error', 4000); }
     finally { setBusy(false); }
   };
@@ -124,7 +125,7 @@ function IconPicker({ appId, onClose }) {
         <${Input} value=${app?.name || ''} onInput=${v => set({ name: v })}/>
       <//>
 
-      <${Field} label="换成图片" desc=${`居中裁成正方形并缩到 ${ICON_MAX} x ${ICON_MAX}，存在本地`}>
+      <${Field} label="换成图片" desc=${`整张图完整放进  ${ICON_MAX} x ${ICON_MAX}，存在本地`}>
         <div class="icon-upload">
           <div class=${`app-tile app-tile-preview${preview ? ' has-image' : ''}`}
             style=${preview ? `background-image:url(${preview})` : ''}>
@@ -212,6 +213,7 @@ export function AppearancePage() {
   const s = useStore(db.settings.store);
   const [picking, setPicking] = useState(null);
   const [cssOpen, setCssOpen] = useState(false);
+  const [batchOpen, setBatchOpen] = useState(false);
   useStore(appsApi.store);
   const apps = appsApi.list();
 
@@ -267,6 +269,10 @@ export function AppearancePage() {
       </div>
 
       <${List} title="换图标">
+        <${ListItem} title="批量换图" multiline
+          subtitle="勾一批应用，再一次选多张图，按勾选顺序一一对应" arrow
+          left=${html`<${Icon} name="grid" size=${19}/>`}
+          onClick=${() => setBatchOpen(true)}/>
         ${apps.map(a => {
           const cur = (s.appIcons || {})[a.id] || {};
           return html`
@@ -293,5 +299,6 @@ export function AppearancePage() {
 
       <${IconPicker} appId=${picking} onClose=${() => setPicking(null)}/>
       <${CSSEditor} open=${cssOpen} onClose=${() => setCssOpen(false)}/>
+      <${BatchIcons} open=${batchOpen} onClose=${() => setBatchOpen(false)}/>
     <//>`;
 }
