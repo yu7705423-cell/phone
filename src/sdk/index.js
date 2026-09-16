@@ -18,6 +18,7 @@ import * as svc from '../system/ai/services.js';
 import { fetchModels, filterModels } from '../system/ai/models.js';
 import * as voice from '../system/ai/voice.js';
 import * as image from '../system/ai/image.js';
+import * as stickerApi from '../system/stickers.js';
 import { BLOCKS, DEFAULT_ORDER, resolveOrder } from '../system/ai/context/index.js';
 import { toast, confirm, prompt } from '../ui/overlay.js';
 import { appLook, listAppLooks } from '../system/look.js';
@@ -35,6 +36,7 @@ export const phone = {
 
   db,
   images,
+  stickers: stickerApi,
 
   // 已注册的 app 及其外观（含用户在设置里的自定义）
   apps: {

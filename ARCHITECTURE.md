@@ -247,6 +247,35 @@ system/ 可以 import: ui/, icons/, vendor/
 }
 ```
 
+### 3.65 stickers 表情包
+
+```js
+{
+  id: 'stk_xxx',
+  name: '开心',
+  keywords: ['开心', '笑'],   // 输入时按这些词推荐
+  group: '默认',
+  imageId: 'img_xxx' | null,  // 缓存到本地后有值
+  url: 'https://...' | null,  // 远程链接，二者至少有一个
+  useCount: 0,
+  createdAt, updatedAt
+}
+```
+
+三种导入方式,都先进确认页选分组再入库:
+
+- **批量选图** — 一次多张,文件名当名称
+- **txt** — 每行一个,支持 `名称|链接`、`名称,链接`、`名称 链接`、纯链接,
+  `#` 开头跳过。名称里的分隔符同时拆成关键词
+- **docx** — docx 就是 zip,用 `system/unzip.js` 解开:
+  正文 `word/document.xml` 按段落取文字后同 txt 解析,
+  `word/_rels` 里的外部超链接一并收进来,
+  `word/media/` 下的内嵌图片直接入库。
+  解压用浏览器自带的 `DecompressionStream('deflate-raw')`,不引第三方库
+
+链接类的先按原样存,页面上提供一键「缓存到本地」;跨域取不回来的保留链接,
+并在结果里明确报数,不静默失败。
+
 ### 3.7 images 图片
 
 朋友圈配图、角色头像、背景图全部由用户本地上传,不走网络。

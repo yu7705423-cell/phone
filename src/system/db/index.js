@@ -11,8 +11,9 @@ export const memories   = makeCollection('memories', 'mem');
 export const chats      = makeCollection('chats', 'chat');
 export const messages   = makeCollection('messages', 'msg');
 export const moments    = makeCollection('moments', 'mo');
+export const stickers   = makeCollection('stickers', 'stk');
 
-const COLLECTIONS = { characters, lorebooks, memories, chats, messages, moments };
+const COLLECTIONS = { characters, lorebooks, memories, chats, messages, moments, stickers };
 
 // ---- kv: settings / persona / layout ----
 function makeKV(key, fallback, { deep = false } = {}) {
@@ -80,7 +81,7 @@ export const ready = (async function boot() {
 window.addEventListener('pagehide', () => images.revokeAll());
 
 export const db = {
-  characters, lorebooks, memories, chats, messages, moments,
+  characters, lorebooks, memories, chats, messages, moments, stickers,
   images, settings, persona, layout,
   messagesOf, lastMessageOf, ready,
 };

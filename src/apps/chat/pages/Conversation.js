@@ -3,6 +3,8 @@ import { phone, useStore, useImage } from '../../../sdk/index.js';
 import { Page, Avatar, Icon, IconButton, Sheet, List, ListItem,
          EmptyState, toast, confirm } from '../../../ui/index.js';
 import { splitBubbles, relTime } from '../helpers.js';
+import { StickerPanel, StickerSuggest } from './StickerPanel.js';
+import { StickerImg } from './StickerBits.js';
 
 const { db, nav, ai } = phone;
 
@@ -11,14 +13,20 @@ function Bubble({ msg, char, onRetry, onSwipe, onDelete }) {
   const avatar = useImage(mine ? db.persona.get().avatar : char?.avatar);
   const parts = splitBubbles(msg.content);
   const swipes = msg.swipes || [];
+  const sticker = msg.kind === 'sticker' ? db.stickers.get(msg.stickerId) : null;
 
   return html`
     <div class=${`msg${mine ? ' is-mine' : ''}`}>
       <${Avatar} src=${avatar} name=${mine ? db.persona.get().name : char?.name} size=${36} radius=${18}/>
       <div class="msg-col">
-        ${parts.length ? parts.map((p, i) => html`
-          <div key=${i} class="bubble" onDblClick=${() => onDelete(msg)}>${p}</div>`)
-        : html`<div class="bubble bubble-empty"><span class="spinner"></span></div>`}
+        ${msg.kind === 'sticker'
+          ? html`<div class="bubble-sticker" onDblClick=${() => onDelete(msg)}>
+              ${sticker ? html`<${StickerImg} sticker=${sticker} size=${112}/>`
+                        : html`<span class="stk-miss">表情已删除</span>`}
+            </div>`
+          : parts.length ? parts.map((p, i) => html`
+              <div key=${i} class="bubble" onDblClick=${() => onDelete(msg)}>${p}</div>`)
+          : html`<div class="bubble bubble-empty"><span class="spinner"></span></div>`}
 
         ${msg.status === 'error' ? html`
           <button class="msg-retry press" onClick=${() => onRetry(msg)}>
@@ -41,6 +49,7 @@ export function Conversation({ chatId }) {
   useStore(db.chats.store);
   useStore(db.messages.store);
   useStore(db.characters.store);
+  useStore(db.stickers.store);
   const settings = useStore(db.settings.store);
 
   const [draft, setDraft] = useState('');
@@ -119,6 +128,17 @@ export function Conversation({ chatId }) {
     db.chats.update(chatId, { lastMessageAt: Date.now() });
   };
 
+  const sendSticker = s => {
+    db.messages.create({
+      chatId, role: 'user', authorId: 'me', content: `[表情：${s.name}]`,
+      kind: 'sticker', stickerId: s.id, status: 'done',
+    });
+    db.chats.update(chatId, { lastMessageAt: Date.now() });
+    phone.stickers.markUsed(s.id);
+    setPanel(null);
+    setDraft('');
+  };
+
   const regenerate = async () => {
     const last = [...msgs].reverse().find(m => m.role === 'char');
     if (!last) return;
@@ -185,6 +205,9 @@ export function Conversation({ chatId }) {
             <div class="conv-hint">发第一条消息开始吧</div>` : null}
         </div>
 
+        ${draft.trim() && panel !== 'sticker'
+          ? html`<${StickerSuggest} text=${draft} onSend=${sendSticker}/>` : null}
+
         <div class="composer-bar">
           <button class="composer-side press" onClick=${() => setPanel(panel === 'menu' ? null : 'menu')}
             aria-label="更多"><${Icon} name="plus" size=${20}/></button>
@@ -220,10 +243,7 @@ export function Conversation({ chatId }) {
                       <span>${it.label}</span>
                     </button>`)}
                 </div>`
-              : html`<div class="panel-empty">
-                  表情包还没做，接下来会支持导入 docx、txt 和批量导入，
-                  以及按关键词在输入时推荐。
-                </div>`}
+              : html`<${StickerPanel} onSend=${sendSticker}/>`}
           </div>` : null}
       </div>
 
@@ -246,6 +266,9 @@ export function Conversation({ chatId }) {
             onClick=${() => { setMenu(false); nav.push('/templates'); }}/>
           <${ListItem} title="立即总结记忆" subtitle=${`还有 ${pending} 条未总结`} arrow
             left=${html`<${Icon} name="brain" size=${18}/>`} onClick=${summarize}/>
+          <${ListItem} title="表情包" subtitle=${`已有 ${db.stickers.count()} 个`} arrow
+            left=${html`<${Icon} name="heart" size=${18}/>`}
+            onClick=${() => { setMenu(false); nav.push('/stickers'); }}/>
         <//>
 
         <${List} inset=${false} title="这段对话">

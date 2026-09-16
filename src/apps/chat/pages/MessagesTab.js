@@ -11,7 +11,9 @@ function Row({ chat, onHold }) {
   const char = db.characters.get(ids[0]);
   const avatar = useImage(char?.avatar);
   const last = db.lastMessageOf(chat.id);
-  const preview = last ? (splitBubbles(last.content).slice(-1)[0] || last.content) : '还没有消息';
+  const preview = !last ? '还没有消息'
+    : last.kind === 'sticker' ? '[表情]'
+    : (splitBubbles(last.content).slice(-1)[0] || last.content);
   const isGroup = ids.length > 1;
   const title = isGroup
     ? (chat.title || ids.map(id => db.characters.get(id)?.name).filter(Boolean).join('、'))

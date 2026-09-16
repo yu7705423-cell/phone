@@ -362,3 +362,51 @@ input[type="range"] {
 }
 .search-bar input:focus { border: none; }
 .search-bar button { color: var(--text-3); display: flex; }
+
+/* 表情包 */
+.stk-img {
+  width: 72px; height: 72px; object-fit: contain;
+  border-radius: var(--r-sm); background: var(--group-fill);
+}
+.stk-miss {
+  width: 72px; height: 72px; border-radius: var(--r-sm);
+  background: var(--group-fill); color: var(--text-3);
+  display: flex; align-items: center; justify-content: center;
+  font-size: var(--fs-12);
+}
+
+.stk-panel { display: flex; flex-direction: column; gap: var(--sp-2); max-height: 260px; }
+.stk-tabs { display: flex; gap: var(--sp-2); overflow-x: auto; padding-bottom: var(--sp-1); }
+.stk-tabs::-webkit-scrollbar { display: none; }
+.stk-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  gap: var(--sp-2); max-height: 214px; align-content: start;
+}
+.stk-manage { max-height: none; padding: 0 var(--sp-1); }
+.stk-cell { display: flex; align-items: center; justify-content: center; }
+.stk-cell .stk-img, .stk-cell .stk-miss { width: 100%; height: auto; aspect-ratio: 1; }
+
+.stk-suggest {
+  flex: none; display: flex; gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3); overflow-x: auto;
+}
+.stk-suggest::-webkit-scrollbar { display: none; }
+.stk-sug { flex: none; }
+
+.bubble-sticker { padding: 0; background: none; }
+.bubble-sticker .stk-img {
+  width: 112px; height: 112px; background: none; border-radius: var(--r-md);
+}
+
+.stk-preview {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+  gap: var(--sp-2); margin: var(--sp-3) 0;
+}
+.stk-prev-item { display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 0; }
+.stk-prev-item .stk-img, .stk-prev-item .stk-miss { width: 100%; height: auto; aspect-ratio: 1; }
+.stk-prev-item span { font-size: var(--fs-11); color: var(--text-3); max-width: 100%; }
+
+.stk-group-head { display: flex; align-items: center; justify-content: space-between; }
+.stk-group-head button { color: var(--text-3); display: flex; padding: var(--sp-1); }
+.stk-edit-preview { display: flex; justify-content: center; padding: var(--sp-3) 0 var(--sp-4); }
+.stk-edit-preview .stk-img, .stk-edit-preview .stk-miss { width: 96px; height: 96px; }
