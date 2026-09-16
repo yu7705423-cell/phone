@@ -3,6 +3,7 @@ import { Icon } from '../../icons/Icon.js';
 import { registerWidget } from '../../system/registry.js';
 import { chats, moments, memories, characters, lastMessageOf, persona } from '../../system/db/index.js';
 import { openApp } from '../../system/nav.js';
+import { useImage } from '../../system/db/useImage.js';
 
 function relTime(ts) {
   if (!ts) return '';
@@ -13,22 +14,39 @@ function relTime(ts) {
   return `${Math.floor(min / 1440)}天前`;
 }
 
+// ---- 顶部横条:播放器版式。一侧圆角方形封面,旁边三行字号递减的文本 ----
+export const PLAYER_DEFAULT = {
+  cover: null,
+  line1: '还没有名字',
+  line2: '点一下可以改这里的字',
+  line3: '第三行更小一点，像歌词',
+  align: 'left',      // 封面在左还是在右
+};
+
+function PlayerCover({ id }) {
+  const url = useImage(id);
+  return html`
+    <div class="pl-cover" style=${url ? `background-image:url(${url})` : ''}>
+      ${url ? null : html`<${Icon} name="image" size=${20}/>`}
+    </div>`;
+}
+
 registerWidget({
   id: 'header',
   label: '顶部横条',
-  sizes: ['4x1'],
-  render() {
-    const now = new Date();
-    const md = `${now.getMonth() + 1}月${now.getDate()}日`;
-    const wd = '周' + '日一二三四五六'[now.getDay()];
-    const me = persona.get();
+  sizes: ['4x2'],
+  editable: true,
+  defaults: PLAYER_DEFAULT,
+  render(cell) {
+    const c = { ...PLAYER_DEFAULT, ...(cell?.config || {}) };
     return html`
-      <div class="wg wg-header">
-        <div class="wg-header-main">
-          <div class="wg-header-date">${md} ${wd}</div>
-          <div class="wg-header-hi">${me.name ? `${me.name}，你好` : '你好'}</div>
+      <div class=${`wg wg-player${c.align === 'right' ? ' is-right' : ''}`}>
+        <${PlayerCover} id=${c.cover}/>
+        <div class="pl-text">
+          <div class="pl-l1 ellipsis">${c.line1}</div>
+          <div class="pl-l2 ellipsis">${c.line2}</div>
+          <div class="pl-l3 ellipsis">${c.line3}</div>
         </div>
-        <${Icon} name="sparkle" size=${20} style="color:var(--text-3)"/>
       </div>`;
   },
 });

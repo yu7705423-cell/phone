@@ -2,6 +2,7 @@ import { DEFAULT_TEMPLATES } from '../ai/templates.js';
 
 export const DEFAULT_SETTINGS = {
   theme: 'light',                 // light | dark
+  appIcons: {},                   // appId -> { icon, tile }  自定义图标与底色
   statusBar: 'auto',              // auto | on | off  见 shell/StatusBar.js
   showLockScreen: true,
 
@@ -47,17 +48,17 @@ export const DEFAULT_LAYOUT = {
     {
       id: 'p1',
       cells: [
-        { id: 'c1',  kind: 'widget',      ref: 'header',       x: 0, y: 0, w: 4, h: 1 },
-        { id: 'c2',  kind: 'app',         ref: 'lorebook',     x: 0, y: 1, w: 1, h: 1 },
-        { id: 'c3',  kind: 'app',         ref: 'memory',       x: 1, y: 1, w: 1, h: 1 },
-        { id: 'c4',  kind: 'widget',      ref: 'recent-chats', x: 2, y: 1, w: 2, h: 2 },
-        { id: 'c5',  kind: 'placeholder', label: '待开发',      x: 0, y: 2, w: 1, h: 1 },
-        { id: 'c6',  kind: 'placeholder', label: '待开发',      x: 1, y: 2, w: 1, h: 1 },
-        { id: 'c7',  kind: 'widget',      ref: 'moments-peek', x: 0, y: 3, w: 2, h: 2 },
-        { id: 'c8',  kind: 'placeholder', label: '待开发',      x: 2, y: 3, w: 1, h: 1 },
-        { id: 'c9',  kind: 'placeholder', label: '待开发',      x: 3, y: 3, w: 1, h: 1 },
-        { id: 'c10', kind: 'placeholder', label: '待开发',      x: 2, y: 4, w: 1, h: 1 },
-        { id: 'c11', kind: 'placeholder', label: '待开发',      x: 3, y: 4, w: 1, h: 1 },
+        { id: 'c1',  kind: 'widget',      ref: 'header',       x: 0, y: 0, w: 4, h: 2 },
+        { id: 'c2',  kind: 'app',         ref: 'lorebook',     x: 0, y: 2, w: 1, h: 1 },
+        { id: 'c3',  kind: 'app',         ref: 'memory',       x: 1, y: 2, w: 1, h: 1 },
+        { id: 'c4',  kind: 'widget',      ref: 'recent-chats', x: 2, y: 2, w: 2, h: 2 },
+        { id: 'c5',  kind: 'placeholder', label: '待开发',      x: 0, y: 3, w: 1, h: 1 },
+        { id: 'c6',  kind: 'placeholder', label: '待开发',      x: 1, y: 3, w: 1, h: 1 },
+        { id: 'c7',  kind: 'widget',      ref: 'moments-peek', x: 0, y: 4, w: 2, h: 2 },
+        { id: 'c8',  kind: 'placeholder', label: '待开发',      x: 2, y: 4, w: 1, h: 1 },
+        { id: 'c9',  kind: 'placeholder', label: '待开发',      x: 3, y: 4, w: 1, h: 1 },
+        { id: 'c10', kind: 'placeholder', label: '待开发',      x: 2, y: 5, w: 1, h: 1 },
+        { id: 'c11', kind: 'placeholder', label: '待开发',      x: 3, y: 5, w: 1, h: 1 },
       ],
     },
     {

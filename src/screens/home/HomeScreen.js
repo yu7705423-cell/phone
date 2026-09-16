@@ -1,8 +1,11 @@
 import { html, useState, useRef, useEffect, useLayoutEffect } from '../../lib.js';
 import { Icon } from '../../icons/Icon.js';
 import { useStore } from '../../system/store.js';
+import { settings } from '../../system/db/index.js';
 import { layout, chats } from '../../system/db/index.js';
-import { getApp, getWidget, registryStore } from '../../system/registry.js';
+import { getWidget, registryStore } from '../../system/registry.js';
+import { appLook } from '../../system/look.js';
+import { WidgetEditor } from './WidgetEditor.js';
 import { openApp } from '../../system/nav.js';
 import { GRID_COLS } from '../../system/db/defaults.js';
 import { rowsOf, setPage, swapCells, healAndSave, addPage, removePage } from './layout.js';
@@ -13,7 +16,7 @@ function unreadFor(appId) {
   return chats.all().reduce((n, c) => n + (c.unread || 0), 0);
 }
 
-function Cell({ cell, edit, onPick, picked }) {
+function Cell({ cell, edit, onPick, picked, onEditWidget }) {
   const style = `grid-column:${cell.x + 1}/span ${cell.w};grid-row:${cell.y + 1}/span ${cell.h}`;
 
   if (cell.kind === 'placeholder') {
@@ -27,14 +30,18 @@ function Cell({ cell, edit, onPick, picked }) {
 
   if (cell.kind === 'widget') {
     const wg = getWidget(cell.ref);
+    const tap = () => {
+      if (edit) { onPick(cell); return; }
+      if (wg?.editable) onEditWidget(cell);
+    };
     return html`
       <div class=${`cell cell-widget${edit ? ' is-edit' : ''}${picked ? ' is-picked' : ''}`} style=${style}
-        onClick=${() => edit && onPick(cell)}>
-        ${wg ? wg.render() : html`<div class="wg wg-empty">挂件缺失</div>`}
+        onClick=${tap}>
+        ${wg ? wg.render(cell) : html`<div class="wg wg-empty">挂件缺失</div>`}
       </div>`;
   }
 
-  const app = getApp(cell.ref);
+  const app = appLook(cell.ref);
   if (!app) return null;
   const badge = unreadFor(cell.ref);
   return html`
@@ -52,9 +59,11 @@ export function HomeScreen() {
   const lay = useStore(layout.store);
   useStore(registryStore);
   useStore(chats.store);
+  useStore(settings.store);
 
   const [edit, setEdit] = useState(false);
   const [picked, setPicked] = useState(null);
+  const [editingWidget, setEditingWidget] = useState(null);
   const pressTimer = useRef(null);
   const touch = useRef(null);
   const gridRef = useRef(null);
@@ -136,7 +145,8 @@ export function HomeScreen() {
           ? `grid-template-columns:repeat(${GRID_COLS},${cell}px);grid-auto-rows:${cell}px`
           : `grid-template-columns:repeat(${GRID_COLS},1fr);grid-auto-rows:1fr`}>
         ${page.cells.map(c => html`
-          <${Cell} key=${c.id} cell=${c} edit=${edit} picked=${picked === c.id} onPick=${onPick}/>`)}
+          <${Cell} key=${c.id} cell=${c} edit=${edit} picked=${picked === c.id}
+            onPick=${onPick} onEditWidget=${setEditingWidget}/>`)}
       </div>
 
       <div class="page-dots">
@@ -160,5 +170,7 @@ export function HomeScreen() {
               onClick=${() => { setEdit(false); setPicked(null); healAndSave(); }}>完成</button>
           </div>
         </div>` : null}
+
+      <${WidgetEditor} cell=${editingWidget} onClose=${() => setEditingWidget(null)}/>
     </div>`;
 }

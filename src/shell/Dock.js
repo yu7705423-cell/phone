@@ -1,8 +1,9 @@
 import { html } from '../lib.js';
 import { Icon } from '../icons/Icon.js';
 import { useStore } from '../system/store.js';
-import { layout, chats, messagesOf } from '../system/db/index.js';
-import { getApp, registryStore } from '../system/registry.js';
+import { layout, chats, settings } from '../system/db/index.js';
+import { registryStore } from '../system/registry.js';
+import { appLook } from '../system/look.js';
 import { openApp } from '../system/nav.js';
 import { DOCK_SIZE } from '../system/db/defaults.js';
 
@@ -16,13 +17,14 @@ export function Dock() {
   const lay = useStore(layout.store);
   useStore(registryStore);
   useStore(chats.store);
+  useStore(settings.store);
 
   const slots = Array.from({ length: DOCK_SIZE }, (_, i) => (lay.dock || [])[i] || null);
 
   return html`
     <div class="dock">
       ${slots.map((appId, i) => {
-        const app = appId ? getApp(appId) : null;
+        const app = appId ? appLook(appId) : null;
         if (!app) return html`<div key=${i} class="dock-slot dock-empty"></div>`;
         const badge = unreadFor(appId);
         return html`

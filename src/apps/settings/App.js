@@ -1,8 +1,8 @@
-import { html, useState } from '../../lib.js';
+import { html } from '../../lib.js';
 import { phone, useStore } from '../../sdk/index.js';
-import { Page, List, ListItem, Switch, Segmented, Button, Icon, Field, toast, confirm, prompt } from '../../ui/index.js';
+import { Page, List, ListItem, Icon } from '../../ui/index.js';
 import { ApiPage } from './ApiPage.js';
-import { PersonaPage } from './PersonaPage.js';
+import { AppearancePage } from './AppearancePage.js';
 import { ContextPage } from './ContextPage.js';
 import { TemplatesPage } from './TemplatesPage.js';
 import { StoragePage } from './StoragePage.js';
@@ -11,17 +11,10 @@ const { db, nav } = phone;
 
 function Home() {
   const s = useStore(db.settings.store);
-  const me = useStore(db.persona.store);
   const configured = phone.ai.isConfigured();
 
   return html`
     <${Page} title="设置">
-      <${List} title="账户">
-        <${ListItem} title="我的人设" subtitle=${me.name || '未设置'} arrow
-          left=${html`<${Icon} name="user" size=${18}/>`}
-          onClick=${() => nav.push('/persona')}/>
-      <//>
-
       <${List} title="模型">
         <${ListItem} title="接口与密钥"
           subtitle=${configured ? `${s.provider} · ${s.model}` : '未配置，聊天不可用'} arrow
@@ -36,20 +29,10 @@ function Home() {
       <//>
 
       <${List} title="外观">
-        <${ListItem} title="深色模式"
-          left=${html`<${Icon} name=${s.theme === 'dark' ? 'moon' : 'sun'} size=${18}/>`}
-          right=${html`<${Switch} checked=${s.theme === 'dark'}
-            onChange=${v => db.settings.set({ theme: v ? 'dark' : 'light' })}/>`}/>
-        <${ListItem} title="模拟状态栏" multiline
-          subtitle="手机浏览器本身已有状态栏，再显示一条会是双份。自动模式在触摸设备上隐藏。"
-          right=${html`<div style="width:150px"><${Segmented}
-            value=${s.statusBar}
-            onChange=${v => db.settings.set({ statusBar: v })}
-            items=${[{ value: 'auto', label: '自动' }, { value: 'on', label: '显示' }, { value: 'off', label: '隐藏' }]}/></div>`}/>
-        <${ListItem} title="启动时显示锁屏"
-          left=${html`<${Icon} name="lock" size=${18}/>`}
-          right=${html`<${Switch} checked=${s.showLockScreen}
-            onChange=${v => db.settings.set({ showLockScreen: v })}/>`}/>
+        <${ListItem} title="主题、壁纸与图标"
+          subtitle="深色模式、状态栏、主界面与锁屏壁纸、各 app 的图标和底色" arrow multiline
+          left=${html`<${Icon} name="grid" size=${18}/>`}
+          onClick=${() => nav.push('/appearance')}/>
       <//>
 
       <${List} title="数据">
@@ -58,13 +41,16 @@ function Home() {
           onClick=${() => nav.push('/storage')}/>
       <//>
 
-      <div class="settings-foot">小手机 · 本地运行，数据只存在这台设备上</div>
+      <div class="settings-foot">
+        我的人设在「聊天」里的「主页」中编辑<br/>
+        小手机 · 本地运行，数据只存在这台设备上
+      </div>
     <//>`;
 }
 
 export default function SettingsApp({ route }) {
   if (route === '/api') return html`<${ApiPage}/>`;
-  if (route === '/persona') return html`<${PersonaPage}/>`;
+  if (route === '/appearance') return html`<${AppearancePage}/>`;
   if (route === '/context') return html`<${ContextPage}/>`;
   if (route === '/templates') return html`<${TemplatesPage}/>`;
   if (route === '/storage') return html`<${StoragePage}/>`;

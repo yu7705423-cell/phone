@@ -182,3 +182,41 @@ input[type="range"] {
   border-radius: var(--r-sm); color: var(--text-3);
   display: flex; align-items: center; justify-content: center;
 }
+
+/* 壁纸与图标自定义 */
+.wp-row {
+  display: flex; gap: var(--sp-3); align-items: flex-start;
+  padding: var(--sp-3) var(--sp-4); border-bottom: 1px solid var(--border);
+}
+.wp-row:last-child { border-bottom: none; }
+.wp-preview {
+  flex: none; width: 52px; height: 92px; border-radius: var(--r-sm);
+  background: var(--surface-2); background-size: cover; background-position: center;
+  display: flex; align-items: center; justify-content: center; color: var(--text-3);
+  border: 1px solid var(--border);
+}
+.wp-body { flex: 1; min-width: 0; }
+.wp-acts { display: flex; gap: var(--sp-2); margin-top: var(--sp-2); }
+
+.icon-chip {
+  width: 30px; height: 30px; border-radius: var(--r-sm);
+  display: flex; align-items: center; justify-content: center;
+}
+.shade-row { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+.shade {
+  width: 34px; height: 34px; border-radius: var(--r-sm);
+  border: 2px solid transparent;
+}
+.shade.is-active { border-color: var(--text); }
+.icon-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+  gap: var(--sp-2);
+}
+.icon-pick {
+  aspect-ratio: 1; border-radius: var(--r-sm); background: var(--surface-2);
+  color: var(--text-2); display: flex; align-items: center; justify-content: center;
+  border: 1px solid transparent;
+}
+.icon-pick.is-active { background: var(--accent-weak); color: var(--text); border-color: var(--text); }
+.sheet-acts { display: flex; gap: var(--sp-2); margin-top: var(--sp-4); }
+.sheet-acts .btn { flex: 1; }

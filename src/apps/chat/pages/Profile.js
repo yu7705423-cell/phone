@@ -1,16 +1,19 @@
-import { html, useRef } from '../../../lib.js';
+import { html, useRef, useState } from '../../../lib.js';
 import { phone, useStore, useImage } from '../../../sdk/index.js';
-import { Page, Avatar, Button, Icon, List, ListItem, EmptyState, toast, confirm } from '../../../ui/index.js';
+import { Page, Avatar, Button, Icon, List, ListItem, Field, Input, Textarea,
+         Sheet, EmptyState, toast, confirm } from '../../../ui/index.js';
 import { relTime, chatFor } from '../helpers.js';
-import { PHOTO_MAX } from '../../../system/db/images.js';
+import { PHOTO_MAX, AVATAR_MAX } from '../../../system/db/images.js';
 
 const { db, nav } = phone;
 
-// 角色主页与我的主页复用同一个组件,只是 subject 不同
-export function Profile({ subjectId }) {
+// 角色主页与我的主页复用同一个组件，只是 subject 不同。
+// 我的人设也在这里编辑，设置里不再重复一份。
+export function Profile({ subjectId, embedded }) {
   useStore(db.characters.store);
   useStore(db.moments.store);
   useStore(db.persona.store);
+  const [editing, setEditing] = useState(false);
 
   const isMe = subjectId === 'me';
   const me = db.persona.get();
@@ -18,24 +21,26 @@ export function Profile({ subjectId }) {
   const avatar = useImage(subject?.avatar);
   const cover = useImage(subject?.cover);
   const coverRef = useRef(null);
+  const avatarRef = useRef(null);
 
   if (!subject) {
     return html`<${Page} title="主页" onBack=${nav.pop}><${EmptyState} title="这个人不存在了"/><//>`;
   }
 
+  const patch = p => isMe ? db.persona.set(p) : db.characters.update(subjectId, p);
+
   const mine = db.moments.all()
     .filter(m => m.authorId === subjectId)
     .sort((a, b) => b.createdAt - a.createdAt);
 
-  const pickCover = async e => {
+  const pickImage = (ref, key, max) => async e => {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
     try {
-      const id = await db.images.put(file, PHOTO_MAX);
-      if (subject.cover) db.images.remove(subject.cover);
-      if (isMe) db.persona.set({ cover: id });
-      else db.characters.update(subjectId, { cover: id });
+      const id = await db.images.put(file, max);
+      if (subject[key]) db.images.remove(subject[key]);
+      patch({ [key]: id });
     } catch (err) { toast('图片处理失败：' + err.message, 'error'); }
   };
 
@@ -54,50 +59,76 @@ export function Profile({ subjectId }) {
     nav.popToRoot();
   };
 
-  return html`
-    <${Page} title=${isMe ? '我的主页' : subject.name} onBack=${nav.pop} noScroll=${false}
-      right=${isMe ? null : html`
-        <button class="nav-text press" onClick=${() => nav.push(`/edit/${subjectId}`)}>编辑</button>`}>
+  const body = html`
+    <div>
       <div class="profile-cover" style=${cover ? `background-image:url(${cover})` : ''}
         onClick=${() => coverRef.current?.click()}>
         <button class="cover-edit press"><${Icon} name="image" size=${15}/></button>
       </div>
-      <input type="file" accept="image/*" ref=${coverRef} onChange=${pickCover} style="display:none"/>
+      <input type="file" accept="image/*" ref=${coverRef}
+        onChange=${pickImage(coverRef, 'cover', PHOTO_MAX)} style="display:none"/>
 
       <div class="profile-head">
-        <${Avatar} src=${avatar} name=${subject.name} size=${68}/>
+        <button class="press" onClick=${() => isMe && avatarRef.current?.click()}>
+          <${Avatar} src=${avatar} name=${subject.name} size=${68}/>
+        </button>
+        <input type="file" accept="image/*" ref=${avatarRef}
+          onChange=${pickImage(avatarRef, 'avatar', AVATAR_MAX)} style="display:none"/>
         <div class="profile-meta">
           <div class="profile-name">${subject.name}</div>
           ${subject.signature ? html`<div class="profile-sign">${subject.signature}</div>` : null}
         </div>
       </div>
 
-      ${!isMe ? html`
-        <div class="pad-x">
-          <${Button} full icon="message"
-            onClick=${() => { const c = chatFor(subjectId); nav.push(`/chat/${c.id}`); }}>发消息<//>
-        </div>` : html`
-        <div class="pad-x">
-          <${Button} full variant="ghost" icon="edit"
-            onClick=${() => phone.intent.open('settings', { route: '/persona' })}>编辑我的人设<//>
-        </div>`}
+      <div class="pad-x">
+        ${isMe
+          ? html`<${Button} full variant="ghost" icon="edit"
+              onClick=${() => setEditing(true)}>编辑我的人设<//>`
+          : html`<${Button} full icon="message"
+              onClick=${() => { const c = chatFor(subjectId); nav.push(`/chat/${c.id}`); }}>发消息<//>`}
+      </div>
 
       ${(isMe ? me.description : subject.persona) ? html`
-        <${List} title="人设">
+        <${List} title=${isMe ? '我的人设' : '人设'}>
           <${ListItem} multiline title=${isMe ? me.description : subject.persona}/>
         <//>` : null}
 
       <${List} title=${`动态 ${mine.length}`}>
         ${mine.length ? mine.map(m => html`
           <${ListItem} key=${m.id} multiline title=${m.text}
-            subtitle=${relTime(m.createdAt)}
-            onClick=${() => nav.push(`/moment/${m.id}`)} arrow/>`)
+            subtitle=${relTime(m.createdAt)}/>`)
         : html`<${ListItem} title="还没有动态"/>`}
       <//>
 
       ${!isMe ? html`
         <div class="pad">
           <${Button} full variant="danger" onClick=${del}>删除这个角色<//>
-        </div>` : null}
+        </div>` : html`<div class="pad-b"></div>`}
+
+      <${Sheet} open=${editing} onClose=${() => setEditing(false)} title="我的人设" height="80%">
+        <${Field} label="昵称" desc="角色会这样称呼你">
+          <${Input} value=${me.name} onInput=${v => db.persona.set({ name: v })}/>
+        <//>
+        <${Field} label="个性签名" desc="显示在主页上">
+          <${Input} value=${me.signature} onInput=${v => db.persona.set({ signature: v })}/>
+        <//>
+        <${Field} label="人设描述"
+          desc="这段会作为「对方是谁」注入到 prompt。写你希望角色怎么认识你。">
+          <${Textarea} rows=${7} value=${me.description}
+            placeholder="例如：大学生，学设计，话不多但想到什么说什么，讨厌被说教。"
+            onInput=${v => db.persona.set({ description: v })}/>
+        <//>
+        <${Button} full onClick=${() => setEditing(false)}>完成<//>
+      <//>
+    </div>`;
+
+  // 作为聊天 app 的一个分区嵌入时不再套一层导航栏，避免出现两条标题栏
+  if (embedded) return body;
+
+  return html`
+    <${Page} title=${subject.name} onBack=${nav.pop}
+      right=${html`<button class="nav-text press"
+        onClick=${() => nav.push(`/edit/${subjectId}`)}>编辑</button>`}>
+      ${body}
     <//>`;
 }

@@ -161,6 +161,27 @@ export function swapCells(pageIdx, aId, bId) {
   layout.replace(lay);
 }
 
+export function setCellConfig(cellId, config) {
+  const lay = structuredClone(layout.get());
+  for (const page of lay.pages) {
+    const cell = page.cells.find(c => c.id === cellId);
+    if (cell) {
+      cell.config = { ...(cell.config || {}), ...config };
+      layout.replace(lay);
+      return cell.config;
+    }
+  }
+  return null;
+}
+
+export function findCellByWidget(widgetId) {
+  for (const page of layout.get().pages) {
+    const cell = page.cells.find(c => c.kind === 'widget' && c.ref === widgetId);
+    if (cell) return cell;
+  }
+  return null;
+}
+
 export function setDockSlot(i, appId) {
   const lay = structuredClone(layout.get());
   lay.dock[i] = appId;

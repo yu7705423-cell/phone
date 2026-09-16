@@ -16,6 +16,8 @@ import * as momentTasks from '../system/ai/tasks/moments.js';
 import { DEFAULT_TEMPLATES } from '../system/ai/templates.js';
 import { BLOCKS, DEFAULT_ORDER, resolveOrder } from '../system/ai/context/index.js';
 import { toast, confirm, prompt } from '../ui/overlay.js';
+import { appLook, listAppLooks, TILE_SHADES } from '../system/look.js';
+import { registryStore } from '../system/registry.js';
 
 export const phone = {
   nav: {
@@ -29,6 +31,14 @@ export const phone = {
 
   db,
   images,
+
+  // 已注册的 app 及其外观（含用户在设置里的自定义）
+  apps: {
+    list: listAppLooks,
+    get: appLook,
+    shades: TILE_SHADES,
+    store: registryStore,
+  },
 
   ai: {
     isConfigured: engine.isConfigured,

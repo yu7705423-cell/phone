@@ -19,7 +19,7 @@ export function check() {
   }
 
   if (vhHits.length > 1) {
-    problems.push(`视口单位出现了 ${vhHits.length} 处，应当只在根容器出现一次：`);
+    problems.push(`视口单位出现了 ${vhHits.length} 处，应当只在根容器出现一次（作为 --app-h 的兜底）：`);
     vhHits.forEach(h => problems.push(`  ${h}`));
   }
   return problems;

@@ -36,7 +36,7 @@ function Tabs({ initial }) {
       ${tab === 'messages' ? html`<${MessagesTab}/>` : null}
       ${tab === 'contacts' ? html`<${ContactsTab}/>` : null}
       ${tab === 'moments' ? html`<${MomentsTab}/>` : null}
-      ${tab === 'me' ? html`<${Profile} subjectId="me"/>` : null}
+      ${tab === 'me' ? html`<${Profile} subjectId="me" embedded/>` : null}
     <//>`;
 }
 

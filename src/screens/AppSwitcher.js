@@ -2,13 +2,14 @@ import { html } from '../lib.js';
 import { Icon } from '../icons/Icon.js';
 import { useStore } from '../system/store.js';
 import { nav, openApp, closeApp, setSwitcher } from '../system/nav.js';
-import { getApp, registryStore } from '../system/registry.js';
+import { registryStore } from '../system/registry.js';
+import { appLook } from '../system/look.js';
 import { EmptyState } from '../ui/basic.js';
 
 export function AppSwitcher() {
   const s = useStore(nav);
   useStore(registryStore);
-  const list = s.recents.map(id => getApp(id)).filter(Boolean);
+  const list = s.recents.map(id => appLook(id)).filter(Boolean);
 
   return html`
     <div class="switcher" onClick=${() => setSwitcher(false)}>
