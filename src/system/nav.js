@@ -25,7 +25,11 @@ export function lock() {
 export function openApp(appId, route = '/') {
   const s = nav.get();
   const stacks = { ...s.stacks };
-  if (!stacks[appId] || route !== '/') stacks[appId] = [route];
+  // 直接跳到深层页面时，把根页垫在栈底。否则栈里只有一条，
+  // 一按返回就退到桌面，而不是回到这个 app 自己的首页。
+  if (!stacks[appId] || route !== '/') {
+    stacks[appId] = route === '/' ? ['/'] : ['/', route];
+  }
   const recents = [appId, ...s.recents.filter(id => id !== appId)];
   const dropped = recents.slice(MAX_BACKGROUND);
   dropped.forEach(id => { delete stacks[id]; });
