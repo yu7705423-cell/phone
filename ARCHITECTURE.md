@@ -270,22 +270,28 @@ system/ 可以 import: ui/, icons/, vendor/
 
 ### 3.8 layout 主界面布局
 
-主界面的网格摆放、挂件尺寸、tab 栏内容都要持久化。
+主界面的网格摆放、挂件尺寸、分页、Dock 内容都要持久化。
 
 ```js
 {
   pages: [
     { id: 'p1', cells: [
-        { id, kind: 'widget', ref: 'header',        x: 0, y: 0, w: 4, h: 1 },
-        { id, kind: 'app',    ref: 'chat',          x: 0, y: 1, w: 1, h: 1 },
-        { id, kind: 'app',    ref: 'lorebook',      x: 1, y: 1, w: 1, h: 1 },
-        { id, kind: 'widget', ref: 'recent-chats',  x: 2, y: 1, w: 2, h: 2 },
-        { id, kind: 'app',    ref: 'memory',        x: 0, y: 2, w: 1, h: 1 },
-        { id, kind: 'app',    ref: 'settings',      x: 1, y: 2, w: 1, h: 1 },
-        { id, kind: 'widget', ref: 'moments-peek',  x: 0, y: 3, w: 2, h: 2 }
-    ]}
+        { id, kind: 'widget',      ref: 'header',       x: 0, y: 0, w: 4, h: 1 },
+        { id, kind: 'app',         ref: 'lorebook',     x: 0, y: 1, w: 1, h: 1 },
+        { id, kind: 'app',         ref: 'memory',       x: 1, y: 1, w: 1, h: 1 },
+        { id, kind: 'widget',      ref: 'recent-chats', x: 2, y: 1, w: 2, h: 2 },
+        { id, kind: 'placeholder', label: '待开发',      x: 0, y: 2, w: 1, h: 1 },
+        { id, kind: 'placeholder', label: '待开发',      x: 1, y: 2, w: 1, h: 1 },
+        { id, kind: 'widget',      ref: 'moments-peek', x: 0, y: 3, w: 2, h: 2 },
+        { id, kind: 'placeholder', label: '待开发',      x: 2, y: 3, w: 1, h: 1 },
+        { id, kind: 'placeholder', label: '待开发',      x: 3, y: 3, w: 1, h: 1 },
+        { id, kind: 'placeholder', label: '待开发',      x: 2, y: 4, w: 1, h: 1 },
+        { id, kind: 'placeholder', label: '待开发',      x: 3, y: 4, w: 1, h: 1 }
+    ]},
+    { id: 'p2', cells: [] }
   ],
-  tabs: ['home', 'chat', 'moments', 'me'],
+  dock: ['chat', 'settings', 'contacts', 'notes'],
+  currentPage: 0,
   wallpaper: { home: 'img_xxx', lock: 'img_xxx' }
 }
 ```
@@ -295,10 +301,12 @@ system/ 可以 import: ui/, icons/, vendor/
 
 **自愈规则**(与 4.2 的 `getInjectOrder()` 是同一类问题,同样必须有):
 
-- 单元引用了已不存在的 app 或挂件 -> 静默移除
-- 已注册但未出现在任何页面的 app -> 追加到最后一页的空位,不够则新建一页
+- 单元引用了已不存在的 app 或挂件 -> 转为 placeholder,保住版式不塌
+- 已注册但未出现在任何页面、也不在 Dock 里的 app -> 优先占用最近的
+  placeholder 位置,没有则追加到最后一页空位,不够则新建一页
 - 单元重叠或越界(`x + w > 4`)-> 按顺序重新落位
-- tabs 里引用了不存在的目标 -> 移除;tabs 为空 -> 回落到默认四项
+- Dock 引用了不存在的 app -> 转为 placeholder;Dock 不足 4 个 -> 补 placeholder
+- 空页面自动删除,第一页除外;`currentPage` 越界 -> 归零
 
 没有这套自愈,以后每删一个 app 或每加一个挂件,主界面就可能出现空洞、
 重叠或漏图标,而且是静默的。
@@ -617,25 +625,14 @@ const c = await phone.intent.request('pick:character');  // 要一个结果,带�
 
 ## 7. 导航模型
 
-底部 tab 栏是系统级常驻的,所以系统层不是单一栈,而是**每个 tab 一个独立栈**。
+双层栈。一开始就做对,否则加返回手势和多任务时必返工。
 
-```
-系统层
- |- tab: home     -> 主界面 -> App -> App 内页面
- |- tab: chat     -> 会话列表 -> 会话详情
- |- tab: moments  -> 信息流 -> 动态详情
- |- tab: me       -> 我的主页 -> 编辑
- |
- |- 覆盖层(不属于任何 tab): LockScreen / AppSwitcher / Sheet / Modal
-```
+**系统层栈**: `LockScreen -> Home -> App -> App 内页面`
 
-规则:
-
-- 切换 tab **不销毁**对方,各自保留滚动位置与页面栈
-- 返回手势只在**当前 tab 的栈**内退,退到栈底再返回不跨 tab
-- 重复点击当前 tab: 栈深度 > 1 时回到栈底,已在栈底时滚动到顶部
-- 从 home tab 打开的 app 活在 home 栈里;后台 app 上限 5 个,超出按 LRU 回收
-- 通知点击可直达: 先切到目标 tab,再在该栈内 push 到目标页面
+- Dock 是快捷方式,不构成导航层级,从 Dock 进 app 与从网格进完全一样
+- 后台 app 保留状态不卸载,上限 5 个,超出按 LRU 回收
+- 覆盖层不入栈: AppSwitcher / Sheet / Modal / Toast
+- 通知点击可直达某 app 的某页面
 
 **应用层栈**: 每个 app 自己的页面栈
 
@@ -643,8 +640,11 @@ const c = await phone.intent.request('pick:character');  // 要一个结果,带�
 phone.nav.push('/character/char_xxx')
 phone.nav.pop()
 phone.nav.replace('/')
-phone.nav.switchTab('chat')
+phone.nav.home()          // 回到主界面
 ```
+
+- 返回手势只在当前 app 的栈内退,退到栈底再返回则回主界面
+- 每个 app 的栈独立保存,切走再切回保留原位置
 
 chat app 内部是 tab + stack 混合:
 
@@ -656,10 +656,8 @@ chat
  |- 主页    我的人设 -> 我的动态 -> 编辑
 ```
 
+chat 的四个 tab 是**应用内**的分区,与系统层无关,各自保留滚动位置与页面栈。
 角色主页与我的主页复用同一个 Profile 组件,只是 subject 不同。
-
-**注意**: 系统 tab 栏与 chat app 内部的 tab 是两层东西。
-如果系统 tab 已经有"聊天",chat app 就不该再叠一层四 tab——这一点待定,见 15。
 
 ---
 
@@ -682,11 +680,11 @@ chat
 .root      { height: 100vh; display: flex; flex-direction: column; }
 .statusbar { height: var(--statusbar-h); flex: none; }
 .screen    { flex: 1; min-height: 0; overflow: hidden; }
-.tabbar    { height: var(--tabbar-h); flex: none; }
+.dock      { height: var(--dock-h); flex: none; }
 ```
 
 `min-height: 0` 不能省。flex 子项默认 `min-height: auto`,
-内容一旦超高就会把容器撑破,导致 tab 栏被挤出屏幕。
+内容一旦超高就会把容器撑破,导致 Dock 被挤出屏幕。
 
 禁止 `dvh` / `svh` / `lvh`,理由与强制手段见 `CLAUDE.md`。
 
@@ -724,7 +722,7 @@ chat
 │  方形挂件    │                │  下一块左右对调
 │             │  app   app     │
 ├─────────────┴────────────────┤
-│  [tab]  [tab]  [tab]  [tab]  │  底部 tab 栏
+│  [app]  [app]  [app]  [app]  │  底部 Dock,四个 app
 └──────────────────────────────┘
 ```
 
@@ -763,19 +761,29 @@ chat
 
 **分页**
 
-主界面可以有多页,横向滑动切换,页面指示点在网格下方、tab 栏上方。
-第一版只做一页,但布局数据结构支持多页,不返工。
+- 主界面可以有多页,横向滑动切换
+- 页面指示点在网格下方、Dock 上方,当前页高亮
+- 编辑模式下拖拽到屏幕边缘停留可翻页;拖到最后一页右缘可新建一页
+- 页面为空时自动删除(第一页除外)
 
-### 8.5 底部 TabBar
+**占位 app**
 
-**系统级常驻**,不属于任何 app,取代传统的 Dock。
+第一版会有大量位置还没有对应的 app。放 `placeholder` 类型的单元占位:
+灰色底、虚线描边、点击提示"待开发"。这样主界面从第一天就是完整的版式,
+以后往里填真 app 时只是替换单元的 `ref`,布局不动。
 
-- 固定高度 `--tabbar-h`,不随内容滚动
-- 每项为 SVG 图标 + 文字标签,选中态改变颜色与图标填充
-- 切换 tab **不销毁**已挂载的内容,各 tab 保留自己的滚动位置与页面栈
+### 8.5 底部 Dock
 
-这一条改变了导航模型: 系统层不再是单一栈,而是 **N 个并列的栈,每个 tab 一个**。
-见第 7 章。
+**系统级常驻的四个 app 图标**,不是 tab 栏,不承担导航分区的职责。
+
+- 固定高度 `--dock-h`,不随分页横滑,始终显示同样四个 app
+- 图标样式与网格内的 app 图标一致,只是底部有一层半透明衬底与网格区分
+- 容量固定 4 个。编辑模式下可与网格里的 app 互换;
+  拖入第五个时最右侧那个退回网格
+- 未读角标同样显示
+
+Dock 只是快捷方式,点击进入 app 的行为与从网格点进去完全一样,
+不产生额外的导航层级。
 
 ### 8.6 壁纸
 
@@ -794,7 +802,9 @@ chat
 
 ### 9.1 布局原语
 
-所有页面必须包在 `<Page>` 里。`<Page>` 负责 NavBar、滚动容器、安全区、底部 TabBar。
+所有页面必须包在 `<Page>` 里。`<Page>` 负责 NavBar、滚动容器、安全区,
+以及**应用内** TabBar(如 chat 的四个分区)。系统级的 Dock 不归 `<Page>` 管,
+它在根容器层,见 8.5。
 **禁止 app 自己写 overflow 和安全区计算**,这是样式 bug 的主要来源。
 
 ```
@@ -876,7 +886,7 @@ phone/
    ├─ shell/
    │  ├─ Root.js              100vh 根容器,全项目唯一视口单位
    │  ├─ StatusBar.js         时间、信号、Wi-Fi、电量
-   │  ├─ TabBar.js            系统级底部 tab
+   │  ├─ Dock.js              系统级底部四个 app
    │  └─ Gestures.js          上滑、返回手势
    ├─ system/
    │  ├─ registry.js          app 注册与 manifest 校验
@@ -931,6 +941,7 @@ phone/
    │  ├─ LockScreen.js        时钟、通知、上滑解锁
    │  ├─ home/
    │  │  ├─ HomeScreen.js     4 列网格,显式坐标
+   │  │  ├─ Pager.js          多页横滑与指示点
    │  │  ├─ AppIcon.js        图标、角标
    │  │  ├─ WidgetHost.js     按 id 渲染挂件,不认识具体挂件
    │  │  ├─ EditMode.js       长按拖拽、改尺寸
@@ -990,8 +1001,8 @@ phone.settings.get(key) / set(key, v)
 
 **P0 骨架**
 - shell + 内核 + sdk + 令牌 + 图标系统 + Page 原语
-- 系统界面: 全屏根容器、状态栏、底部 tab 栏、锁屏、主界面(4 列网格 + 挂件 + 编辑模式)、多任务
-- 主界面布局持久化与自愈、挂件宿主、壁纸上传
+- 系统界面: 全屏根容器、状态栏、底部 Dock、锁屏、主界面(4 列网格 + 挂件 + 多页翻页 + 编辑模式)、多任务
+- 主界面布局持久化与自愈、挂件宿主、placeholder 占位、壁纸上传
 - db 数据域(IndexedDB)+ 迁移机制 + 图片压缩存取
 - AI 引擎 + 队列 + Anthropic/OpenAI 兼容双 provider
 - 四个 app: settings / chat(四 tab) / lorebook / memory
@@ -1080,9 +1091,7 @@ phone.settings.get(key) / set(key, v)
 7. **视口单位只用 `vh`**,禁止 dvh/svh/lvh 及混用。全项目只在根容器用一次,
    其余走 flex 与 grid。见 `CLAUDE.md` 与 8.1。
 8. **主界面为横条 + 方形挂件混排**,4 列显式坐标网格,不是等距图标海。见 8.4。
-9. **底部 tab 栏系统级常驻**,取代 Dock;系统层导航因此变为每 tab 一栈。见 7 / 8.5。
-
-## 16. 待确认
-
-系统 tab 栏与 chat app 内部四 tab 存在重叠,需要确定取舍。见下一轮讨论。
-
+9. **底部是 Dock,放四个 app 图标**,不是 tab 栏。它只是快捷方式,
+   不构成导航层级,因此系统层仍是单一栈。见 7 / 8.5。
+10. **主界面支持多页横滑翻页**,空位以 placeholder 单元占住,
+    版式从第一天就是完整的,以后填入真 app 只替换 `ref`。见 8.4。
