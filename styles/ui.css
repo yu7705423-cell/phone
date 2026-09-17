@@ -154,6 +154,13 @@
 }
 .sheet-body { flex: 1; min-height: 0; padding: 0 var(--sp-4) var(--sp-4); }
 
+/* 整屏浮层。盖住整个应用层,状态栏留着不动,看起来就是一个普通页面。 */
+.fullsheet {
+  position: absolute; inset: 0; z-index: var(--z-sheet);
+  background: var(--bg);
+  animation: slide-in var(--dur) var(--ease-out);
+}
+
 .modal {
   width: 100%; max-width: 320px; background: var(--surface);
   border-radius: var(--r-lg); overflow: hidden; box-shadow: var(--shadow-3);

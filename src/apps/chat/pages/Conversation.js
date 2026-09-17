@@ -1,6 +1,6 @@
 import { html, useState, useEffect, useRef } from '../../../lib.js';
 import { phone, useStore, useImage } from '../../../sdk/index.js';
-import { Page, Avatar, Icon, IconButton, Sheet, List, ListItem,
+import { Page, Avatar, Icon, IconButton, FullSheet, List, ListItem,
          EmptyState, toast, confirm } from '../../../ui/index.js';
 import { splitBubbles, relTime } from '../helpers.js';
 import { StickerPanel, StickerSuggest } from './StickerPanel.js';
@@ -261,8 +261,8 @@ export function Conversation({ chatId }) {
           </div>` : null}
       </div>
 
-      <${Sheet} open=${menu} onClose=${() => setMenu(false)} title=${char.name} height="76%">
-        <${List} inset=${false}>
+      <${FullSheet} open=${menu} onClose=${() => setMenu(false)} title=${char.name}>
+        <${List}>
           <${ListItem} title="角色卡" subtitle="人设、开场白、说话示例、关联世界书" arrow multiline
             left=${html`<${Icon} name="user" size=${18}/>`}
             onClick=${() => { setMenu(false); nav.push(`/edit/${char.id}`); }}/>
@@ -271,7 +271,7 @@ export function Conversation({ chatId }) {
             onClick=${() => { setMenu(false); nav.push(`/profile/${char.id}`); }}/>
         <//>
 
-        <${List} inset=${false} title="上下文">
+        <${List} title="上下文">
           <${ListItem} title="上下文与记忆" subtitle="注入顺序、扫描窗口、历史轮次、自动总结" arrow multiline
             left=${html`<${Icon} name="layers" size=${18}/>`}
             onClick=${() => { setMenu(false); nav.push('/context'); }}/>
@@ -285,7 +285,7 @@ export function Conversation({ chatId }) {
             onClick=${() => { setMenu(false); nav.push('/stickers'); }}/>
         <//>
 
-        <${List} inset=${false} title="这段对话">
+        <${List} title="这段对话">
           <${ListItem} title="重新生成上一条" arrow
             left=${html`<${Icon} name="refresh" size=${18}/>`}
             onClick=${() => { setMenu(false); regenerate(); }}/>

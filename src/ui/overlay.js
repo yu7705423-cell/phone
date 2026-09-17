@@ -1,5 +1,6 @@
 import { html, render, useEffect } from '../lib.js';
 import { Icon } from '../icons/Icon.js';
+import { Page } from './page.js';
 
 export const Sheet = ({ open, onClose, title, children, height }) => {
   useEffect(() => {
@@ -16,6 +17,22 @@ export const Sheet = ({ open, onClose, title, children, height }) => {
         ${title ? html`<div class="sheet-title">${title}</div>` : null}
         <div class="sheet-body scroll">${children}</div>
       </div>
+    </div>`;
+};
+
+// 整屏浮层。盖住当前应用页，自带返回栏，从右边推进来。
+// 和 Sheet 的区别只是占满整屏而不是从底下拱一截，内容照样用 List 那一套写。
+export const FullSheet = ({ open, onClose, title, right, children }) => {
+  useEffect(() => {
+    if (!open) return;
+    const onKey = e => e.key === 'Escape' && onClose && onClose();
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, onClose]);
+  if (!open) return null;
+  return html`
+    <div class="fullsheet">
+      <${Page} title=${title} onBack=${onClose} right=${right}>${children}<//>
     </div>`;
 };
 
