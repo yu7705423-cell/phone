@@ -43,19 +43,44 @@ export function isConfigured() {
   return !!(c && c.apiKey && c.model);
 }
 
-// 主用失败时自动换副用再试一次。取消不算失败，不触发兜底。
-async function withFallback(run) {
-  const primary = config();
-  if (!primary) throw new Error('还没有配置接口');
+// 后台活儿：用户不会盯着屏幕等结果的那些。默认丢给副用接口，
+// 主用留给「你正等着看」的东西（聊天回复、主动消息、朋友圈动态）。
+// 副用一般更便宜也更慢，这些活儿慢一点无所谓。
+export const BACKGROUND_TASKS = new Set([
+  'memory.extract',    // 自动总结记忆
+  'chat.summarize',    // 历史压缩
+  'memory.import',     // 粘一大段文字拆成记忆
+  'card.import',       // 导入角色卡
+  'card.npc',          // 批量生成关联 NPC
+  'char.alt',          // 角色自己琢磨开小号
+]);
+
+export function backgroundUsesSpare() {
+  return settings.get().backgroundSpare !== false && !!fallbackConfig();
+}
+
+// 先试 a 再试 b。取消不算失败，不触发兜底。
+async function tryBoth(run, first, second, label) {
+  if (!first) throw new Error('还没有配置接口');
   try {
-    return await run(primary);
+    return await run(first);
   } catch (err) {
-    const spare = fallbackConfig();
-    if (!spare || isAbort(err)) throw err;
-    console.warn('[ai] 主用接口失败，改用副用', err.message);
-    return run(spare);
+    if (!second || isAbort(err)) throw err;
+    console.warn(`[ai] ${label}失败，改用另一个接口`, err.message);
+    return run(second);
   }
 }
+
+// 主用失败时自动换副用再试一次
+const withFallback = run => tryBoth(run, config(), fallbackConfig(), '主用接口');
+
+// 后台活儿：反过来，副用优先，副用挂了再退回主用，别让记忆整理挡住聊天
+const withSpareFirst = run => backgroundUsesSpare()
+  ? tryBoth(run, fallbackConfig(), config(), '副用接口')
+  : withFallback(run);
+
+// 任务按 id 决定走哪条路
+const runnerFor = taskId => (BACKGROUND_TASKS.has(taskId) ? withSpareFirst : withFallback);
 
 function budgets(total) {
   return { lorebook: Math.round(total * 0.4), memory: Math.round(total * 0.35) };
@@ -162,8 +187,9 @@ export function streamReply({ chat, char, onDelta }) {
 
 // 结构化任务:非流式 + 稳健 JSON 解析
 export async function runJSONTask(taskId, { system, user, key, maxTokens = 1400 }) {
+  const run = runnerFor(taskId);
   const raw = await enqueue(key || `task:${taskId}:${Date.now()}`, signal =>
-    withFallback(c => getProvider(c.provider).complete(c, {
+    run(c => getProvider(c.provider).complete(c, {
       system,
       messages: [{ role: 'user', content: user || '请按要求输出 JSON。' }],
       maxTokens, signal,
@@ -179,8 +205,9 @@ export async function runJSONTask(taskId, { system, user, key, maxTokens = 1400 
 }
 
 export async function runTextTask(taskId, { system, user, key, maxTokens = 900 }) {
+  const run = runnerFor(taskId);
   return enqueue(key || `task:${taskId}:${Date.now()}`, signal =>
-    withFallback(c => getProvider(c.provider).complete(c, {
+    run(c => getProvider(c.provider).complete(c, {
       system,
       messages: [{ role: 'user', content: user || '请按要求输出。' }],
       maxTokens, signal,

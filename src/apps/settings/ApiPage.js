@@ -96,7 +96,7 @@ function Editor({ id, onClose }) {
 }
 
 export function ApiPage() {
-  useStore(db.settings.store);
+  const s = useStore(db.settings.store);
   const [editing, setEditing] = useState(null);
   const chat = svc.services().chat;
   const presets = chat.presets;
@@ -143,7 +143,21 @@ export function ApiPage() {
             <${ListItem} key=${p.id} title=${p.name}
               right=${html`<${Switch} checked=${chat.fallbackId === p.id}
                 onChange=${() => svc.setFallbackChat(p.id)}/>`}/>`)}
-        <//>`
+        <//>
+
+        ${chat.fallbackId ? html`
+          <${List} title="后台活儿走哪条">
+            <${ListItem} title="交给副用" multiline
+              subtitle="整理记忆、导入角色卡、生成 NPC 这些你不会盯着等的活儿，
+                优先走副用接口，副用挂了再退回主用。主用留给聊天回复和主动消息。"
+              right=${html`<${Switch} checked=${s.backgroundSpare !== false}
+                onChange=${v => db.settings.set({ backgroundSpare: v })}/>`}/>
+          <//>
+          <div class="settings-foot">
+            归副用的：自动总结记忆、历史压缩、从文字导入记忆、导入角色卡、
+            批量生成 NPC、角色自己琢磨开小号。<br/>
+            归主用的：聊天回复、主动消息、朋友圈动态与评论。
+          </div>` : null}`
       : html`<${EmptyState} icon="key" title="还没有配置接口"
           desc="可以存多个接口随时切换，并指定一个副用，主用报错时自动顶上。"/>`}
 
