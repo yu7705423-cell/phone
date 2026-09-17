@@ -41,7 +41,16 @@ export const DEFAULT_SETTINGS = {
 
   // 上下文
   injectOrder: ['character', 'lorebook', 'user', 'time', 'memory'],
-  injectTime: true,
+
+  // 时间感知，见 system/time.js
+  injectTime: true,               // 总开关
+  timeStamp: true,                // 让角色每条回复先写出当地时间，显示时过滤掉
+  timeMode: 'real',               // real | virtual
+  timeVirtualAt: 0,               // 虚拟时刻
+  timeSetAt: 0,                   // 设定它时的真实时刻，两者之差就是偏移
+  timeFrozen: false,              // 停在那一刻不往下走
+  timeZoneUser: 'local',          // 我在哪个时区。角色的在各自角色卡上
+
   historyLimit: 20,
   scanWindow: 6,                  // 世界书与 B 级记忆的扫描窗口(条)
   contextBudget: 6000,            // 注入内容的 token 预算(粗估)

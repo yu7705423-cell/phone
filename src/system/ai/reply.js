@@ -14,6 +14,11 @@ const IMAGE_KINDS = new Set(['图片', '照片', 'image', 'pic']);
 // 引用单独成行，挂在它下面那一条上，不自己占一个气泡。
 const QUOTE_LINE = /^[[【(（]?\s*(?:引用|回复|quote)\s*[:：]\s*([^\n\]】)）]+)[\]】)）]?\s*$/i;
 
+// 时间行同理。让模型自己写一遍当地时间，是目前最靠谱的时间感知 ——
+// 写过一遍才算真看见。但它是给模型自己定位用的，不该显示给用户，
+// 所以这里剥掉，只把内容记在消息上，回头再塞回上下文（见 engine.buildHistory）。
+const STAMP_LINE = /^[[【(（]?\s*(?:时间|time)\s*[:：]\s*([^\n\]】)）]+)[\]】)）]?\s*$/i;
+
 // 引用块只留一小段，长了在气泡上顶掉正文
 export function snippet(text, max = 40) {
   const t = String(text || '').replace(/\s+/g, ' ').trim();
@@ -26,11 +31,13 @@ export function splitReply(raw) {
   if (!text) return [];
   const parts = [];
   let last = 0;
-  // 读到的引用行先记着，挂到紧随其后的那一条上
+  // 读到的标记行先记着，挂到紧随其后的那一条上
   let pendingQuote = null;
+  let pendingStamp = null;
 
   const push = part => {
     if (pendingQuote) { part.quote = pendingQuote; pendingQuote = null; }
+    if (pendingStamp) { part.stamp = pendingStamp; pendingStamp = null; }
     parts.push(part);
   };
 
@@ -38,11 +45,16 @@ export function splitReply(raw) {
     chunk.split(/\n\s*\n/).forEach(seg => {
       let t = seg.trim();
       if (!t) return;
-      const lines = t.split('\n');
-      const q = lines[0].match(QUOTE_LINE);
-      if (q) {
-        pendingQuote = q[1].trim();
+      // 开头可能连着好几行标记（时间、引用），一行一行剥干净
+      for (;;) {
+        const lines = t.split('\n');
+        const q = lines[0].match(QUOTE_LINE);
+        const st = q ? null : lines[0].match(STAMP_LINE);
+        if (!q && !st) break;
+        if (q) pendingQuote = q[1].trim();
+        else pendingStamp = st[1].trim();
         t = lines.slice(1).join('\n').trim();
+        if (!t) break;
       }
       if (t) push({ type: 'text', text: t });
     });
@@ -112,7 +124,7 @@ function pause(part) {
 // 单拎出来是因为「修格式」也要用同一条路，不然两边各写一遍迟早走岔。
 export function materialize(part, base, char) {
   const quote = quoteFields(base.chatId, part.quote);
-  const row = { ...base, ...quote };
+  const row = { ...base, ...quote, ...(part.stamp ? { stamp: part.stamp } : {}) };
 
   if (part.type === 'image') {
     const msg = messages.create({ ...row, kind: 'image', content: `[图片：${part.prompt}]`,

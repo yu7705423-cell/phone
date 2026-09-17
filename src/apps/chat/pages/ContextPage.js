@@ -51,9 +51,11 @@ export function ContextPage() {
       </div>
 
       <${List} title="上下文">
-        <${ListItem} title="注入时间情境" subtitle="现在几点、距上次聊天多久"
-          right=${html`<${Switch} checked=${s.injectTime}
-            onChange=${v => db.settings.set({ injectTime: v })}/>`}/>
+        <${ListItem} title="时间感知" arrow multiline
+          subtitle=${s.injectTime === false
+            ? '关着。角色不知道今天几号、现在几点'
+            : `现在几点、两边的时差、隔了多久才回${s.timeMode === 'virtual' ? ' · 用的是虚拟时间' : ''}`}
+          onClick=${() => nav.push('/time')}/>
         <${ListItem} title="历史轮次" subtitle="带入 prompt 的最近消息条数"
           right=${html`<span>${s.historyLimit}</span>`}/>
       <//>

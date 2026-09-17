@@ -1,5 +1,6 @@
 // 角色人设 / 用户信息 / 时间情境
 import { isAlt } from '../../accounts.js';
+import * as clock from '../../time.js';
 
 export const character = {
   meta: { id: 'character', label: '角色人设', desc: '角色卡里写的设定' },
@@ -34,23 +35,24 @@ export const user = {
 };
 
 export const time = {
-  meta: { id: 'time', label: '时间情境', desc: '现在几点、距上次聊天多久' },
-  build({ settings, messages }) {
-    if (settings.injectTime === false) return '';
-    const now = new Date();
-    const weekday = '日一二三四五六'[now.getDay()];
-    const hh = String(now.getHours()).padStart(2, '0');
-    const mm = String(now.getMinutes()).padStart(2, '0');
+  meta: { id: 'time', label: '时间情境', desc: '现在几点、两边的时差、距上次聊天多久' },
+  build({ messages, char }) {
+    if (!clock.enabled()) return '';
+    const n = clock.now();
+    const cz = clock.charZone(char);
+    const uz = clock.userZone();
+    const lines = [`你那边现在是 ${clock.format(n, cz)}。`];
 
-    let gap = '';
-    const last = [...(messages || [])].reverse().find(m => m.createdAt);
-    if (last) {
-      const min = Math.floor((Date.now() - last.createdAt) / 60000);
-      if (min < 1) gap = '你们刚刚还在聊。';
-      else if (min < 60) gap = `距离你们上次聊天过去了${min}分钟。`;
-      else if (min < 1440) gap = `距离你们上次聊天过去了${Math.floor(min / 60)}小时。`;
-      else gap = `距离你们上次聊天过去了${Math.floor(min / 1440)}天。`;
+    // 两人不在一个时区才说时差。同城还唠叨一句反而是噪音。
+    const d = clock.zoneDiff(cz, uz, n);
+    if (d !== 0) {
+      lines.push(`对方在${clock.zoneLabel(uz)}，那边现在是 ${clock.clockOnly(n, uz)}，`
+        + `比你${d > 0 ? '晚' : '早'} ${clock.diffText(d)}。想想那个点他在干嘛。`);
     }
-    return `\n\n现在是星期${weekday} ${hh}:${mm}。${gap ? '\n' + gap : ''}`;
+
+    const last = [...(messages || [])].reverse().find(m => m.createdAt);
+    if (last) lines.push(clock.gapText(last.createdAt));
+
+    return `\n\n[现在几点]\n${lines.join('\n')}`;
   },
 };

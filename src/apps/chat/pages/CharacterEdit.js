@@ -1,13 +1,16 @@
-import { html } from '../../../lib.js';
+import { html, useState } from '../../../lib.js';
 import { phone, useStore, useImage } from '../../../sdk/index.js';
 import { Page, Field, Input, Avatar, List, ListItem,
          Switch, Icon } from '../../../ui/index.js';
+import { ZonePicker } from './ZonePicker.js';
 
-const { db, nav } = phone;
+const { db, nav, clock } = phone;
 
 export function CharacterEdit({ id }) {
   useStore(db.characters.store);
   useStore(db.lorebooks.store);
+  useStore(db.settings.store);
+  const [picking, setPicking] = useState(false);
   const char = db.characters.get(id);
   const avatar = useImage(char?.avatar);
 
@@ -57,6 +60,20 @@ export function CharacterEdit({ id }) {
             onChange=${v => patch({ canSendImage: v })}/>`}/>
       <//>
 
+      ${clock.enabled() ? html`
+        <${List} title="她在哪儿">
+          <${ListItem} title="所在时区" arrow multiline
+            subtitle=${char.timezone
+              ? `${clock.zoneLabel(char.timezone)} · 现在 ${clock.clockOnly(clock.now(), char.timezone)}`
+              : `跟你同一个时区 · 现在 ${clock.clockOnly(clock.now(), clock.userZone())}`}
+            left=${html`<${Icon} name="map" size=${18}/>`}
+            onClick=${() => setPicking(true)}/>
+        <//>
+        <div class="settings-foot">
+          设成别的国家，她就按那边的作息过日子，你半夜发消息她可能正在上班。
+          你自己在哪儿在「上下文与记忆 - 时间感知」里设。
+        </div>` : null}
+
       <${List} title="关联世界书">
         ${db.lorebooks.all().map(b => html`
           <${ListItem} key=${b.id} title=${b.name}
@@ -66,5 +83,10 @@ export function CharacterEdit({ id }) {
         ${!db.lorebooks.count() ? html`<${ListItem} title="还没有世界书"/>` : null}
       <//>
       <div class="pad-b"></div>
+
+      <${ZonePicker} open=${picking} value=${char.timezone || ''} allowSame
+        title=${`${char.name} 在哪儿`}
+        onPick=${z => patch({ timezone: z })}
+        onClose=${() => setPicking(false)}/>
     <//>`;
 }

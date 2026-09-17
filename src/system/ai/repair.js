@@ -135,6 +135,8 @@ function rebuild(msg, parts) {
   const keep = {
     quoteId: msg.quoteId || null, quoteText: msg.quoteText || '',
     quoteRole: msg.quoteRole || '', quoteAuthorId: msg.quoteAuthorId || '',
+    // 时间行在渲染时就剥掉了，重新分条别把它弄丢，上下文还指着它排时间线
+    ...(msg.stamp ? { stamp: msg.stamp } : {}),
   };
 
   parts.forEach((part, i) => {

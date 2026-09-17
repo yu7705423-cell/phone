@@ -238,12 +238,9 @@ input[type="range"] {
   max-height: 120px; overflow: hidden;
 }
 
-/* 多选 */
+/* 多选。只用左边那个勾表示选中，不去框气泡 —— 描一圈边太吵 */
 .msg.is-picking { cursor: pointer; }
 .msg.is-picking .msg-col { pointer-events: none; }
-.msg.is-picked .bubble { box-shadow: 0 0 0 2px var(--accent); }
-.msg.is-picked .bubble-image img,
-.msg.is-picked .bubble-sticker { box-shadow: 0 0 0 2px var(--accent); }
 .pick-dot {
   flex: none; align-self: center; width: 18px; height: 18px; border-radius: var(--r-full);
   border: 1px solid var(--group-line); background: var(--surface);
@@ -650,3 +647,25 @@ input[type="range"] {
 }
 .batch-row.is-on .batch-num { background: var(--accent); color: var(--on-accent); }
 .batch-name { flex: 1; min-width: 0; font-size: var(--fs-14); }
+
+/* 时间感知 */
+.zone-now {
+  display: inline-flex; align-items: center; gap: var(--sp-2);
+  font-size: var(--fs-13); color: var(--text-3); font-variant-numeric: tabular-nums;
+}
+.dt-input {
+  width: 100%; box-sizing: border-box;
+  padding: var(--sp-3); border: none; border-radius: var(--r-md);
+  background: var(--surface-2); color: var(--text);
+  font: inherit; font-size: var(--fs-15);
+}
+.time-preview {
+  padding: var(--sp-5) var(--sp-4); border-radius: var(--r-lg);
+  background: var(--group-fill); text-align: center;
+}
+.time-big {
+  font-size: var(--fs-56); line-height: 1.1; letter-spacing: -.02em;
+  font-variant-numeric: tabular-nums;
+}
+.time-sub { margin-top: var(--sp-2); font-size: var(--fs-13); color: var(--text-2); }
+.time-note { margin-top: 3px; font-size: var(--fs-11); color: var(--text-3); }

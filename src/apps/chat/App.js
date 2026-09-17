@@ -9,6 +9,7 @@ import { Profile } from './pages/Profile.js';
 import { CharacterEdit } from './pages/CharacterEdit.js';
 import { Conversation } from './pages/Conversation.js';
 import { ContextPage } from './pages/ContextPage.js';
+import { TimePage } from './pages/TimePage.js';
 import { TemplatesPage } from './pages/TemplatesPage.js';
 import { StickerManager } from './pages/StickerManager.js';
 import { ProactivePage } from './pages/ProactivePage.js';
@@ -60,6 +61,7 @@ export default function ChatApp({ route }) {
 
   if (route === '/stickers') return html`<${StickerManager}/>`;
   if (route === '/context') return html`<${ContextPage}/>`;
+  if (route === '/time') return html`<${TimePage}/>`;
   if (route === '/templates') return html`<${TemplatesPage}/>`;
   if (route === '/moments') return html`<${Tabs} initial="moments"/>`;
   return html`<${Tabs}/>`;

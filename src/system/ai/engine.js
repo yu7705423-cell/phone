@@ -1,5 +1,6 @@
 import { settings, persona, characters, chats, messages, messagesOf } from '../db/index.js';
 import * as accounts from '../accounts.js';
+import * as clock from '../time.js';
 import { assemble } from './context/index.js';
 import { DEFAULT_TEMPLATES, fillTemplate } from './templates.js';
 import { embedQuery, embedReady } from './embed.js';
@@ -148,6 +149,8 @@ export function buildChatSystem(chat, char, msgs, opts = {}) {
   out += mediaInstruction(char);
   // 引用是双向的：你能引他的，他也能引你的或者自己早先说过的
   if (msgs.length >= 2) out += '\n\n' + template('skeleton.quote');
+  // 让它自己把当地时间写出来。这一行显示时会被过滤掉，见 ai/reply.js
+  if (clock.stampOn()) out += '\n\n' + template('skeleton.time');
   return { system: out, failed, tokens: estimate(out) };
 }
 
@@ -161,6 +164,17 @@ function withQuote(m) {
   return `（回应前面那句「${q.length > 40 ? q.slice(0, 40) + '…' : q}」）${m.content}`;
 }
 
+// 时间感知开着的时候，历史本身要是一条时间线。
+// 角色那边用它自己写的那一行(界面上过滤掉了,上下文里得留着);
+// 用户这边没法要求他写,隔得久了替他补一句 —— 隔了三小时才回和秒回不是一回事。
+const GAP_MARK = 30 * 60000;
+function timeLine(m, prev) {
+  if (!clock.enabled()) return '';
+  if (m.role === 'char') return m.stamp ? `[${m.stamp}] ` : '';
+  if (!prev || m.createdAt - prev.createdAt < GAP_MARK) return '';
+  return `[${clock.format(clock.toWorld(m.createdAt), clock.userZone())}] `;
+}
+
 // 历史消息转 API 格式。群聊时给非本人的发言加上说话人前缀。
 export function buildHistory(chat, char, msgs) {
   const s = settings.get();
@@ -170,9 +184,10 @@ export function buildHistory(chat, char, msgs) {
     s.contextBudget,
     m => m.content || '');
 
-  return kept.slice(-s.historyLimit).map(m => {
+  const view = kept.slice(-s.historyLimit);
+  return view.map((m, i) => {
     const mine = m.role === 'char' && m.authorId === char.id;
-    const text = withQuote(m);
+    const text = timeLine(m, view[i - 1]) + withQuote(m);
     if (m.role === 'user') {
       return { role: 'user', content: text };
     }

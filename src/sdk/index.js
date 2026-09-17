@@ -7,6 +7,7 @@ import * as soundApi from '../system/sound.js';
 import * as pushApi from '../system/push.js';
 import * as looksApi from '../system/looks.js';
 import * as fontsApi from '../system/fonts.js';
+import * as clockApi from '../system/time.js';
 import * as bus from '../system/bus.js';
 import { db } from '../system/db/index.js';
 import { images } from '../system/db/images.js';
@@ -109,6 +110,7 @@ export const phone = {
   push: pushApi,
   looks: looksApi,
   fonts: fontsApi,
+  clock: clockApi,
 
   intent: {
     open: intents.open,
