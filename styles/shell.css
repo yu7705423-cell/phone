@@ -13,8 +13,6 @@
 .statusbar {
   position: relative; z-index: 1;
   flex: none; height: var(--statusbar-h); padding: 0 var(--sp-4);
-  padding-top: var(--safe-top);
-  box-sizing: content-box;
   display: flex; align-items: center; justify-content: space-between;
   font-size: var(--fs-12); font-weight: var(--fw-medium);
   color: var(--text); background: transparent;

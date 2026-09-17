@@ -243,6 +243,17 @@ export function AppearancePage() {
         </div>
       </div>
 
+      <${List} title="底部">
+        <${ListItem} title="底部整体上移" multiline
+          subtitle=${`现在 ${s.bottomLift || 0}px。底下那条小横杠被地址栏压住时往上抬一点。加到主屏幕当 PWA 用一般不需要`}/>
+      <//>
+      <div class="pad-x">
+        <${Field} label=${`${s.bottomLift || 0} px`}>
+          <input type="range" min="0" max="80" step="2" value=${s.bottomLift || 0}
+            onInput=${e => db.settings.set({ bottomLift: parseInt(e.target.value, 10) || 0 })}/>
+        <//>
+      </div>
+
       <${List} title="图标">
         <${ListItem} title="图标阴影"
           right=${html`<${Switch} checked=${s.iconShadow !== false}

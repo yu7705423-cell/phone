@@ -6,6 +6,7 @@ export const DEFAULT_SETTINGS = {
   iconColor: '#000000',           // SVG 颜色
   iconShadow: true,               // 图标阴影
   iconLabels: true,               // 图标下的名称
+  bottomLift: 0,                  // 底部整体上移的像素，见 styles/tokens.css
   customCSS: '',                  // 用户自定义 CSS，注入到独立 style 节点
   statusBar: 'auto',              // auto | on | off  见 shell/StatusBar.js
   showLockScreen: true,

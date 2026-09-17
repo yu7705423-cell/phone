@@ -27,7 +27,7 @@ export function Root() {
   }, [cfg.theme]);
 
   useEffect(() => { applyLook(cfg); },
-    [cfg.iconColor, cfg.iconShadow, cfg.iconLabels]);
+    [cfg.iconColor, cfg.iconShadow, cfg.iconLabels, cfg.bottomLift]);
 
   useEffect(() => { applyCustomCSS(cfg.customCSS); }, [cfg.customCSS]);
 

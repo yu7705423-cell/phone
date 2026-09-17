@@ -8,7 +8,10 @@
 <meta name="theme-color" content="#0D0E10" media="(prefers-color-scheme: dark)">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<!-- black-translucent 才会让 WebView 铺满整屏、内容走到状态栏底下。
+     default 会让 iOS 单独留一条状态栏,用 theme-color 填死,
+     壁纸和页面都盖不到它。改完必须把主屏幕图标删掉重新添加,iOS 只在添加时读一次。 -->
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="小手机">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-192.png">

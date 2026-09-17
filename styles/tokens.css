@@ -99,6 +99,10 @@
   --dock-h:      84px;
   --grid-gap:    14px;
   --tile-ratio:  .6;
+
+  /* 底部整体上移多少。Safari 标签页里地址栏会压住最下面那排，
+     用这个抬起来。PWA 里不需要，默认 0。在「主题」里调。 */
+  --bottom-lift: 0px;
   --navbar-h:    48px;
   --tabbar-h:    54px;
 

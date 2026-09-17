@@ -23,6 +23,7 @@ export function listAppLooks() {
 export function applyLook(s) {
   const root = document.documentElement;
   root.style.setProperty('--icon-color', s.iconColor || '#000000');
+  root.style.setProperty('--bottom-lift', Math.max(0, s.bottomLift || 0) + 'px');
   root.dataset.iconShadow = s.iconShadow === false ? 'off' : 'on';
   root.dataset.iconLabel = s.iconLabels === false ? 'off' : 'on';
 }

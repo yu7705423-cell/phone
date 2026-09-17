@@ -47,6 +47,12 @@ svg { display: block; flex: none; }
        撑不到屏幕底部，底下那条会被 iOS 拿页面底色填掉。见 CLAUDE.md ---- */
 .root {
   height: 100vh;
+  /* 高度仍然是整屏。上下两头各让出一点，让内容避开刘海和地址栏，
+     壁纸是 fixed 的，照样铺到屏幕边。
+     顶部这条必须写在 .root 上：状态栏在触摸设备上是隐藏的，
+     写在 .statusbar 里的话一隐藏，内容就钻到系统状态栏底下去了。 */
+  padding-top: var(--safe-top);
+  padding-bottom: var(--bottom-lift);
   display: flex;
   flex-direction: column;
   background: var(--bg);
