@@ -11,7 +11,6 @@ import { EmbedPage } from './EmbedPage.js';
 import { VisionPage } from './VisionPage.js';
 import { AsrPage } from './AsrPage.js';
 import { BUILD } from '../../version.js';
-import { forceUpdate } from './forceUpdate.js';
 
 const { db, nav } = phone;
 
@@ -50,7 +49,7 @@ function Home() {
 
   const update = async () => {
     toast('正在获取最新代码', 'plain');
-    const r = await forceUpdate();
+    const r = await phone.refresh();
     toast(r.fail ? `${r.total} 个文件中有 ${r.fail} 个获取失败，仍将尝试重新加载` : `${r.ok} 个文件已更新，正在重新加载`,
       r.fail ? 'plain' : 'ok');
     setTimeout(() => location.reload(), 900);

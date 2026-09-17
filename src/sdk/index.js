@@ -32,6 +32,7 @@ import * as image from '../system/ai/image.js';
 import * as visionApi from '../system/ai/vision.js';
 import * as asrApi from '../system/ai/asr.js';
 import * as audioApi from '../system/audio.js';
+import { forceUpdate } from '../system/refresh.js';
 import * as stickerApi from '../system/stickers.js';
 import * as replyApi from '../system/ai/reply.js';
 import * as repairApi from '../system/ai/repair.js';
@@ -117,6 +118,9 @@ export const phone = {
   fonts: fontsApi,
   clock: clockApi,
   audio: audioApi,
+
+  // 把缓存里的旧代码换掉再重开，见 system/refresh.js
+  refresh: forceUpdate,
 
   intent: {
     open: intents.open,

@@ -5,6 +5,7 @@ import { check as boundaries } from './check-boundaries.mjs';
 import { check as tokens } from './check-tokens.mjs';
 import { check as imports } from './check-imports.mjs';
 import { check as hooks } from './check-hooks.mjs';
+import { check as build } from './check-build.mjs';
 
 console.log('小手机 自检\n');
 let failed = 0;
@@ -14,5 +15,6 @@ failed += report('导入导出', imports());
 failed += report('hook 顺序', hooks());
 failed += report('模块边界', boundaries());
 failed += report('设计令牌', tokens());
+failed += report('构建号', build());
 console.log(failed ? `\n${failed} 项未通过` : '\n全部通过');
 process.exit(failed ? 1 : 0);

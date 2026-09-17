@@ -353,4 +353,4 @@
 }
 .crash-title { font-size: var(--fs-15); color: var(--text); font-weight: var(--fw-semi); margin-top: var(--sp-2); }
 .crash-msg { font-size: var(--fs-12); color: var(--text-2); max-width: 280px; line-height: 1.6; word-break: break-all; }
-.crash-actions { display: flex; gap: var(--sp-2); margin-top: var(--sp-4); }
+.crash-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--sp-2); margin-top: var(--sp-4); }
