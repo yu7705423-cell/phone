@@ -9,7 +9,8 @@ import { MediaBubble } from './MediaBubble.js';
 import { MsgMenu } from './MsgMenu.js';
 import { TransferBubble, NoticeLine, TransferSheet, SettleSheet,
          LocationBubble, LocationSheet, CallBubble, CallLogSheet,
-         GiftBubble, GiftSheet, UnwrapSheet } from './TransferBits.js';
+         GiftBubble, GiftSheet, UnwrapSheet,
+         ListenBubble, ListenLogSheet, ListenBar } from './TransferBits.js';
 
 const { db, nav, ai, call } = phone;
 
@@ -103,6 +104,8 @@ const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, onSwipe,
           ? html`<${LocationBubble} msg=${msg}/>`
           : msg.kind === 'call'
           ? html`<${CallBubble} msg=${msg} onOpen=${selecting ? null : onOpenLog}/>`
+          : msg.kind === 'listen'
+          ? html`<${ListenBubble} msg=${msg} onOpen=${selecting ? null : onOpenLog}/>`
           : msg.kind === 'sticker'
           ? html`<div class="bubble-sticker">
               ${sticker ? html`<${StickerImg} sticker=${sticker} size=${112}/>`
@@ -161,6 +164,7 @@ export function Conversation({ chatId, focusId = '' }) {
   const [callLog, setCallLog] = useState(null);  // 正在看的那通电话
   const [gifting, setGifting] = useState(false); // 送礼物面板开着
   const [unwrap, setUnwrap] = useState(null);    // 正在拆的那一件
+  const [listenLog, setListenLog] = useState(null); // 正在看的那一场
   // 只画最近这么多条。聊了两万条的会话一次性铺出来要一两秒，手机上十几秒，
   // 而且往上翻从来也不会翻到那么远。不够就按「查看更早的消息」再要一段。
   const [shown, setShown] = useState(PAGE);
@@ -534,7 +538,8 @@ export function Conversation({ chatId, focusId = '' }) {
 
   // 上面那几个每次渲染都是新函数，兜进 ref 里，对外的 stable 不变
   latest.current = { onRetry, onSwipe, togglePick, onSettle: setSettling,
-    onOpenLog: setCallLog, onUnwrap: setUnwrap };
+    onOpenLog: m => (m.kind === 'listen' ? setListenLog(m) : setCallLog(m)),
+    onUnwrap: setUnwrap };
 
   const deletePicked = async () => {
     if (!picked.length) return;
@@ -578,7 +583,7 @@ export function Conversation({ chatId, focusId = '' }) {
     { id: 'video', icon: 'film', label: '视频通话', onTap: () => startCall(true) },
     { id: 'gift', icon: 'gift', label: '礼物', onTap: () => setGifting(true) },
     { id: 'location', icon: 'map', label: '位置', onTap: () => setPlacing(true) },
-    { id: 'listen', icon: 'music', label: '一起听' },
+    { id: 'listen', icon: 'music', label: '一起听', onTap: () => nav.push(`/listen/${chatId}`) },
   ].map(it => ({ ...it, onTap: it.onTap || (() => toast(`「${it.label}」尚未实现`)) }));
 
   const quotingRef = quoting ? quoteOf({ quoteId: quoting.id }, { char, chat }) : null;
@@ -591,6 +596,7 @@ export function Conversation({ chatId, focusId = '' }) {
         ? html`<button class="nav-text press" onClick=${() => setPicked(view.map(m => m.id))}>全选</button>`
         : html`<${IconButton} name="more" onClick=${() => setMenu(true)} label="更多"/>`}>
       <div class="conv">
+        <${ListenBar} chatId=${chatId}/>
         <div class="conv-body scroll" ref=${bodyRef}>
           ${char.firstMessage && !msgs.length ? html`
             <${Bubble} msg=${greeting} char=${char} chat=${chat} frozen
@@ -683,6 +689,7 @@ export function Conversation({ chatId, focusId = '' }) {
         onChange=${sendImage} style="display:none"/>
 
       <${CallLogSheet} msg=${callLog} onClose=${() => setCallLog(null)}/>
+      <${ListenLogSheet} msg=${listenLog} onClose=${() => setListenLog(null)}/>
       <${GiftSheet} open=${gifting} chatId=${chatId} onClose=${() => setGifting(false)}/>
       <${UnwrapSheet} msg=${unwrap} onClose=${() => setUnwrap(null)}/>
       <${TransferSheet} open=${paying} chatId=${chatId} onClose=${() => setPaying(false)}/>

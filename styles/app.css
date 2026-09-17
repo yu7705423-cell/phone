@@ -902,3 +902,20 @@ button.search-bar { width: 100%; border: none; }
   margin-top: var(--sp-3); height: 120px; width: 120px; border-radius: var(--r-md);
   background-size: cover; background-position: center;
 }
+
+/* 一起听的播放条。压在会话顶上，不占页面 —— 听歌是背景，聊天还是主角 */
+.listen-bar {
+  flex: none; display: flex; align-items: center; gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--group-fill); border-radius: var(--r-md);
+  margin: 0 var(--sp-4) var(--sp-2);
+}
+.listen-main { flex: 1; min-width: 0; }
+.listen-title { font-size: var(--fs-13); font-weight: var(--fw-medium); }
+.listen-sub { font-size: var(--fs-12); color: var(--text-3); margin-top: 1px; }
+.listen-key {
+  flex: none; width: 28px; height: 28px; border: none; border-radius: var(--r-full);
+  display: flex; align-items: center; justify-content: center;
+  background: var(--surface); color: var(--text-2);
+}
+.row-acts { display: inline-flex; gap: var(--sp-3); }

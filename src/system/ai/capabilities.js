@@ -6,6 +6,8 @@ import { isImageReady } from './image.js';
 import { isVoiceReady } from './voice.js';
 import { PENDING as TR_PENDING } from '../transfer.js';
 import { PENDING as GIFT_PENDING } from '../gift.js';
+import { listen } from '../listen.js';
+import { allSongs } from '../music.js';
 
 // 能力目录。
 //
@@ -97,6 +99,16 @@ export const CAPS = [
       || hasPending(msgs, 'gift', 'gift', GIFT_PENDING),
     line: () => '送礼物：单独写一行 [礼物：封面上写什么 | 拆开是什么]；收到礼物写 [拆开] 或 [拒收]',
     detail: () => template('skeleton.gift'),
+  },
+  {
+    id: 'listen',
+    // 曲库是空的就没什么可听的，提了反而让它点一首不存在的歌
+    on: ({ char }) => char.canListen !== false && allSongs().length > 0,
+    // 正在一起听就必须是热的：那三条「别当鉴赏课」的规矩是这个功能的全部要害
+    hot: ({ chat, msgs }) => (listen.get().active && listen.get().chatId === chat.id)
+      || usedRecently(msgs, /^listen$|[[【](一起听|点歌|建歌单)/),
+    line: () => '一起听歌：单独写一行 [一起听]；听的时候换歌写 [点歌：歌名]',
+    detail: () => template('skeleton.listen'),
   },
   {
     id: 'ring',

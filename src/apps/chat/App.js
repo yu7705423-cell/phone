@@ -15,6 +15,7 @@ import { TemplatesPage } from './pages/TemplatesPage.js';
 import { StickerManager } from './pages/StickerManager.js';
 import { ProactivePage } from './pages/ProactivePage.js';
 import { SearchPage } from './pages/SearchPage.js';
+import { ListenPage } from './pages/ListenPage.js';
 
 const { db, nav } = phone;
 
@@ -53,6 +54,9 @@ export default function ChatApp({ route }) {
   // 进去之后滚到那一条。会话 id 里不会有 @，所以拿它当分隔符是安全的。
   const conv = route?.match(/^\/chat\/([^@]+)(?:@(.+))?$/);
   if (conv) return html`<${Conversation} chatId=${conv[1]} focusId=${conv[2] || ''}/>`;
+
+  const lis = route?.match(/^\/listen\/(.+)$/);
+  if (lis) return html`<${ListenPage} chatId=${lis[1]}/>`;
 
   const search = route?.match(/^\/search(?:\/(.+))?$/);
   if (search) return html`<${SearchPage} chatId=${search[1] || ''}/>`;

@@ -12,16 +12,19 @@ import { nav } from '../nav.js';
 import * as transfer from '../transfer.js';
 import * as place from '../place.js';
 import * as gift from '../gift.js';
+import * as music from '../music.js';
 
 // 角色回复里可以带这几种标记，由模型自己决定什么时候用。
 // 中英文冒号都认，方括号也认全角。
-const MARK = /[[【]\s*(图片|照片|image|pic|语音|voice|audio|表情|sticker|emoji|转账|transfer|位置|定位|location|礼物|gift)\s*[:：]\s*([^\]】]+)[\]】]/gi;
+const MARK = /[[【]\s*(图片|照片|image|pic|语音|voice|audio|表情|sticker|emoji|转账|transfer|位置|定位|location|礼物|gift|点歌|建歌单)\s*[:：]\s*([^\]】]+)[\]】]/gi;
 
 const IMAGE_KINDS = new Set(['图片', '照片', 'image', 'pic']);
 const STICKER_KINDS = new Set(['表情', 'sticker', 'emoji']);
 const TRANSFER_KINDS = new Set(['转账', 'transfer']);
 const PLACE_KINDS = new Set(['位置', '定位', 'location']);
 const GIFT_KINDS = new Set(['礼物', 'gift']);
+const PICK_KINDS = new Set(['点歌']);
+const LIST_KINDS = new Set(['建歌单']);
 
 // 转账那一条里，金额在前，后面随手写的是留言
 const AMOUNT = /^\s*(?:[¥￥$]\s*)?(\d+(?:\.\d{1,2})?)\s*(?:元|块)?\s*(.*)$/;
@@ -34,6 +37,9 @@ const SETTLE_LINE = /^[[【(（]\s*(收款|收下|接收|退回|退还)\s*[\]】
 // 一段对话里两样可能同时挂着，共用一个词就分不清在处理哪一个。
 const OPEN_LINE = /^[[【(（]\s*(拆开|拆|打开|拆礼物)\s*[\]】)）]$/;
 const REFUSE_LINE = /^[[【(（]\s*(拒收|不收|退掉)\s*[\]】)）]$/;
+
+// 拉着一起听歌。同样必须带方括号。
+const LISTEN_LINE = /^[[【(（]\s*(一起听|一起听歌|听歌)\s*[\]】)）]$/;
 
 // 打个电话过来。同样必须带方括号。写「视频来电」就是视频通话。
 const RING_LINE = /^[[【(（]\s*(视频)?(?:来电|打电话|拨打|通话|call)\s*[\]】)）]$/i;
@@ -123,6 +129,9 @@ export function splitReply(raw) {
       const rg = t.match(RING_LINE);
       if (rg) { push({ type: 'ring', video: !!rg[1] }); return; }
 
+      // 拉一起听。和电话一样是一件事不是一条消息，不占气泡。
+      if (LISTEN_LINE.test(t)) { push({ type: 'listen' }); return; }
+
       // 译文相反，挂到刚刚那一条上。前面没有正文就只能丢掉。
       const tr = t.match(TRANS_LINE);
       if (tr) {
@@ -142,7 +151,11 @@ export function splitReply(raw) {
     const kind = m[1].toLowerCase();
     const body = m[2].trim();
     if (body) {
-      if (GIFT_KINDS.has(kind)) {
+      if (PICK_KINDS.has(kind)) {
+        push({ type: 'pick', name: body });
+      } else if (LIST_KINDS.has(kind)) {
+        push({ type: 'newlist', name: body });
+      } else if (GIFT_KINDS.has(kind)) {
         const g = gift.parse(body);
         if (g) push({ type: 'gift', ...g });
       } else if (PLACE_KINDS.has(kind)) {
@@ -237,6 +250,31 @@ export function materialize(part, base, char) {
       chatId: base.chatId, role: base.role, authorId: base.authorId,
       amount: part.amount, note: part.note, extra: row,
     });
+  }
+  // 一起听、点歌、建歌单都不落消息 —— 它们改的是播放状态和曲库，不是对话内容。
+  // 动态 import 的理由和电话一样：listen 要用 db，engine 要用本文件，静态引会成环。
+  if (part.type === 'listen') {
+    if (base.role === 'char') {
+      import('../listen.js')
+        .then(m => { if (!m.listen.get().active) m.start({ chatId: base.chatId, autoplay: false }); })
+        .catch(err => console.warn('[listen] 没起来:', err.message || err));
+    }
+    return null;
+  }
+  if (part.type === 'pick') {
+    const song = music.findSong(part.name);
+    // 认不出来就当没点过。凭空冒出一首曲库里没有的歌，界面上根本放不出来
+    if (song) {
+      import('../listen.js')
+        .then(m => { if (m.listen.get().active) m.play(song.id); })
+        .catch(() => {});
+    }
+    return null;
+  }
+  if (part.type === 'newlist') {
+    try { music.createList({ name: part.name, owner: base.authorId }); }
+    catch (err) { console.warn('[listen] 建歌单失败:', err.message || err); }
+    return null;
   }
   if (part.type === 'ring') {
     // 动态 import：call.js 要用 engine，engine 又要用本文件，静态引会成环。

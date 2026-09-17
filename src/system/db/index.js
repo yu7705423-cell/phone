@@ -15,8 +15,10 @@ export const moments    = makeCollection('moments', 'mo');
 export const stickers   = makeCollection('stickers', 'stk');
 export const looks      = makeCollection('looks', 'look');
 export const personas   = makeCollection('personas', 'me');
+export const songs      = makeCollection('songs', 'song');
+export const playlists  = makeCollection('playlists', 'pl');
 
-const COLLECTIONS = { characters, lorebooks, memories, chats, messages, moments, stickers, looks, personas };
+const COLLECTIONS = { characters, lorebooks, memories, chats, messages, moments, stickers, looks, personas, songs, playlists };
 
 // ---- kv: settings / persona / layout ----
 function makeKV(key, fallback, { deep = false } = {}) {
@@ -99,6 +101,7 @@ window.addEventListener('pagehide', () => { images.revokeAll(); files.revokeAll(
 
 export const db = {
   characters, lorebooks, memories, chats, messages, moments, stickers, looks, personas,
+  songs, playlists,
   images, files, settings, persona, layout,
   messagesOf, lastMessageOf, ready,
 };

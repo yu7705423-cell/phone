@@ -107,6 +107,10 @@ export function CharacterEdit({ id }) {
           subtitle="角色可以接听你的来电，也可以主动打给你。是否接听取决于「主动发起对话」中设置的免打扰时段"
           right=${html`<${Switch} checked=${char.canCall !== false}
             onChange=${v => patch({ canCall: v })}/>`}/>
+        <${ListItem} title="一起听" multiline
+          subtitle="角色可以拉你一起听歌、点歌、建自己的歌单。曲库由你在「一起听」中添加"
+          right=${html`<${Switch} checked=${char.canListen !== false}
+            onChange=${v => patch({ canListen: v })}/>`}/>
         <${ListItem} title="礼物" multiline
           subtitle="角色可以送礼物给你，也可以拆开或拒收你送的礼物。礼物封面与实际内容可以不一致"
           right=${html`<${Switch} checked=${char.canSendGift !== false}

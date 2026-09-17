@@ -2,7 +2,7 @@ import { html, useState } from '../../../lib.js';
 import { phone, useStore } from '../../../sdk/index.js';
 import { Sheet, Field, Input, Button, Icon, List, ListItem, Switch, toast } from '../../../ui/index.js';
 
-const { db, transfer, currency, place, call, gift } = phone;
+const { db, transfer, currency, place, call, gift, listen, music } = phone;
 
 // 转账气泡。发出去的那一张不能自己点 —— 收不收是对方的事。
 export function TransferBubble({ msg, onSettle }) {
@@ -161,6 +161,57 @@ export function UnwrapSheet({ msg, onClose }) {
       <//>
       <div class="settings-foot">拆开之前不会显示里面是什么。</div>
     <//>`;
+}
+
+// 一起听的记录。整场只留这一条，和通话记录同构。
+export function ListenBubble({ msg, onOpen }) {
+  const n = (msg.trackIds || []).length;
+  return html`
+    <div class="bubble bubble-call" onClick=${onOpen ? () => onOpen(msg) : null}>
+      <${Icon} name="music" size=${18}/>
+      <span>${`一起听了 ${listen.fmt(msg.seconds)} · ${n} 首`}</span>
+    </div>`;
+}
+
+export function ListenLogSheet({ msg, onClose }) {
+  if (!msg) return null;
+  const tracks = (msg.trackIds || []).map(id => db.songs.get(id)).filter(Boolean);
+  return html`
+    <${Sheet} open=${!!msg} onClose=${onClose}
+      title=${`一起听了 ${listen.fmt(msg.seconds)}`} height="60%">
+      ${tracks.length ? html`
+        <${List} inset=${false}>
+          ${tracks.map((t, i) => html`
+            <${ListItem} key=${i} title=${t.title} subtitle=${t.artist || ''}/>`)}
+        <//>`
+      : html`<div class="settings-foot">这些歌已经不在曲库里了。</div>`}
+    <//>`;
+}
+
+// 会话顶上的播放条。一起听是边聊边听，不该像通话那样把整页盖住。
+export function ListenBar({ chatId }) {
+  const s = useStore(listen.listen);
+  useStore(db.songs.store);
+  if (!s.active || s.chatId !== chatId) return null;
+  const song = listen.current();
+  const line = listen.lyricNow();
+
+  return html`
+    <div class="listen-bar">
+      <button class="listen-key press" aria-label=${s.playing ? '暂停' : '播放'}
+        onClick=${listen.toggle}>
+        <${Icon} name=${s.playing ? 'minus' : 'chevronRight'} size=${16}/></button>
+      <div class="listen-main" onClick=${() => phone.nav.push(`/listen/${chatId}`)}>
+        <div class="listen-title ellipsis">${music.label(song) || '一起听'}</div>
+        <div class="listen-sub ellipsis">
+          ${s.error || line || `${listen.clock(s.at)} · 本次 ${listen.fmt(s.seconds)}`}
+        </div>
+      </div>
+      <button class="listen-key press" aria-label="下一首" onClick=${listen.next}>
+        <${Icon} name="chevronRight" size=${16}/></button>
+      <button class="listen-key press" aria-label="结束一起听" onClick=${() => listen.stop()}>
+        <${Icon} name="close" size=${16}/></button>
+    </div>`;
 }
 
 // 位置气泡。虚拟定位，不读设备 GPS，也不查地图接口，就是一个地点名加一行地址。

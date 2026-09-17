@@ -1,0 +1,132 @@
+import { songs, playlists, files, images } from './db/index.js';
+
+// 曲库与歌单。
+//
+// 这一层是**本地的**：歌是用户自己传进来的，音频要么是一个 URL，要么是一个
+// 存在本机的音频文件。为什么不做「只填歌名」那种纯虚拟的歌 —— 因为一起听要
+// 真的有东西在响，计时才有意义；光有个名字，两个人对着空气坐着。
+//
+// 歌词按 LRC 存原文，播放时按时间轴对出当前这一句。对不上就当没有歌词。
+
+export const LIB_OWNER = 'me';
+
+export function allSongs() {
+  return songs.all().sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+}
+
+export function addSong({ title, artist = '', url = '', audioId = null,
+                          lyric = '', coverId = null, seconds = 0 }) {
+  const t = String(title || '').trim().slice(0, 60);
+  if (!t) throw new Error('请填写歌曲名称');
+  if (!url && !audioId) throw new Error('请填写播放地址或上传音频文件');
+  return songs.create({
+    title: t, artist: String(artist || '').trim().slice(0, 40),
+    url: String(url || '').trim(), audioId,
+    lyric: String(lyric || ''), coverId,
+    seconds: Math.max(0, Math.round(seconds) || 0),
+    source: 'local',
+  });
+}
+
+export function removeSong(id) {
+  const s = songs.get(id);
+  if (!s) return false;
+  if (s.audioId) files.remove(s.audioId);
+  if (s.coverId) images.remove(s.coverId);
+  // 歌单里那条引用也要拔掉，否则点进去是个空位
+  playlists.all().forEach(p => {
+    if ((p.trackIds || []).includes(id)) {
+      playlists.update(p.id, { trackIds: p.trackIds.filter(x => x !== id) });
+    }
+  });
+  return songs.remove(id);
+}
+
+// 曲库里找一首。角色点歌时拿它认领 —— 它只知道歌名，认不认得出全靠这里。
+// 先全等，再包含，最后去掉空格再比一次。
+export function findSong(name) {
+  const q = String(name || '').trim().toLowerCase();
+  if (!q) return null;
+  const flat = s => `${s.title} ${s.artist}`.toLowerCase();
+  const tight = t => t.replace(/[\s·・]/g, '');
+  const all = allSongs();
+  return all.find(s => s.title.toLowerCase() === q)
+    || all.find(s => flat(s).includes(q))
+    || all.find(s => q.includes(s.title.toLowerCase()) && s.title.length >= 2)
+    || all.find(s => tight(flat(s)).includes(tight(q)))
+    || null;
+}
+
+// ---- 歌单 ----
+// owner 是 'me' 或某个角色的 id。角色能建自己的歌单，那是它的品味，
+// 不该和用户的混在一张表里。
+export function allLists(owner) {
+  const list = playlists.all().sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+  return owner ? list.filter(p => p.owner === owner) : list;
+}
+
+export function createList({ name, owner = LIB_OWNER, trackIds = [] }) {
+  const n = String(name || '').trim().slice(0, 40);
+  if (!n) throw new Error('请填写歌单名称');
+  return playlists.create({ name: n, owner, trackIds: [...trackIds] });
+}
+
+export function renameList(id, name) {
+  const n = String(name || '').trim().slice(0, 40);
+  if (n) playlists.update(id, { name: n });
+}
+
+export function removeList(id) { return playlists.remove(id); }
+
+export function addTrack(listId, songId) {
+  const p = playlists.get(listId);
+  if (!p || !songs.get(songId)) return false;
+  if ((p.trackIds || []).includes(songId)) return false;
+  playlists.update(listId, { trackIds: [...(p.trackIds || []), songId] });
+  return true;
+}
+
+export function removeTrack(listId, songId) {
+  const p = playlists.get(listId);
+  if (!p) return false;
+  playlists.update(listId, { trackIds: (p.trackIds || []).filter(x => x !== songId) });
+  return true;
+}
+
+export function tracksOf(listId) {
+  const p = playlists.get(listId);
+  return (p?.trackIds || []).map(id => songs.get(id)).filter(Boolean);
+}
+
+// ---- 歌词 ----
+// LRC：每行 [mm:ss.xx] 歌词。一行可能挂好几个时间戳，拆开各算一条。
+export function parseLyric(text) {
+  const out = [];
+  for (const line of String(text || '').split('\n')) {
+    const words = line.replace(/\[[\d:.]+\]/g, '').trim();
+    const stamps = line.match(/\[(\d+):(\d+)(?:[.:](\d+))?\]/g) || [];
+    for (const st of stamps) {
+      const m = st.match(/\[(\d+):(\d+)(?:[.:](\d+))?\]/);
+      if (!m) continue;
+      const cs = m[3] ? Number(`0.${m[3]}`) : 0;
+      out.push({ at: Number(m[1]) * 60 + Number(m[2]) + cs, text: words });
+    }
+  }
+  return out.sort((a, b) => a.at - b.at);
+}
+
+// 到第几秒了，现在唱到哪一句
+export function lyricAt(lines, sec) {
+  if (!lines || !lines.length) return '';
+  let cur = '';
+  for (const l of lines) {
+    if (l.at > sec + 0.15) break;
+    cur = l.text;
+  }
+  return cur;
+}
+
+export function label(song) {
+  if (!song) return '';
+  return song.artist ? `${song.title} — ${song.artist}` : song.title;
+}
