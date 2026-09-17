@@ -92,7 +92,7 @@ function RepairSheet({ msgId, open, onClose }) {
     <//>`;
 }
 
-export function MsgMenu({ msg, char, onClose, onQuote, onMultiSelect, onDelete }) {
+export function MsgMenu({ msg, char, onClose, onRegenerate, onQuote, onMultiSelect, onDelete }) {
   useStore(db.messages.store);
   const [repairing, setRepairing] = useState(false);
   // 修完可能整条被拆掉，每次都从库里重取，别拿着长按那一刻的旧快照
@@ -132,6 +132,10 @@ export function MsgMenu({ msg, char, onClose, onQuote, onMultiSelect, onDelete }
       : html`
         <div class="msg-menu-quote">${textOf(fresh) || '（空）'}</div>
         <${List} inset=${false}>
+          ${onRegenerate ? html`
+            <${ListItem} title="重新生成" subtitle="整轮重来，原来那版留作候选，可以左右切回去" arrow multiline
+              left=${html`<${Icon} name="refresh" size=${18}/>`}
+              onClick=${() => { close(); onRegenerate(); }}/>` : null}
           ${canEdit ? html`
             <${ListItem} title="编辑" arrow
               left=${html`<${Icon} name="edit" size=${18}/>`}

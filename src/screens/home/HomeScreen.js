@@ -157,7 +157,7 @@ export function HomeScreen() {
   };
 
   return html`
-    <div class="home"
+    <div class="home no-callout"
       onMouseDown=${startPress} onMouseUp=${endPress} onMouseLeave=${endPress}
       onTouchStart=${onTouchStart} onTouchMove=${onTouchMove} onTouchEnd=${onTouchEnd}>
 

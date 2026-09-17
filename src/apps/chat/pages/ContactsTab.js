@@ -13,7 +13,7 @@ function Row({ char, onHold }) {
   const end = () => { if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; } };
 
   return html`
-    <div class="msg-row press"
+    <div class="msg-row no-callout press"
       onClick=${() => nav.push(`/profile/${char.id}`)}
       onMouseDown=${start} onMouseUp=${end} onMouseLeave=${end}
       onTouchStart=${start} onTouchEnd=${end} onTouchMove=${end}

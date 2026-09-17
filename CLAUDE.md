@@ -172,6 +172,34 @@ python3 -m http.server 8000
 骨架开场、收尾、各任务的 instruction 全部存在 `settings.promptTemplates`，
 代码里只保留 `DEFAULT_TEMPLATES` 作为回落。改语气不应该需要改代码。
 
+## 12. 有长按的地方，禁掉系统的选中与复制
+
+**只要一个元素挂了长按手势，它就必须带上 `.no-callout` 类。**
+
+不加的话，iOS 会在长按时弹出系统自己的选中与「拷贝」浮层，
+和本项目的长按菜单同时出现 —— 两边抢同一个手势，谁都不好用。
+
+```html
+<!-- 正确 -->
+<div class="msg no-callout" onTouchStart=...>
+
+<!-- 禁止：挂了长按却没禁掉系统浮层 -->
+<div class="msg" onTouchStart=...>
+```
+
+`.no-callout` 定义在 `styles/ui.css`，一处定义，各处引用。
+不要在各自的样式里重抄那三行属性。
+
+由 `scripts/check-longpress.mjs` 粗扫：文件里既有 `onTouchStart`
+又有 300 到 1200 毫秒的定时器，却找不到 `no-callout`，就报错。
+
+**要复制就在自己的菜单里给一个「复制」。** 禁掉系统的选中不等于不能复制，
+只是复制的入口要归自己管 —— 系统那套选的是「一段文字」，
+本项目要的是「这一条消息」，本来就不是一回事。
+
+目前挂着长按的：会话气泡 `.msg`、消息列表与联系人列表的 `.msg-row`、
+主界面 `.home`（长按进编辑模式）。
+
 ---
 
 ## 提交前自检
@@ -180,7 +208,7 @@ python3 -m http.server 8000
 node scripts/doctor.mjs
 ```
 
-一次性跑完七项检查：视口单位、零 emoji、导入导出、hook 顺序、依赖边界、硬编码颜色、构建号。
+一次性跑完八项检查：视口单位、零 emoji、导入导出、hook 顺序、依赖边界、硬编码颜色、长按禁选、构建号。
 
 其中三项是无构建方案必须自己补的：
 

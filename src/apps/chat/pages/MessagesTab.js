@@ -24,7 +24,7 @@ function Row({ chat, onHold }) {
   const end = () => { if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; } };
 
   return html`
-    <div class="msg-row press"
+    <div class="msg-row no-callout press"
       onClick=${() => nav.push(`/chat/${chat.id}`)}
       onMouseDown=${start} onMouseUp=${end} onMouseLeave=${end}
       onTouchStart=${start} onTouchEnd=${end} onTouchMove=${end}

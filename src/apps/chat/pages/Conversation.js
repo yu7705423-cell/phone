@@ -64,7 +64,7 @@ function Bubble({ msg, char, chat, frozen, onRetry, onSwipe, onHold,
 
   return html`
     <div id=${`msg-${msg.id}`}
-      class=${`msg${mine ? ' is-mine' : ''}${selecting && !frozen ? ' is-picking' : ''}${selected ? ' is-picked' : ''}`}
+      class=${`msg no-callout${mine ? ' is-mine' : ''}${selecting && !frozen ? ' is-picking' : ''}${selected ? ' is-picked' : ''}`}
       onClickCapture=${capture}
       onTouchStart=${start} onTouchEnd=${end} onTouchMove=${end} onTouchCancel=${end}
       onContextMenu=${e => { e.preventDefault(); if (!selecting && !frozen && !typing) onHold(msg); }}>
@@ -131,6 +131,8 @@ export function Conversation({ chatId }) {
   const char = db.characters.get((chat?.characterIds || [])[0]);
   const msgs = chatId ? db.messagesOf(chatId) : [];
   const selecting = picked !== null;
+  // 最后一轮角色回复。只有它能重新生成，见下面 regenerate 的注释
+  const lastTurnId = [...msgs].reverse().find(m => m.role === 'char' && m.turnId)?.turnId || null;
 
   useEffect(() => {
     if (chat?.unread) db.chats.update(chatId, { unread: 0 });
@@ -312,13 +314,18 @@ export function Conversation({ chatId }) {
     } catch (err) { toast('录音失败：' + (err.message || err), 'error', 5000); }
   };
 
-  const regenerate = async () => {
-    const last = [...msgs].reverse().find(m => m.role === 'char' && m.turnId);
-    if (!last) { generate(); return; }
-    const head = ai.reply.turnMessages(chatId, last.turnId)[0];
+  // 整轮删掉重来，新原文追加进候选。
+  //
+  // 只有最后一轮能重新生成。重生成中间某一轮，模型看到的历史里
+  // 还带着它后面那些消息 —— 那些本来是对旧回复的回应，
+  // 拿它们当上下文生成「旧回复」，出来的东西自相矛盾。
+  const regenerate = async turnId => {
+    const tid = turnId || lastTurnId;
+    if (!tid) { generate(); return; }
+    const head = ai.reply.turnMessages(chatId, tid)[0];
     const swipes = head?.swipes || [];
-    ai.reply.clearTurn(chatId, last.turnId);
-    await generate({ turnId: last.turnId, swipes });
+    ai.reply.clearTurn(chatId, tid);
+    await generate({ turnId: tid, swipes });
   };
 
   // 切换候选不再调接口，拿存下来的原文整轮重放
@@ -403,6 +410,7 @@ export function Conversation({ chatId }) {
   ].map(it => ({ ...it, onTap: it.onTap || (() => toast(`「${it.label}」尚未实现`)) }));
 
   const quotingRef = quoting ? quoteOf({ quoteId: quoting.id }, { char, chat }) : null;
+  const canRegen = !!(held && held.role === 'char' && held.turnId && held.turnId === lastTurnId);
 
   return html`
     <${Page} title=${selecting ? `已选 ${picked.length} 条` : char.name}
@@ -497,6 +505,7 @@ export function Conversation({ chatId }) {
         onChange=${sendImage} style="display:none"/>
 
       <${MsgMenu} msg=${held} char=${char} onClose=${() => setHeld(null)}
+        onRegenerate=${canRegen ? () => regenerate(held.turnId) : null}
         onQuote=${m => { setQuoting(m); setPanel(null); }}
         onMultiSelect=${m => { setPicked([m.id]); setPanel(null); }}
         onDelete=${id => dropMessages([id])}/>
@@ -533,9 +542,6 @@ export function Conversation({ chatId }) {
         <//>
 
         <${List} title="这段对话">
-          <${ListItem} title="重新生成上一条" arrow
-            left=${html`<${Icon} name="refresh" size=${18}/>`}
-            onClick=${() => { setMenu(false); regenerate(); }}/>
           <${ListItem} title="多选消息" subtitle="选择多条消息后一并删除。长按任意消息亦可进入" arrow multiline
             left=${html`<${Icon} name="check" size=${18}/>`}
             onClick=${() => { setMenu(false); setPicked([]); setPanel(null); }}/>

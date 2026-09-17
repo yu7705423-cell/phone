@@ -196,3 +196,13 @@
   animation: fade-in var(--dur-fast) var(--ease);
 }
 .toast-error { background: var(--toast-error); color: var(--on-scrim); }
+
+/* 挂了长按手势的元素必须带上这个类。见 CLAUDE.md 第 12 条。
+   不加的话 iOS 会在长按时弹出系统自己的选中与「拷贝」浮层，
+   和本项目的长按菜单同时出现，两边抢同一个手势。
+   要复制就在自己的菜单里给一个「复制」。 */
+.no-callout {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
