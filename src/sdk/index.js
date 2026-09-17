@@ -38,6 +38,7 @@ import * as transferApi from '../system/transfer.js';
 import * as currencyApi from '../system/currency.js';
 import * as placeApi from '../system/place.js';
 import * as callApi from '../system/call.js';
+import * as cameraApi from '../system/camera.js';
 import * as keepAliveApi from '../system/keepalive.js';
 import { forceUpdate } from '../system/refresh.js';
 import * as stickerApi from '../system/stickers.js';
@@ -131,6 +132,7 @@ export const phone = {
   currency: currencyApi,
   place: placeApi,
   call: callApi,
+  camera: cameraApi,
   keepAlive: keepAliveApi,
 
   // 把缓存里的旧代码换掉再重开，见 system/refresh.js

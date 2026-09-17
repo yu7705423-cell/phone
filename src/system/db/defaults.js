@@ -65,6 +65,7 @@ export const DEFAULT_SETTINGS = {
   currency: 'CNY',                // 转账用哪种钱。只影响显示与小数位，不换算
   callSpeak: false,               // 通话默认只出字幕，不发声
   callMic: false,                 // 通话默认打字，不开麦克风
+  callSelfReal: false,            // 视频通话默认用虚拟头像，不开摄像头
 
   historyMode: 'count',           // count 按条数 | turn 按轮次
   historyLimit: 20,               // 按条数时取最近多少条

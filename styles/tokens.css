@@ -30,6 +30,9 @@
   --scrim:        rgba(0, 0, 0, .40);
   --scrim-strong: rgba(0, 0, 0, .56);
   --on-scrim:     #FFFFFF;
+  /* 压在遮罩上的实心块。遮罩不跟主题走，所以这一对两套主题里是一样的 */
+  --scrim-fill:    #FFFFFF;
+  --on-scrim-fill: #000000;
   --toast-bg:     rgba(0, 0, 0, .92);
   --toast-fg:     #FFFFFF;
   --toast-error:  rgba(0, 0, 0, .92);
@@ -94,6 +97,8 @@
   --z-modal:   70;
   --z-toast:   80;
   --z-banner:  90;
+  /* 电话压在所有东西上面：主界面、别的 app、锁屏、横幅，都要盖住 */
+  --z-call:    95;
 
   /* 结构尺寸 */
   --statusbar-h: 26px;
@@ -148,6 +153,8 @@
   --scrim:        rgba(0, 0, 0, .62);
   --scrim-strong: rgba(0, 0, 0, .76);
   --on-scrim:     #FFFFFF;
+  --scrim-fill:    #FFFFFF;
+  --on-scrim-fill: #000000;
   --toast-bg:     rgba(255, 255, 255, .95);
   --toast-fg:     #000000;
   --toast-error:  rgba(255, 255, 255, .95);

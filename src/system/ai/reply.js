@@ -26,8 +26,8 @@ const AMOUNT = /^\s*(?:[¥￥$]\s*)?(\d+(?:\.\d{1,2})?)\s*(?:元|块)?\s*(.*)$/;
 // 「退回」两个字单独成行的正常句子也会被当成指令。
 const SETTLE_LINE = /^[[【(（]\s*(收款|收下|接收|退回|退还|拒收)\s*[\]】)）]$/;
 
-// 打个电话过来。同样必须带方括号。
-const RING_LINE = /^[[【(（]\s*(来电|打电话|拨打|call)\s*[\]】)）]$/i;
+// 打个电话过来。同样必须带方括号。写「视频来电」就是视频通话。
+const RING_LINE = /^[[【(（]\s*(视频)?(?:来电|打电话|拨打|通话|call)\s*[\]】)）]$/i;
 
 // 引用单独成行，挂在它下面那一条上，不自己占一个气泡。
 const QUOTE_LINE = /^[[【(（]?\s*(?:引用|回复|quote)\s*[:：]\s*([^\n\]】)）]+)[\]】)）]?\s*$/i;
@@ -107,7 +107,8 @@ export function splitReply(raw) {
       if (st) { push({ type: 'settle', take: !/退|拒/.test(st[1]) }); return; }
 
       // 它要打电话过来。不占气泡 —— 电话是一件事，不是一条消息。
-      if (RING_LINE.test(t)) { push({ type: 'ring' }); return; }
+      const rg = t.match(RING_LINE);
+      if (rg) { push({ type: 'ring', video: !!rg[1] }); return; }
 
       // 译文相反，挂到刚刚那一条上。前面没有正文就只能丢掉。
       const tr = t.match(TRANS_LINE);
@@ -226,7 +227,7 @@ export function materialize(part, base, char) {
     // 电话本身不落消息，接没接通由 call 那边收尾时记。
     if (base.role === 'char') {
       import('../call.js')
-        .then(m => m.ring(base.chatId))
+        .then(m => m.ring(base.chatId, { video: !!part.video }))
         .catch(err => console.warn('[call] 来电没打通:', err.message || err));
     }
     return null;

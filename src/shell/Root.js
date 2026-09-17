@@ -8,6 +8,7 @@ import { NotifyBanner } from './NotifyBanner.js';
 import { LockScreen } from '../screens/LockScreen.js';
 import { HomeScreen } from '../screens/home/HomeScreen.js';
 import { AppSwitcher } from '../screens/AppSwitcher.js';
+import { CallLayer } from '../screens/CallLayer.js';
 import { AppHost } from '../system/runtime.js';
 import { closeTopOverlay } from '../ui/overlay.js';
 import { useImage } from '../system/db/useImage.js';
@@ -97,5 +98,6 @@ export function Root() {
           <span class="hi-bar"></span>
         </div>` : null}
       <${NotifyBanner}/>
+      <${CallLayer}/>
     </div>`;
 }

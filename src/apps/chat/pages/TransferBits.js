@@ -99,8 +99,8 @@ export function CallBubble({ msg, onOpen }) {
   return html`
     <div class=${`bubble bubble-call${done ? '' : ' is-miss'}`}
       onClick=${done && onOpen ? () => onOpen(msg) : null}>
-      <${Icon} name="phone" size=${18}/>
-      <span>${call.label(msg.direction, msg.outcome, msg.seconds)}</span>
+      <${Icon} name=${msg.callKind === 'video' ? 'film' : 'phone'} size=${18}/>
+      <span>${call.label(msg.direction, msg.outcome, msg.seconds, msg.callKind === 'video')}</span>
     </div>`;
 }
 
@@ -113,7 +113,7 @@ export function CallLogSheet({ msg, onClose }) {
   const lines = msg.callLog || [];
   return html`
     <${Sheet} open=${!!msg} onClose=${onClose}
-      title=${call.label(msg.direction, msg.outcome, msg.seconds)} height="72%">
+      title=${call.label(msg.direction, msg.outcome, msg.seconds, msg.callKind === 'video')} height="72%">
       ${lines.length ? html`
         <div class="pad-x">
           ${lines.map((l, i) => html`

@@ -9,7 +9,6 @@ import { MediaBubble } from './MediaBubble.js';
 import { MsgMenu } from './MsgMenu.js';
 import { TransferBubble, NoticeLine, TransferSheet, SettleSheet,
          LocationBubble, LocationSheet, CallBubble, CallLogSheet } from './TransferBits.js';
-import { CallScreen } from './CallScreen.js';
 
 const { db, nav, ai, call } = phone;
 
@@ -144,7 +143,6 @@ export function Conversation({ chatId, focusId = '' }) {
   useStore(db.characters.store);
   useStore(db.stickers.store);
   const settings = useStore(db.settings.store);
-  const calling = useStore(call.call);
 
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
@@ -261,12 +259,6 @@ export function Conversation({ chatId, focusId = '' }) {
 
   if (!chat || !char) {
     return html`<${Page} title="会话" onBack=${nav.pop}><${EmptyState} title="该会话已不存在"/><//>`;
-  }
-
-  // 通话界面盖住整个会话页。只盖这段对话的电话 ——
-  // 在别的会话里接到的电话不该把这一页遮住。
-  if (calling.phase !== 'idle' && calling.chatId === chatId) {
-    return html`<${CallScreen}/>`;
   }
 
   async function generate({ turnId: reuseTurn, swipes: prevSwipes } = {}) {
@@ -521,8 +513,8 @@ export function Conversation({ chatId, focusId = '' }) {
     generate();
   };
 
-  const startCall = () => {
-    try { call.dial(chatId); }
+  const startCall = video => {
+    try { call.dial(chatId, { video }); }
     catch (err) { toast(String(err.message || err), 'error', 4000); }
   };
 
@@ -575,7 +567,8 @@ export function Conversation({ chatId, focusId = '' }) {
     { id: 'photo', icon: 'image', label: '图片', onTap: () => imgRef.current?.click() },
     { id: 'voice', icon: 'headphone', label: '语音', onTap: startRec },
     { id: 'transfer', icon: 'wallet', label: '转账', onTap: () => setPaying(true) },
-    { id: 'call', icon: 'phone', label: '通话', onTap: startCall },
+    { id: 'call', icon: 'phone', label: '通话', onTap: () => startCall(false) },
+    { id: 'video', icon: 'film', label: '视频通话', onTap: () => startCall(true) },
     { id: 'gift', icon: 'gift', label: '礼物' },
     { id: 'location', icon: 'map', label: '位置', onTap: () => setPlacing(true) },
     { id: 'listen', icon: 'music', label: '一起听' },

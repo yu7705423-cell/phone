@@ -1,7 +1,7 @@
-import { html, useState } from '../../../lib.js';
+import { html, useState, useRef } from '../../../lib.js';
 import { phone, useStore, useImage } from '../../../sdk/index.js';
 import { Page, Field, Input, Avatar, List, ListItem,
-         Switch, Icon } from '../../../ui/index.js';
+         Switch, Icon, Button, toast } from '../../../ui/index.js';
 import { ZonePicker } from './ZonePicker.js';
 
 const { db, nav, clock } = phone;
@@ -12,12 +12,25 @@ export function CharacterEdit({ id }) {
   useStore(db.settings.store);
   useStore(db.stickers.store);
   const [picking, setPicking] = useState(false);
+  const sceneRef = useRef(null);
   const char = db.characters.get(id);
   const avatar = useImage(char?.avatar);
+  const scene = useImage(char?.callImage);
   const stickerCount = db.stickers.count();
 
   if (!char) return html`<${Page} title="编辑" onBack=${nav.pop}/>`;
   const patch = p => db.characters.update(id, p);
+
+  const pickScene = async e => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      const imgId = await db.images.put(file);
+      if (char.callImage) db.images.remove(char.callImage);
+      patch({ callImage: imgId });
+    } catch (err) { toast('图片处理失败：' + (err.message || err), 'error'); }
+  };
 
   const toggleBook = bid => {
     const cur = char.lorebookIds || [];
@@ -80,6 +93,19 @@ export function CharacterEdit({ id }) {
             : '角色会发送所在地的地点。未设置所在时区时，地点依据人设判断'}
           right=${html`<${Switch} checked=${char.canSendLocation !== false}
             onChange=${v => patch({ canSendLocation: v })}/>`}/>
+      <//>
+
+      <${Field} label="视频通话画面"
+        desc="视频通话时铺满屏幕的画面。未上传时使用头像。图片保存在本设备。">
+        <div class="wg-edit-cover">
+          <${Button} size="sm" variant="ghost" icon="upload"
+            onClick=${() => sceneRef.current?.click()}>${char.callImage ? '更换' : '选择图片'}<//>
+          ${char.callImage ? html`
+            <${Button} size="sm" variant="ghost" icon="trash"
+              onClick=${() => { db.images.remove(char.callImage); patch({ callImage: null }); }}>移除<//>` : null}
+        </div>
+        <input type="file" accept="image/*" ref=${sceneRef} onChange=${pickScene} style="display:none"/>
+        ${scene ? html`<div class="call-scene-preview" style=${`background-image:url(${scene})`}></div>` : null}
       <//>
 
       ${clock.enabled() ? html`

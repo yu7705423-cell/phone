@@ -774,7 +774,7 @@ button.search-bar { width: 100%; border: none; }
 
 /* ---- 通话 ---- */
 .call-layer {
-  position: absolute; inset: 0; z-index: 4;
+  position: absolute; inset: 0; z-index: var(--z-call);
   display: flex; flex-direction: column;
   padding: calc(var(--safe-top) + var(--sp-8)) var(--sp-5)
            calc(var(--safe-bottom) + var(--sp-5));
@@ -818,9 +818,13 @@ button.search-bar { width: 100%; border: none; }
   display: flex; align-items: center; justify-content: center;
   background: var(--group-fill); color: var(--text-2);
 }
+/* 开着的挡位用实心填；挂断也要实心，所以靠大一号来区分主次 —— 单色界面里
+   大小是比颜色更靠得住的主次信号 */
 .call-key.is-on { background: var(--accent); color: var(--on-accent); }
-.call-key.is-hang { background: var(--accent); color: var(--on-accent); }
-.call-key.is-take { background: var(--accent); color: var(--on-accent); }
+.call-key.is-hang,
+.call-key.is-take {
+  width: 66px; height: 66px; background: var(--accent); color: var(--on-accent);
+}
 .call-foot {
   flex: none; text-align: center; margin-top: var(--sp-4);
   font-size: var(--fs-12); color: var(--text-3);
@@ -832,3 +836,58 @@ button.search-bar { width: 100%; border: none; }
 .log-line { margin-bottom: var(--sp-4); }
 .log-who { display: block; font-size: var(--fs-12); color: var(--text-3); margin-bottom: 2px; }
 .log-text { font-size: var(--fs-15); line-height: 1.65; }
+
+/* 视频通话：对方铺满整屏，字幕压在上面，所以要一层压暗 */
+.call-layer.is-video { color: var(--on-scrim); }
+.call-back {
+  position: absolute; inset: 0; background-size: cover; background-position: center;
+}
+.call-scrim {
+  position: absolute; inset: 0;
+  background: linear-gradient(180deg,
+    var(--scrim-strong) 0%, var(--scrim) 26%, var(--scrim) 58%, var(--scrim-strong) 100%);
+}
+/* 铺满的画面和压暗层在最底下，内容全部抬到它们上面。
+   这里要一个一个点名，不能写 `> *` —— 那会把小窗的绝对定位一起盖掉，
+   它就从右上角掉回文档流里去了。 */
+.call-head, .call-lines, .call-heard, .call-input, .call-bar, .call-foot {
+  position: relative; z-index: 1;
+}
+.call-layer.is-video .call-name,
+.call-layer.is-video .call-status,
+.call-layer.is-video .call-foot,
+.call-layer.is-video .call-error { color: var(--on-scrim); }
+.call-layer.is-video .call-status,
+.call-layer.is-video .call-foot { opacity: .8; }
+.call-lines.on-dark .call-who { color: var(--on-scrim); opacity: .7; }
+.call-lines.on-dark .call-text { color: var(--on-scrim); }
+/* 压在画面上时全部半透明；开着的那个加一圈描边，挂断是唯一的实心，
+   这样「实心=挂断」在视频里也成立 */
+.call-layer.is-video .call-key { background: rgba(255, 255, 255, .2); color: var(--on-scrim); }
+.call-layer.is-video .call-key.is-on {
+  background: rgba(255, 255, 255, .34);
+  box-shadow: inset 0 0 0 1.5px var(--scrim-fill);
+}
+.call-layer.is-video .call-key.is-hang,
+.call-layer.is-video .call-key.is-take {
+  background: var(--scrim-fill); color: var(--on-scrim-fill); box-shadow: none;
+}
+.call-layer.is-video .call-input { background: rgba(255, 255, 255, .22); }
+.call-layer.is-video .call-input input { color: var(--on-scrim); }
+.call-layer.is-video .call-input input::placeholder { color: rgba(255, 255, 255, .6); }
+.call-layer.is-video .call-input button { color: var(--on-scrim); }
+
+/* 我这边的小窗。右上角，摄像头画面按镜像显示 */
+.call-self {
+  position: absolute; top: calc(var(--safe-top) + var(--sp-4)); right: var(--sp-4);
+  width: 96px; height: 128px; border-radius: var(--r-md); overflow: hidden;
+  background: var(--surface-3);
+  display: flex; align-items: center; justify-content: center;
+}
+.call-self video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+
+/* 角色卡上的视频画面预览 */
+.call-scene-preview {
+  margin-top: var(--sp-3); height: 140px; border-radius: var(--r-md);
+  background-size: cover; background-position: center;
+}

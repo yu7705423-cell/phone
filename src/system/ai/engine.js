@@ -337,7 +337,7 @@ export const cancelCall = chatId => cancel(callKey(chatId));
  * 通话中的一轮。lines 是这通电话到目前为止说过的话，
  * opening 是「电话刚接通，你先开口」这类一次性的指示。
  */
-export function streamCall({ chat, char, system, lines = [], opening = '', onDelta }) {
+export function streamCall({ chat, char, system, lines = [], opening = '', image, onDelta }) {
   const msgs = messagesOf(chat.id).filter(m => m.status !== 'error');
   const history = buildHistory(chat, char, msgs, {});
   const talk = lines.map(l => ({
@@ -345,13 +345,20 @@ export function streamCall({ chat, char, system, lines = [], opening = '', onDel
     content: l.text,
   }));
   const tail = opening ? [{ role: 'user', content: opening }] : [];
+  const all = mergeAdjacent([...history, ...talk, ...tail]);
+
+  // 视频通话时把摄像头那一帧挂在我这边最后说的那句上。挂不上就自己起一条 ——
+  // 一帧画面没有配文也是有意义的，那就是「他现在什么样」。
+  if (image) {
+    let i = all.length - 1;
+    while (i >= 0 && all[i].role !== 'user') i--;
+    if (i >= 0) all[i] = { ...all[i], image };
+    else all.push({ role: 'user', content: '（这是我这边的画面）', image });
+  }
 
   return enqueue(callKey(chat.id), signal => withFallback(c => getProvider(c.provider)
-    .stream(c, {
-      system,
-      messages: mergeAdjacent([...history, ...talk, ...tail]),
-      maxTokens: CALL_MAX, signal, onDelta,
-    })), { replace: true, retries: 1 });
+    .stream(c, { system, messages: all, maxTokens: CALL_MAX, signal, onDelta })),
+    { replace: true, retries: 1 });
 }
 
 export function replyKey(chatId, charId) { return `reply:${chatId}:${charId}`; }
