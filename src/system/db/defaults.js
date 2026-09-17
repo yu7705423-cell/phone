@@ -12,7 +12,10 @@ export const DEFAULT_SETTINGS = {
   showLockScreen: true,
 
   // 通知。横幅与提示音，见 system/sound.js
-  notify: { banner: true, sound: 'ding', soundFileId: null, volume: 0.7 },
+  notify: { banner: true, sound: 'ding', soundFileId: null, volume: 0.7, system: false },
+
+  // Web Push。真要在 app 关着时叫醒手机必须有服务器，见 system/push.js
+  push: { vapidPublicKey: '', reportUrl: '', endpoint: '' },
 
   // AI 服务配置。聊天与生图是「预设列表 + 当前选中」，语音只有一份。
   services: {

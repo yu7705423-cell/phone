@@ -14,6 +14,7 @@ import { applyLook, applyCustomCSS } from '../system/look.js';
 import { layout } from '../system/db/index.js';
 import { start as startProactive } from '../system/ai/proactive.js';
 import { installUnlock } from '../system/sound.js';
+import { installBridge } from '../system/push.js';
 
 export function Root() {
   const s = useStore(nav);
@@ -45,6 +46,9 @@ export function Root() {
 
   // iOS 上 AudioContext 必须由一次真实触摸唤醒，越早挂上越好
   useEffect(() => { installUnlock(); }, []);
+
+  // 系统通知：点了要能跳回来，页面不在前台时改由系统弹
+  useEffect(() => { installBridge(); }, []);
 
   useEffect(() => {
     const onKey = e => {

@@ -644,6 +644,38 @@ moment.reply  角色回复
 开关在 `设置 - 通知`（横幅、提示音、音量、试一条）。这是整机行为，不属于某个角色，
 所以放全局设置里不违反 CLAUDE.md 第 5 条。
 
+### 4.695 系统通知与 Web Push
+
+`sw.js` 是整个项目唯一的 Service Worker，**故意没有 fetch 处理函数，一个字节都不缓存**。
+无构建方案已经被 HTTP 缓存坑过一次（所以才有「强制更新」），再叠一层 SW 缓存只会更难查。
+它存在的唯一理由是 Web Push 规定必须要有 SW。
+
+三条通知路径，互不替代：
+
+| | 谁弹 | 什么时候有效 |
+|---|---|---|
+| 应用内横幅 | `shell/NotifyBanner.js` | 页面在前台 |
+| 系统通知 | `sw.registration.showNotification()` | 页面还活着（含刚退到后台的几秒） |
+| Web Push | 推送服务把 `push` 事件送到 SW | **app 完全关着也行，但必须有服务器发** |
+
+`system/push.js` 是客户端这一半：注册 SW、申请权限、订阅、退订、点击回跳。
+页面不在前台（`document.visibilityState !== 'visible'`）且开了「交给系统弹」时，
+`EVENTS.notify` 就转给系统通知，不再弹应用内横幅。
+
+几个踩过的点：
+
+- iOS 只给**添加到主屏幕之后的 PWA** 发系统通知。标签页里授权了也不会响，
+  所以设置页会检测 `display-mode: standalone` 并直说。
+- **收到 push 却没弹通知，iOS 会直接把订阅作废**。所以 `sw.js` 里三种负载
+  （正常 JSON、解析失败、完全为空）都保证走到 `showNotification`。
+- iOS 上不能用 `new Notification()`，只有 SW 的 `showNotification` 有效。
+- 换了 VAPID 公钥必须先 `unsubscribe` 再订，否则服务器推不动。
+
+**服务器那一半本项目不提供。** 要真正在 app 关着时叫醒手机，需要：
+生成一对 VAPID 密钥，公钥填进设置页，订阅对象交给服务器保存，
+服务器用 `web-push` 之类的库往 `subscription.endpoint` 发加密负载
+（`{ title, body, route, appId }`）。设置页留了「订阅上报地址」和「复制订阅」两条路。
+
 ### 4.7 群聊
 
 一个会话可以挂多个角色(`chat.characterIds` 为数组)。

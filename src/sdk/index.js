@@ -3,6 +3,7 @@ import * as navApi from '../system/nav.js';
 import * as intents from '../system/intents.js';
 import * as notifyApi from '../system/notify.js';
 import * as soundApi from '../system/sound.js';
+import * as pushApi from '../system/push.js';
 import * as bus from '../system/bus.js';
 import { db } from '../system/db/index.js';
 import { images } from '../system/db/images.js';
@@ -90,6 +91,7 @@ export const phone = {
   },
 
   sound: soundApi,
+  push: pushApi,
 
   intent: {
     open: intents.open,
