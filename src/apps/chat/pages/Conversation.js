@@ -1,4 +1,4 @@
-import { html, useState, useEffect, useRef } from '../../../lib.js';
+import { html, useState, useEffect, useRef, useMemo, memo } from '../../../lib.js';
 import { phone, useStore, useImage } from '../../../sdk/index.js';
 import { Page, Avatar, Icon, IconButton, FullSheet, List, ListItem,
          EmptyState, toast, confirm, prompt } from '../../../ui/index.js';
@@ -30,7 +30,9 @@ function QuoteRef({ quote, onClick }) {
     </button>`;
 }
 
-function Bubble({ msg, char, chat, frozen, onRetry, onSwipe, onHold,
+// 记忆化：流式回复时只有最后那条在变，别的几百条没必要跟着重画。
+// 下面传给它的函数属性都是稳定身份的，见 Conversation 里的 stable。
+const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, onSwipe, onHold,
                   selecting, selected, onToggle, transOpen }) {
   const mine = msg.role === 'user';
   const avatar = useImage(mine ? phone.accounts.current()?.avatar : char?.avatar);
@@ -117,7 +119,7 @@ function Bubble({ msg, char, chat, frozen, onRetry, onSwipe, onHold,
           </div>` : null}
       </div>
     </div>`;
-}
+});
 
 export function Conversation({ chatId }) {
   useStore(db.chats.store);
@@ -139,12 +141,31 @@ export function Conversation({ chatId }) {
   const localRef = useRef(null);
   const imgRef = useRef(null);
 
+  // 气泡是记忆化的，传给它的函数属性身份必须稳定，否则每来一段流式内容
+  // 整屏气泡都要重画。外面这一层永远不变，里面读 ref 拿当前这次渲染的闭包。
+  const latest = useRef({});
+  const stable = useMemo(() => ({
+    onRetry: m => latest.current.onRetry(m),
+    onSwipe: (m, d) => latest.current.onSwipe(m, d),
+    onToggle: m => latest.current.togglePick(m),
+    noop: () => {},
+  }), []);
+  const pickedSet = useMemo(() => new Set(picked || []), [picked]);
+
   const chat = db.chats.get(chatId);
   const char = db.characters.get((chat?.characterIds || [])[0]);
+  // 开场白那条不入库，每次渲染现造。现造的对象身份每次都不一样，
+  // 记忆化就永远判不出相等，所以这里也钉住。
+  const greeting = useMemo(
+    () => ({ id: 'greet', role: 'char', content: char?.firstMessage || '', status: 'done' }),
+    [char?.firstMessage]);
   const msgs = chatId ? db.messagesOf(chatId) : [];
   const selecting = picked !== null;
   // 最后一轮角色回复。只有它能重新生成，见下面 regenerate 的注释
-  const lastTurnId = [...msgs].reverse().find(m => m.role === 'char' && m.turnId)?.turnId || null;
+  let lastTurnId = null;
+  for (let i = msgs.length - 1; i >= 0; i--) {
+    if (msgs[i].role === 'char' && msgs[i].turnId) { lastTurnId = msgs[i].turnId; break; }
+  }
 
   useEffect(() => {
     if (chat?.unread) db.chats.update(chatId, { unread: 0 });
@@ -178,16 +199,18 @@ export function Conversation({ chatId }) {
     if (!ai.isConfigured()) { toast('尚未配置模型接口', 'error'); return; }
     setBusy(true);
 
-    // 生成中先放一条「正在输入」，流式内容打在上面
+    // 生成中先放一条「正在输入」，流式内容打在上面。
+    // 这一条不落盘：一秒要改几十次，而且回复完成后就会删掉，
+    // 写下去的每一版都是马上作废的东西。页面中途挂掉，丢的也只是这个占位。
     const typing = db.messages.create({
       chatId, role: 'char', authorId: char.id, kind: 'typing',
       content: '', status: 'sending',
-    });
+    }, { persist: false });
 
     try {
       const text = await ai.streamReply({
         chat, char,
-        onDelta: (_, full) => db.messages.update(typing.id, { content: full }),
+        onDelta: (_, full) => db.messages.update(typing.id, { content: full }, { persist: false }),
       });
       const clean = String(text || '').trim();
       if (!clean) throw new Error('模型返回了空内容');
@@ -419,6 +442,9 @@ export function Conversation({ chatId }) {
   const togglePick = msg => setPicked(cur =>
     cur.includes(msg.id) ? cur.filter(x => x !== msg.id) : [...cur, msg.id]);
 
+  // 上面那三个每次渲染都是新函数，兜进 ref 里，对外的 stable 不变
+  latest.current = { onRetry, onSwipe, togglePick };
+
   const deletePicked = async () => {
     if (!picked.length) return;
     if (!await confirm({
@@ -476,14 +502,14 @@ export function Conversation({ chatId }) {
       <div class="conv">
         <div class="conv-body scroll" ref=${bodyRef}>
           ${char.firstMessage && !msgs.length ? html`
-            <${Bubble} msg=${{ id: 'greet', role: 'char', content: char.firstMessage, status: 'done' }}
-              char=${char} chat=${chat} frozen
-              onRetry=${onRetry} onSwipe=${onSwipe} onHold=${() => {}} onToggle=${() => {}}/>` : null}
+            <${Bubble} msg=${greeting} char=${char} chat=${chat} frozen
+              onRetry=${stable.onRetry} onSwipe=${stable.onSwipe}
+              onHold=${stable.noop} onToggle=${stable.noop}/>` : null}
           ${msgs.map(m => html`
             <${Bubble} key=${m.id} msg=${m} char=${char} chat=${chat}
-              onRetry=${onRetry} onSwipe=${onSwipe} onHold=${setHeld}
-              selecting=${selecting} selected=${selecting && picked.includes(m.id)}
-              onToggle=${togglePick} transOpen=${settings.translateOpen}/>`)}
+              onRetry=${stable.onRetry} onSwipe=${stable.onSwipe} onHold=${setHeld}
+              selecting=${selecting} selected=${selecting && pickedSet.has(m.id)}
+              onToggle=${stable.onToggle} transOpen=${settings.translateOpen}/>`)}
           ${!msgs.length && !char.firstMessage ? html`
             <div class="conv-hint">发送第一条消息开始对话</div>` : null}
         </div>

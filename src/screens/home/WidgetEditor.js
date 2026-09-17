@@ -131,14 +131,17 @@ export function WidgetEditor({ cell, onClose }) {
               subtitle=${info ? kb(info.bytes) : ''}/>
           <//>` : null}` : null}
 
-      ${live.ref !== 'photo' && live.ref !== 'custom' ? html`
-        <${List} inset=${false}>
+      <${List} inset=${false}>
+        ${live.ref !== 'photo' && live.ref !== 'custom' ? html`
           <${ListItem} title="用衬线字体" multiline
             subtitle=${live.ref === 'love'
               ? '衬线槽位可在「设置 - 主题」里换成自己的字体，换成手写体后这里会跟着变'
               : '更像唱片封面上的排版'}
-            right=${html`<${Switch} checked=${!!c.serif} onChange=${v => set({ serif: v })}/>`}/>
-        <//>` : null}
+            right=${html`<${Switch} checked=${!!c.serif} onChange=${v => set({ serif: v })}/>`}/>` : null}
+        <${ListItem} title="隐藏背景" multiline
+          subtitle="去掉卡片底色与投影，组件直接显示在壁纸上。浅色壁纸上深色文字可能难以辨认。"
+          right=${html`<${Switch} checked=${!!c.bare} onChange=${v => set({ bare: v })}/>`}/>
+      <//>
 
       <div class="pad-t">
         <${Button} full onClick=${onClose}>完成<//>

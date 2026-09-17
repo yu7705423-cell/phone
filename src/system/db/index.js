@@ -10,7 +10,7 @@ export const characters = makeCollection('characters', 'char');
 export const lorebooks  = makeCollection('lorebooks', 'lb');
 export const memories   = makeCollection('memories', 'mem');
 export const chats      = makeCollection('chats', 'chat');
-export const messages   = makeCollection('messages', 'msg');
+export const messages   = makeCollection('messages', 'msg', { indexBy: 'chatId' });
 export const moments    = makeCollection('moments', 'mo');
 export const stickers   = makeCollection('stickers', 'stk');
 export const looks      = makeCollection('looks', 'look');
@@ -53,9 +53,17 @@ export const layout   = makeKV(KV.layout, DEFAULT_LAYOUT);
 
 export { images, files };
 
-// ---- 消息按会话索引 ----
+// ---- 消息按会话取 ----
+// 排好序的那份缓存住。会话页每渲染一帧要问一次，流式回复时一秒好几十帧；
+// 消息列表一屏二十行，每行也要问一次。桶的版本没变就直接给上一次那份。
+const sortedCache = new Map();   // chatId -> { v, list }
 export function messagesOf(chatId) {
-  return messages.where(m => m.chatId === chatId).sort((a, b) => a.createdAt - b.createdAt);
+  const v = messages.indexVersion(chatId);
+  const hit = sortedCache.get(chatId);
+  if (hit && hit.v === v) return hit.list;
+  const list = messages.byIndex(chatId).sort((a, b) => a.createdAt - b.createdAt);
+  sortedCache.set(chatId, { v, list });
+  return list;
 }
 export function lastMessageOf(chatId) {
   const list = messagesOf(chatId);
@@ -71,6 +79,11 @@ export const ready = (async function boot() {
     persona.load(),
     layout.load(),
   ]);
+
+  // 上一次是在生成到一半时被收走的，库里可能留着一条「正在输入」的占位。
+  // 现在这种占位不落盘了，旧版本留下的还在。开机清掉 —— 它只是个占位，
+  // 留着就是一条永远停在那儿、点不开也删不掉的空气泡。
+  messages.removeWhere(m => m.kind === 'typing');
 
   // 全新安装也从 0 跑一遍。迁移本身都是幂等的，而且新库同样需要
   // 迁移里那些「建根账号」之类的初始化。

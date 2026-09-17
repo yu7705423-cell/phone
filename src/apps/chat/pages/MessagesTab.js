@@ -1,4 +1,4 @@
-import { html, useState } from '../../../lib.js';
+import { html, useState, memo } from '../../../lib.js';
 import { phone, useStore, useImage } from '../../../sdk/index.js';
 import { Avatar, EmptyState, Button, Icon, Sheet, List, ListItem,
          toast, confirm } from '../../../ui/index.js';
@@ -6,7 +6,9 @@ import { relTime, splitBubbles, myChats } from '../helpers.js';
 
 const { db, nav } = phone;
 
-function Row({ chat, onHold }) {
+// 记忆化：一条新消息进来只有那一行变了，别的会话没必要跟着重画。
+// 每行都要取头像、切一遍预览文本，二十行加起来不便宜。
+const Row = memo(function Row({ chat, onHold }) {
   const ids = chat.characterIds || [];
   const char = db.characters.get(ids[0]);
   const avatar = useImage(char?.avatar);
@@ -41,7 +43,7 @@ function Row({ chat, onHold }) {
         </div>
       </div>
     </div>`;
-}
+});
 
 // 置顶的在一个胶囊，其余的在另一个胶囊
 function Capsule({ title, chats, onHold }) {

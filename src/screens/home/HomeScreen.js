@@ -32,7 +32,8 @@ function Cell({ cell, edit, onPick, picked, onEditWidget }) {
       if (wg?.editable) onEditWidget(cell);
     };
     return html`
-      <div class=${`cell cell-widget${edit ? ' is-edit' : ''}${picked ? ' is-picked' : ''}`} style=${style}
+      <div class=${`cell cell-widget${cell.config?.bare ? ' is-bare' : ''}`
+        + `${edit ? ' is-edit' : ''}${picked ? ' is-picked' : ''}`} style=${style}
         onClick=${tap}>
         ${wg ? wg.render(cell) : html`<div class="wg wg-empty">挂件缺失</div>`}
       </div>`;

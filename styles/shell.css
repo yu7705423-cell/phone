@@ -111,6 +111,8 @@
   background: var(--surface); border-radius: var(--r-lg);
   box-shadow: var(--shadow-1); overflow: hidden; cursor: pointer;
 }
+/* 去掉卡片底，组件直接落在壁纸上。圆角留着，裁剪仍然按格子来 */
+.cell-widget.is-bare { background: none; box-shadow: none; }
 .cell.is-picked { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--r-md); }
 
 /* 挂件。白底卡片，留白给足，不显得局促 */
