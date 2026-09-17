@@ -1,12 +1,13 @@
 import { html } from '../../lib.js';
 import { phone, useStore } from '../../sdk/index.js';
-import { Page, List, ListItem, Icon } from '../../ui/index.js';
+import { Page, List, ListItem, Icon, toast } from '../../ui/index.js';
 import { ApiPage } from './ApiPage.js';
 import { VoicePage } from './VoicePage.js';
 import { ImagePage } from './ImagePage.js';
 import { AppearancePage } from './AppearancePage.js';
 import { StoragePage } from './StoragePage.js';
 import { BUILD } from '../../version.js';
+import { forceUpdate } from './forceUpdate.js';
 
 const { db, nav } = phone;
 
@@ -23,6 +24,14 @@ function Home() {
   const voiceDesc = voice.enabled && voice.apiKey ? `已配置 · ${voice.model || '未选模型'}` : '未配置';
   const imgActive = svc.activeImage();
   const imageDesc = imgActive ? `${imgActive.name} · ${imgActive.model || '未选模型'}` : '未配置';
+
+  const update = async () => {
+    toast('正在取新代码', 'plain');
+    const r = await forceUpdate();
+    toast(r.fail ? `${r.total} 个文件里有 ${r.fail} 个没取到，仍然重开试试` : `${r.ok} 个文件已更新，重开中`,
+      r.fail ? 'plain' : 'ok');
+    setTimeout(() => location.reload(), 900);
+  };
 
   return html`
     <${Page} title="设置">
@@ -49,6 +58,9 @@ function Home() {
         <${ListItem} title="存储与备份" subtitle="占用统计、导入导出、清空" arrow
           left=${html`<${Icon} name="database" size=${18}/>`}
           onClick=${() => nav.push('/storage')}/>
+        <${ListItem} title="强制更新" multiline arrow
+          subtitle=${`当前 ${BUILD}。手机上还是旧界面就点这里，会把缓存的旧代码换掉再重开`}
+          left=${html`<${Icon} name="refresh" size=${18}/>`} onClick=${update}/>
       <//>
 
       <div class="settings-foot">
