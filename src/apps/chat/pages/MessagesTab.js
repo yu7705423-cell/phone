@@ -84,6 +84,10 @@ export function MessagesTab() {
 
   return html`
     <div class="msg-list">
+      <button class="search-bar press" onClick=${() => nav.push('/search')}>
+        <${Icon} name="search" size=${16}/>
+        <span class="search-hint">搜索聊天记录</span>
+      </button>
       <${Capsule} title=${pinned.length ? '置顶' : null} chats=${pinned} onHold=${setHeld}/>
       <${Capsule} title=${pinned.length ? '全部' : null} chats=${rest} onHold=${setHeld}/>
 

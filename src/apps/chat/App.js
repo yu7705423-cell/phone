@@ -14,6 +14,7 @@ import { TranslatePage } from './pages/TranslatePage.js';
 import { TemplatesPage } from './pages/TemplatesPage.js';
 import { StickerManager } from './pages/StickerManager.js';
 import { ProactivePage } from './pages/ProactivePage.js';
+import { SearchPage } from './pages/SearchPage.js';
 
 const { db, nav } = phone;
 
@@ -48,8 +49,13 @@ function Tabs({ initial }) {
 }
 
 export default function ChatApp({ route }) {
-  const conv = route?.match(/^\/chat\/(.+)$/);
-  if (conv) return html`<${Conversation} chatId=${conv[1]}/>`;
+  // /chat/<id> 或 /chat/<id>@<msgId>。后一种是从搜索结果跳过来的，
+  // 进去之后滚到那一条。会话 id 里不会有 @，所以拿它当分隔符是安全的。
+  const conv = route?.match(/^\/chat\/([^@]+)(?:@(.+))?$/);
+  if (conv) return html`<${Conversation} chatId=${conv[1]} focusId=${conv[2] || ''}/>`;
+
+  const search = route?.match(/^\/search(?:\/(.+))?$/);
+  if (search) return html`<${SearchPage} chatId=${search[1] || ''}/>`;
 
   const prof = route?.match(/^\/profile\/(.+)$/);
   if (prof) return html`<${Profile} subjectId=${prof[1]}/>`;

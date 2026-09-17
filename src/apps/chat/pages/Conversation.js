@@ -1,4 +1,4 @@
-import { html, useState, useEffect, useRef, useMemo, memo } from '../../../lib.js';
+import { html, useState, useEffect, useLayoutEffect, useRef, useMemo, memo } from '../../../lib.js';
 import { phone, useStore, useImage } from '../../../sdk/index.js';
 import { Page, Avatar, Icon, IconButton, FullSheet, List, ListItem,
          EmptyState, toast, confirm, prompt } from '../../../ui/index.js';
@@ -9,6 +9,9 @@ import { MediaBubble } from './MediaBubble.js';
 import { MsgMenu } from './MsgMenu.js';
 
 const { db, nav, ai } = phone;
+
+// 一屏装不下这么多，但往上翻几下够用；不够再按按钮要下一段
+const PAGE = 200;
 
 // 点引用块跳回原话。闪一下再停，不然滚过去了也不知道是哪条。
 function jumpTo(id) {
@@ -121,7 +124,7 @@ const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, onSwipe,
     </div>`;
 });
 
-export function Conversation({ chatId }) {
+export function Conversation({ chatId, focusId = '' }) {
   useStore(db.chats.store);
   useStore(db.messages.store);
   useStore(db.characters.store);
@@ -136,7 +139,11 @@ export function Conversation({ chatId }) {
   const [picked, setPicked] = useState(null);    // null=不在多选；数组=已选的 id
   const [quoting, setQuoting] = useState(null);  // 这条要被引用
   const [recSec, setRecSec] = useState(-1);      // -1 = 没在录音
+  // 只画最近这么多条。聊了两万条的会话一次性铺出来要一两秒，手机上十几秒，
+  // 而且往上翻从来也不会翻到那么远。不够就按「查看更早的消息」再要一段。
+  const [shown, setShown] = useState(PAGE);
   const bodyRef = useRef(null);
+  const keepRef = useRef(0);      // 加载更早时用来把滚动位置钉住
   const recRef = useRef(null);
   const localRef = useRef(null);
   const imgRef = useRef(null);
@@ -161,6 +168,16 @@ export function Conversation({ chatId }) {
     [char?.firstMessage]);
   const msgs = chatId ? db.messagesOf(chatId) : [];
   const selecting = picked !== null;
+
+  // 从搜索结果跳进来的，窗口要先开到能装下那一条
+  const focusIdx = useMemo(
+    () => (focusId ? msgs.findIndex(m => m.id === focusId) : -1),
+    [focusId, msgs]);
+  const need = focusIdx >= 0 ? msgs.length - focusIdx + 40 : 0;
+  const window_ = Math.max(shown, need);
+  const from = Math.max(0, msgs.length - window_);
+  const view = from ? msgs.slice(from) : msgs;
+  const earlier = from;
   // 最后一轮角色回复。只有它能重新生成，见下面 regenerate 的注释
   let lastTurnId = null;
   for (let i = msgs.length - 1; i >= 0; i--) {
@@ -184,12 +201,42 @@ export function Conversation({ chatId }) {
     return () => clearInterval(t);
   }, [recSec < 0]);
 
+  // 换一段对话就把窗口收回去，不然从长会话退出来再进短的，窗口还开着
+  useEffect(() => { setShown(PAGE); }, [chatId]);
+
+  const landed = useRef(false);
+  useEffect(() => { landed.current = false; }, [chatId, focusId]);
+
   useEffect(() => {
     // 多选时别乱滚，正挑着消息呢
     if (selecting) return;
+    // 从搜索跳进来的那一下，位置归那一条管，别把它顶到底下去
+    if (focusId && !landed.current) return;
     const el = bodyRef.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, [msgs.length, msgs[msgs.length - 1]?.content, selecting]);
+  }, [msgs.length, msgs[msgs.length - 1]?.content, selecting, focusId]);
+
+  // 跳到搜索选中的那一条，闪一下。之后就交回给上面那个「新消息滚到底」。
+  useEffect(() => {
+    if (!focusId || landed.current || focusIdx < 0) return undefined;
+    const t = setTimeout(() => {
+      const el = document.getElementById(`msg-${focusId}`);
+      landed.current = true;
+      if (!el) return;
+      el.scrollIntoView({ block: 'center' });
+      el.classList.add('is-flash');
+      setTimeout(() => el.classList.remove('is-flash'), 1200);
+    }, 50);
+    return () => clearTimeout(t);
+  }, [focusId, focusIdx]);
+
+  // 往上加载一段之后，把视口钉在原来看的那一条上，不要因为上面多了内容就跳走
+  useLayoutEffect(() => {
+    const el = bodyRef.current;
+    if (!el || !keepRef.current) return;
+    el.scrollTop += el.scrollHeight - keepRef.current;
+    keepRef.current = 0;
+  }, [window_]);
 
   if (!chat || !char) {
     return html`<${Page} title="会话" onBack=${nav.pop}><${EmptyState} title="该会话已不存在"/><//>`;
@@ -439,6 +486,11 @@ export function Conversation({ chatId }) {
     generate();
   };
 
+  const loadEarlier = () => {
+    keepRef.current = bodyRef.current?.scrollHeight || 0;
+    setShown(n => Math.max(n, window_) + PAGE);
+  };
+
   const togglePick = msg => setPicked(cur =>
     cur.includes(msg.id) ? cur.filter(x => x !== msg.id) : [...cur, msg.id]);
 
@@ -497,7 +549,7 @@ export function Conversation({ chatId }) {
     <${Page} title=${selecting ? `已选 ${picked.length} 条` : char.name}
       onBack=${selecting ? () => setPicked(null) : nav.pop} noScroll
       right=${selecting
-        ? html`<button class="nav-text press" onClick=${() => setPicked(msgs.map(m => m.id))}>全选</button>`
+        ? html`<button class="nav-text press" onClick=${() => setPicked(view.map(m => m.id))}>全选</button>`
         : html`<${IconButton} name="more" onClick=${() => setMenu(true)} label="更多"/>`}>
       <div class="conv">
         <div class="conv-body scroll" ref=${bodyRef}>
@@ -505,7 +557,10 @@ export function Conversation({ chatId }) {
             <${Bubble} msg=${greeting} char=${char} chat=${chat} frozen
               onRetry=${stable.onRetry} onSwipe=${stable.onSwipe}
               onHold=${stable.noop} onToggle=${stable.noop}/>` : null}
-          ${msgs.map(m => html`
+          ${earlier ? html`
+            <button class="conv-earlier press" onClick=${loadEarlier}>
+              查看更早的消息（还有 ${earlier} 条）</button>` : null}
+          ${view.map(m => html`
             <${Bubble} key=${m.id} msg=${m} char=${char} chat=${chat}
               onRetry=${stable.onRetry} onSwipe=${stable.onSwipe} onHold=${setHeld}
               selecting=${selecting} selected=${selecting && pickedSet.has(m.id)}
@@ -593,6 +648,10 @@ export function Conversation({ chatId }) {
 
       <${FullSheet} open=${menu} onClose=${() => setMenu(false)} title=${char.name}>
         <${List}>
+          <${ListItem} title="搜索聊天记录" subtitle=${`在这段对话中查找，共 ${msgs.length} 条消息`}
+            arrow multiline
+            left=${html`<${Icon} name="search" size=${18}/>`}
+            onClick=${() => { setMenu(false); nav.push(`/search/${chatId}`); }}/>
           <${ListItem} title="角色卡" subtitle="人设、开场白、对话示例、关联世界书" arrow multiline
             left=${html`<${Icon} name="user" size=${18}/>`}
             onClick=${() => { setMenu(false); nav.push(`/edit/${char.id}`); }}/>
@@ -606,7 +665,7 @@ export function Conversation({ chatId }) {
         <//>
 
         <${List} title="上下文">
-          <${ListItem} title="上下文与记忆" subtitle="注入顺序、扫描窗口、历史轮次、自动总结" arrow multiline
+          <${ListItem} title="上下文与记忆" subtitle="注入顺序、扫描窗口、历史范围、自动总结" arrow multiline
             left=${html`<${Icon} name="layers" size=${18}/>`}
             onClick=${() => { setMenu(false); nav.push('/context'); }}/>
           <${ListItem} title="翻译" arrow multiline

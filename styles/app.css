@@ -707,3 +707,22 @@ input[type="range"] {
   font-size: var(--fs-13); line-height: 1.55; opacity: .72;
 }
 .msg.is-mine .bubble-trans { border-top-color: var(--capsule-border); }
+
+/* 搜索结果 */
+/* 单色界面里不拿颜色做高亮：周围的预览是次级灰，命中处用正文色加重，
+   对比够了，深色模式下也不用另写一套 */
+.hit { background: none; color: var(--text); font-weight: var(--fw-medium); }
+.hit-who { color: var(--text-3); }
+.search-note {
+  padding: var(--sp-4); text-align: center;
+  font-size: var(--fs-12); color: var(--text-3);
+}
+
+/* 会话里往上翻一段 */
+.conv-earlier {
+  display: block; margin: 0 auto var(--sp-3); padding: var(--sp-2) var(--sp-4);
+  border: none; border-radius: var(--r-full);
+  background: var(--group-fill); color: var(--text-3); font-size: var(--fs-12);
+}
+.search-bar .search-hint { flex: 1; text-align: left; font-size: var(--fs-14); }
+button.search-bar { width: 100%; border: none; }

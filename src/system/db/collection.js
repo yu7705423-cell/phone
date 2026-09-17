@@ -58,6 +58,9 @@ export function makeCollection(name, prefix, { indexBy = '' } = {}) {
     },
 
     all() { return [...map.values()]; },
+    // 不复制地遍历。十万条的时候 all() 光是把 Map 抄成数组就要几十毫秒，
+    // 只是想过一遍的地方用这个。
+    each(fn) { map.forEach(fn); },
     get(id) { return map.get(id) || null; },
     has(id) { return map.has(id); },
     count() { return map.size; },
