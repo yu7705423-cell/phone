@@ -1321,6 +1321,45 @@ engine，engine 又要用 reply，静态引会成环。
 `next()` 也找不到自己在队列里的位置）；当前这首不在队列里时（角色临时点的一首）
 放完就停，不要莫名其妙跳回歌单第一首。
 
+#### 接网易云
+
+`system/netease.js`。接的是**自己部署的** NeteaseCloudMusicApi，地址在
+「设置 - 音乐服务」里填。为什么不内置：那个服务要跑 Node，浏览器里起不来；
+而且所有人共用一个出口 IP 会被网易云限流 —— 谁想用谁自己部署一份。
+音频流不走那台服务器，接口只返回 CDN 地址，浏览器直接去 CDN 拿歌。
+
+**两个账号**。用户自己的号存在设置里，角色那个号（其实是用户的第二个号）
+存在角色卡上。这个接口支持把 cookie 当查询参数逐次传进去，所以两个号可以在
+同一台设备上各走各的，不需要来回登录。
+
+**关于「真的一起听」这件事，先把话说清楚**：网易云自己那个一起听是
+**需要双方在线的实时房间**（socket 房间），而且相关接口在 api-enhanced 那个
+分支里才有。角色那边没有第二个客户端，房开了也没人进；硬让同一台机器用第二个
+账号进房是自己骗自己，还容易被风控。所以这里做的是**让两个号的听歌数据都真的动**：
+
+| 做什么 | 走哪个 | 结果 |
+|---|---|---|
+| 听歌打卡 | `/scrobble` | 两个号的听歌记录、年度报告里都有这首歌 |
+| 歌单同步 | `/playlist/create` + `/playlist/tracks` | 各自多一个「和某某一起听」歌单 |
+
+这是这个场景下「真的一起听」唯一落得了地的含义。歌单同步**默认关**：
+往用户真实的歌单里写东西是件重的事，得他自己点头；打卡不受这个开关影响。
+一首歌放够 30 秒（或者放完）才打卡，刚点开就切走的不该记进听歌记录。
+
+**登录只做扫码**。手机号那条路要用户把密码交出来，不做。扫码那个组件放在
+`ui/qrlogin.js` 并且**不认识任何具体服务** —— 三个动作由调用方传进来。
+因为登号的地方有两处（设置里登自己的、角色卡上登角色的），而这两处分属不同的
+app，不能互相 import（规约第 8 条）。
+
+**网易云的歌不存播放地址**，那个地址会过期，每次要放的时候现取。库里只留
+`neteaseId`。
+
+角色点歌时曲库里找不到，就**替它去网易云搜一首回来**加进曲库 ——
+这就是「角色可以自己搜歌加进来」。两处都没有才当没点过。
+
+**cookie 就是账号权限**，比接口密钥还敏感，只存在这台设备的浏览器里。
+登录页把这句话直说，不替用户含糊。
+
 ### 4.67 时间感知
 
 `system/time.js`。
@@ -2056,6 +2095,12 @@ Avatar / Badge / Toast / EmptyState / Spinner / Skeleton
 | storage 命名空间 + schema version + migration | 数据结构变更不炸历史数据 |
 | 懒加载分包 | app 数量增长不拖慢首屏 |
 | 依赖边界检查脚本 | 杜绝 app 互相 import |
+
+**边界检查器只按字符串找是不够的。** 原先它拿 `apps/([^/]+)/` 去匹配 import
+里那个字符串，于是 `../../settings/MusicPage.js` 这种爬出去的相对写法一个都抓
+不到 —— 已经这么漏进去过一次（一起听要在两个 app 里用同一个扫码组件）。
+现在先把相对路径解析成仓库里的位置再判断。跨 app 复用的组件请往 `ui/` 放，
+服务当参数传进去，别让 UI 层认识某个具体服务。
 | `scripts/new-app.mjs` 脚手架 | 每个 app 结构一致 |
 | 开发模式 manifest 校验 | id 重复、图标缺失、权限未声明直接报错 |
 | AIQueue 统一出口 | 并发打爆、请求泄漏、无法取消 |
@@ -2280,6 +2325,8 @@ phone.place.send({ chatId, role, authorId, place, address }) / parse(body)
 phone.gift.send({ chatId, role, authorId, cover, inner }) / settle(id, open)
 phone.music.addSong / findSong / createList / addTrack / tracksOf / parseLyric
 phone.listen.start({ chatId, listId }) / play(id) / next() / stop() / totals(chatId)
+phone.netease.qrStart() / qrCheck(key) / saveLogin(cookie, charId) / search(q)
+phone.netease.songUrl(id) / scrobble(id, sec, charId) / syncPlaylist(ids, charId, name)
 
 phone.call.dial(chatId) / ring(chatId) / accept() / decline() / hangUp()
 phone.call.say(text) / toggleSpeak() / toggleMic() / toggleSelf() / charCanSee()
@@ -2332,6 +2379,7 @@ phone.camera.start() / stop() / attach(el) / grab() —— 帧只进请求，不
 - 分条回复：`[图片：…]` `[语音：…]` 标记切分，换行即分条，错峰投递
 - 礼物：封面与内容可以不一样，拆开前内容不进上下文也搜不到（见 4.676）
 - 一起听：自建曲库与歌单，边聊边听，本次与累积两层统计（见 4.679）
+- 可接自己部署的网易云接口：搜索、播放、两个账号各自打卡与同步歌单
 - 功能说明按需注入：平时只给目录，用上了才给细则（见 4.645）
 - 生图提示词分全局与角色两层；锁脸两条路，直传参考图或读成外貌描述
 - 长按消息：编辑、修格式、引用、复制、多选删除
@@ -2373,7 +2421,7 @@ phone.camera.start() / stop() / attach(el) / grab() —— 帧只进请求，不
 **护栏**
 - `scripts/doctor.mjs` 八项：视口单位、零 emoji、导入导出、hook 顺序、依赖边界、
   硬编码颜色、长按禁选、构建号
-- `scripts/smoke.mjs`：37 条路由全开一遍，抓 ErrorBoundary
+- `scripts/smoke.mjs`：38 条路由全开一遍，抓 ErrorBoundary
 
 ### 13.2 接下来
 

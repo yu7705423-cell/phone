@@ -10,6 +10,7 @@ import { NotifyPage } from './NotifyPage.js';
 import { EmbedPage } from './EmbedPage.js';
 import { VisionPage } from './VisionPage.js';
 import { AsrPage } from './AsrPage.js';
+import { MusicPage } from './MusicPage.js';
 import { BUILD } from '../../version.js';
 
 const { db, nav } = phone;
@@ -42,6 +43,11 @@ function Home() {
   const imgActive = svc.activeImage();
   const imageDesc = imgActive ? `${imgActive.name} · ${imgActive.model || '未选择模型'}` : '未配置';
 
+  const ne = svc.neteaseConfig();
+  const musicDesc = !ne.baseUrl
+    ? '未配置。配置后可在一起听中搜索并播放网易云曲库'
+    : ne.cookie ? `已登录 ${ne.nickname}${ne.sync ? ' · 同步歌单' : ''}` : '已填写地址，尚未登录';
+
   const emb = svc.embedConfig();
   const embDone = phone.ai.memvec.indexedCount();
   const embDesc = emb.apiKey && emb.model
@@ -73,6 +79,9 @@ function Home() {
         <${ListItem} title="生图" subtitle=${imageDesc} arrow
           left=${html`<${Icon} name="camera" size=${19}/>`}
           onClick=${() => nav.push('/image')}/>
+        <${ListItem} title="音乐服务" subtitle=${musicDesc} arrow multiline
+          left=${html`<${Icon} name="music" size=${19}/>`}
+          onClick=${() => nav.push('/music')}/>
         <${ListItem} title="向量" subtitle=${embDesc} arrow multiline
           left=${html`<${Icon} name="brain" size=${19}/>`}
           onClick=${() => nav.push('/embed')}/>
@@ -131,6 +140,7 @@ export default function SettingsApp({ route }) {
   if (route === '/embed') return html`<${EmbedPage}/>`;
   if (route === '/vision') return html`<${VisionPage}/>`;
   if (route === '/asr') return html`<${AsrPage}/>`;
+  if (route === '/music') return html`<${MusicPage}/>`;
   if (route === '/voice') return html`<${VoicePage}/>`;
   if (route === '/image') return html`<${ImagePage}/>`;
   if (route === "/appearance") return html`<${AppearancePage}/>`;

@@ -14,6 +14,9 @@ export const EMPTY_SERVICES = {
   vision: { mode: 'off', baseUrl: '', apiKey: '', model: '' },
   // 语音识别：把用户发的语音读成文字。mode 决定只转文字还是连语气一起读
   asr: { baseUrl: '', apiKey: '', model: '', mode: 'text' },
+  // 网易云。baseUrl 指向自己部署的那个 NeteaseCloudMusicApi，
+  // cookie 是登录后拿到的凭据 —— 它等于账号权限，只存在这台设备的浏览器里。
+  netease: { baseUrl: '', cookie: '', nickname: '', uid: '', sync: false },
 };
 
 export function services() {
@@ -25,6 +28,7 @@ export function services() {
     embed: { ...EMPTY_SERVICES.embed, ...(s?.embed || {}) },
     vision: { ...EMPTY_SERVICES.vision, ...(s?.vision || {}) },
     asr: { ...EMPTY_SERVICES.asr, ...(s?.asr || {}) },
+    netease: { ...EMPTY_SERVICES.netease, ...(s?.netease || {}) },
   };
 }
 
@@ -143,6 +147,11 @@ export function visionActive() {
 }
 
 // ---- 语音识别 ----
+export function neteaseConfig() { return services().netease; }
+export function setNetease(patch) { write({ netease: { ...services().netease, ...patch } }); }
+export function neteaseReady() { return !!services().netease.baseUrl; }
+export function neteaseLoggedIn() { const n = services().netease; return !!(n.baseUrl && n.cookie); }
+
 export function asrConfig() { return services().asr; }
 export function setAsr(patch) { write({ asr: { ...services().asr, ...patch } }); }
 export function asrReady() {

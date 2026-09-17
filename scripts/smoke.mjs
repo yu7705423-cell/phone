@@ -19,7 +19,7 @@ const ROUTES = {
     '/edit/:char', '/profile/:char', '/net/:char', '/npc/:char'],
   memory: ['/', '/import', '/edit/:mem'],
   lorebook: ['/'],
-  settings: ['/', '/api', '/voice', '/image', '/embed', '/notify',
+  settings: ['/', '/api', '/voice', '/image', '/embed', '/notify', '/music',
     '/appearance', '/storage', '/vision', '/asr'],
 };
 

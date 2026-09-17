@@ -262,13 +262,22 @@ export function materialize(part, base, char) {
     return null;
   }
   if (part.type === 'pick') {
-    const song = music.findSong(part.name);
-    // 认不出来就当没点过。凭空冒出一首曲库里没有的歌，界面上根本放不出来
-    if (song) {
-      import('../listen.js')
-        .then(m => { if (m.listen.get().active) m.play(song.id); })
-        .catch(() => {});
-    }
+    // 先在自己的曲库里找。找不到而且配了网易云，就让它去那边搜一首回来 ——
+    // 这就是「角色可以自己搜歌加进来」。两处都没有就当没点过：
+    // 凭空冒出一首放不出来的歌，界面上只是个哑巴条。
+    const local = music.findSong(part.name);
+    import('../listen.js').then(async m => {
+      if (!m.listen.get().active) return;
+      let song = local;
+      if (!song) {
+        const ne = await import('../netease.js');
+        if (!ne.ready()) return;
+        const hit = (await ne.search(part.name, 1).catch(() => []))[0];
+        if (!hit) return;
+        song = music.fromNetease(hit);
+      }
+      m.play(song.id);
+    }).catch(err => console.warn('[listen] 点歌没成:', err.message || err));
     return null;
   }
   if (part.type === 'newlist') {

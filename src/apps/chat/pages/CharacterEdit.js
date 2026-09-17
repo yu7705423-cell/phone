@@ -1,7 +1,7 @@
 import { html, useState, useRef } from '../../../lib.js';
 import { phone, useStore, useImage } from '../../../sdk/index.js';
 import { Page, Field, Input, Textarea, Avatar, List, ListItem,
-         Switch, Segmented, Icon, Button, toast } from '../../../ui/index.js';
+         Switch, Segmented, Icon, Button, QrLogin, toast } from '../../../ui/index.js';
 import { ZonePicker } from './ZonePicker.js';
 
 const { db, nav, clock } = phone;
@@ -163,6 +163,20 @@ export function CharacterEdit({ id }) {
         <input type="file" accept="image/*" ref=${sceneRef} onChange=${pickScene} style="display:none"/>
         ${scene ? html`<div class="call-scene-preview" style=${`background-image:url(${scene})`}></div>` : null}
       <//>
+
+      ${phone.ai.services.neteaseReady() && char.canListen !== false ? html`
+        <${List} title="角色的网易云账号">
+          ${char.neteaseCookie ? html`
+            <${ListItem} title=${char.neteaseNick || '已登录'} multiline
+              subtitle=${`UID ${char.neteaseUid}。一起听时这个账号也会记录听歌。`}
+              right=${html`<button class="nav-text press"
+                onClick=${() => phone.netease.logout(id)}>退出</button>`}/>`
+          : html`<${ListItem} title="尚未登录" multiline
+              subtitle="登录另一个网易云账号作为这个角色的账号。一起听时两个账号都会记录这次听歌。"/>`}
+        <//>
+        ${char.neteaseCookie ? null : html`
+          <div class="pad"><${QrLogin} service=${phone.netease} owner=${id}
+            hint="请使用网易云音乐扫描二维码，登录要给这个角色用的那个账号"/></div>`}` : null}
 
       ${clock.enabled() ? html`
         <${List} title="角色所在时区">

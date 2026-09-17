@@ -206,3 +206,11 @@
   -webkit-user-select: none;
   user-select: none;
 }
+
+/* 扫码登录 */
+.qr-box { display: flex; flex-direction: column; align-items: center; gap: var(--sp-3); }
+.qr-img {
+  width: 180px; height: 180px; border-radius: var(--r-md);
+  background: var(--scrim-fill); padding: var(--sp-2);
+}
+.qr-note { font-size: var(--fs-13); color: var(--text-3); text-align: center; line-height: 1.6; }

@@ -3,7 +3,7 @@ import { phone, useStore, useFile } from '../../../sdk/index.js';
 import { Page, List, ListItem, Field, Input, Textarea, Button, Icon,
          Sheet, EmptyState, toast, confirm, prompt } from '../../../ui/index.js';
 
-const { db, nav, music, listen } = phone;
+const { db, nav, music, listen, netease } = phone;
 
 // 加一首。歌必须真的有东西能响 —— 要么一个地址，要么一个文件。
 // 光有歌名的「虚拟歌」不做：一起听要真的有东西在放，计时才有意义。
@@ -91,10 +91,49 @@ function AddSheet({ open, onClose }) {
     <//>`;
 }
 
+// 从网易云搜一首加进曲库。搜到的只记 id，播放地址每次现取 —— 那个地址会过期。
+function SearchSheet({ open, onClose }) {
+  const [q, setQ] = useState('');
+  const [hits, setHits] = useState([]);
+  const [busy, setBusy] = useState(false);
+
+  const go = async () => {
+    const key = q.trim();
+    if (!key) return;
+    setBusy(true);
+    try { setHits(await netease.search(key, 25)); }
+    catch (err) { toast(String(err.message || err), 'error', 5000); }
+    finally { setBusy(false); }
+  };
+
+  return html`
+    <${Sheet} open=${open} onClose=${onClose} title="从网易云添加" height="84%">
+      <div class="pad-x">
+        <div class="search-bar">
+          <${Icon} name="search" size=${16}/>
+          <input value=${q} placeholder="搜索歌名或歌手"
+            onInput=${e => setQ(e.target.value)}
+            onKeyDown=${e => { if (e.key === 'Enter') go(); }}/>
+          ${q ? html`<button class="press" aria-label="搜索" onClick=${go}>
+            <${Icon} name="chevronRight" size=${15}/></button>` : null}
+        </div>
+      </div>
+      ${busy ? html`<div class="settings-foot">正在搜索</div>` : null}
+      <${List} inset=${false}>
+        ${hits.map(t => html`
+          <${ListItem} key=${t.id} title=${t.title} subtitle=${t.artist}
+            onClick=${() => { music.fromNetease(t); toast('已加入曲库'); }}/>`)}
+      <//>
+      ${!busy && !hits.length ? html`
+        <div class="settings-foot">搜索后点击条目即可加入曲库。</div>` : null}
+    <//>`;
+}
+
 function SongRow({ song, right, onTap }) {
   return html`
     <${ListItem} title=${song.title}
-      subtitle=${song.artist || (song.url ? '外部地址' : '本地文件')}
+      subtitle=${song.artist
+    || (song.source === 'netease' ? '网易云' : song.url ? '外部地址' : '本地文件')}
       right=${right} onClick=${onTap}/>`;
 }
 
@@ -105,6 +144,7 @@ export function ListenPage({ chatId }) {
   const s = useStore(listen.listen);
   const [adding, setAdding] = useState(false);
   const [picking, setPicking] = useState(null);   // 往哪个歌单里加歌
+  const [searching, setSearching] = useState(false);
 
   const chat = db.chats.get(chatId);
   const char = db.characters.get((chat?.characterIds || [])[0]);
@@ -143,7 +183,11 @@ export function ListenPage({ chatId }) {
 
   return html`
     <${Page} title="一起听" onBack=${nav.pop}
-      right=${html`<button class="nav-text press" onClick=${() => setAdding(true)}>添加</button>`}>
+      right=${html`<span class="row-acts">
+        ${netease.ready() ? html`<button class="nav-text press"
+          onClick=${() => setSearching(true)}>网易云</button>` : null}
+        <button class="nav-text press" onClick=${() => setAdding(true)}>添加</button>
+      </span>`}>
 
       <${List} title="一起听了多久">
         <${ListItem} title="累积" multiline
@@ -187,13 +231,16 @@ export function ListenPage({ chatId }) {
               onTap=${() => startSong(song.id)}/>`)}
         <//>`
       : html`<${EmptyState} icon="music" title="曲库是空的"
-          desc="添加歌曲后即可开始一起听。每首歌需要填写播放地址或上传音频文件。"/>`}
+          desc=${netease.ready()
+          ? '可从网易云搜索添加，也可自行填写播放地址或上传音频文件。'
+          : '添加歌曲后即可开始一起听。每首歌需要填写播放地址或上传音频文件。'}/>`}
 
       <div class="settings-foot">
         点击歌单或单曲即可开始一起听。播放期间可在会话顶部控制。
       </div>
 
       <${AddSheet} open=${adding} onClose=${() => setAdding(false)}/>
+      <${SearchSheet} open=${searching} onClose=${() => setSearching(false)}/>
 
       <${Sheet} open=${!!picking} onClose=${() => setPicking(null)} title="选择要加入的歌曲" height="70%">
         <${List} inset=${false}>

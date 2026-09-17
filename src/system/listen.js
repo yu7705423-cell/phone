@@ -1,6 +1,7 @@
 import { createStore } from './store.js';
 import { chats, characters, messages, songs, files } from './db/index.js';
 import * as music from './music.js';
+import * as netease from './netease.js';
 
 // 一起听。
 //
@@ -29,6 +30,18 @@ export const listen = createStore({
 
 let audio = null;
 let tick = null;
+let songSec = 0;          // 这一首自己放了多久，打卡要用
+
+// 放够这么久才算「听过」。网易云自己的客户端也是放一会儿才打卡，
+// 刚点开就切走的那种不该记进听歌记录。
+const SCROBBLE_AFTER = 30;
+
+// 给两个号各打一次卡。不 await —— 打卡慢一点不该让换歌卡住。
+function scrobbleNow(song, seconds, charId) {
+  if (!song || song.source !== 'netease' || !song.neteaseId) return;
+  if (seconds < Math.min(SCROBBLE_AFTER, song.seconds || SCROBBLE_AFTER)) return;
+  netease.scrobble(song.neteaseId, seconds, charId).catch(() => {});
+}
 
 export function playing() { return listen.get().active; }
 export function inChat(chatId) { return listen.get().active && listen.get().chatId === chatId; }
@@ -64,10 +77,21 @@ async function srcOf(song) {
   if (!song) return '';
   if (song.url) return song.url;
   if (song.audioId) return (await files.url(song.audioId)) || '';
+  // 网易云那边的地址会过期，所以不入库，每次现取
+  if (song.source === 'netease' && song.neteaseId && netease.ready()) {
+    return netease.songUrl(song.neteaseId).catch(err => {
+      listen.set({ error: String(err.message || err) });
+      return '';
+    });
+  }
   return '';
 }
 
 function stopAudio() {
+  // 走之前先把这一首的卡打了
+  const s = listen.get();
+  if (s.songId) scrobbleNow(songs.get(s.songId), songSec, s.charId);
+  songSec = 0;
   if (audio) { try { audio.pause(); } catch { /* 已经停了 */ } audio = null; }
   clearInterval(tick); tick = null;
 }
@@ -98,6 +122,7 @@ async function load(songId, autoplay = true) {
   tick = setInterval(() => {
     if (!audio || audio.paused) return;
     const s = listen.get();
+    songSec += 1;
     listen.set({ at: Math.round(audio.currentTime || 0), seconds: s.seconds + 1 });
   }, 1000);
 }
@@ -195,6 +220,14 @@ export function stop() {
       listenCount: (chat.listenCount || 0) + played.length,
       lastMessageAt: Date.now(),
     });
+    // 歌单同步。默认不开 —— 往用户真实的歌单里写东西是件重的事。
+    const neteaseIds = played
+      .map(id => songs.get(id))
+      .filter(x => x && x.source === 'netease' && x.neteaseId)
+      .map(x => x.neteaseId);
+    if (neteaseIds.length) {
+      netease.syncPlaylist(neteaseIds, char.id, `和${char.name || '她'}一起听`).catch(() => {});
+    }
     record = messages.create({
       chatId: chat.id, kind: 'listen',
       role: 'user', authorId: 'me',

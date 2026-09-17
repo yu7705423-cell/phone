@@ -28,6 +28,20 @@ export function addSong({ title, artist = '', url = '', audioId = null,
   });
 }
 
+// 网易云搜到的一首落进曲库。**不存播放地址** —— 那个地址会过期，
+// 每次要放的时候现取（见 listen.srcOf）。
+export function fromNetease(track) {
+  const exist = songs.all().find(s => s.source === 'netease' && s.neteaseId === track.id);
+  if (exist) return exist;
+  return songs.create({
+    title: String(track.title || '').slice(0, 60),
+    artist: String(track.artist || '').slice(0, 40),
+    url: '', audioId: null, lyric: '', coverId: null,
+    seconds: Math.max(0, Math.round(track.seconds) || 0),
+    source: 'netease', neteaseId: String(track.id),
+  });
+}
+
 export function removeSong(id) {
   const s = songs.get(id);
   if (!s) return false;
