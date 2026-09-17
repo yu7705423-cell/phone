@@ -13,16 +13,15 @@ export function ImportPage() {
   useStore(db.characters.store);
   useStore(db.settings.store);
   const [raw, setRaw] = useState('');
-  const [scope, setScope] = useState('global');
+  const [charId, setCharId] = useState(null);
   const [busy, setBusy] = useState(false);
   const [prog, setProg] = useState(null);
   const [items, setItems] = useState(null);
   const [off, setOff] = useState(new Set());
 
-  const scopes = [
-    { value: 'global', label: '全局' },
-    ...db.characters.all().map(c => ({ value: `character:${c.id}`, label: c.name })),
-  ];
+  const chars = db.characters.all();
+  const owners = chars.map(c => ({ value: c.id, label: c.name }));
+
 
   const run = async () => {
     if (!raw.trim()) { toast('先粘点东西进来'); return; }
@@ -30,7 +29,7 @@ export function ImportPage() {
     setBusy(true); setItems(null); setOff(new Set());
     try {
       const r = await imp.parse(raw, {
-        scope,
+        charId: charId || chars[0]?.id || null,
         onProgress: (i, n) => setProg(`${i} / ${n} 段`),
       });
       setItems(r.items);
@@ -50,7 +49,7 @@ export function ImportPage() {
   const save = () => {
     const keep = items.filter((_, i) => !off.has(i));
     if (!keep.length) { toast('一条都没勾'); return; }
-    const n = imp.commit(keep, scope);
+    const n = imp.commit(keep, charId || chars[0]?.id || null);
     toast(ai.services.embedReady()
       ? `存了 ${n} 条，正在后台补向量`
       : `存了 ${n} 条`, 'ok', 4000);
@@ -83,8 +82,14 @@ export function ImportPage() {
         </div>
       ` : html`
         <div class="pad-x pad-t">
-          <${Field} label="存到哪儿" desc="全局对所有角色生效；选了角色就只在那个角色的对话里用">
-            <${Segmented} value=${scope} items=${scopes} onChange=${setScope}/>
+          <${Field} label="存给谁" desc="记忆只在和这个角色聊天时注入">
+            ${owners.length ? html`
+              <div class="chip-row">
+                ${owners.map(o => html`
+                  <button key=${o.value}
+                    class=${`chip${(charId || chars[0]?.id) === o.value ? ' is-active' : ''}`}
+                    onClick=${() => setCharId(o.value)}>${o.label}</button>`)}
+              </div>` : html`<div class="li-hint">还没有角色，先去「联系」里建一个</div>`}
           <//>
           <${Field} label="粘贴内容"
             desc="从别处复制来的设定、经历、笔记都行。长文会自动分段处理">

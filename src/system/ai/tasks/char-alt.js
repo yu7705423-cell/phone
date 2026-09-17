@@ -47,7 +47,7 @@ export function blockedBy(charId, personaId = accounts.currentId()) {
 export const eligible = (charId, personaId) => blockedBy(charId, personaId) === null;
 
 function contextOf(char, personaId) {
-  const mems = listFor(char.id, null, personaId)
+  const mems = listFor(char.id, personaId)
     .filter(m => m.rank === 'S' || m.rank === 'A')
     .slice(0, 12).map(m => `- ${m.content}`).join('\n');
   return [char.persona, mems ? `你记得的事：\n${mems}` : ''].filter(Boolean).join('\n\n');

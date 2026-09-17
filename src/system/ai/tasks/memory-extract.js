@@ -23,8 +23,7 @@ export async function extract(chatId) {
   if (pending.length < 2) throw new Error('对话太短，暂时不需要总结');
 
   const charId = (chat.characterIds || [])[0];
-  const scope = charId ? `character:${charId}` : 'global';
-  const existing = listFor(charId, chatId);
+  const existing = listFor(charId, chat.personaId);
 
   const dialogue = pending.map(m => {
     const who = m.role === 'user' ? '用户' : (characters.get(m.authorId)?.name || '角色');
@@ -61,7 +60,7 @@ export async function extract(chatId) {
       continue;
     }
     const row = memories.create({
-      id: uid('mem'), scope, content: r.content, category, rank, keywords,
+      id: uid('mem'), charId, content: r.content, category, rank, keywords,
       source: 'auto',
       // 这条记忆是和哪个身份聊出来的。换账号之后互相看不见
       personaId: chats.get(chatId)?.personaId || accounts.currentId(),

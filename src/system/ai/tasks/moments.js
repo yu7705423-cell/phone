@@ -5,7 +5,7 @@ import { fillTemplate } from '../templates.js';
 import { listFor } from '../context/memory.js';
 
 function charContext(char) {
-  const mems = listFor(char.id, null)
+  const mems = listFor(char.id)
     .filter(m => m.rank === 'S' || m.rank === 'A')
     .slice(0, 12)
     .map(m => `- ${m.content}`).join('\n');

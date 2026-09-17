@@ -11,22 +11,20 @@ const { CATEGORIES, RANKS } = ai.memory;
 const RANK_ITEMS = RANKS.map(r => ({ value: r, label: r }));
 const CAT_ITEMS = Object.entries(CATEGORIES).map(([value, label]) => ({ value, label }));
 
-function scopeLabel(scope) {
-  if (scope === 'global') return '全局';
-  const [kind, id] = scope.split(':');
-  if (kind === 'character') return db.characters.get(id)?.name || '已删除的角色';
-  if (kind === 'chat') return '某个会话';
-  return scope;
-}
+// 记忆挂在角色身上。charId 留空的是老版本留下的「全局」记忆，
+// 对所有角色都生效，界面上单独列出来提醒你归个位。
+const ownerName = m => m.charId
+  ? (db.characters.get(m.charId)?.name || '已删除的角色')
+  : '没绑定角色';
 
 function MemoryList() {
   useStore(db.memories.store);
   useStore(db.characters.store);
   const [filter, setFilter] = useState('all');
-  const [scope, setScope] = useState('all');
+  const [who, setWho] = useState('all');
 
   let list = db.memories.all();
-  if (scope !== 'all') list = list.filter(m => m.scope === scope);
+  if (who !== 'all') list = list.filter(m => (m.charId || '') === (who === 'none' ? '' : who));
   if (filter !== 'all') {
     list = RANKS.includes(filter)
       ? list.filter(m => m.rank === filter)
@@ -34,13 +32,21 @@ function MemoryList() {
   }
   list = list.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
 
-  const scopes = ['all', 'global', ...db.characters.all().map(c => `character:${c.id}`)];
+  const chars = db.characters.all();
+  const loose = db.memories.where(m => !m.charId).length;
+  const owners = [
+    { v: 'all', label: '全部' },
+    ...chars.map(c => ({ v: c.id, label: c.name })),
+    ...(loose ? [{ v: 'none', label: `没绑定角色 ${loose}` }] : []),
+  ];
   const stats = RANKS.map(r => ({ r, n: db.memories.where(m => m.rank === r).length }));
   const injected = db.memories.where(m => m.rank === 'S' || m.rank === 'A').length;
 
   const add = () => {
+    const charId = who !== 'all' && who !== 'none' ? who : (chars[0]?.id || null);
+    if (!charId) { toast('先去「联系」里建一个角色'); return; }
     const m = db.memories.create({
-      scope: scope !== 'all' ? scope : 'global',
+      charId, personaId: phone.accounts.currentId(),
       content: '', category: 'fact', rank: 'B', keywords: [], source: 'manual',
     });
     nav.push(`/edit/${m.id}`);
@@ -69,9 +75,9 @@ function MemoryList() {
               onClick=${() => setFilter(f)}>${f === 'all' ? '全部' : (CATEGORIES[f] || f)}</button>`)}
         </div>
         <div class="chip-row">
-          ${scopes.map(s => html`
-            <button key=${s} class=${`chip${scope === s ? ' is-active' : ''}`}
-              onClick=${() => setScope(s)}>${s === 'all' ? '所有范围' : scopeLabel(s)}</button>`)}
+          ${owners.map(o => html`
+            <button key=${o.v} class=${`chip${who === o.v ? ' is-active' : ''}`}
+              onClick=${() => setWho(o.v)}>${o.label}</button>`)}
         </div>
       </div>
 
@@ -79,7 +85,7 @@ function MemoryList() {
         <${List}>
           ${list.map(m => html`
             <${ListItem} key=${m.id} multiline title=${m.content || '（空）'}
-              subtitle=${`${scopeLabel(m.scope)} · ${CATEGORIES[m.category] || m.category}${m.keywords?.length ? ' · ' + m.keywords.join('、') : ''}${m.source === 'auto' ? ' · 自动提取' : ''}`}
+              subtitle=${`${ownerName(m)} · ${CATEGORIES[m.category] || m.category}${m.keywords?.length ? ' · ' + m.keywords.join('、') : ''}${m.source === 'auto' ? ' · 自动提取' : ''}`}
               left=${html`<span class=${`rank rank-${m.rank}`}>${m.rank}</span>`}
               arrow onClick=${() => nav.push(`/edit/${m.id}`)}/>`)}
         <//>`
@@ -102,10 +108,7 @@ function EditPage({ id }) {
     nav.pop();
   };
 
-  const scopes = [
-    { value: 'global', label: '全局' },
-    ...db.characters.all().map(c => ({ value: `character:${c.id}`, label: c.name })),
-  ];
+  const chars = db.characters.all();
 
   return html`
     <${Page} title="编辑记忆" onBack=${nav.pop}>
@@ -133,11 +136,12 @@ function EditPage({ id }) {
             onInput=${v => patch({ keywords: v.split(/[,，]/).map(s => s.trim()).filter(Boolean) })}/>
         <//>
 
-        <${Field} label="归属范围">
+        <${Field} label="属于谁"
+          desc=${m.charId ? '只在和这个角色聊天时注入' : '老版本留下的「全局」记忆，对所有角色都生效。挑一个角色就能归位'}>
           <div class="chip-row">
-            ${scopes.map(s => html`
-              <button key=${s.value} class=${`chip${m.scope === s.value ? ' is-active' : ''}`}
-                onClick=${() => patch({ scope: s.value })}>${s.label}</button>`)}
+            ${chars.map(c => html`
+              <button key=${c.id} class=${`chip${m.charId === c.id ? ' is-active' : ''}`}
+                onClick=${() => patch({ charId: c.id })}>${c.name}</button>`)}
           </div>
         <//>
 

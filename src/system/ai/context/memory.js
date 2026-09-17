@@ -9,22 +9,18 @@ export const CATEGORIES = {
 };
 export const RANKS = ['S', 'A', 'B', 'C'];
 
-export function scopesFor(charId, chatId) {
-  const s = ['global'];
-  if (charId) s.push(`character:${charId}`);
-  if (chatId) s.push(`chat:${chatId}`);
-  return s;
-}
+// 记忆挂在角色身上，不再分全局 / 会话（见 schema 迁移 3）。
+// charId 留空的是老数据，对所有角色都生效。
+export const belongsTo = (m, charId) => !m.charId || m.charId === charId;
 
 // personaId 决定一条记忆属于谁。规则：
 //  - 不同根账号之间完全隔离，一条都不给
 //  - 同一个根下面，大号的记忆对小号也可见（角色还是同一个角色，它记得那些事），
 //    但会被标成「关于某某」，而不是「关于你现在在聊的这个人」
-export function listFor(charId, chatId, personaId) {
-  const scopes = new Set(scopesFor(charId, chatId));
+export function listFor(charId, personaId) {
   const root = personaId ? rootIdOf(personaId) : null;
   return memories.where(m => {
-    if (!scopes.has(m.scope)) return false;
+    if (!belongsTo(m, charId)) return false;
     if (!root) return true;                       // 没给身份就不过滤，给调用方兜底
     if (!m.personaId) return true;                // 迁移前的老记忆，当作大号的
     return rootIdOf(m.personaId) === root;
@@ -39,13 +35,13 @@ export function listFor(charId, chatId, personaId) {
 // 向量检索：S 级照旧钉死（身份级的事实，不该由相似度决定进不进），
 // 剩下的预算交给语义相似度挑。关键词命中的直接算满分并进。
 // queryVec 由 build() 提前算好传进来 —— 这一层是同步的，不能在这里发请求。
-export function selectByVector(charId, chatId, scanText, budget, queryVec, opts = {}) {
+export function selectByVector(charId, scanText, budget, queryVec, opts = {}) {
   const personaId = opts.personaId || null;
   const topK = opts.topK || 12;
   const floor = typeof opts.threshold === 'number' ? opts.threshold : 0.22;
   const text = String(scanText || '').toLowerCase();
 
-  const all = listFor(charId, chatId, personaId);
+  const all = listFor(charId, personaId);
   const pinned = all.filter(m => m.rank === 'S');
   const rest = all.filter(m => m.rank !== 'S');
 
@@ -67,9 +63,9 @@ export function selectByVector(charId, chatId, scanText, budget, queryVec, opts 
 }
 
 // S/A 全注入; B 在扫描窗口里命中关键词才进; C 只存档不注入
-export function select(charId, chatId, scanText, budget, personaId) {
+export function select(charId, scanText, budget, personaId) {
   const text = String(scanText || '').toLowerCase();
-  const pool = listFor(charId, chatId, personaId).filter(m => {
+  const pool = listFor(charId, personaId).filter(m => {
     if (m.rank === 'S' || m.rank === 'A') return true;
     if (m.rank !== 'B') return false;
     const kws = (m.keywords || []).filter(Boolean);
@@ -92,12 +88,12 @@ export function build(ctx) {
   // 接口没配、还没补向量、这一轮取向量失败，都会落到后面这条路上。
   const useVec = settings.memoryVector !== false && embedReady() && queryVec?.length;
   const { items } = useVec
-    ? selectByVector(char?.id, chat?.id, scanText, budgets.memory, queryVec, {
+    ? selectByVector(char?.id, scanText, budgets.memory, queryVec, {
       personaId,
       topK: settings.memoryTopK || 12,
       threshold: typeof settings.memoryThreshold === 'number' ? settings.memoryThreshold : 0.22,
     })
-    : select(char?.id, chat?.id, scanText, budgets.memory, personaId);
+    : select(char?.id, scanText, budgets.memory, personaId);
   if (!items.length) return '';
   const lines = items.map(m =>
     `[${m.rank}/${CATEGORIES[m.category] || m.category}] ${m.content}`);

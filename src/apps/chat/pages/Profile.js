@@ -52,7 +52,7 @@ export function Profile({ subjectId, embedded }) {
       db.messages.removeWhere(m => m.chatId === c.id);
       db.chats.remove(c.id);
     });
-    db.memories.removeWhere(m => m.scope === `character:${subjectId}`);
+    db.memories.removeWhere(m => m.charId === subjectId);
     db.moments.removeWhere(m => m.authorId === subjectId);
     db.characters.remove(subjectId);
     nav.popToRoot();

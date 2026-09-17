@@ -41,15 +41,13 @@ export function chunk(text, size = CHUNK) {
 const norm = s => String(s || '').replace(/\s+/g, '').toLowerCase();
 
 // 只做解析，不写库。先让人看一眼再决定存哪些。
-export async function parse(raw, { scope = 'global', personaId = accounts.currentId(), onProgress, signal } = {}) {
+export async function parse(raw, { charId = null, personaId = accounts.currentId(), onProgress, signal } = {}) {
   const parts = chunk(raw);
   if (!parts.length) throw new Error('没有可整理的内容');
 
-  const [kind, id] = String(scope).split(':');
-  const existing = listFor(kind === 'character' ? id : null, null, personaId)
-    .slice(0, 40).map(m => `- ${m.content}`).join('\n') || '（暂无）';
-
-  const seen = new Set(listFor(kind === 'character' ? id : null, null, personaId).map(m => norm(m.content)));
+  const known = listFor(charId, personaId);
+  const existing = known.slice(0, 40).map(m => `- ${m.content}`).join('\n') || '（暂无）';
+  const seen = new Set(known.map(m => norm(m.content)));
   const out = [];
 
   for (let i = 0; i < parts.length; i++) {
@@ -80,9 +78,9 @@ export async function parse(raw, { scope = 'global', personaId = accounts.curren
 }
 
 // 把挑好的条目真正写进记忆库，并排队补向量
-export function commit(items, scope = 'global', personaId = accounts.currentId()) {
+export function commit(items, charId = null, personaId = accounts.currentId()) {
   const created = items.map(it => memories.create({
-    id: uid('mem'), scope,
+    id: uid('mem'), charId,
     content: it.content, category: it.category, rank: it.rank,
     keywords: it.keywords || [], source: 'import', personaId,
   }));
