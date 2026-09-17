@@ -202,23 +202,39 @@ function LoveBody({ cell }) {
   const c = { ...LOVE_DEFAULT, ...(cell?.config || {}) };
   const avatar = useImage(c.cover);
   const zh = c.lang === 'zh';
-  // 2 格宽的时候一行塞不下 Sun Mon Tue，星期只留首字母，均衡器也收掉
+  // 2 格宽的时候一行塞不下 Sun Mon Tue，星期只留首字母
   const compact = (cell?.w || 4) <= 2;
 
   const now = new Date();
   const year = now.getFullYear();
   const month = now.getMonth();
-  const first = new Date(year, month, 1).getDay();
-  const total = new Date(year, month + 1, 0).getDate();
   const monthName = zh ? `${month + 1}月` : new Date(year, month, 1).toLocaleString('en-US', { month: 'long' });
 
-  // 按当月实际占几行铺，不补到六行 —— 卡片高度是网格定死的，
-  // 补满只会在底下留一条永远空着的带子。
-  const rows = Math.ceil((first + total) / 7);
-  const cells = [];
-  for (let i = 0; i < first; i++) cells.push(null);
-  for (let d = 1; d <= total; d++) cells.push(d);
-  while (cells.length < rows * 7) cells.push(null);
+  // 小号只铺两周：本周和下周。整月塞进 188px 每一格只剩十来个像素，
+  // 密得看不清 —— 而且日常真正要看的就是眼前这几天。
+  // 大号才铺整月，按当月实际占几行平分剩余高度：定高会把跨六周的月份
+  // 最后一行切掉，补到固定六行又会在五行的月份底下留一条空带子。
+  let rows;
+  const days = [];
+  if (compact) {
+    rows = 2;
+    const sunday = new Date(year, month, now.getDate() - now.getDay());
+    for (let i = 0; i < 14; i++) {
+      const d = new Date(sunday.getFullYear(), sunday.getMonth(), sunday.getDate() + i);
+      days.push({
+        n: d.getDate(),
+        out: d.getMonth() !== month,
+        today: d.getMonth() === month && d.getDate() === now.getDate(),
+      });
+    }
+  } else {
+    const first = new Date(year, month, 1).getDay();
+    const total = new Date(year, month + 1, 0).getDate();
+    rows = Math.ceil((first + total) / 7);
+    for (let i = 0; i < first; i++) days.push(null);
+    for (let d = 1; d <= total; d++) days.push({ n: d, out: false, today: d === now.getDate() });
+    while (days.length < rows * 7) days.push(null);
+  }
 
   return html`
     <div class=${`wg wg-love${c.serif ? ' is-serif' : ''}${compact ? ' is-compact' : ''}`}
@@ -227,14 +243,13 @@ function LoveBody({ cell }) {
       <div class="love-top">
         <div class=${`love-avatar${avatar ? ' has-image' : ''}`}
           style=${avatar ? `background-image:url(${avatar})` : ''}>
-          ${avatar ? null : html`<${Icon} name="user" size=${compact ? 14 : 20}/>`}
+          ${avatar ? null : html`<${Icon} name="user" size=${compact ? 16 : 20}/>`}
         </div>
         <div class="love-right">
           <div class="love-word ellipsis">${c.word}</div>
-          ${compact ? null : html`
-            <div class="love-eq">
-              ${Array.from({ length: 26 }, (_, i) => html`<i key=${i}></i>`)}
-            </div>`}
+          <div class="love-eq">
+            ${Array.from({ length: compact ? 14 : 26 }, (_, i) => html`<i key=${i}></i>`)}
+          </div>
         </div>
       </div>
 
@@ -248,14 +263,13 @@ function LoveBody({ cell }) {
             .map((w, i) => html`<span key=${i}>${w}</span>`)}
         </div>
         <div class="love-days" style=${`grid-template-rows:repeat(${rows},1fr)`}>
-          ${cells.map((d, i) => {
-            if (d === null) return html`<span key=${i}></span>`;
-            const today = d === now.getDate();
-            return html`
-              <span key=${i} class=${`love-day${today ? ' is-today' : ''}`}>
-                ${today ? html`<${Icon} name="music" size=${compact ? 11 : 14}/>` : d}
-              </span>`;
-          })}
+          ${days.map((d, i) => d === null
+            ? html`<span key=${i}></span>`
+            : html`
+              <span key=${i}
+                class=${`love-day${d.today ? ' is-today' : ''}${d.out ? ' is-out' : ''}`}>
+                ${d.today ? html`<${Icon} name="music" size=${compact ? 12 : 14}/>` : d.n}
+              </span>`)}
         </div>
       </div>
     </div>`;

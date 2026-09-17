@@ -422,19 +422,23 @@
 .love-day.is-today { color: var(--love-ink); }
 .love-day.is-today svg { display: block; }
 
-/* 2 格见方的小号。字号、留白、日期格全部收一档，星期只剩首字母 */
-.wg-love.is-compact { padding: var(--sp-3); gap: var(--sp-2); }
-.wg-love.is-compact .love-top { grid-template-columns: 28% 1fr; gap: var(--sp-2); }
+/* 不是本月的日子淡一档，两周视图会带出下个月的头几天 */
+.love-day.is-out { opacity: .3; }
+
+/* 2 格见方的小号。只铺两周，所以留白反而可以比原稿更松 */
+.wg-love.is-compact { padding: var(--sp-4); gap: var(--sp-3); }
+.wg-love.is-compact .love-top { grid-template-columns: 32% 1fr; gap: var(--sp-3); }
 .wg-love.is-compact .love-avatar { border-width: 1.5px; }
 .wg-love.is-compact .love-word {
-  font-size: var(--fs-17);
-  font-size: clamp(var(--fs-15), 13cqw, var(--fs-28));
+  font-size: var(--fs-20);
+  font-size: clamp(var(--fs-17), 15cqw, var(--fs-28));
 }
-.wg-love.is-compact .love-cal { padding-top: var(--sp-2); }
+.wg-love.is-compact .love-eq { height: 9cqh; gap: 2px; }
+.wg-love.is-compact .love-cal { padding-top: var(--sp-3); }
 .wg-love.is-compact .love-month { font-size: var(--fs-13); }
 .wg-love.is-compact .love-year { font-size: 9px; letter-spacing: .04em; }
-.wg-love.is-compact .love-week { font-size: 9px; margin: 5px 0 3px; letter-spacing: 0; }
-.wg-love.is-compact .love-day { font-size: var(--fs-11); }
+.wg-love.is-compact .love-week { font-size: 9px; margin: 6px 0 4px; letter-spacing: 0; }
+.wg-love.is-compact .love-day { font-size: var(--fs-12); }
 
 /* 自定义组件。iframe 是 sandbox 的，见 widgets.js */
 .wg-custom { width: 100%; height: 100%; border: 0; display: block; background: transparent; }
