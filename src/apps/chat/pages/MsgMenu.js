@@ -111,7 +111,7 @@ export function MsgMenu({ msg, char, onClose, onRegenerate, onQuote, onMultiSele
   const gone = !fresh;
   // 转账和提示行不给改：正文里写着金额，改了正文金额也不会跟着变，
   // 落下来的就是两套说法。要撤销就整条删掉。
-  const NO_EDIT = new Set(['sticker', 'typing', 'transfer', 'notice', 'location', 'call']);
+  const NO_EDIT = new Set(['sticker', 'typing', 'transfer', 'notice', 'location', 'call', 'gift']);
   const canEdit = !gone && !NO_EDIT.has(fresh.kind);
 
   const copy = async () => {

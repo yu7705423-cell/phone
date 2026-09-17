@@ -67,6 +67,9 @@ export const DEFAULT_SETTINGS = {
   callMic: false,                 // 通话默认打字，不开麦克风
   callSelfReal: false,            // 视频通话默认用虚拟头像，不开摄像头
 
+  promptLean: true,               // 功能说明平时只给一张目录，用上了才给细则
+  giftBlind: true,                // 礼物拆开之前，里面装什么不进上下文
+
   historyMode: 'count',           // count 按条数 | turn 按轮次
   historyLimit: 20,               // 按条数时取最近多少条
   historyTurns: 10,               // 按轮次时取最近多少轮。一轮 = 用户发言 + 角色回复

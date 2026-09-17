@@ -1,8 +1,8 @@
 import { html, useState } from '../../../lib.js';
-import { phone } from '../../../sdk/index.js';
-import { Sheet, Field, Input, Button, Icon, List, ListItem, toast } from '../../../ui/index.js';
+import { phone, useStore } from '../../../sdk/index.js';
+import { Sheet, Field, Input, Button, Icon, List, ListItem, Switch, toast } from '../../../ui/index.js';
 
-const { db, transfer, currency, place, call } = phone;
+const { db, transfer, currency, place, call, gift } = phone;
 
 // 转账气泡。发出去的那一张不能自己点 —— 收不收是对方的事。
 export function TransferBubble({ msg, onSettle }) {
@@ -78,6 +78,88 @@ export function TransferSheet({ open, chatId, onClose }) {
               onClick=${() => { currency.set(c.code); setPicking(false); }}/>`)}
         <//>
       <//>
+    <//>`;
+}
+
+// 礼物气泡。**拆开之前只写封面**，里面装什么一个字都不露 —— 界面上不露，
+// 上下文里也不露（见 system/gift.js）。
+export function GiftBubble({ msg, onOpen }) {
+  const pending = msg.gift === gift.PENDING;
+  const opened = msg.gift === gift.OPENED;
+  const actionable = pending && msg.role !== 'user' && onOpen;
+  const twist = opened && msg.inner && msg.inner !== msg.cover;
+  return html`
+    <div class=${`bubble bubble-gift${pending ? '' : ' is-done'}`}
+      onClick=${actionable ? () => onOpen(msg) : null}>
+      <div class="tr-top">
+        <${Icon} name="gift" size=${20}/>
+        <div class="tr-body">
+          <div class="gift-cover ellipsis">${msg.cover}</div>
+          ${twist ? html`<div class="gift-inner ellipsis">里面是 ${msg.inner}</div>` : null}
+        </div>
+      </div>
+      <div class="tr-foot">
+        ${gift.stateLabel(msg.gift)}${actionable ? ' · 点击拆开' : ''}
+      </div>
+    </div>`;
+}
+
+// 送礼物
+export function GiftSheet({ open, chatId, onClose }) {
+  const s = useStore(db.settings.store);
+  const [cover, setCover] = useState('');
+  const [inner, setInner] = useState('');
+
+  const close = () => { setCover(''); setInner(''); onClose(); };
+  const submit = () => {
+    try { gift.send({ chatId, role: 'user', authorId: 'me', cover, inner }); close(); }
+    catch (err) { toast(String(err.message || err), 'error'); }
+  };
+
+  return html`
+    <${Sheet} open=${open} onClose=${close} title="送礼物">
+      <${Field} label="封面上写什么" desc="对方拆开之前看到的就是这个名称。">
+        <${Input} value=${cover} placeholder="礼物名称" maxlength=${40} onInput=${setCover}/>
+      <//>
+      <${Field} label="拆开是什么"
+        desc="可以和封面不一样。留空表示表里如一。">
+        <${Input} value=${inner} placeholder=${cover || '实际装的东西'}
+          maxlength=${60} onInput=${setInner}/>
+      <//>
+      <div class="pad-t">
+        <${Button} full disabled=${!cover.trim()} onClick=${submit}>送出<//>
+      </div>
+
+      <${List} inset=${false}>
+        <${ListItem} title="拆开前保密" multiline
+          subtitle=${s.giftBlind === false
+            ? '已关闭。角色收到时就知道里面是什么，反应更连贯，但没有惊喜'
+            : '角色拆开之前不知道里面装的是什么，拆开后才会知道'}
+          right=${html`<${Switch} checked=${s.giftBlind !== false}
+            onChange=${v => db.settings.set({ giftBlind: v })}/>`}/>
+      <//>
+      <div class="settings-foot">
+        此设置对所有对话生效。对方送来的礼物不受影响，你始终是拆开后才看到内容。
+      </div>
+    <//>`;
+}
+
+// 拆开或拒收
+export function UnwrapSheet({ msg, onClose }) {
+  if (!msg) return null;
+  const chat = db.chats.get(msg.chatId);
+  const char = db.characters.get((chat?.characterIds || [])[0]);
+  const act = open => { gift.settle(msg.id, open); onClose(); };
+  return html`
+    <${Sheet} open=${!!msg} onClose=${onClose}
+      title=${`${char?.name || '对方'}送来「${msg.cover}」`}>
+      <${List} inset=${false}>
+        <${ListItem} title="拆开" arrow
+          left=${html`<${Icon} name="gift" size=${18}/>`} onClick=${() => act(true)}/>
+        <${ListItem} title="拒收" arrow
+          left=${html`<${Icon} name="reply" size=${18}/>`} onClick=${() => act(false)}/>
+      <//>
+      <div class="settings-foot">拆开之前不会显示里面是什么。</div>
     <//>`;
 }
 

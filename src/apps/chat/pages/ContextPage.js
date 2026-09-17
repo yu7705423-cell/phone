@@ -97,6 +97,19 @@ export function ContextPage() {
         两段都可以在「Prompt 模板」中分别改写。
       </div>
 
+      <${List} title="功能说明">
+        <${ListItem} title="按需注入" multiline
+          subtitle=${s.promptLean === false
+            ? '已关闭。所有开启的功能每轮都注入完整说明，约多占 1000 token，也会分散模型对聊天本身的注意力'
+            : '平时只给角色一份功能清单，某项功能最近用到时才注入该项的完整说明'}
+          right=${html`<${Switch} checked=${s.promptLean !== false}
+            onChange=${v => db.settings.set({ promptLean: v })}/>`}/>
+      <//>
+      <div class="settings-foot">
+        清单中已写明每项功能的触发写法，因此首次使用也不会出错。
+        时间与译文不受此项影响，它们是每条消息都要遵守的格式，始终完整注入。
+      </div>
+
       <${List} title="上下文">
         <${ListItem} title="时间感知" arrow multiline
           subtitle=${s.injectTime === false

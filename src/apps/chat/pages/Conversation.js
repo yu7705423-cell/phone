@@ -8,7 +8,8 @@ import { StickerImg } from './StickerBits.js';
 import { MediaBubble } from './MediaBubble.js';
 import { MsgMenu } from './MsgMenu.js';
 import { TransferBubble, NoticeLine, TransferSheet, SettleSheet,
-         LocationBubble, LocationSheet, CallBubble, CallLogSheet } from './TransferBits.js';
+         LocationBubble, LocationSheet, CallBubble, CallLogSheet,
+         GiftBubble, GiftSheet, UnwrapSheet } from './TransferBits.js';
 
 const { db, nav, ai, call } = phone;
 
@@ -38,7 +39,7 @@ function QuoteRef({ quote, onClick }) {
 // 记忆化：流式回复时只有最后那条在变，别的几百条没必要跟着重画。
 // 下面传给它的函数属性都是稳定身份的，见 Conversation 里的 stable。
 const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, onSwipe, onHold,
-                  selecting, selected, onToggle, transOpen, onSettle, onOpenLog }) {
+                  selecting, selected, onToggle, transOpen, onSettle, onOpenLog, onUnwrap }) {
   const mine = msg.role === 'user';
   const avatar = useImage(mine ? phone.accounts.current()?.avatar : char?.avatar);
   const hold = useRef({ timer: null, fired: false });
@@ -96,6 +97,8 @@ const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, onSwipe,
 
         ${msg.kind === 'transfer'
           ? html`<${TransferBubble} msg=${msg} onSettle=${selecting ? null : onSettle}/>`
+          : msg.kind === 'gift'
+          ? html`<${GiftBubble} msg=${msg} onOpen=${selecting ? null : onUnwrap}/>`
           : msg.kind === 'location'
           ? html`<${LocationBubble} msg=${msg}/>`
           : msg.kind === 'call'
@@ -156,6 +159,8 @@ export function Conversation({ chatId, focusId = '' }) {
   const [settling, setSettling] = useState(null);// 正在处理的那一笔
   const [placing, setPlacing] = useState(false); // 发位置的面板开着
   const [callLog, setCallLog] = useState(null);  // 正在看的那通电话
+  const [gifting, setGifting] = useState(false); // 送礼物面板开着
+  const [unwrap, setUnwrap] = useState(null);    // 正在拆的那一件
   // 只画最近这么多条。聊了两万条的会话一次性铺出来要一两秒，手机上十几秒，
   // 而且往上翻从来也不会翻到那么远。不够就按「查看更早的消息」再要一段。
   const [shown, setShown] = useState(PAGE);
@@ -174,6 +179,7 @@ export function Conversation({ chatId, focusId = '' }) {
     onToggle: m => latest.current.togglePick(m),
     onSettle: m => latest.current.onSettle(m),
     onOpenLog: m => latest.current.onOpenLog(m),
+    onUnwrap: m => latest.current.onUnwrap(m),
     noop: () => {},
   }), []);
   const pickedSet = useMemo(() => new Set(picked || []), [picked]);
@@ -527,7 +533,8 @@ export function Conversation({ chatId, focusId = '' }) {
     cur.includes(msg.id) ? cur.filter(x => x !== msg.id) : [...cur, msg.id]);
 
   // 上面那几个每次渲染都是新函数，兜进 ref 里，对外的 stable 不变
-  latest.current = { onRetry, onSwipe, togglePick, onSettle: setSettling, onOpenLog: setCallLog };
+  latest.current = { onRetry, onSwipe, togglePick, onSettle: setSettling,
+    onOpenLog: setCallLog, onUnwrap: setUnwrap };
 
   const deletePicked = async () => {
     if (!picked.length) return;
@@ -569,7 +576,7 @@ export function Conversation({ chatId, focusId = '' }) {
     { id: 'transfer', icon: 'wallet', label: '转账', onTap: () => setPaying(true) },
     { id: 'call', icon: 'phone', label: '通话', onTap: () => startCall(false) },
     { id: 'video', icon: 'film', label: '视频通话', onTap: () => startCall(true) },
-    { id: 'gift', icon: 'gift', label: '礼物' },
+    { id: 'gift', icon: 'gift', label: '礼物', onTap: () => setGifting(true) },
     { id: 'location', icon: 'map', label: '位置', onTap: () => setPlacing(true) },
     { id: 'listen', icon: 'music', label: '一起听' },
   ].map(it => ({ ...it, onTap: it.onTap || (() => toast(`「${it.label}」尚未实现`)) }));
@@ -597,7 +604,8 @@ export function Conversation({ chatId, focusId = '' }) {
               onRetry=${stable.onRetry} onSwipe=${stable.onSwipe} onHold=${setHeld}
               selecting=${selecting} selected=${selecting && pickedSet.has(m.id)}
               onToggle=${stable.onToggle} transOpen=${settings.translateOpen}
-              onSettle=${stable.onSettle} onOpenLog=${stable.onOpenLog}/>`)}
+              onSettle=${stable.onSettle} onOpenLog=${stable.onOpenLog}
+              onUnwrap=${stable.onUnwrap}/>`)}
           ${!msgs.length && !char.firstMessage ? html`
             <div class="conv-hint">发送第一条消息开始对话</div>` : null}
         </div>
@@ -675,6 +683,8 @@ export function Conversation({ chatId, focusId = '' }) {
         onChange=${sendImage} style="display:none"/>
 
       <${CallLogSheet} msg=${callLog} onClose=${() => setCallLog(null)}/>
+      <${GiftSheet} open=${gifting} chatId=${chatId} onClose=${() => setGifting(false)}/>
+      <${UnwrapSheet} msg=${unwrap} onClose=${() => setUnwrap(null)}/>
       <${TransferSheet} open=${paying} chatId=${chatId} onClose=${() => setPaying(false)}/>
       <${LocationSheet} open=${placing} chatId=${chatId} onClose=${() => setPlacing(false)}/>
       <${SettleSheet} msg=${settling} onClose=${() => setSettling(null)}/>

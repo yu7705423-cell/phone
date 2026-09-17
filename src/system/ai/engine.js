@@ -1,15 +1,14 @@
-import { settings, persona, characters, chats, messages, stickers, messagesOf } from '../db/index.js';
+import { settings, persona, characters, chats, messages, messagesOf } from '../db/index.js';
 import * as accounts from '../accounts.js';
 import * as clock from '../time.js';
 import { assemble } from './context/index.js';
-import { DEFAULT_TEMPLATES, fillTemplate } from './templates.js';
+import { fillTemplate, template } from './templates.js';
+import { capabilityBlock } from './capabilities.js';
 import { embedQuery, embedReady } from './embed.js';
 import { getProvider } from './providers/index.js';
 import { activeChat, fallbackChat, visionMode } from './services.js';
-import * as currency from '../currency.js';
 import { images } from '../db/images.js';
 import { toDataUrl } from '../audio.js';
-import { mediaInstruction } from './reply.js';
 import { enqueue, cancel, isRunning, isAbort } from './queue.js';
 import { parseJSON } from './sse.js';
 import { estimate, takeLatestWithin } from './tokens.js';
@@ -17,10 +16,7 @@ import { estimate, takeLatestWithin } from './tokens.js';
 // 接口协议要求带 max_tokens，取一个足够大的值，等同于不限制
 export const MAX_OUTPUT = 32000;
 
-export function template(id) {
-  const s = settings.get();
-  return (s.promptTemplates && s.promptTemplates[id]) || DEFAULT_TEMPLATES[id] || '';
-}
+export { template };
 
 function asConfig(preset) {
   if (!preset) return null;
@@ -93,22 +89,6 @@ const withSpareFirst = run => backgroundUsesSpare()
 // 任务按 id 决定走哪条路
 const runnerFor = taskId => (BACKGROUND_TASKS.has(taskId) ? withSpareFirst : withFallback);
 
-// 角色能用哪些表情。名字要原样列给模型，它才知道可以写什么；
-// 但表情库可能有几百个，全列出来光这一段就把预算吃掉了，所以只给最常用的。
-const STICKER_LIMIT = 60;
-function stickerNames(char) {
-  if (char.canSendSticker === false) return '';
-  const all = stickers.all();
-  if (!all.length) return '';
-  return all
-    .slice()
-    .sort((a, b) => (b.useCount || 0) - (a.useCount || 0))
-    .slice(0, STICKER_LIMIT)
-    .map(s => String(s.name || '').trim())
-    .filter(Boolean)
-    .join('、');
-}
-
 function budgets(total) {
   return { lorebook: Math.round(total * 0.4), memory: Math.round(total * 0.35) };
 }
@@ -168,43 +148,10 @@ export function buildChatSystem(chat, char, msgs, opts = {}) {
   // 自然表达协议。接在回复风格后面，管的是同一件事：这一条回复该怎么写。
   // 一千多 token，所以给了开关，见「上下文与记忆」。
   if (s.styleProtocol !== false) out += '\n\n' + template('skeleton.style');
-  out += mediaInstruction(char);
 
-  const stickerList = stickerNames(char);
-  if (stickerList) {
-    out += '\n\n' + fillTemplate(template('skeleton.sticker'), { names: stickerList });
-  }
+  // 各项能力。平时只列一张单子，这一轮真沾边了才给整段细则，见 capabilities.js
+  out += capabilityBlock(ctx);
 
-  // 引用是双向的：你能引他的，他也能引你的或者自己早先说过的
-  if (msgs.length >= 2) out += '\n\n' + template('skeleton.quote');
-
-  // 转账。开关在角色卡上（第 5 条：属于这个角色的事放在这个角色身上）。
-  // 不按「聊过才讲」来收 token —— 那样角色永远迈不出第一步，
-  // 只能等用户先转一笔，等于这个能力对它是单向的。
-  if (char.canTransfer !== false) {
-    const money = currency.label();
-    out += '\n\n' + fillTemplate(template('skeleton.transfer'), {
-      currency: money ? `\n这段对话里的钱是${money}，按这个量级写金额。` : '',
-    });
-  }
-
-  // 打电话。和转账一样，能力在角色卡上开关。
-  if (char.canCall !== false) out += '\n\n' + template('skeleton.ring');
-
-  // 位置。角色报的地点要落在它自己待的那个地方 —— 时区设了就拿它当锚，
-  // 没设就只能靠人设里写的，不替它瞎猜一个城市。
-  if (char.canSendLocation !== false) {
-    out += '\n\n' + fillTemplate(template('skeleton.location'), {
-      city: char.timezone ? `（你在${clock.zoneLabel(char.timezone)}）` : '',
-    });
-  }
-  // 让它自己把当地时间写出来。这一行显示时会被过滤掉，见 ai/reply.js
-  if (clock.stampOn()) out += '\n\n' + template('skeleton.time');
-
-  // 翻译。逐条给出译文，收在气泡里，点一下才展开
-  if (chat.translateTo) {
-    out += '\n\n' + fillTemplate(template('skeleton.translate'), { lang: chat.translateTo });
-  }
   return { system: out, failed, tokens: estimate(out) };
 }
 

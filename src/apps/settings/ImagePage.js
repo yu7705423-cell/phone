@@ -1,6 +1,6 @@
 import { html, useState } from '../../lib.js';
 import { phone, useStore } from '../../sdk/index.js';
-import { Page, List, ListItem, Field, Input, Button, Switch, Segmented,
+import { Page, List, ListItem, Field, Input, Textarea, Button, Switch, Segmented,
          Sheet, EmptyState, toast, confirm } from '../../ui/index.js';
 import { ModelPicker } from './ModelPicker.js';
 
@@ -72,6 +72,14 @@ function Editor({ id, onClose }) {
           onChange=${v => set({ size: v })}/>
       <//>
 
+      <${List} inset=${false}>
+        <${ListItem} title="支持参考图" multiline
+          subtitle=${`开启后，角色锁脸将把脸部照片随请求一并发送（images/edits 端点）。`
+            + `接口不支持时会自动退回「读成外貌描述」的方式。`}
+          right=${html`<${Switch} checked=${preset.ref === 'edits'}
+            onChange=${v => set({ ref: v ? 'edits' : 'off' })}/>`}/>
+      <//>
+
       <div class="sheet-acts">
         <${Button} variant="ghost" onClick=${del}>删除<//>
         <${Button} variant="ghost" disabled=${busy || !preset.apiKey || !preset.model}
@@ -95,8 +103,20 @@ export function ImagePage() {
     setEditing(p.id);
   };
 
+  const s = db.settings.get();
+
   return html`
     <${Page} title="生图" onBack=${nav.pop}>
+      <div class="pad">
+        <${Field} label="全局生图提示词"
+          desc=${`每次生成都会拼在画面描述后面，用来固定画风。所有角色共用。`
+            + `角色自己的提示词在各自的角色卡中设置。`}>
+          <${Textarea} rows=${3} value=${s.imagePrompt || ''}
+            placeholder="例如：柔和的自然光，胶片质感，不要文字水印"
+            onInput=${v => db.settings.set({ imagePrompt: v })}/>
+        <//>
+      </div>
+
       ${img.presets.length ? html`
         <${List} title="已保存的接口">
           ${img.presets.map(p => html`

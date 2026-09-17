@@ -1,3 +1,5 @@
+import { settings } from '../db/index.js';
+
 // prompt 默认模板。代码里只留默认值,运行时一律从 settings.promptTemplates 读取。
 // 见 CLAUDE.md 第 11 条。占位符用 {{name}}。
 
@@ -172,6 +174,46 @@ export const DEFAULT_TEMPLATES = {
 
   'task.call-open':
 `电话刚接通{{origin}}。你先开口，说一句就停下来。`,
+
+  // 能力目录。平时只给这一张单子，真用上了才给整段细则，见 ai/capabilities.js
+  'skeleton.abilities':
+`[你还会这些]
+下面每一条都是你能做的事，照着那一行的写法写出来就会生效。
+不必特意去用，用得上的时候自然会想起来。
+{{list}}`,
+
+  'skeleton.image':
+`[发图片]
+想让对方看什么画面时，单独写一行 [图片：画面的描述]。
+描述写清楚点，会照着它生成一张图。
+别每次都用。真人也是偶尔才发一张图。`,
+
+  'skeleton.voice':
+`[发语音]
+想用说的而不是打字时，单独写一行 [语音：要说的话]。
+别每次都用。真人也是偶尔才按一段语音。`,
+
+  'skeleton.gift':
+`[送礼物]
+想送东西给对方时，单独写一行 [礼物：封面上写什么 | 拆开是什么]。
+竖线前面是对方拆开之前看到的那个名字，后面是里面真正装的东西。
+两个可以不一样 —— 写「限量款球鞋 | 一张手写的纸条」这种反差是允许的，
+但别每次都整蛊，真心送的时候两边写成一样就好。
+只写一个名字（不带竖线）就是表里如一。
+
+对方送来的礼物，你要么写一行 [拆开]，要么写一行 [拒收]。
+**拆开之前你不知道里面是什么**，别装作知道，也别去猜。
+拆开之后系统会把里面的东西告诉你，那时候再反应。`,
+
+  'task.face-describe':
+`用中文描述这个人的长相，写给一个要照着画出来的人听。
+
+写脸：脸型、眉眼、鼻子、嘴、肤色。
+写头发：长度、颜色、发型。
+写整体气质和年龄段。
+不要写背景、不要写衣服、不要写动作、不要写光线。
+不要评价好看与否。
+控制在 120 字以内，写成一段，不要分点。`,
 
   'skeleton.group':
 `这是一个群聊。群里还有：{{members}}。
@@ -377,6 +419,13 @@ fact 事实 / emotion 情绪印记 / pending 未完结事项 / pattern 互动模
 ## 只输出 JSON
 {"seeds":["",""]}`,
 };
+
+// 运行时取模板：用户改过就用用户那份，没改过回落到上面的默认值。
+// 放在这里而不是 engine 里，是为了让 capabilities 能用它又不跟 engine 成环。
+export function template(id) {
+  const s = settings.get();
+  return (s.promptTemplates && s.promptTemplates[id]) || DEFAULT_TEMPLATES[id] || '';
+}
 
 export function fillTemplate(tpl, vars = {}) {
   return String(tpl || '').replace(/\{\{(\w+)\}\}/g, (_, k) =>

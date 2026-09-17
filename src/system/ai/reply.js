@@ -1,30 +1,39 @@
 import { messages, chats, characters, images, files, settings } from '../db/index.js';
 import { uid } from '../store.js';
 import * as imageSvc from './image.js';
-import * as voiceSvc from './voice.js';
+import * as imgPrompt from './imageprompt.js';
+import { activeImage } from './services.js';
 import { isImageReady } from './image.js';
+import * as voiceSvc from './voice.js';
 import { isVoiceReady } from './voice.js';
 import { byName as stickerByName, markUsed } from '../stickers.js';
 import { notify } from '../notify.js';
 import { nav } from '../nav.js';
 import * as transfer from '../transfer.js';
 import * as place from '../place.js';
+import * as gift from '../gift.js';
 
 // 角色回复里可以带这几种标记，由模型自己决定什么时候用。
 // 中英文冒号都认，方括号也认全角。
-const MARK = /[[【]\s*(图片|照片|image|pic|语音|voice|audio|表情|sticker|emoji|转账|transfer|位置|定位|location)\s*[:：]\s*([^\]】]+)[\]】]/gi;
+const MARK = /[[【]\s*(图片|照片|image|pic|语音|voice|audio|表情|sticker|emoji|转账|transfer|位置|定位|location|礼物|gift)\s*[:：]\s*([^\]】]+)[\]】]/gi;
 
 const IMAGE_KINDS = new Set(['图片', '照片', 'image', 'pic']);
 const STICKER_KINDS = new Set(['表情', 'sticker', 'emoji']);
 const TRANSFER_KINDS = new Set(['转账', 'transfer']);
 const PLACE_KINDS = new Set(['位置', '定位', 'location']);
+const GIFT_KINDS = new Set(['礼物', 'gift']);
 
 // 转账那一条里，金额在前，后面随手写的是留言
 const AMOUNT = /^\s*(?:[¥￥$]\s*)?(\d+(?:\.\d{1,2})?)\s*(?:元|块)?\s*(.*)$/;
 
 // 收下或退回对方转过来的那一笔。必须带方括号 —— 不带的话，
 // 「退回」两个字单独成行的正常句子也会被当成指令。
-const SETTLE_LINE = /^[[【(（]\s*(收款|收下|接收|退回|退还|拒收)\s*[\]】)）]$/;
+const SETTLE_LINE = /^[[【(（]\s*(收款|收下|接收|退回|退还)\s*[\]】)）]$/;
+
+// 拆礼物。和收款分开两套 —— 「退回」退的是钱，「拒收」拒的是礼物，
+// 一段对话里两样可能同时挂着，共用一个词就分不清在处理哪一个。
+const OPEN_LINE = /^[[【(（]\s*(拆开|拆|打开|拆礼物)\s*[\]】)）]$/;
+const REFUSE_LINE = /^[[【(（]\s*(拒收|不收|退掉)\s*[\]】)）]$/;
 
 // 打个电话过来。同样必须带方括号。写「视频来电」就是视频通话。
 const RING_LINE = /^[[【(（]\s*(视频)?(?:来电|打电话|拨打|通话|call)\s*[\]】)）]$/i;
@@ -104,7 +113,11 @@ export function splitReply(raw) {
 
       // 处理对方转过来的那一笔。自己不占气泡，落的是一行提示。
       const st = t.match(SETTLE_LINE);
-      if (st) { push({ type: 'settle', take: !/退|拒/.test(st[1]) }); return; }
+      if (st) { push({ type: 'settle', take: !/退/.test(st[1]) }); return; }
+
+      // 拆礼物。同样不占气泡，落的是一行提示。
+      if (OPEN_LINE.test(t)) { push({ type: 'unwrap', open: true }); return; }
+      if (REFUSE_LINE.test(t)) { push({ type: 'unwrap', open: false }); return; }
 
       // 它要打电话过来。不占气泡 —— 电话是一件事，不是一条消息。
       const rg = t.match(RING_LINE);
@@ -129,7 +142,10 @@ export function splitReply(raw) {
     const kind = m[1].toLowerCase();
     const body = m[2].trim();
     if (body) {
-      if (PLACE_KINDS.has(kind)) {
+      if (GIFT_KINDS.has(kind)) {
+        const g = gift.parse(body);
+        if (g) push({ type: 'gift', ...g });
+      } else if (PLACE_KINDS.has(kind)) {
         const loc = place.parse(body);
         if (loc) push({ type: 'location', ...loc });
       } else if (TRANSFER_KINDS.has(kind)) {
@@ -232,6 +248,16 @@ export function materialize(part, base, char) {
     }
     return null;
   }
+  if (part.type === 'gift') {
+    return gift.send({
+      chatId: base.chatId, role: base.role, authorId: base.authorId,
+      cover: part.cover, inner: part.inner, extra: row,
+    });
+  }
+  if (part.type === 'unwrap') {
+    const target = gift.pendingFrom(base.chatId, base.role === 'user' ? 'char' : 'user');
+    return target ? gift.settle(target.id, part.open, row) : null;
+  }
   if (part.type === 'location') {
     return place.send({
       chatId: base.chatId, role: base.role, authorId: base.authorId,
@@ -247,7 +273,7 @@ export function materialize(part, base, char) {
   if (part.type === 'image') {
     const msg = messages.create({ ...row, kind: 'image', content: `[图片：${part.prompt}]`,
       prompt: part.prompt, imageId: null, media: 'pending' });
-    generateImage(msg.id, part.prompt);
+    generateImage(msg.id, part.prompt, char);
     return msg;
   }
   if (part.type === 'voice') {
@@ -311,9 +337,11 @@ export function dropMessage(id) {
   if (!m) return false;
   if (m.audioId) files.remove(m.audioId);
   if (m.imageId) images.remove(m.imageId);
-  // 「已收款」那一行就是这件事的记录，删了它就当没处理过，那笔回到待处理。
-  // 重新生成角色那一轮时整轮清空，走的也是这里。
-  if (m.kind === 'notice' && m.settledId) transfer.unsettle(id);
+  // 「已收款」「已拆开」那一行就是这件事的记录，删了它就当没处理过，
+  // 那笔钱、那件礼物回到待处理。重新生成角色那一轮时整轮清空，走的也是这里。
+  if (m.kind === 'notice' && m.settledId) {
+    (m.settledKind === 'gift' ? gift : transfer).unsettle(id);
+  }
   return messages.remove(id);
 }
 
@@ -325,7 +353,7 @@ export function regenMedia(id) {
   if (m.kind === 'image') {
     if (m.imageId) images.remove(m.imageId);
     messages.update(id, { imageId: null, media: 'pending', mediaError: '' });
-    generateImage(id, m.prompt);
+    generateImage(id, m.prompt, char);
   } else if (m.kind === 'voice') {
     if (m.audioId) files.remove(m.audioId);
     messages.update(id, { audioId: null, media: 'pending', mediaError: '' });
@@ -333,13 +361,39 @@ export function regenMedia(id) {
   }
 }
 
-async function generateImage(msgId, prompt) {
+async function generateImage(msgId, prompt, char) {
   if (!isImageReady()) {
     messages.update(msgId, { media: 'off', mediaError: '还没有配置生图接口' });
     return;
   }
   try {
-    const blob = await imageSvc.generate({ prompt, key: `msg-img:${msgId}` });
+    const preset = activeImage();
+    const lock = imgPrompt.faceApplies(char, prompt);
+
+    // 先试直传参考图那条路。接口不认（多半是没有 images/edits）就退回
+    // 把脸读成一段外貌描述拼进提示词 —— 退回去也比画成另一个人强。
+    if (lock && imgPrompt.wantsRef(char, preset)) {
+      try {
+        const ref = await imgPrompt.faceBlob(char);
+        if (ref) {
+          const blob = await imageSvc.generateWithRef({
+            prompt: imgPrompt.compose({ prompt, char }), refBlob: ref,
+            preset, key: `msg-img:${msgId}`,
+          });
+          const id = await images.put(new File([blob], 'gen.png', { type: blob.type || 'image/png' }), 1024);
+          messages.update(msgId, { imageId: id, media: 'done' });
+          return;
+        }
+      } catch (err) {
+        console.warn('[image] 参考图那条路没走通，改用外貌描述:', err.message || err);
+      }
+    }
+
+    const face = lock ? await imgPrompt.ensureFaceDesc(char).catch(() => '') : '';
+    const blob = await imageSvc.generate({
+      prompt: imgPrompt.compose({ prompt, char, face }),
+      preset, key: `msg-img:${msgId}`,
+    });
     const id = await images.put(new File([blob], 'gen.png', { type: blob.type || 'image/png' }), 1024);
     messages.update(msgId, { imageId: id, media: 'done' });
   } catch (err) {
@@ -368,16 +422,4 @@ async function generateVoice(msgId, text, char) {
   }
 }
 
-// 告诉模型它可以发图发语音。只有配好了的才说，免得它发了却生成不出来。
-export function mediaInstruction(char) {
-  const s = settings.get();
-  const canImage = isImageReady() && char.canSendImage !== false;
-  const canVoice = isVoiceReady() && !!char.voiceId && char.canSendVoice !== false;
-  if (!canImage && !canVoice) return '';
 
-  const lines = ['\n\n[你可以发的东西]'];
-  if (canImage) lines.push('想让对方看什么画面时，单独写一行 [图片：画面的描述]。描述写清楚点，会照着它生成一张图。');
-  if (canVoice) lines.push('想用说的而不是打字时，单独写一行 [语音：要说的话]。');
-  lines.push('别每次都用。真人也是偶尔才发一张图或按一段语音。');
-  return lines.join('\n');
-}

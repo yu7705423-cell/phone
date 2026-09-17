@@ -891,3 +891,14 @@ button.search-bar { width: 100%; border: none; }
   margin-top: var(--sp-3); height: 140px; border-radius: var(--r-md);
   background-size: cover; background-position: center;
 }
+
+/* 礼物气泡。拆开之前只有封面那一行 */
+.bubble-gift { min-width: 168px; max-width: 232px; padding: var(--sp-3) var(--sp-4) 0; }
+.bubble-gift .tr-top { display: flex; align-items: center; gap: var(--sp-3); min-width: 0; }
+.gift-cover { font-size: var(--fs-16); font-weight: var(--fw-medium); }
+.gift-inner { font-size: var(--fs-12); opacity: .7; margin-top: 2px; }
+.bubble-gift.is-done { opacity: .62; }
+.face-preview {
+  margin-top: var(--sp-3); height: 120px; width: 120px; border-radius: var(--r-md);
+  background-size: cover; background-position: center;
+}
