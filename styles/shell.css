@@ -22,8 +22,12 @@
 .sb-icons { display: flex; align-items: center; gap: var(--sp-1); }
 .sb-level { font-size: var(--fs-11); color: var(--text-2); }
 
+/* 壁纸用 fixed 而不是 absolute。.root 的高度是加载时量出来的可视高度
+   (见 CLAUDE.md 第 1 条),地址栏一收起可视区就比它高,absolute 会跟着
+   .root 一起停在半空,底下露出一条底色。fixed 的包含块是视口,永远铺满。
+   它纯粹是背景,不参与布局,所以不会像 dvh 那样把界面抽动。 */
 .wallpaper {
-  position: absolute; inset: 0; z-index: 0;
+  position: fixed; inset: 0; z-index: 0;
   background-size: cover; background-position: center;
 }
 
