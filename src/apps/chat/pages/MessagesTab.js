@@ -15,6 +15,8 @@ const Row = memo(function Row({ chat, onHold }) {
   const last = db.lastMessageOf(chat.id);
   const preview = !last ? '还没有消息'
     : last.kind === 'sticker' ? '[表情]'
+    : last.kind === 'transfer' ? `[转账] ${phone.transfer.format(last.amount)}`
+    : last.kind === 'notice' ? String(last.content || '').replace(/^\[|\]$/g, '')
     : (splitBubbles(last.content).slice(-1)[0] || last.content);
   const isGroup = ids.length > 1;
   const title = isGroup

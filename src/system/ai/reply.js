@@ -7,13 +7,22 @@ import { isVoiceReady } from './voice.js';
 import { byName as stickerByName, markUsed } from '../stickers.js';
 import { notify } from '../notify.js';
 import { nav } from '../nav.js';
+import * as transfer from '../transfer.js';
 
 // 角色回复里可以带这几种标记，由模型自己决定什么时候用。
 // 中英文冒号都认，方括号也认全角。
-const MARK = /[[【]\s*(图片|照片|image|pic|语音|voice|audio|表情|sticker|emoji)\s*[:：]\s*([^\]】]+)[\]】]/gi;
+const MARK = /[[【]\s*(图片|照片|image|pic|语音|voice|audio|表情|sticker|emoji|转账|transfer)\s*[:：]\s*([^\]】]+)[\]】]/gi;
 
 const IMAGE_KINDS = new Set(['图片', '照片', 'image', 'pic']);
 const STICKER_KINDS = new Set(['表情', 'sticker', 'emoji']);
+const TRANSFER_KINDS = new Set(['转账', 'transfer']);
+
+// 转账那一条里，金额在前，后面随手写的是留言
+const AMOUNT = /^\s*(?:[¥￥$]\s*)?(\d+(?:\.\d{1,2})?)\s*(?:元|块)?\s*(.*)$/;
+
+// 收下或退回对方转过来的那一笔。必须带方括号 —— 不带的话，
+// 「退回」两个字单独成行的正常句子也会被当成指令。
+const SETTLE_LINE = /^[[【(（]\s*(收款|收下|接收|退回|退还|拒收)\s*[\]】)）]$/;
 
 // 引用单独成行，挂在它下面那一条上，不自己占一个气泡。
 const QUOTE_LINE = /^[[【(（]?\s*(?:引用|回复|quote)\s*[:：]\s*([^\n\]】)）]+)[\]】)）]?\s*$/i;
@@ -88,6 +97,10 @@ export function splitReply(raw) {
       const q = t.match(QUOTE_LINE);
       if (q) { pendingQuote = q[1].trim(); return; }
 
+      // 处理对方转过来的那一笔。自己不占气泡，落的是一行提示。
+      const st = t.match(SETTLE_LINE);
+      if (st) { push({ type: 'settle', take: !/退|拒/.test(st[1]) }); return; }
+
       // 译文相反，挂到刚刚那一条上。前面没有正文就只能丢掉。
       const tr = t.match(TRANS_LINE);
       if (tr) {
@@ -107,9 +120,15 @@ export function splitReply(raw) {
     const kind = m[1].toLowerCase();
     const body = m[2].trim();
     if (body) {
-      push(IMAGE_KINDS.has(kind) ? { type: 'image', prompt: body }
-        : STICKER_KINDS.has(kind) ? { type: 'sticker', name: body }
-        : { type: 'voice', text: body });
+      if (TRANSFER_KINDS.has(kind)) {
+        const a = body.match(AMOUNT);
+        // 金额读不出来就整条丢掉。凭空造一笔金额不明的转账比少发一条更糟。
+        if (a) push({ type: 'transfer', amount: Number(a[1]), note: (a[2] || '').trim() });
+      } else {
+        push(IMAGE_KINDS.has(kind) ? { type: 'image', prompt: body }
+          : STICKER_KINDS.has(kind) ? { type: 'sticker', name: body }
+          : { type: 'voice', text: body });
+      }
     }
     last = m.index + m[0].length;
   }
@@ -185,6 +204,18 @@ export function materialize(part, base, char) {
       stickerName: part.name,
     });
   }
+  if (part.type === 'transfer') {
+    return transfer.send({
+      chatId: base.chatId, role: base.role, authorId: base.authorId,
+      amount: part.amount, note: part.note, extra: row,
+    });
+  }
+  if (part.type === 'settle') {
+    // 处理的是对方那一笔。对方是谁看这一轮是谁在说话。
+    const target = transfer.pendingFrom(base.chatId, base.role === 'user' ? 'char' : 'user');
+    // 没有待处理的就当没写过这一行 —— 凭空落一句「已收款」会让人莫名其妙
+    return target ? transfer.settle(target.id, part.take, row) : null;
+  }
   if (part.type === 'image') {
     const msg = messages.create({ ...row, kind: 'image', content: `[图片：${part.prompt}]`,
       prompt: part.prompt, imageId: null, media: 'pending' });
@@ -237,6 +268,7 @@ export async function renderTurn({ chat, char, raw, turnId, swipes, swipeIndex, 
       ...(i === 0 ? { raw, swipes: swipes || [raw], swipeIndex: swipeIndex ?? 0 } : {}),
     }, char);
 
+    if (!msg) continue;
     created.push(msg);
     chats.update(chat.id, { lastMessageAt: Date.now() });
     onEach && onEach(msg, i, parts.length);
@@ -251,6 +283,9 @@ export function dropMessage(id) {
   if (!m) return false;
   if (m.audioId) files.remove(m.audioId);
   if (m.imageId) images.remove(m.imageId);
+  // 「已收款」那一行就是这件事的记录，删了它就当没处理过，那笔回到待处理。
+  // 重新生成角色那一轮时整轮清空，走的也是这里。
+  if (m.kind === 'notice' && m.settledId) transfer.unsettle(id);
   return messages.remove(id);
 }
 

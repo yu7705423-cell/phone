@@ -726,3 +726,33 @@ input[type="range"] {
 }
 .search-bar .search-hint { flex: 1; text-align: left; font-size: var(--fs-14); }
 button.search-bar { width: 100%; border: none; }
+
+/* 转账气泡。单色卡片，金额是主角，状态压在底下一行 */
+.bubble-transfer {
+  min-width: 168px; max-width: 232px; padding: var(--sp-3) var(--sp-4) 0;
+  cursor: default;
+}
+.bubble-transfer .tr-top { display: flex; align-items: center; gap: var(--sp-3); min-width: 0; }
+.bubble-transfer .tr-body { min-width: 0; }
+.tr-amount { font-size: var(--fs-20); font-weight: var(--fw-medium); line-height: 1.2; }
+.tr-note { font-size: var(--fs-12); opacity: .7; margin-top: 2px; }
+.tr-foot {
+  margin: var(--sp-3) calc(var(--sp-4) * -1) 0; padding: var(--sp-2) var(--sp-4);
+  border-top: 1px solid var(--border); font-size: var(--fs-12); opacity: .62;
+}
+/* 自己这边的气泡是深底，分隔线要用亮的那一侧 */
+.msg.is-mine .tr-foot { border-top-color: rgba(255, 255, 255, .22); }
+.bubble-transfer.is-done { opacity: .58; }
+
+/* 提示行。不是谁说的话，居中一行灰字 */
+.conv-notice {
+  text-align: center; padding: var(--sp-2) var(--sp-6);
+  font-size: var(--fs-12); color: var(--text-3); line-height: 1.6;
+}
+
+/* 录音条上的「改为输入」 */
+.rec-write {
+  margin-left: var(--sp-2); padding: 2px var(--sp-2);
+  border: none; border-radius: var(--r-full);
+  background: var(--group-fill); color: var(--text-3); font-size: var(--fs-12);
+}

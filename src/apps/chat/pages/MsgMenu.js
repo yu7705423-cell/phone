@@ -109,7 +109,10 @@ export function MsgMenu({ msg, char, onClose, onRegenerate, onQuote, onMultiSele
   if (repairing) return html`<${RepairSheet} msgId=${msg.id} open=${true} onClose=${close}/>`;
 
   const gone = !fresh;
-  const canEdit = !gone && fresh.kind !== 'sticker' && fresh.kind !== 'typing';
+  // 转账和提示行不给改：正文里写着金额，改了正文金额也不会跟着变，
+  // 落下来的就是两套说法。要撤销就整条删掉。
+  const NO_EDIT = new Set(['sticker', 'typing', 'transfer', 'notice']);
+  const canEdit = !gone && !NO_EDIT.has(fresh.kind);
 
   const copy = async () => {
     try {

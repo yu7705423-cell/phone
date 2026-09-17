@@ -7,6 +7,7 @@ import { StickerPanel, StickerSuggest } from './StickerPanel.js';
 import { StickerImg } from './StickerBits.js';
 import { MediaBubble } from './MediaBubble.js';
 import { MsgMenu } from './MsgMenu.js';
+import { TransferBubble, NoticeLine, TransferSheet, SettleSheet } from './TransferBits.js';
 
 const { db, nav, ai } = phone;
 
@@ -36,7 +37,7 @@ function QuoteRef({ quote, onClick }) {
 // 记忆化：流式回复时只有最后那条在变，别的几百条没必要跟着重画。
 // 下面传给它的函数属性都是稳定身份的，见 Conversation 里的 stable。
 const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, onSwipe, onHold,
-                  selecting, selected, onToggle, transOpen }) {
+                  selecting, selected, onToggle, transOpen, onSettle }) {
   const mine = msg.role === 'user';
   const avatar = useImage(mine ? phone.accounts.current()?.avatar : char?.avatar);
   const hold = useRef({ timer: null, fired: false });
@@ -71,6 +72,11 @@ const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, onSwipe,
     if (hold.current.fired) { hold.current.fired = false; e.preventDefault(); e.stopPropagation(); }
   };
 
+  // 提示行不是谁说的话，不给头像也不给气泡，居中一行就够
+  if (msg.kind === 'notice') {
+    return html`<div id=${`msg-${msg.id}`}><${NoticeLine} msg=${msg}/></div>`;
+  }
+
   return html`
     <div id=${`msg-${msg.id}`}
       class=${`msg no-callout${mine ? ' is-mine' : ''}${selecting && !frozen ? ' is-picking' : ''}${selected ? ' is-picked' : ''}`}
@@ -87,7 +93,9 @@ const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, onSwipe,
       <div class="msg-col">
         <${QuoteRef} quote=${quote} onClick=${() => jumpTo(quote.id)}/>
 
-        ${msg.kind === 'sticker'
+        ${msg.kind === 'transfer'
+          ? html`<${TransferBubble} msg=${msg} onSettle=${selecting ? null : onSettle}/>`
+          : msg.kind === 'sticker'
           ? html`<div class="bubble-sticker">
               ${sticker ? html`<${StickerImg} sticker=${sticker} size=${112}/>`
                 : html`<span class="stk-gone">
@@ -139,6 +147,8 @@ export function Conversation({ chatId, focusId = '' }) {
   const [picked, setPicked] = useState(null);    // null=不在多选；数组=已选的 id
   const [quoting, setQuoting] = useState(null);  // 这条要被引用
   const [recSec, setRecSec] = useState(-1);      // -1 = 没在录音
+  const [paying, setPaying] = useState(false);   // 转账面板开着
+  const [settling, setSettling] = useState(null);// 正在处理的那一笔
   // 只画最近这么多条。聊了两万条的会话一次性铺出来要一两秒，手机上十几秒，
   // 而且往上翻从来也不会翻到那么远。不够就按「查看更早的消息」再要一段。
   const [shown, setShown] = useState(PAGE);
@@ -155,6 +165,7 @@ export function Conversation({ chatId, focusId = '' }) {
     onRetry: m => latest.current.onRetry(m),
     onSwipe: (m, d) => latest.current.onSwipe(m, d),
     onToggle: m => latest.current.togglePick(m),
+    onSettle: m => latest.current.onSettle(m),
     noop: () => {},
   }), []);
   const pickedSet = useMemo(() => new Set(picked || []), [picked]);
@@ -358,21 +369,26 @@ export function Conversation({ chatId, focusId = '' }) {
   };
 
   // 配了接口就走接口；没配就用浏览器自带的识别做保底 —— 它边说边转，
-  // 不花接口的钱，代价是只有文字没有语气。两个都没有才真发不了。
+  // 不花接口的钱，代价是只有文字没有语气。
+  //
+  // 录不了或者识别不了，直接落到「自己打一段」那条路上：对角色来说
+  // 收到的都是一条语音，没有区别，没必要为此在面板上多摆一个入口，
+  // 更没必要在这里报一个错然后什么也发不出去。
   const startRec = async () => {
-    if (!ai.asr.canSendVoice()) {
-      toast('这个浏览器不支持语音识别，请在「设置 - 语音识别」中配置接口', 'error', 5000);
-      return;
-    }
     setPanel(null);
+    if (!ai.asr.canSendVoice()) { typeVoice(); return; }
     try {
       recRef.current = await phone.audio.record();
       localRef.current = ai.asr.isAsrReady() ? null : phone.audio.listenLocally();
       setRecSec(0);
     } catch (err) {
-      toast('无法录音：' + (err.message || err), 'error', 5000);
+      toast('无法录音，改为输入文字', 'plain');
+      typeVoice();
     }
   };
+
+  // 录音条上的「改为输入」。录着录着说不出口，撤掉这一次，改成自己打。
+  const writeInstead = () => { cancelRec(); typeVoice(); };
 
   const cancelRec = () => {
     recRef.current?.cancel();
@@ -425,7 +441,10 @@ export function Conversation({ chatId, focusId = '' }) {
   // 不想开口的时候，自己打一段字发成语音。角色那边看到的和真录一段没有区别。
   const typeVoice = async () => {
     setPanel(null);
-    const text = await prompt({ title: '写成语音发出去', multiline: true, okText: '发送' });
+    const text = await prompt({
+      title: '输入语音内容', multiline: true, okText: '发送',
+      message: '将作为一条语音发出，角色收到的内容与录音一致。',
+    });
     const t = String(text || '').trim();
     if (!t) return;
     const q = draftQuote();
@@ -494,8 +513,8 @@ export function Conversation({ chatId, focusId = '' }) {
   const togglePick = msg => setPicked(cur =>
     cur.includes(msg.id) ? cur.filter(x => x !== msg.id) : [...cur, msg.id]);
 
-  // 上面那三个每次渲染都是新函数，兜进 ref 里，对外的 stable 不变
-  latest.current = { onRetry, onSwipe, togglePick };
+  // 上面那几个每次渲染都是新函数，兜进 ref 里，对外的 stable 不变
+  latest.current = { onRetry, onSwipe, togglePick, onSettle: setSettling };
 
   const deletePicked = async () => {
     if (!picked.length) return;
@@ -534,8 +553,7 @@ export function Conversation({ chatId, focusId = '' }) {
   const MENU_ITEMS = [
     { id: 'photo', icon: 'image', label: '图片', onTap: () => imgRef.current?.click() },
     { id: 'voice', icon: 'headphone', label: '语音', onTap: startRec },
-    { id: 'voice-text', icon: 'edit', label: '写成语音', onTap: typeVoice },
-    { id: 'redpack', icon: 'wallet', label: '红包' },
+    { id: 'transfer', icon: 'wallet', label: '转账', onTap: () => setPaying(true) },
     { id: 'call', icon: 'phone', label: '通话' },
     { id: 'gift', icon: 'gift', label: '礼物' },
     { id: 'location', icon: 'map', label: '位置' },
@@ -564,7 +582,8 @@ export function Conversation({ chatId, focusId = '' }) {
             <${Bubble} key=${m.id} msg=${m} char=${char} chat=${chat}
               onRetry=${stable.onRetry} onSwipe=${stable.onSwipe} onHold=${setHeld}
               selecting=${selecting} selected=${selecting && pickedSet.has(m.id)}
-              onToggle=${stable.onToggle} transOpen=${settings.translateOpen}/>`)}
+              onToggle=${stable.onToggle} transOpen=${settings.translateOpen}
+              onSettle=${stable.onSettle}/>`)}
           ${!msgs.length && !char.firstMessage ? html`
             <div class="conv-hint">发送第一条消息开始对话</div>` : null}
         </div>
@@ -575,6 +594,7 @@ export function Conversation({ chatId, focusId = '' }) {
             <span class="rec-live">
               <span class="rec-dot"></span>
               ${`${String(Math.floor(recSec / 60)).padStart(2, '0')}:${String(recSec % 60).padStart(2, '0')}`}
+              <button class="rec-write press" onClick=${writeInstead}>改为输入</button>
             </span>
             <button class="nav-text press" onClick=${sendRec}>发送</button>
           </div>`
@@ -639,6 +659,9 @@ export function Conversation({ chatId, focusId = '' }) {
 
       <input type="file" accept="image/*" ref=${imgRef}
         onChange=${sendImage} style="display:none"/>
+
+      <${TransferSheet} open=${paying} chatId=${chatId} onClose=${() => setPaying(false)}/>
+      <${SettleSheet} msg=${settling} onClose=${() => setSettling(null)}/>
 
       <${MsgMenu} msg=${held} char=${char} onClose=${() => setHeld(null)}
         onRegenerate=${canRegen ? () => regenerate(held.turnId) : null}

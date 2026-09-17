@@ -114,7 +114,7 @@ function describe(parts) {
 
 // 这条消息用得上的修法，附带改完长什么样
 export function fixesFor(msg) {
-  if (!msg || msg.kind === 'sticker' || msg.kind === 'typing') return [];
+  if (!msg || ['sticker', 'typing', 'transfer', 'notice'].includes(msg.kind)) return [];
   const out = [];
   let t = textOf(msg);
 

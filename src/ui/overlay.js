@@ -127,7 +127,7 @@ export function confirm({ title, message, okText = '确定', cancelText = '取�
   });
 }
 
-export function prompt({ title, value = '', placeholder = '', multiline, okText = '保存' }) {
+export function prompt({ title, message = '', value = '', placeholder = '', multiline, okText = '保存' }) {
   return new Promise(resolve => {
     const box = document.createElement('div');
     document.body.appendChild(box);
@@ -140,6 +140,7 @@ export function prompt({ title, value = '', placeholder = '', multiline, okText 
       <div class="overlay overlay-center" onClick=${() => done(null)}>
         <div class="modal" onClick=${e => e.stopPropagation()}>
           <div class="modal-title">${title}</div>
+          ${message ? html`<div class="modal-message">${message}</div>` : null}
           <div class="modal-body">
             ${multiline
               ? html`<textarea rows="5" placeholder=${placeholder} onInput=${onInput}>${value}</textarea>`

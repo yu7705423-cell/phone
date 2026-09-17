@@ -12,6 +12,7 @@ const LABELS = {
   'skeleton.quote': '骨架 · 引用某一句',
   'skeleton.time': '骨架 · 先写出时间',
   'skeleton.translate': '骨架 · 顺带给出译文',
+  'skeleton.transfer': '骨架 · 转账',
   'skeleton.group': '骨架 · 群聊说明',
   'task.memory-extract': '任务 · 提取记忆',
   'task.memory-import': '任务 · 从文本导入记忆',

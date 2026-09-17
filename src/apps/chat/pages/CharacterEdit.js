@@ -66,6 +66,10 @@ export function CharacterEdit({ id }) {
             : '尚无表情包。在会话菜单的「表情包」中导入后生效'}
           right=${html`<${Switch} checked=${char.canSendSticker !== false}
             onChange=${v => patch({ canSendSticker: v })}/>`}/>
+        <${ListItem} title="转账" multiline
+          subtitle="角色可以转账给你，也可以收下或退回你转过去的款项。关闭后角色不再转账，你转过去的款项也将无人处理"
+          right=${html`<${Switch} checked=${char.canTransfer !== false}
+            onChange=${v => patch({ canTransfer: v })}/>`}/>
       <//>
 
       ${clock.enabled() ? html`

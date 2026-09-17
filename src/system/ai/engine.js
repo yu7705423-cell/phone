@@ -176,6 +176,11 @@ export function buildChatSystem(chat, char, msgs, opts = {}) {
 
   // 引用是双向的：你能引他的，他也能引你的或者自己早先说过的
   if (msgs.length >= 2) out += '\n\n' + template('skeleton.quote');
+
+  // 转账。开关在角色卡上（第 5 条：属于这个角色的事放在这个角色身上）。
+  // 不按「聊过才讲」来收 token —— 那样角色永远迈不出第一步，
+  // 只能等用户先转一笔，等于这个能力对它是单向的。
+  if (char.canTransfer !== false) out += '\n\n' + template('skeleton.transfer');
   // 让它自己把当地时间写出来。这一行显示时会被过滤掉，见 ai/reply.js
   if (clock.stampOn()) out += '\n\n' + template('skeleton.time');
 
