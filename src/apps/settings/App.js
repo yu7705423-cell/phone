@@ -29,7 +29,7 @@ function Home() {
   const vision = svc.visionConfig();
   const visionMode = svc.visionMode();
   const visionDesc = visionMode === 'chat'
-    ? '交给聊天模型 · 不额外调接口'
+    ? '交给聊天模型 · 只传当轮的图，看过即存为描述'
     : visionMode === 'api'
       ? (svc.visionReady() ? `单独的接口 · ${vision.model}` : '选了单独的接口，但还没填全')
       : '关闭。角色看不到你发的图片，只知道你发了一张图';

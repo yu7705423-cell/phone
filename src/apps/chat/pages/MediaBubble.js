@@ -25,7 +25,7 @@ function ImageBubble({ msg }) {
   }
   if (!url) return html`<div class="bubble media-pending"><${Spinner} size=${16}/></div>`;
 
-  // chat 档不用提示：图片会跟着下一次请求直接发给聊天模型
+  // chat 档不用提示：图片会跟着当前这一轮的请求直接发给聊天模型
   const note = !mine ? ''
     : msg.vision === 'pending' ? '正在识别'
     : msg.vision === 'off' ? '识图未开启，角色看不到这张图'

@@ -62,7 +62,9 @@ export const DEFAULT_SETTINGS = {
   timeFrozen: false,              // 停在那一刻不往下走
   timeZoneUser: 'local',          // 我在哪个时区。角色的在各自角色卡上
 
-  historyLimit: 20,
+  historyMode: 'count',           // count 按条数 | turn 按轮次
+  historyLimit: 20,               // 按条数时取最近多少条
+  historyTurns: 10,               // 按轮次时取最近多少轮。一轮 = 用户发言 + 角色回复
   scanWindow: 6,                  // 世界书与 B 级记忆的扫描窗口(条)
   contextBudget: 6000,            // 注入内容的 token 预算(粗估)
 

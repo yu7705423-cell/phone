@@ -1,6 +1,6 @@
 import { html, useState } from '../../../lib.js';
 import { phone, useStore } from '../../../sdk/index.js';
-import { Page, List, ListItem, Field, Input, Switch, Icon, toast } from '../../../ui/index.js';
+import { Page, List, ListItem, Field, Input, Switch, Segmented, Icon, toast } from '../../../ui/index.js';
 
 const { db, nav, ai } = phone;
 
@@ -21,8 +21,14 @@ function OrderRow({ id, idx, total, onMove }) {
     </div>`;
 }
 
+const HISTORY_MODES = [
+  { value: 'count', label: '按条数' },
+  { value: 'turn', label: '按轮次' },
+];
+
 export function ContextPage() {
   const s = useStore(db.settings.store);
+  const byTurn = s.historyMode === 'turn';
   useStore(db.memories.store);
   const vecReady = ai.services.embedReady();
   const total = db.memories.count();
@@ -97,12 +103,22 @@ export function ContextPage() {
             ? '已关闭。角色不知道当前日期与时间'
             : `当前时间、双方时差、对话间隔${s.timeMode === 'virtual' ? ' · 使用自定义时间' : ''}`}
           onClick=${() => nav.push('/time')}/>
-        <${ListItem} title="历史轮次" subtitle="进入 prompt 的最近消息条数"
-          right=${html`<span>${s.historyLimit}</span>`}/>
+        <${ListItem} title="历史范围" multiline
+          subtitle=${byTurn
+            ? '按轮次截取。一轮为用户的连续发言与角色随后的连续回复，整轮进入或整轮不进入。'
+            : '按条数截取。可能只取到一轮的后半段，角色看不到你这一轮开头说了什么。'}
+          right=${html`<span>${byTurn ? `${s.historyTurns} 轮` : `${s.historyLimit} 条`}</span>`}/>
       <//>
       <div class="pad-x">
-        <input type="range" min="4" max="60" step="2" value=${s.historyLimit}
-          onInput=${e => db.settings.set({ historyLimit: parseInt(e.target.value, 10) })}/>
+        <${Segmented} value=${byTurn ? 'turn' : 'count'} items=${HISTORY_MODES}
+          onChange=${v => db.settings.set({ historyMode: v })}/>
+      </div>
+      <div class="pad-x">
+        ${byTurn
+          ? html`<input type="range" min="1" max="40" step="1" value=${s.historyTurns}
+              onInput=${e => db.settings.set({ historyTurns: parseInt(e.target.value, 10) })}/>`
+          : html`<input type="range" min="4" max="60" step="2" value=${s.historyLimit}
+              onInput=${e => db.settings.set({ historyLimit: parseInt(e.target.value, 10) })}/>`}
       </div>
 
       <${List}>

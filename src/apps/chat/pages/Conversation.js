@@ -266,7 +266,8 @@ export function Conversation({ chatId }) {
     try {
       const imageId = await db.images.put(file);
       setQuoting(null);
-      // chat 档不调任何额外接口，图片跟着下一次请求直接发给聊天模型
+      // chat 档这里不调接口，图片跟着当前这一轮的请求直接给聊天模型看，
+      // 看完之后由 engine 写回一段描述（engine.js 的 describeCarried）
       const mode = ai.services.visionMode();
       const usable = mode === 'api' && ai.vision.isVisionReady();
       const msg = db.messages.create({

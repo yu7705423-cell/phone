@@ -207,17 +207,39 @@ function timeLine(m, prev) {
   return `[${clock.format(clock.toWorld(m.createdAt), clock.userZone())}] `;
 }
 
+// ---- 轮次 ----
+// 一轮 = 用户连着发的那几条，加上角色接着回的那几条。
+// 用户重新开口的地方就是一轮的起点。
+
+// 当前这一轮里用户已经发出、角色还没回的那几条。
+// 最后一条是角色发的就说明上一轮已经收口了，当前轮为空。
+export function currentTurn(msgs) {
+  let i = msgs.length;
+  while (i > 0 && msgs[i - 1].role === 'user') i--;
+  return msgs.slice(i);
+}
+
+// 从尾往前数 n 个起点，取这 n 轮。不足 n 轮就全给。
+export function takeTurns(msgs, n) {
+  const limit = Math.max(1, Math.round(n) || 1);
+  let seen = 0;
+  for (let i = msgs.length - 1; i >= 0; i--) {
+    const start = msgs[i].role === 'user' && (i === 0 || msgs[i - 1].role !== 'user');
+    if (start && ++seen >= limit) return msgs.slice(i);
+  }
+  return msgs.slice();
+}
+
 // 「交给聊天模型」这一档要把图片原样塞进请求里。取图是异步的，
 // buildHistory 是同步的，所以在这儿先把用得上的那几张读成 dataURL。
 //
-// 只取最近几张：一张压缩过的图也有几十上百 KB，全带上既慢又贵，
-// 而且再往前的图对当前这轮基本没影响了。
-const IMAGE_CARRY = 3;
+// **只带当前这一轮发的图**。图片一旦被模型看过，就在 describeCarried 里
+// 写回一句描述，往后几轮只带这句话。一张压缩过的图也有几十上百 KB，
+// 每轮都重传一遍，越聊越慢也越聊越贵，而且模型看到的还是同一张。
 export async function imagesFor(msgs) {
   if (visionMode() !== 'chat') return null;
-  const wanted = msgs
-    .filter(m => m.kind === 'image' && m.role === 'user' && m.imageId)
-    .slice(-IMAGE_CARRY);
+  const wanted = currentTurn(msgs)
+    .filter(m => m.kind === 'image' && m.role === 'user' && m.imageId && m.vision !== 'done');
   if (!wanted.length) return null;
 
   const out = new Map();
@@ -237,13 +259,14 @@ export async function imagesFor(msgs) {
 export function buildHistory(chat, char, msgs, opts = {}) {
   const s = settings.get();
   const isGroup = (chat.characterIds || []).length > 1;
-  const kept = takeLatestWithin(
-    msgs.slice(-Math.max(2, s.historyLimit * 2)),
-    s.contextBudget,
-    m => m.content || '');
+  const byTurn = s.historyMode === 'turn';
+  const scope = byTurn
+    ? takeTurns(msgs, s.historyTurns)
+    : msgs.slice(-Math.max(2, s.historyLimit * 2));
+  const kept = takeLatestWithin(scope, s.contextBudget, m => m.content || '');
 
   const pics = opts.images || null;
-  const view = kept.slice(-s.historyLimit);
+  const view = byTurn ? kept : kept.slice(-s.historyLimit);
   return view.map((m, i) => {
     const mine = m.role === 'char' && m.authorId === char.id;
     const text = timeLine(m, view[i - 1]) + withQuote(m);
@@ -273,12 +296,40 @@ export function streamReply({ chat, char, onDelta }) {
   const msgs = messagesOf(chat.id).filter(m => m.status !== 'error');
 
   return enqueue(replyKey(chat.id, char.id), async signal => {
-    const history = buildHistory(chat, char, msgs, { images: await imagesFor(msgs) });
+    const pics = await imagesFor(msgs);
+    const history = buildHistory(chat, char, msgs, { images: pics });
     const queryVec = await queryVecFor(msgs);
     const { system } = buildChatSystem(chat, char, msgs, { queryVec });
-    return withFallback(c => getProvider(c.provider)
+    const text = await withFallback(c => getProvider(c.provider)
       .stream(c, { system, messages: history, maxTokens: c.maxTokens, signal, onDelta }));
+    // 不 await：描述是给以后几轮用的，这一轮模型已经看过原图了，
+    // 让它拖住回复的返回没有意义。
+    if (pics) describeCarried(pics);
+    return text;
   }, { replace: true, retries: 1 });
+}
+
+// 图给模型看过之后，再让同一个模型用一句话把它描述下来写回消息。
+// 从下一轮起这条消息就是纯文字，不必再传图。
+// 这一档本来就是「聊天模型自己能看图」，所以描述也用聊天模型，不需要另配接口。
+async function describeCarried(pics) {
+  for (const [msgId, pic] of pics) {
+    try {
+      const text = (await runTextTask('chat.vision-describe', {
+        system: template('task.vision-describe'),
+        user: '请描述这张图片。',
+        image: pic,
+        key: `vision-carry:${msgId}`,
+        maxTokens: 500,
+      }) || '').trim();
+      if (!text) throw new Error('模型没有返回描述');
+      messages.update(msgId, { imageDesc: text, vision: 'done', content: `[图片：${text}]` });
+    } catch (err) {
+      if (isAbort(err)) return;
+      console.warn('[vision] 这张图没能写成描述:', err.message || err);
+      messages.update(msgId, { vision: 'error', visionError: String(err.message || err) });
+    }
+  }
 }
 
 // 结构化任务:非流式 + 稳健 JSON 解析
@@ -300,13 +351,14 @@ export async function runJSONTask(taskId, { system, user, key, maxTokens = 1400 
   return parsed;
 }
 
-export async function runTextTask(taskId, { system, user, key, maxTokens = 900 }) {
+// image 是 { dataUrl, mediaType }，各 provider 自己转成内容块。
+export async function runTextTask(taskId, { system, user, key, image, maxTokens = 900 }) {
   const run = runnerFor(taskId);
+  const msg = { role: 'user', content: user || '请按要求输出。' };
+  if (image) msg.image = image;
   return enqueue(key || `task:${taskId}:${Date.now()}`, signal =>
     run(c => getProvider(c.provider).complete(c, {
-      system,
-      messages: [{ role: 'user', content: user || '请按要求输出。' }],
-      maxTokens, signal,
+      system, messages: [msg], maxTokens, signal,
     })), { retries: 1 });
 }
 
