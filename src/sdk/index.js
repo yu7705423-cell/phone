@@ -20,6 +20,7 @@ import * as memvecApi from '../system/ai/memvec.js';
 import * as loreCtx from '../system/ai/context/lorebook.js';
 import { extract, shouldAutoExtract, pendingOf } from '../system/ai/tasks/memory-extract.js';
 import * as memImport from '../system/ai/tasks/memory-import.js';
+import * as charAltApi from '../system/ai/tasks/char-alt.js';
 import * as momentTasks from '../system/ai/tasks/moments.js';
 import { DEFAULT_TEMPLATES } from '../system/ai/templates.js';
 import * as svc from '../system/ai/services.js';
@@ -86,6 +87,7 @@ export const phone = {
     image,
     reply: replyApi,
     proactive: proactiveApi,
+    charAlt: charAltApi,
     runWithPreset: engine.runWithPreset,
 
     queue: {

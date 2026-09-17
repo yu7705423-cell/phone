@@ -4,6 +4,7 @@ import { Page, List, ListItem, Field, Input, Button, Switch, Segmented,
          Icon, toast } from '../../../ui/index.js';
 
 const { db, nav, ai } = phone;
+const alt = ai.charAlt;
 
 const PACE = [
   { value: 15,   label: '很勤' },
@@ -36,6 +37,9 @@ export function ProactivePage({ charId }) {
 
   const char = db.characters.get(charId);
   const cfg = ai.proactive.configOf(char);
+  const acfg = alt.configOf(char);
+  const alts = alt.altsOf(charId);
+  const blocked = alt.blockedBy(charId);
 
   const set = patch => {
     db.characters.update(charId, patch);
@@ -107,6 +111,28 @@ export function ProactivePage({ charId }) {
           <${ListItem} title="下一条" subtitle=${fmtWhen(ai.proactive.nextAt(charId), cfg)}
             left=${html`<${Icon} name="clock" size=${18}/>`}/>
         <//>
+
+        ${char.parentId ? null : html`
+          <${List} title="小号">
+            <${ListItem} title="允许她自己开小号" multiline
+              subtitle=${acfg.charAlt
+                ? (blocked || `轮到她主动时，有 ${Math.round(acfg.charAltChance * 100)}% 的可能她开的不是口，而是一个新号来加你`)
+                : '她会换个名字来加你，你不知道那是她。开号的理由和人设都是她自己想的'}
+              right=${html`<${Switch} checked=${acfg.charAlt}
+                onChange=${v => db.characters.update(charId, { charAlt: v })}/>`}/>
+            ${alts.length ? html`
+              <${ListItem} title=${`已经开了 ${alts.length} 个`} multiline
+                subtitle=${alts.map(a => a.name).join('、')}
+                left=${html`<${Icon} name="users" size=${18}/>`}/>` : null}
+          <//>
+          ${acfg.charAlt ? html`
+            <div class="pad-x">
+              <${Field} label=${`开号的可能性 ${Math.round(acfg.charAltChance * 100)}%`}
+                desc="每次轮到她主动开口时掷一次。调高就容易冒出马甲，调低更像偶尔一念">
+                <input type="range" min="0.02" max="0.5" step="0.02" value=${acfg.charAltChance}
+                  onInput=${e => db.characters.update(charId, { charAltChance: parseFloat(e.target.value) })}/>
+              <//>
+            </div>` : null}`}
 
         <div class="pad">
           <${Button} full variant="ghost" disabled=${busy || !ai.isConfigured()}

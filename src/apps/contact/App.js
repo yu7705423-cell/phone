@@ -140,13 +140,6 @@ function MePage({ id }) {
   const alts = me.parentId ? [] : accounts.altsOf(me.id);
   const isCurrent = accounts.currentId() === me.id;
 
-  const addAlt = async () => {
-    const name = await prompt({ title: '开个小号', placeholder: `${me.name}的小号` });
-    if (name === null) return;
-    const a = accounts.createAlt(me.id, { name: (name || '').trim() || `${me.name}的小号` });
-    nav.push(`/me/${a.id}`);
-  };
-
   const del = async () => {
     if (accounts.roots().length <= 1 && !me.parentId) {
       toast('这是唯一的账号，删不了'); return;
@@ -273,20 +266,20 @@ function CharPage({ id }) {
 
       ${char.parentId ? html`
         <div class="settings-foot">
-          这是「${db.characters.get(char.parentId)?.name || '某个角色'}」的小号。<br/>
+          这是「${db.characters.get(char.parentId)?.name || '某个角色'}」自己开的小号。<br/>
+          ${char.altReason ? html`她给自己的理由：${char.altReason}<br/>` : null}
           它和本体是两个身份，各自和你单独聊，记忆也分开。
         </div>`
       : html`
         <${List} title=${`她的小号 · ${db.characters.where(x => x.parentId === id).length}`}>
           ${db.characters.where(x => x.parentId === id).map(a => html`
             <${ListItem} key=${a.id} title=${a.name} arrow multiline
-              subtitle=${a.persona ? String(a.persona).slice(0, 34) : '还没写人设'}
+              subtitle=${a.altReason || (a.persona ? String(a.persona).slice(0, 34) : '还没写人设')}
               left=${html`<${Icon} name="user" size=${18}/>`}
               onClick=${() => nav.push(`/char/${a.id}`)}/>`)}
-          <${ListItem} title="给她开一个小号" arrow multiline
-            subtitle="同一个人的另一个身份，和本体各聊各的，记忆分开"
-            left=${html`<${Icon} name="plus" size=${18}/>`}
-            onClick=${addAlt}/>
+          ${db.characters.where(x => x.parentId === id).length ? null : html`
+            <${ListItem} title="还没有" multiline
+              subtitle="小号是她自己开的，你开不了。在会话的「主动找我」里把开关打开，聊得够久她可能会动这个念头"/>`}
         <//>`}
 
       <div class="settings-foot">

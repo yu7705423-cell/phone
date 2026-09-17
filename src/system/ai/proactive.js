@@ -67,6 +67,11 @@ function quietEndsAt(cfg, d = new Date()) {
   return end.getTime();
 }
 
+// 指定多久之后发。角色刚开的小号用它安排第一条搭话
+export function scheduleIn(charId, ms) {
+  setNext(charId, Date.now() + Math.max(1000, ms));
+}
+
 // 改了设置之后重新掷一次，不用等旧的落点
 export function reschedule(charId) {
   const cfg = configOf(characters.get(charId));
@@ -137,6 +142,13 @@ export async function sendProactive(chatId, charId) {
 let timer = null;
 const running = new Set();
 
+// char-alt 那边要用本文件的 scheduleIn，所以这里只在运行时去问它，
+// 避免两个模块静态互相 import 成环。
+let altMod = null;
+import('./tasks/char-alt.js').then(m => { altMod = m; }).catch(() => {});
+const altReady = id => !!altMod && altMod.eligible(id);
+const altRolls = id => !!altMod && altMod.rolls(id);
+
 export async function tick() {
   if (!isConfigured()) return;
   const now = Date.now();
@@ -156,6 +168,19 @@ export async function tick() {
 
     const chat = chatFor(char.id);
     setNext(char.id, now + rollDelay(cfg.proactiveMinutes));
+
+    // 轮到她主动时，有一定概率她开的不是口，而是一个新号。
+    // 动态 import：char-alt 反过来要用这里的 scheduleIn，静态引会成环。
+    if (altReady(char.id) && altRolls(char.id)) {
+      running.add(char.id);
+      import('./tasks/char-alt.js')
+        .then(m => m.openAlt(char.id))
+        .then(({ alt }) => console.info('[proactive] 她开了个小号:', alt.name))
+        .catch(err => console.warn('[proactive] 开小号失败:', err.message || err))
+        .finally(() => running.delete(char.id));
+      continue;
+    }
+
     if (!chat) continue;
 
     running.add(char.id);
