@@ -59,6 +59,11 @@ export function ContextPage() {
           right=${html`<${Switch} checked=${s.styleProtocol !== false}
             onChange=${v => db.settings.set({ styleProtocol: v })}/>`}/>
       <//>
+      <div class="settings-foot">
+        分工：「回复风格收尾」管消息怎么分条，本协议管句子怎么写。
+        关闭后，句式、情绪与信息取舍方面的约束不再注入，收尾那段仍然生效。
+        两段都可以在「Prompt 模板」中分别改写。
+      </div>
 
       <${List} title="上下文">
         <${ListItem} title="时间感知" arrow multiline
