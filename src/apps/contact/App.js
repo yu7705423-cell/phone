@@ -1,5 +1,9 @@
 import { html, useRef, useState } from '../../lib.js';
 import { phone, useStore, useImage } from '../../sdk/index.js';
+import { ProfilePage } from './ProfilePage.js';
+import { NetPage } from './NetPage.js';
+import { NpcPage } from './NpcPage.js';
+import { ImportPage } from './ImportPage.js';
 import { Page, List, ListItem, Field, Input, Textarea, Avatar, Button,
          Icon, IconButton, Sheet, EmptyState, toast, confirm, prompt } from '../../ui/index.js';
 
@@ -30,6 +34,24 @@ function AvatarPicker({ src, name, onPick }) {
     </div>`;
 }
 
+// 像卡片墙一样铺开，不是一行一行的列表
+function Card({ char, onClick }) {
+  const url = useImage(char.avatar);
+  const alts = db.characters.where(x => x.parentId === char.id).length;
+  const bits = [char.age && `${char.age}`, char.gender].filter(Boolean).join(' · ');
+  return html`
+    <button class="ct-card press" onClick=${onClick}>
+      <div class=${`ct-cover${url ? ' has-image' : ''}`}
+        style=${url ? `background-image:url(${url})` : ''}>
+        ${url ? null : html`<span class="ct-initial">${(char.name || '?').slice(0, 1)}</span>`}
+        ${alts ? html`<span class="ct-badge">${alts} 个小号</span>` : null}
+        ${char.isNpc ? html`<span class="ct-badge ct-badge-npc">NPC</span>` : null}
+      </div>
+      <div class="ct-name ellipsis">${char.name || '未命名'}</div>
+      <div class="ct-sign ellipsis">${char.signature || bits || '还没写签名'}</div>
+    </button>`;
+}
+
 function Row({ subject, isMe, onClick, right, tag }) {
   const url = useImage(subject.avatar);
   const text = isMe ? subject.description : subject.persona;
@@ -58,7 +80,7 @@ function Home() {
       name: '新角色', persona: '', signature: '',
       lorebookIds: [], canSendVoice: true, canSendImage: true, parentId: null,
     });
-    nav.push(`/char/${c.id}`);
+    nav.push(`/edit/${c.id}`);
   };
 
   const newAccount = async () => {
@@ -74,7 +96,10 @@ function Home() {
 
   return html`
     <${Page} title="联系"
-      right=${html`<button class="nav-text press" onClick=${addChar}>新建</button>`}>
+      right=${html`
+        <${IconButton} name="upload" label="导入角色卡"
+          onClick=${() => nav.push('/import')}/>
+        <${IconButton} name="plus" label="新建角色" onClick=${addChar}/>`}>
       <${List} title="当前账号">
         ${me ? html`
           <${Row} subject=${me} isMe tag=${me.parentId ? '小号' : null}
@@ -86,15 +111,13 @@ function Home() {
       <//>
 
       ${chars.length ? html`
-        <${List} title=${`角色 · ${chars.length}`}>
-          ${chars.map(c => html`
-            <${Row} key=${c.id} subject=${c}
-              tag=${db.characters.where(x => x.parentId === c.id).length
-                ? `${db.characters.where(x => x.parentId === c.id).length} 个小号` : null}
-              onClick=${() => nav.push(`/char/${c.id}`)}/>`)}
-        <//>`
+        <div class="ct-sec">角色 · ${chars.length}</div>
+        <div class="ct-grid">
+          ${chars.map(c => html`<${Card} key=${c.id} char=${c}
+            onClick=${() => nav.push(`/char/${c.id}`)}/>`)}
+        </div>`
       : html`<${EmptyState} icon="users" title="还没有角色"
-          desc="在这里建一个，写好人设之后去「聊天」里开始对话。"
+          desc="新建一个，或者把写好的 txt / docx 资料导进来。"
           action=${html`<${Button} size="sm" icon="plus" onClick=${addChar}>新建角色<//>`}/>`}
 
       <div class="settings-foot">
@@ -202,7 +225,7 @@ function MePage({ id }) {
     <//>`;
 }
 
-function CharPage({ id }) {
+function EditPage({ id }) {
   useStore(db.characters.store);
   const char = db.characters.get(id);
   if (!char) {
@@ -219,7 +242,7 @@ function CharPage({ id }) {
       parentId: id, persona: '', signature: '',
       lorebookIds: [], canSendVoice: true, canSendImage: true,
     });
-    nav.push(`/char/${a.id}`);
+    nav.push(`/profile/${a.id}`);
   };
 
   const del = async () => {
@@ -232,9 +255,7 @@ function CharPage({ id }) {
   };
 
   return html`
-    <${Page} title=${char.name || '角色'} onBack=${nav.pop}
-      right=${html`<${IconButton} name="message" label="去聊天"
-        onClick=${() => phone.intent.open('chat', { route: '/' })}/>`}>
+    <${Page} title="编辑资料" onBack=${nav.pop}>
       <div class="pad">
         <${AvatarPicker} src=${char.avatar} name=${char.name}
           onPick=${(imgId, old) => { patch({ avatar: imgId }); if (old) images.remove(old); }}/>
@@ -242,8 +263,19 @@ function CharPage({ id }) {
         <${Field} label="名字">
           <${Input} value=${char.name} onInput=${v => patch({ name: v })}/>
         <//>
-        <${Field} label="个性签名" desc="显示在主页和联系人列表">
+        <${Field} label="个性签名" desc="一句话，十五字以内">
           <${Input} value=${char.signature || ''} onInput=${v => patch({ signature: v })}/>
+        <//>
+        <div class="quiet-row">
+          <${Field} label="年龄">
+            <${Input} value=${char.age || ''} onInput=${v => patch({ age: v })}/>
+          <//>
+          <${Field} label="性别">
+            <${Input} value=${char.gender || ''} onInput=${v => patch({ gender: v })}/>
+          <//>
+        </div>
+        <${Field} label="生日" desc="写成 3月14日 或 1999-03-14 都行">
+          <${Input} value=${char.birthday || ''} onInput=${v => patch({ birthday: v })}/>
         <//>
         <${Field} label="人设" desc="进入 prompt 的主体。写这个人是谁、什么性格、怎么说话。">
           <${Textarea} rows=${9} value=${char.persona}
@@ -293,10 +325,18 @@ function CharPage({ id }) {
 }
 
 export default function ContactApp({ route }) {
+  if (route === '/import') return html`<${ImportPage}/>`;
   if (route === '/me') return html`<${MePage} id=${accounts.currentId()}/>`;
   const m = route?.match(/^\/me\/(.+)$/);
   if (m) return html`<${MePage} id=${m[1]}/>`;
-  const c = route?.match(/^\/char\/(.+)$/);
-  if (c) return html`<${CharPage} id=${c[1]}/>`;
+  const e = route?.match(/^\/edit\/(.+)$/);
+  if (e) return html`<${EditPage} id=${e[1]}/>`;
+  const n = route?.match(/^\/net\/(.+)$/);
+  if (n) return html`<${NetPage} id=${n[1]}/>`;
+  const p = route?.match(/^\/npc\/(.+)$/);
+  if (p) return html`<${NpcPage} id=${p[1]}/>`;
+  // /char/ 和 /profile/ 都进资料页，聊天那边的老链接不至于落空
+  const c = route?.match(/^\/(?:char|profile)\/(.+)$/);
+  if (c) return html`<${ProfilePage} id=${c[1]}/>`;
   return html`<${Home}/>`;
 }

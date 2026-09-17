@@ -11,6 +11,9 @@
 }
 .nav-left  { display: flex; justify-content: flex-start; padding-left: var(--sp-1); }
 .nav-right { display: flex; justify-content: flex-end; gap: var(--sp-1); padding-right: var(--sp-2); }
+/* 右上角放得下两个图标按钮时不要挤成两行 */
+.navbar { grid-template-columns: 56px 1fr auto; }
+.nav-right { min-width: 56px; }
 .nav-title { text-align: center; font-size: var(--fs-15); font-weight: var(--fw-semi); }
 
 /* ---- 应用内 TabBar ---- */

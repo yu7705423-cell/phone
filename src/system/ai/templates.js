@@ -51,6 +51,45 @@ export const DEFAULT_TEMPLATES = {
 ## 只输出 JSON，不要输出任何其他内容
 {"memories":[{"content":"","category":"fact","rank":"A","keywords":[],"updateId":""}]}`,
 
+  'task.card-import':
+`把下面这份资料整理成一张角色卡。
+
+## 资料原文
+{{raw}}
+
+## 规则
+- 只用资料里有的信息。**没写的就留空字符串，绝对不要自己编**
+- age 填数字或「二十二」这类写法都行，原文怎么说就怎么填；没有就留空
+- gender 原文怎么写就怎么填，没有就留空
+- birthday 尽量写成「3月14日」或「1999-03-14」；没有就留空
+- signature 是一句话的个性签名，十五字以内。资料里没有就从人设里提炼一句
+- persona 是主体：这个人是谁、什么性格、怎么说话。把资料里的设定都归拢进来
+- scenario 写你们的关系和所处场景，没有就留空
+- firstMessage 是她会发的第一条消息，没有就留空
+- exampleDialogue 放几句她的说话示例，没有就留空
+
+## 只输出 JSON，不要输出任何其他内容
+{"name":"","age":"","gender":"","birthday":"","signature":"","persona":"","scenario":"","firstMessage":"","exampleDialogue":""}`,
+
+  'task.npc-batch':
+`你是{{charName}}的设定作者。围绕她再写 {{count}} 个和她有关系的人。
+
+## 她是谁
+{{charPersona}}
+
+{{existing}}
+
+## 要求
+- 每个人都要和她有具体的关系：家人、同学、同事、前任、网友、对头都行
+- relation 写「在这个人眼里，{{charName}}是他的什么」，两到六个字，例如「女儿」「室友」「前女友」
+- reverse 写反过来：「在{{charName}}眼里，这个人是她的什么」，例如「妈妈」「室友」「前男友」
+- 不要都是好人，也不要都是坏人。关系有远有近，有热有冷
+- persona 三到五句，写清楚这个人是谁、和她之间发生过什么
+- 已经有的人不要重复造一遍
+
+## 只输出 JSON，不要输出任何其他内容
+{"npcs":[{"name":"","age":"","gender":"","birthday":"","signature":"","persona":"","relation":"","reverse":""}]}`,
+
   'task.memory-import':
 `你是一个资料整理员。下面是一段从别处复制来的资料，请把它拆成一条条独立的记忆。
 

@@ -39,6 +39,62 @@
   font-weight: var(--fw-regular);
 }
 .acc-alt { padding-left: var(--sp-5); }
+
+/* 联系：卡片墙 */
+.ct-sec {
+  padding: var(--sp-5) var(--sp-4) var(--sp-2);
+  font-size: var(--fs-12); color: var(--text-3);
+}
+.ct-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: var(--sp-3); padding: 0 var(--sp-4);
+}
+.ct-card { text-align: left; min-width: 0; }
+.ct-card:active { opacity: .72; }
+.ct-cover {
+  position: relative; width: 100%; aspect-ratio: 1;
+  border-radius: var(--r-lg); overflow: hidden;
+  background: var(--group-fill); color: var(--text-3);
+  display: flex; align-items: center; justify-content: center;
+}
+.ct-cover.has-image { background-size: cover; background-position: center; }
+.ct-initial { font-size: var(--fs-28); font-weight: var(--fw-medium); }
+.ct-badge {
+  position: absolute; left: var(--sp-2); bottom: var(--sp-2);
+  padding: 2px 7px; border-radius: var(--r-full);
+  background: var(--scrim-strong); color: var(--on-scrim); font-size: var(--fs-11);
+}
+.ct-badge-npc { left: auto; right: var(--sp-2); }
+.ct-name { margin-top: var(--sp-2); font-size: var(--fs-14); font-weight: var(--fw-semi); }
+.ct-sign { margin-top: 1px; font-size: var(--fs-12); color: var(--text-3); }
+
+/* 联系：资料页 */
+.pf-head { padding: var(--sp-6) var(--sp-4) var(--sp-4); text-align: center; }
+.pf-avatar { display: flex; justify-content: center; }
+.pf-name { margin-top: var(--sp-3); font-size: var(--fs-20); font-weight: var(--fw-semi); }
+.pf-sign { margin-top: 4px; font-size: var(--fs-13); color: var(--text-2); }
+.pf-facts {
+  display: flex; justify-content: center; gap: var(--sp-5);
+  margin-top: var(--sp-4);
+}
+.pf-fact { text-align: center; }
+.pf-fact b { display: block; font-size: var(--fs-15); font-weight: var(--fw-medium); }
+.pf-fact span { font-size: var(--fs-11); color: var(--text-3); }
+.pf-acts { display: flex; gap: var(--sp-2); padding: var(--sp-4); }
+.pf-acts > * { flex: 1; }
+.pf-body { padding: 0 var(--sp-4) var(--sp-6); }
+.pf-block { margin-bottom: var(--sp-5); }
+.pf-block h4 {
+  margin: 0 0 var(--sp-2); font-size: var(--fs-12);
+  color: var(--text-3); font-weight: var(--fw-regular);
+}
+.pf-block p { margin: 0; font-size: var(--fs-14); line-height: 1.7; white-space: pre-wrap; }
+
+/* 关系网 */
+.net-wrap { padding: var(--sp-4); }
+.net-svg { width: 100%; height: auto; display: block; }
+.net-node-label { font-size: 11px; fill: var(--text); }
+.net-edge-label { font-size: 9px; fill: var(--text-3); }
 .font-sample {
   font-size: var(--fs-17); color: var(--text); margin-top: 4px;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
