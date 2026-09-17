@@ -4,6 +4,7 @@ import { registerWidget } from '../../system/registry.js';
 import { chats, moments, memories, characters, lastMessageOf, persona } from '../../system/db/index.js';
 import { openApp } from '../../system/nav.js';
 import { useImage } from '../../system/db/useImage.js';
+import { useFile } from '../../system/db/useFile.js';
 
 function relTime(ts) {
   if (!ts) return '';
@@ -174,4 +175,131 @@ registerWidget({
         <div class="wg-row-sub">${now.getMonth() + 1}月${now.getDate()}日 星期${'日一二三四五六'[now.getDay()]}</div>
       </div>`;
   },
+});
+
+
+// ---- Love：头像 + 一行字 + 整月日历 ----
+//
+// 默认黑白，颜色全部走 currentColor，配色只有 --love-ink 一个口子，
+// 用户改颜色时以内联样式塞进去（cell.config.color）。
+//
+// 日历撑满剩下的高度，天数格子用 1fr 平分，并且**固定画六行** ——
+// 原稿是定高 420 加固定间距，赶上跨六周的月份最后一行就被切掉；
+// 按剩余空间分行既不会切，也不会因为这个月只有五行就忽然变高。
+export const LOVE_DEFAULT = {
+  cover: null,
+  word: 'Love',
+  color: '',          // 空 = 跟随主题的前景色
+  serif: true,
+  lang: 'en',         // en | zh
+};
+
+const WEEK_EN = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const WEEK_EN_MIN = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+const WEEK_ZH = ['日', '一', '二', '三', '四', '五', '六'];
+
+function LoveBody({ cell }) {
+  const c = { ...LOVE_DEFAULT, ...(cell?.config || {}) };
+  const avatar = useImage(c.cover);
+  const zh = c.lang === 'zh';
+  // 2 格宽的时候一行塞不下 Sun Mon Tue，星期只留首字母，均衡器也收掉
+  const compact = (cell?.w || 4) <= 2;
+
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const first = new Date(year, month, 1).getDay();
+  const total = new Date(year, month + 1, 0).getDate();
+  const monthName = zh ? `${month + 1}月` : new Date(year, month, 1).toLocaleString('en-US', { month: 'long' });
+
+  // 按当月实际占几行铺，不补到六行 —— 卡片高度是网格定死的，
+  // 补满只会在底下留一条永远空着的带子。
+  const rows = Math.ceil((first + total) / 7);
+  const cells = [];
+  for (let i = 0; i < first; i++) cells.push(null);
+  for (let d = 1; d <= total; d++) cells.push(d);
+  while (cells.length < rows * 7) cells.push(null);
+
+  return html`
+    <div class=${`wg wg-love${c.serif ? ' is-serif' : ''}${compact ? ' is-compact' : ''}`}
+      style=${c.color ? `--love-ink:${c.color}` : ''}>
+
+      <div class="love-top">
+        <div class=${`love-avatar${avatar ? ' has-image' : ''}`}
+          style=${avatar ? `background-image:url(${avatar})` : ''}>
+          ${avatar ? null : html`<${Icon} name="user" size=${compact ? 14 : 20}/>`}
+        </div>
+        <div class="love-right">
+          <div class="love-word ellipsis">${c.word}</div>
+          ${compact ? null : html`
+            <div class="love-eq">
+              ${Array.from({ length: 26 }, (_, i) => html`<i key=${i}></i>`)}
+            </div>`}
+        </div>
+      </div>
+
+      <div class="love-cal">
+        <div class="love-cal-head">
+          <span class="love-month">${monthName}</span>
+          <span class="love-year">${year}</span>
+        </div>
+        <div class="love-week">
+          ${(zh ? WEEK_ZH : compact ? WEEK_EN_MIN : WEEK_EN)
+            .map((w, i) => html`<span key=${i}>${w}</span>`)}
+        </div>
+        <div class="love-days" style=${`grid-template-rows:repeat(${rows},1fr)`}>
+          ${cells.map((d, i) => {
+            if (d === null) return html`<span key=${i}></span>`;
+            const today = d === now.getDate();
+            return html`
+              <span key=${i} class=${`love-day${today ? ' is-today' : ''}`}>
+                ${today ? html`<${Icon} name="music" size=${compact ? 11 : 14}/>` : d}
+              </span>`;
+          })}
+        </div>
+      </div>
+    </div>`;
+}
+
+registerWidget({
+  id: 'love',
+  label: 'Love 日历',
+  sizes: [[2, 2], [4, 4], [4, 3]],
+  editable: true,
+  render(cell) { return html`<${LoveBody} cell=${cell}/>`; },
+});
+
+// ---- 自定义组件：自己传一个 HTML 进来 ----
+//
+// 一律关进 sandbox 的 iframe，且**不给 allow-same-origin**。
+// 这样它拿到的是一个不透明源，读不到本应用的 IndexedDB 与 localStorage ——
+// 接口密钥就存在那里面，一个随手传进来的 HTML 不该够得着。
+// 代价是它也用不了本应用的任何数据，只能自己画自己的。
+export const CUSTOM_DEFAULT = { fileId: null, name: '' };
+export const CUSTOM_MAX_BYTES = 512 * 1024;
+
+function CustomBody({ cell }) {
+  const c = { ...CUSTOM_DEFAULT, ...(cell?.config || {}) };
+  const url = useFile(c.fileId);
+
+  if (!c.fileId) {
+    return html`
+      <div class="wg wg-custom-empty">
+        <${Icon} name="grid" size=${22}/>
+        <span>点这里上传一个 HTML 文件</span>
+      </div>`;
+  }
+  if (!url) return html`<div class="wg wg-custom-empty"><span class="spinner"></span></div>`;
+
+  return html`
+    <iframe class="wg-custom" src=${url} sandbox="allow-scripts"
+      title=${c.name || '自定义组件'} loading="lazy"></iframe>`;
+}
+
+registerWidget({
+  id: 'custom',
+  label: '自定义组件',
+  sizes: [[2, 1], [2, 2], [4, 1], [4, 2], [4, 4]],
+  editable: true,
+  render(cell) { return html`<${CustomBody} cell=${cell}/>`; },
 });

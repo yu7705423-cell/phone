@@ -1,17 +1,26 @@
 import { html, useRef } from '../../lib.js';
 import { Sheet, Field, Input, Button, Segmented, Switch, ListItem, List, toast } from '../../ui/index.js';
 import { useStore } from '../../system/store.js';
-import { layout, images } from '../../system/db/index.js';
+import { layout, images, files } from '../../system/db/index.js';
 import { PHOTO_MAX } from '../../system/db/images.js';
 import { getWidget } from '../../system/registry.js';
 import { setCellConfig } from './layout.js';
-import { LINE_SIZES, PLAYER_DEFAULT, NOTE_DEFAULT } from './widgets.js';
+import { LINE_SIZES, PLAYER_DEFAULT, NOTE_DEFAULT, LOVE_DEFAULT,
+         CUSTOM_DEFAULT, CUSTOM_MAX_BYTES } from './widgets.js';
 
-const DEFAULTS = { player: PLAYER_DEFAULT, note: NOTE_DEFAULT, photo: { line1: '' } };
+const DEFAULTS = {
+  player: PLAYER_DEFAULT, note: NOTE_DEFAULT, photo: { line1: '' },
+  love: LOVE_DEFAULT, custom: CUSTOM_DEFAULT,
+};
+
+const LANGS = [{ value: 'en', label: 'English' }, { value: 'zh', label: '中文' }];
+
+const kb = n => `${Math.max(1, Math.round(n / 1024))} KB`;
 
 export function WidgetEditor({ cell, onClose }) {
   useStore(layout.store);
   const fileRef = useRef(null);
+  const htmlRef = useRef(null);
   if (!cell) return null;
 
   const live = layout.get().pages.flatMap(p => p.cells).find(c => c.id === cell.id) || cell;
@@ -30,8 +39,26 @@ export function WidgetEditor({ cell, onClose }) {
     } catch (err) { toast('图片处理失败：' + err.message, 'error'); }
   };
 
-  const hasCover = live.ref === 'player' || live.ref === 'photo';
+  const pickHtml = async e => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (!/\.(html?|htm)$/i.test(file.name)) { toast('只接受 .html 文件', 'error'); return; }
+    if (file.size > CUSTOM_MAX_BYTES) {
+      toast(`文件太大，上限 ${kb(CUSTOM_MAX_BYTES)}`, 'error', 4000);
+      return;
+    }
+    try {
+      const id = await files.put(file, { name: file.name, type: 'text/html' });
+      if (c.fileId) files.remove(c.fileId);
+      set({ fileId: id, name: file.name });
+    } catch (err) { toast('读取失败：' + (err.message || err), 'error'); }
+  };
+
+  const hasCover = live.ref === 'player' || live.ref === 'photo' || live.ref === 'love';
   const lines = live.ref === 'player' ? 3 : live.ref === 'note' ? 2 : 1;
+  const hasLines = live.ref === 'player' || live.ref === 'note' || live.ref === 'photo';
+  const info = c.fileId ? files.info(c.fileId) : null;
 
   return html`
     <${Sheet} open=${true} onClose=${onClose} title=${wg?.label || '小组件'} height="82%">
@@ -53,7 +80,7 @@ export function WidgetEditor({ cell, onClose }) {
             items=${[{ value: 'left', label: '在左' }, { value: 'right', label: '在右' }]}/>
         <//>` : null}
 
-      ${Array.from({ length: lines }, (_, i) => i + 1).map(n => html`
+      ${hasLines ? Array.from({ length: lines }, (_, i) => i + 1).map(n => html`
         <${Field} key=${n} label=${`第 ${n} 行`}>
           <${Input} value=${c[`line${n}`] || ''} placeholder="留空则不显示"
             onInput=${v => set({ [`line${n}`]: v })}/>
@@ -61,11 +88,55 @@ export function WidgetEditor({ cell, onClose }) {
             <${Segmented} value=${c[`size${n}`] || 'md'} items=${LINE_SIZES}
               onChange=${v => set({ [`size${n}`]: v })}/>
           </div>
-        <//>`)}
+        <//>`) : null}
 
-      ${live.ref !== 'photo' ? html`
+      ${live.ref === 'love' ? html`
+        <${Field} label="文字" desc="显示在头像右边">
+          <${Input} value=${c.word ?? ''} placeholder="Love"
+            onInput=${v => set({ word: v })}/>
+        <//>
+
+        <${Field} label="星期与月份">
+          <${Segmented} value=${c.lang || 'en'} items=${LANGS}
+            onChange=${v => set({ lang: v })}/>
+        <//>
+
+        <${Field} label="颜色"
+          desc="默认跟随主题，深色模式下自动变白。指定颜色后固定不变。">
+          <div class="wg-edit-color">
+            <input type="color" value=${c.color || '#000000'}
+              onInput=${e => set({ color: e.target.value })}/>
+            <${Button} size="sm" variant="ghost"
+              onClick=${() => set({ color: '' })}>恢复默认<//>
+          </div>
+        <//>` : null}
+
+      ${live.ref === 'custom' ? html`
+        <${Field} label="HTML 文件"
+          desc=${`上限 ${kb(CUSTOM_MAX_BYTES)}，保存在本设备。组件运行在隔离环境中，`
+            + '读不到本应用的数据，也无法访问已保存的接口密钥。'}>
+          <div class="wg-edit-cover">
+            <${Button} size="sm" variant="ghost" icon="upload"
+              onClick=${() => htmlRef.current?.click()}>${c.fileId ? '更换文件' : '选择文件'}<//>
+            ${c.fileId ? html`
+              <${Button} size="sm" variant="ghost" icon="trash"
+                onClick=${() => { files.remove(c.fileId); set({ fileId: null, name: '' }); }}>移除<//>` : null}
+          </div>
+          <input type="file" accept=".html,.htm,text/html" ref=${htmlRef}
+            onChange=${pickHtml} style="display:none"/>
+        <//>
+        ${c.fileId ? html`
+          <${List} inset=${false}>
+            <${ListItem} title=${c.name || '自定义组件'}
+              subtitle=${info ? kb(info.bytes) : ''}/>
+          <//>` : null}` : null}
+
+      ${live.ref !== 'photo' && live.ref !== 'custom' ? html`
         <${List} inset=${false}>
-          <${ListItem} title="用衬线字体" subtitle="更像唱片封面上的排版"
+          <${ListItem} title="用衬线字体" multiline
+            subtitle=${live.ref === 'love'
+              ? '衬线槽位可在「设置 - 主题」里换成自己的字体，换成手写体后这里会跟着变'
+              : '更像唱片封面上的排版'}
             right=${html`<${Switch} checked=${!!c.serif} onChange=${v => set({ serif: v })}/>`}/>
         <//>` : null}
 

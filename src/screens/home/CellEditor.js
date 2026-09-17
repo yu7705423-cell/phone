@@ -39,7 +39,7 @@ export function CellEditor({ cell, pageIdx, onClose, onSwapFrom }) {
     <//>`
   : html`
     <${List} inset=${false}>
-      <${ListItem} title="放一个小组件" subtitle="文字块、图片块、播放器横条、最近会话…" arrow multiline
+      <${ListItem} title="放一个小组件" subtitle="文字块、图片块、播放器横条、Love 日历、自定义组件…" arrow multiline
         left=${html`<${Icon} name="grid" size=${18}/>`} onClick=${() => setTab('widget')}/>
       <${ListItem} title="放一个应用" arrow
         left=${html`<${Icon} name="layers" size=${18}/>`} onClick=${() => setTab('app')}/>

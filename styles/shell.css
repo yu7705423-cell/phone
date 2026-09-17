@@ -354,3 +354,97 @@
 .crash-title { font-size: var(--fs-15); color: var(--text); font-weight: var(--fw-semi); margin-top: var(--sp-2); }
 .crash-msg { font-size: var(--fs-12); color: var(--text-2); max-width: 280px; line-height: 1.6; word-break: break-all; }
 .crash-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--sp-2); margin-top: var(--sp-4); }
+
+/* Love 日历 */
+.wg-love {
+  --love-ink: var(--text);
+  color: var(--love-ink);
+  container-type: size;
+  padding: var(--sp-5);
+  gap: var(--sp-4);
+}
+.wg-love.is-serif .love-word,
+.wg-love.is-serif .love-month { font-family: var(--font-serif); }
+
+.love-top { display: grid; grid-template-columns: 34% 1fr; gap: var(--sp-4); align-items: center; }
+.love-avatar {
+  aspect-ratio: 1; border-radius: var(--r-full);
+  border: 2px solid currentColor;
+  background-size: cover; background-position: center;
+  display: flex; align-items: center; justify-content: center;
+  opacity: .92;
+}
+.love-avatar:not(.has-image) { opacity: .34; }
+.love-right { min-width: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
+
+.love-word {
+  font-size: var(--fs-28);
+  font-size: clamp(var(--fs-24), 9cqw, var(--fs-56));
+  line-height: 1;
+}
+
+/* 均衡器。纯装饰，跟着 currentColor 走 */
+.love-eq { display: flex; align-items: center; gap: 3px; height: 11cqh; overflow: hidden; }
+.love-eq i {
+  flex: 1; min-width: 2px; max-width: 3px; height: 40%;
+  background: currentColor; border-radius: var(--r-full);
+  opacity: .82; transform-origin: center;
+  animation: love-eq 1.05s ease-in-out infinite alternate;
+}
+.love-eq i:nth-child(2n) { animation-delay: -.25s; }
+.love-eq i:nth-child(3n) { animation-delay: -.55s; }
+.love-eq i:nth-child(4n) { animation-delay: -.8s; }
+@keyframes love-eq { from { transform: scaleY(.35); } to { transform: scaleY(1.9); } }
+@media (prefers-reduced-motion: reduce) {
+  .love-eq i { animation: none; height: 55%; }
+}
+
+/* 日历吃掉剩下的高度，天数格子按 1fr 平分，固定六行 */
+.love-cal {
+  flex: 1; min-height: 0; display: flex; flex-direction: column;
+  border-top: 1px solid currentColor; padding-top: var(--sp-3);
+}
+.love-cal { border-top-color: color-mix(in srgb, currentColor 16%, transparent); }
+.love-cal-head { display: flex; align-items: baseline; justify-content: space-between; }
+.love-month { font-size: var(--fs-17); line-height: 1; }
+.love-year { font-size: var(--fs-11); opacity: .45; letter-spacing: .12em; }
+
+.love-week, .love-days { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; }
+.love-week {
+  font-size: var(--fs-11); opacity: .48; letter-spacing: .06em;
+  margin: var(--sp-3) 0 var(--sp-2);
+}
+.love-days { flex: 1; min-height: 0; }
+.love-day {
+  display: flex; align-items: center; justify-content: center;
+  font-size: var(--fs-13); line-height: 1;
+}
+.love-day.is-today { color: var(--love-ink); }
+.love-day.is-today svg { display: block; }
+
+/* 2 格见方的小号。字号、留白、日期格全部收一档，星期只剩首字母 */
+.wg-love.is-compact { padding: var(--sp-3); gap: var(--sp-2); }
+.wg-love.is-compact .love-top { grid-template-columns: 28% 1fr; gap: var(--sp-2); }
+.wg-love.is-compact .love-avatar { border-width: 1.5px; }
+.wg-love.is-compact .love-word {
+  font-size: var(--fs-17);
+  font-size: clamp(var(--fs-15), 13cqw, var(--fs-28));
+}
+.wg-love.is-compact .love-cal { padding-top: var(--sp-2); }
+.wg-love.is-compact .love-month { font-size: var(--fs-13); }
+.wg-love.is-compact .love-year { font-size: 9px; letter-spacing: .04em; }
+.wg-love.is-compact .love-week { font-size: 9px; margin: 5px 0 3px; letter-spacing: 0; }
+.wg-love.is-compact .love-day { font-size: var(--fs-11); }
+
+/* 自定义组件。iframe 是 sandbox 的，见 widgets.js */
+.wg-custom { width: 100%; height: 100%; border: 0; display: block; background: transparent; }
+.wg-custom-empty {
+  align-items: center; justify-content: center; text-align: center;
+  gap: var(--sp-2); color: var(--text-3); font-size: var(--fs-12);
+}
+.wg-custom-empty svg { color: var(--text-3); }
+.wg-edit-color { display: flex; align-items: center; gap: var(--sp-3); }
+.wg-edit-color input[type="color"] {
+  width: 46px; height: 32px; padding: 0; border: 0; background: none;
+  border-radius: var(--r-sm); cursor: pointer;
+}
