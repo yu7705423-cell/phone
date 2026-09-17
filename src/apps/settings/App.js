@@ -6,6 +6,7 @@ import { VoicePage } from './VoicePage.js';
 import { ImagePage } from './ImagePage.js';
 import { AppearancePage } from './AppearancePage.js';
 import { StoragePage } from './StoragePage.js';
+import { ProactivePage } from './ProactivePage.js';
 import { BUILD } from '../../version.js';
 import { forceUpdate } from './forceUpdate.js';
 
@@ -24,6 +25,11 @@ function Home() {
   const voiceDesc = voice.enabled && voice.apiKey ? `已配置 · ${voice.model || '未选模型'}` : '未配置';
   const imgActive = svc.activeImage();
   const imageDesc = imgActive ? `${imgActive.name} · ${imgActive.model || '未选模型'}` : '未配置';
+
+  const pro = phone.ai.proactive.config();
+  const proDesc = pro.enabled
+    ? `开着 · 大概 ${pro.minutes < 60 ? pro.minutes + ' 分钟' : Math.round(pro.minutes / 60) + ' 小时'}一条`
+    : '关着。开了之后角色会自己挑时间发消息';
 
   const update = async () => {
     toast('正在取新代码', 'plain');
@@ -54,6 +60,13 @@ function Home() {
           onClick=${() => nav.push('/appearance')}/>
       <//>
 
+      <${List} title="聊天">
+        <${ListItem} title="主动消息" multiline arrow
+          subtitle=${proDesc}
+          left=${html`<${Icon} name="bell" size=${19}/>`}
+          onClick=${() => nav.push('/proactive')}/>
+      <//>
+
       <${List} title="数据">
         <${ListItem} title="存储与备份" subtitle="占用统计、导入导出、清空" arrow
           left=${html`<${Icon} name="database" size=${18}/>`}
@@ -74,6 +87,7 @@ function Home() {
 
 export default function SettingsApp({ route }) {
   if (route === '/api') return html`<${ApiPage}/>`;
+  if (route === '/proactive') return html`<${ProactivePage}/>`;
   if (route === '/voice') return html`<${VoicePage}/>`;
   if (route === '/image') return html`<${ImagePage}/>`;
   if (route === "/appearance") return html`<${AppearancePage}/>`;

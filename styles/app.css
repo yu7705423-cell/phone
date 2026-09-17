@@ -4,6 +4,7 @@
 .pad-x  { padding-left: var(--sp-4); padding-right: var(--sp-4); }
 .pad-t  { padding-top: var(--sp-4); }
 .pad-b  { padding-bottom: var(--sp-6); }
+.quiet-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4); }
 
 .nav-text { font-size: var(--fs-14); color: var(--accent); padding: var(--sp-2); }
 

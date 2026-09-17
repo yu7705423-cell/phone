@@ -20,6 +20,7 @@ import * as voice from '../system/ai/voice.js';
 import * as image from '../system/ai/image.js';
 import * as stickerApi from '../system/stickers.js';
 import * as replyApi from '../system/ai/reply.js';
+import * as proactiveApi from '../system/ai/proactive.js';
 import { files, download } from '../system/db/files.js';
 import { useFile } from '../system/db/useFile.js';
 import { BLOCKS, DEFAULT_ORDER, resolveOrder } from '../system/ai/context/index.js';
@@ -74,6 +75,7 @@ export const phone = {
     voice,
     image,
     reply: replyApi,
+    proactive: proactiveApi,
     runWithPreset: engine.runWithPreset,
 
     queue: {

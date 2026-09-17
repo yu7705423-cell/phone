@@ -11,6 +11,7 @@ import { AppHost } from '../system/runtime.js';
 import { useImage } from '../system/db/useImage.js';
 import { applyLook, applyCustomCSS } from '../system/look.js';
 import { layout } from '../system/db/index.js';
+import { start as startProactive } from '../system/ai/proactive.js';
 
 export function Root() {
   const s = useStore(nav);
@@ -59,6 +60,10 @@ export function Root() {
       window.removeEventListener('orientationchange', onOrient);
     };
   }, []);
+
+  // 角色主动发消息的调度。跟着整个外壳的生命周期跑，
+  // 所以不管当前开着哪个 app 都在数着时间。
+  useEffect(() => startProactive(), []);
 
   useEffect(() => {
     const onKey = e => {
