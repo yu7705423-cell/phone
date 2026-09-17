@@ -13,8 +13,8 @@ export function StickerPanel({ onSend }) {
 
   if (!db.stickers.count()) {
     return html`
-      <${EmptyState} icon="heart" title="还没有表情包"
-        desc="可以批量选图导入，也可以从 txt 或 docx 里把「名称 加 链接」成批读进来。"
+      <${EmptyState} icon="heart" title="暂无表情包"
+        desc="可批量选择图片导入，也可从 txt 或 docx 中成批读取「名称与链接」。"
         action=${html`<${Button} size="sm" icon="upload"
           onClick=${() => nav.push('/stickers')}>去导入<//>`}/>`;
   }

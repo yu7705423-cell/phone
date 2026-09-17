@@ -29,14 +29,14 @@ const TEXT_FIXES = [
   {
     id: 'escape',
     label: '还原换行',
-    desc: '文里有字面的 \\n，是模型把转义符直接打出来了',
+    desc: '正文中出现了字面的 \\n，模型将转义符直接输出为了文本',
     test: t => /\\[nrt]/.test(t),
     run: t => t.replace(/\\r\\n|\\r|\\n/g, '\n').replace(/\\t/g, ' '),
   },
   {
     id: 'prefix',
-    label: '去掉开头的名字',
-    desc: '这边本来就知道是谁在说话，不用再报一遍名',
+    label: '移除开头的角色名',
+    desc: '界面已标明发言人，正文中无需重复',
     test: (t, msg) => {
       const n = nameOf(msg);
       return !!n && new RegExp(`^\\s*${escapeRe(n)}\\s*[:：]`).test(t);
@@ -45,8 +45,8 @@ const TEXT_FIXES = [
   },
   {
     id: 'wrap',
-    label: '去掉包住整段的引号',
-    desc: '整句被一对引号裹着，念出来会多两个符号',
+    label: '移除包裹整段的引号',
+    desc: '整段被一对引号包住，属于多余的符号',
     test: t => !!wrapOf(t),
     run: t => {
       const w = wrapOf(t);
@@ -55,8 +55,8 @@ const TEXT_FIXES = [
   },
   {
     id: 'stars',
-    label: '星号动作换成中文括号',
-    desc: '*这样的动作* 是英文写法，这里统一用（）',
+    label: '星号动作改为中文括号',
+    desc: '*星号包裹* 为英文写法，本项目统一使用（）',
     test: t => /\*{1,2}[^*\n]+\*{1,2}/.test(t),
     run: t => t.replace(/\*{1,2}([^*\n]+?)\*{1,2}/g, '（$1）'),
   },
@@ -94,9 +94,9 @@ function describe(parts) {
   const n = { image: 0, voice: 0 };
   parts.forEach(p => { if (p.type !== 'text') n[p.type]++; });
   const extra = [];
-  if (n.image) extra.push(`${n.image} 张图`);
+  if (n.image) extra.push(`${n.image} 张图片`);
   if (n.voice) extra.push(`${n.voice} 段语音`);
-  return `拆成 ${parts.length} 条${extra.length ? '，其中 ' + extra.join('、') : ''}`;
+  return `拆分为 ${parts.length} 条${extra.length ? '，其中包含 ' + extra.join('、') : ''}`;
 }
 
 // 这条消息用得上的修法，附带改完长什么样
@@ -113,7 +113,7 @@ export function fixesFor(msg) {
   }
 
   const parts = partsFor(msg);
-  if (parts) out.push({ id: 'rows', label: '按标记重新分条', desc: '图片和语音标记没被认出来，或者该分条的挤成了一条', preview: describe(parts) });
+  if (parts) out.push({ id: 'rows', label: '按标记重新分条', desc: '图片或语音标记未被识别，或本应拆分的内容合并在了一条中', preview: describe(parts) });
 
   return out;
 }
@@ -157,19 +157,19 @@ function rebuild(msg, parts) {
 
 export function applyFix(msgId, fixId) {
   const msg = messages.get(msgId);
-  if (!msg) throw new Error('这条消息已经不在了');
+  if (!msg) throw new Error('该消息已不存在');
 
   if (fixId === 'rows') {
     const parts = partsFor(msg);
-    if (!parts) throw new Error('这条不需要重新分条');
-    return `拆成了 ${rebuild(msg, parts)} 条`;
+    if (!parts) throw new Error('该消息无需重新分条');
+    return `已拆分为 ${rebuild(msg, parts)} 条`;
   }
 
   const f = TEXT_FIXES.find(x => x.id === fixId);
-  if (!f) throw new Error('没有这条修法');
+  if (!f) throw new Error('未知的修正项');
   const before = textOf(msg);
   const after = f.run(before, msg);
-  if (after === before) return '没什么可改的';
+  if (after === before) return '没有可修正的内容';
   writeText(msg, after);
   return f.label;
 }
@@ -178,7 +178,7 @@ export function applyFix(msgId, fixId) {
 // 顺序要紧 —— 先把 \n 还原出来，分条才知道哪儿该断。
 export function applyAll(msgId) {
   const msg = messages.get(msgId);
-  if (!msg) throw new Error('这条消息已经不在了');
+  if (!msg) throw new Error('该消息已不存在');
 
   let text = textOf(msg);
   const done = [];
@@ -193,7 +193,7 @@ export function applyAll(msgId) {
 
   const fresh = messages.get(msgId);
   const parts = fresh ? partsFor(fresh) : null;
-  if (parts) { rebuild(fresh, parts); done.push(`拆成 ${parts.length} 条`); }
+  if (parts) { rebuild(fresh, parts); done.push(`拆分为 ${parts.length} 条`); }
 
   return done;
 }

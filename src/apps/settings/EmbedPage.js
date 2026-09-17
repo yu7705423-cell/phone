@@ -22,7 +22,7 @@ export function EmbedPage() {
     try {
       const { dims } = await ai.embed.probe();
       set({ dims });
-      toast(`通了，${dims} 维`, 'ok', 4000);
+      toast(`连接成功，向量维度 ${dims}`, 'ok', 4000);
     } catch (e) {
       toast(String(e.message || e), 'error', 6000);
     } finally { setBusy(false); }
@@ -37,7 +37,7 @@ export function EmbedPage() {
     setBusy(true);
     try {
       const r = await ai.memvec.backfill({ onProgress: (d, t) => setProg(`${d} / ${t}`) });
-      toast(r.total ? `补好了 ${r.done} 条` : '没有要补的', 'ok');
+      toast(r.total ? `已补建 ${r.done} 条索引` : '没有需要补建的索引', 'ok');
     } catch (e) {
       toast(String(e.message || e), 'error', 6000);
     } finally { setBusy(false); setProg(null); }
@@ -46,11 +46,11 @@ export function EmbedPage() {
   const drop = async () => {
     if (!await confirm({
       title: '清掉所有向量', danger: true, okText: '清掉',
-      message: '记忆内容不会动，只是把算好的向量删掉。换了模型之后该这么做。',
+      message: '记忆内容不受影响，仅清除已计算的向量。更换嵌入模型后应执行此操作。',
     })) return;
     ai.memvec.dropAll();
     ai.embed.clearQueryCache();
-    toast('清掉了');
+    toast('已清除');
   };
 
   return html`
@@ -61,7 +61,7 @@ export function EmbedPage() {
       </div>
 
       <div class="pad-x">
-        <${Field} label="接口地址" desc="留空就是 https://api.openai.com">
+        <${Field} label="接口地址" desc="留空则使用 https://api.openai.com。">
           <${Input} value=${cfg.baseUrl} onInput=${v => set({ baseUrl: v.trim() })}
             placeholder="https://api.openai.com"/>
         <//>

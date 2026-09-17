@@ -139,11 +139,11 @@ export function Conversation({ chatId }) {
   }, [msgs.length, msgs[msgs.length - 1]?.content, selecting]);
 
   if (!chat || !char) {
-    return html`<${Page} title="会话" onBack=${nav.pop}><${EmptyState} title="这个会话已不存在"/><//>`;
+    return html`<${Page} title="会话" onBack=${nav.pop}><${EmptyState} title="该会话已不存在"/><//>`;
   }
 
   async function generate({ turnId: reuseTurn, swipes: prevSwipes } = {}) {
-    if (!ai.isConfigured()) { toast('还没有配置模型接口', 'error'); return; }
+    if (!ai.isConfigured()) { toast('尚未配置模型接口', 'error'); return; }
     setBusy(true);
 
     // 生成中先放一条「正在输入」，流式内容打在上面
@@ -269,7 +269,7 @@ export function Conversation({ chatId }) {
     if (!picked.length) return;
     if (!await confirm({
       title: `删除 ${picked.length} 条消息`,
-      message: '删掉之后就不再进上下文了。', danger: true,
+      message: '删除后不再进入上下文。', danger: true,
     })) return;
     dropMessages(picked);
     setPicked(null);
@@ -279,13 +279,13 @@ export function Conversation({ chatId }) {
     setMenu(false);
     try {
       const r = await ai.memory.extract(chatId);
-      toast(r.added + r.updated ? `新增 ${r.added} 条，更新 ${r.updated} 条` : '没有新信息需要记录');
+      toast(r.added + r.updated ? `新增 ${r.added} 条，更新 ${r.updated} 条` : '没有需要记录的新信息');
     } catch (err) { toast(String(err.message || err), 'error', 4000); }
   };
 
   const clearHistory = async () => {
     setMenu(false);
-    if (!await confirm({ title: '清空聊天记录', message: '记忆不会被删除。', danger: true })) return;
+    if (!await confirm({ title: '清空聊天记录', message: '已提取的记忆不会被删除。', danger: true })) return;
     db.messages.removeWhere(m => m.chatId === chatId);
     db.chats.update(chatId, { memoryUpTo: null, summary: '' });
   };
@@ -294,10 +294,10 @@ export function Conversation({ chatId }) {
 
   const pro = ai.proactive.configOf(char);
   const proDesc = pro.proactive
-    ? `开着 · 大概 ${pro.proactiveMinutes < 60
+    ? `已开启 · 平均间隔 ${pro.proactiveMinutes < 60
         ? pro.proactiveMinutes + ' 分钟'
-        : Math.round(pro.proactiveMinutes / 60) + ' 小时'}一条`
-    : '关着。开了她就会自己挑时间发消息来';
+        : Math.round(pro.proactiveMinutes / 60) + ' 小时'}`
+    : '已关闭。开启后角色会主动发起对话';
 
   const MENU_ITEMS = [
     { id: 'photo', icon: 'image', label: '图片' },
@@ -308,7 +308,7 @@ export function Conversation({ chatId }) {
     { id: 'location', icon: 'map', label: '位置' },
     { id: 'file', icon: 'notes', label: '文件' },
     { id: 'more', icon: 'more', label: '更多' },
-  ].map(it => ({ ...it, onTap: () => toast(`「${it.label}」还没做`) }));
+  ].map(it => ({ ...it, onTap: () => toast(`「${it.label}」尚未实现`) }));
 
   const quotingRef = quoting ? quoteOf({ quoteId: quoting.id }, { char, chat }) : null;
 
@@ -330,14 +330,14 @@ export function Conversation({ chatId }) {
               selecting=${selecting} selected=${selecting && picked.includes(m.id)}
               onToggle=${togglePick}/>`)}
           ${!msgs.length && !char.firstMessage ? html`
-            <div class="conv-hint">发第一条消息开始吧</div>` : null}
+            <div class="conv-hint">发送第一条消息开始对话</div>` : null}
         </div>
 
         ${selecting ? html`
           <div class="select-bar">
             <button class="nav-text press" onClick=${() => setPicked(null)}>取消</button>
             <span class="select-hint">
-              ${picked.length ? '' : '点消息挑出要删的'}
+              ${picked.length ? '' : '点击消息进行选择'}
             </span>
             <button class=${`nav-text press${picked.length ? ' is-danger' : ' is-off'}`}
               onClick=${deletePicked}>删除</button>
@@ -399,13 +399,13 @@ export function Conversation({ chatId }) {
 
       <${FullSheet} open=${menu} onClose=${() => setMenu(false)} title=${char.name}>
         <${List}>
-          <${ListItem} title="角色卡" subtitle="人设、开场白、说话示例、关联世界书" arrow multiline
+          <${ListItem} title="角色卡" subtitle="人设、开场白、对话示例、关联世界书" arrow multiline
             left=${html`<${Icon} name="user" size=${18}/>`}
             onClick=${() => { setMenu(false); nav.push(`/edit/${char.id}`); }}/>
           <${ListItem} title="角色主页" arrow
             left=${html`<${Icon} name="camera" size=${18}/>`}
             onClick=${() => { setMenu(false); nav.push(`/profile/${char.id}`); }}/>
-          <${ListItem} title="主动找我" arrow multiline
+          <${ListItem} title="主动发起对话" arrow multiline
             subtitle=${proDesc}
             left=${html`<${Icon} name="bell" size=${18}/>`}
             onClick=${() => { setMenu(false); nav.push(`/proactive/${char.id}`); }}/>
@@ -418,9 +418,9 @@ export function Conversation({ chatId }) {
           <${ListItem} title="Prompt 模板" subtitle="骨架与各任务的提示词" arrow
             left=${html`<${Icon} name="sparkle" size=${18}/>`}
             onClick=${() => { setMenu(false); nav.push('/templates'); }}/>
-          <${ListItem} title="立即总结记忆" subtitle=${`还有 ${pending} 条未总结`} arrow
+          <${ListItem} title="立即总结记忆" subtitle=${`尚有 ${pending} 条未总结`} arrow
             left=${html`<${Icon} name="brain" size=${18}/>`} onClick=${summarize}/>
-          <${ListItem} title="表情包" subtitle=${`已有 ${db.stickers.count()} 个`} arrow
+          <${ListItem} title="表情包" subtitle=${`共 ${db.stickers.count()} 个`} arrow
             left=${html`<${Icon} name="heart" size=${18}/>`}
             onClick=${() => { setMenu(false); nav.push('/stickers'); }}/>
         <//>
@@ -429,7 +429,7 @@ export function Conversation({ chatId }) {
           <${ListItem} title="重新生成上一条" arrow
             left=${html`<${Icon} name="refresh" size=${18}/>`}
             onClick=${() => { setMenu(false); regenerate(); }}/>
-          <${ListItem} title="多选消息" subtitle="挑几条一起删。长按任意一条也能进" arrow multiline
+          <${ListItem} title="多选消息" subtitle="选择多条消息后一并删除。长按任意消息亦可进入" arrow multiline
             left=${html`<${Icon} name="check" size=${18}/>`}
             onClick=${() => { setMenu(false); setPicked([]); setPanel(null); }}/>
           <${ListItem} title="清空聊天记录" danger arrow

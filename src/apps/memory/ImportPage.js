@@ -24,8 +24,8 @@ export function ImportPage() {
 
 
   const run = async () => {
-    if (!raw.trim()) { toast('先粘点东西进来'); return; }
-    if (!ai.isConfigured()) { toast('还没配聊天接口，拆不了', 'error', 4000); return; }
+    if (!raw.trim()) { toast('请先粘贴文本内容'); return; }
+    if (!ai.isConfigured()) { toast('尚未配置聊天接口，无法解析', 'error', 4000); return; }
     setBusy(true); setItems(null); setOff(new Set());
     try {
       const r = await imp.parse(raw, {
@@ -33,7 +33,7 @@ export function ImportPage() {
         onProgress: (i, n) => setProg(`${i} / ${n} 段`),
       });
       setItems(r.items);
-      toast(r.items.length ? `拆出 ${r.items.length} 条` : '没拆出新东西，可能都已经有了',
+      toast(r.items.length ? `解析出 ${r.items.length} 条` : '未解析出新内容，可能已全部存在',
         r.items.length ? 'ok' : 'plain', 4000);
     } catch (e) {
       toast(String(e.message || e), 'error', 6000);
@@ -48,7 +48,7 @@ export function ImportPage() {
 
   const save = () => {
     const keep = items.filter((_, i) => !off.has(i));
-    if (!keep.length) { toast('一条都没勾'); return; }
+    if (!keep.length) { toast('尚未勾选任何条目'); return; }
     const n = imp.commit(keep, charId || chars[0]?.id || null);
     toast(ai.services.embedReady()
       ? `存了 ${n} 条，正在后台补向量`
@@ -61,7 +61,7 @@ export function ImportPage() {
     : '还没配向量接口，存进去先按关键词用。以后配好了去「设置 - 向量」补齐';
 
   return html`
-    <${Page} title="从文字导入" onBack=${nav.pop}>
+    <${Page} title="从文本导入" onBack=${nav.pop}>
       ${items ? html`
         <div class="hint-box">
           拆出 ${items.length} 条，勾掉不要的再存。${vecHint}
@@ -82,7 +82,7 @@ export function ImportPage() {
         </div>
       ` : html`
         <div class="pad-x pad-t">
-          <${Field} label="存给谁" desc="记忆只在和这个角色聊天时注入">
+          <${Field} label="归属角色" desc="该记忆仅在与此角色对话时注入。">
             ${owners.length ? html`
               <div class="chip-row">
                 ${owners.map(o => html`
@@ -92,9 +92,9 @@ export function ImportPage() {
               </div>` : html`<div class="li-hint">还没有角色，先去「联系」里建一个</div>`}
           <//>
           <${Field} label="粘贴内容"
-            desc="从别处复制来的设定、经历、笔记都行。长文会自动分段处理">
+            desc="支持粘贴设定、经历、笔记等任意文本。长文将自动分段处理。">
             <${Textarea} rows=${12} value=${raw} onInput=${setRaw}
-              placeholder="把一大段文字粘在这里…"/>
+              placeholder="在此粘贴文本"/>
           <//>
         </div>
         <div class="pad">

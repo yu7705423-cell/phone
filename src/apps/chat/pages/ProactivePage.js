@@ -50,32 +50,32 @@ export function ProactivePage({ charId }) {
     (c.characterIds || []).length === 1 && c.characterIds[0] === charId);
 
   const tryNow = async () => {
-    if (!chat) { toast('还没有和她的会话'); return; }
+    if (!chat) { toast('尚未与该角色建立会话'); return; }
     setBusy(true);
     try {
       await ai.proactive.sendProactive(chat.id, charId);
-      toast('发来了，回去看看', 'ok');
+      toast('已发送，返回会话查看', 'ok');
     } catch (e) {
-      toast('没发出来：' + (e.message || e), 'error', 5000);
+      toast('发送失败：' + (e.message || e), 'error', 5000);
     } finally { setBusy(false); }
   };
 
   if (!char) {
-    return html`<${Page} title="主动找我" onBack=${nav.pop}><div class="pad">角色不在了<//><//>`;
+    return html`<${Page} title="主动发起对话" onBack=${nav.pop}><div class="pad">该角色已不存在<//><//>`;
   }
 
   return html`
-    <${Page} title="主动找我" onBack=${nav.pop}>
+    <${Page} title="主动发起对话" onBack=${nav.pop}>
       <${List}>
         <${ListItem} title=${`让${char.name}自己开口`} multiline
-          subtitle="不用你先说话，隔一阵子自己发消息来。页面关着的时候不会发，重新打开时会补上"
+          subtitle="无需你先开口，角色会按设定的间隔主动发起对话。页面关闭期间不发送，重新打开时补发"
           right=${html`<${Switch} checked=${cfg.proactive}
             onChange=${v => set({ proactive: v })}/>`}/>
       <//>
 
       ${cfg.proactive ? html`
-        <${List} title="多久一次">
-          <${ListItem} title="大概间隔" subtitle=${`现在是 ${fmtGap(cfg.proactiveMinutes)}左右`} multiline/>
+        <${List} title="发送频率">
+          <${ListItem} title="平均间隔" subtitle=${`当前约 ${fmtGap(cfg.proactiveMinutes)}`} multiline/>
         <//>
         <div class="pad">
           <${Segmented} value=${PACE.some(p => p.value === cfg.proactiveMinutes) ? cfg.proactiveMinutes : 0}
@@ -84,14 +84,14 @@ export function ProactivePage({ charId }) {
         </div>
         <div class="pad-x">
           <${Field} label="平均间隔（分钟）"
-            desc="不会掐着点发。每次落在这个数的一半到一倍半之间随机，所以是忽早忽晚的">
+            desc="实际间隔在该值的 0.5 至 1.5 倍之间随机取值，不会固定在整点发送。">
             <${Input} type="number" value=${cfg.proactiveMinutes}
               onInput=${v => set({ proactiveMinutes: Math.max(1, parseInt(v, 10) || 1) })}/>
           <//>
         </div>
 
         <${List} title="免打扰">
-          <${ListItem} title="这段时间不发" multiline
+          <${ListItem} title="免打扰时段" multiline
             subtitle=${cfg.proactiveQuietFrom === cfg.proactiveQuietTo
               ? '两个数填成一样就是全天都能发'
               : `${cfg.proactiveQuietFrom}:00 到 ${cfg.proactiveQuietTo}:00 之间攒着，到点再发`}/>
@@ -108,13 +108,13 @@ export function ProactivePage({ charId }) {
         </div>
 
         <${List}>
-          <${ListItem} title="下一条" subtitle=${fmtWhen(ai.proactive.nextAt(charId), cfg)}
+          <${ListItem} title="下一条预计时间" subtitle=${fmtWhen(ai.proactive.nextAt(charId), cfg)}
             left=${html`<${Icon} name="clock" size=${18}/>`}/>
         <//>
 
         ${char.parentId ? null : html`
-          <${List} title="小号">
-            <${ListItem} title="允许她自己开小号" multiline
+          <${List} title="角色小号">
+            <${ListItem} title="允许角色自行创建小号" multiline
               subtitle=${acfg.charAlt
                 ? (blocked || `轮到她主动时，有 ${Math.round(acfg.charAltChance * 100)}% 的可能她开的不是口，而是一个新号来加你`)
                 : '她会换个名字来加你，你不知道那是她。开号的理由和人设都是她自己想的'}
@@ -128,7 +128,7 @@ export function ProactivePage({ charId }) {
           ${acfg.charAlt ? html`
             <div class="pad-x">
               <${Field} label=${`开号的可能性 ${Math.round(acfg.charAltChance * 100)}%`}
-                desc="每次轮到她主动开口时掷一次。调高就容易冒出马甲，调低更像偶尔一念">
+                desc="每次角色主动发起对话时判定一次。数值越高出现小号的概率越大。">
                 <input type="range" min="0.02" max="0.5" step="0.02" value=${acfg.charAltChance}
                   onInput=${e => db.characters.update(charId, { charAltChance: parseFloat(e.target.value) })}/>
               <//>

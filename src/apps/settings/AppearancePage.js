@@ -93,7 +93,7 @@ function IconPicker({ appId, onClose }) {
       const id = await db.images.putIcon(file, ICON_MAX);
       if (cur.imageId) db.images.remove(cur.imageId);
       set({ imageId: id });
-      toast('已换成图片');
+      toast('已更换为图片');
     } catch (err) { toast('图片处理失败：' + err.message, 'error', 4000); }
     finally { setBusy(false); }
   };
@@ -116,7 +116,7 @@ function IconPicker({ appId, onClose }) {
       if (!/^image\//.test(blob.type)) throw new Error('这个链接不是图片');
       await useImageFile(new File([blob], 'icon', { type: blob.type }));
     } catch (err) {
-      toast('取不回来：' + err.message + '。多半是跨域，可以先存到相册再选图。', 'error', 6000);
+      toast('获取失败：' + err.message + '。通常为跨域限制，可先保存到相册后再选择。', 'error', 6000);
       setBusy(false);
     }
   };
@@ -127,7 +127,7 @@ function IconPicker({ appId, onClose }) {
         <${Input} value=${app?.name || ''} onInput=${v => set({ name: v })}/>
       <//>
 
-      <${Field} label="换成图片" desc=${`整张图完整放进  ${ICON_MAX} x ${ICON_MAX}，存在本地`}>
+      <${Field} label="更换为图片" desc=${`整图完整缩放至 ${ICON_MAX} x ${ICON_MAX}，保存在本地。`}>
         <div class="icon-upload">
           <div class=${`app-tile app-tile-preview${preview ? ' has-image' : ''}`}
             style=${preview ? `background-image:url(${preview})` : ''}>
@@ -135,12 +135,12 @@ function IconPicker({ appId, onClose }) {
           </div>
           <div class="icon-upload-acts">
             <${Button} size="sm" variant="ghost" icon="upload" disabled=${busy}
-              onClick=${() => fileRef.current?.click()}>选图片<//>
+              onClick=${() => fileRef.current?.click()}>选择图片<//>
             <${Button} size="sm" variant="ghost" icon="layers" disabled=${busy}
-              onClick=${fromUrl}>用链接<//>
+              onClick=${fromUrl}>使用链接<//>
             ${cur.imageId ? html`
               <${Button} size="sm" variant="ghost" icon="close"
-                onClick=${() => { db.images.remove(cur.imageId); set({ imageId: null }); }}>改回图标<//>` : null}
+                onClick=${() => { db.images.remove(cur.imageId); set({ imageId: null }); }}>恢复为图标<//>` : null}
           </div>
         </div>
         <input type="file" accept="image/*" ref=${fileRef} onChange=${pickFile} style="display:none"/>
@@ -177,7 +177,7 @@ function CSSEditor({ open, onClose }) {
     if (!file) return;
     const text = await file.text();
     setDraft(text);
-    toast('已读入，记得点应用');
+    toast('已读取，请点击应用生效');
   };
 
   return html`
@@ -227,7 +227,7 @@ export function AppearancePage() {
           right=${html`<${Switch} checked=${s.theme === 'dark'}
             onChange=${v => db.settings.set({ theme: v ? 'dark' : 'light' })}/>`}/>
         <${ListItem} title="模拟状态栏" multiline
-          subtitle="手机浏览器本身已有状态栏，再显示一条会是双份。自动模式在触摸设备上隐藏。"
+          subtitle="移动端浏览器自带状态栏，重复显示会出现两条。自动模式在触摸设备上隐藏。"
           right=${html`<div style="width:150px"><${Segmented}
             value=${s.statusBar} onChange=${v => db.settings.set({ statusBar: v })}
             items=${[{ value: 'auto', label: '自动' }, { value: 'on', label: '显示' }, { value: 'off', label: '隐藏' }]}/></div>`}/>
@@ -240,8 +240,8 @@ export function AppearancePage() {
       <div class="list-wrap">
         <div class="list-title">壁纸</div>
         <div class="list list-inset">
-          <${WallpaperRow} slot="home" label="主界面" desc="铺在图标和小组件下面"/>
-          <${WallpaperRow} slot="lock" label="锁屏" desc="时钟与通知下面"/>
+          <${WallpaperRow} slot="home" label="主界面" desc="位于图标与小组件下层"/>
+          <${WallpaperRow} slot="lock" label="锁屏" desc="位于时钟与通知下层"/>
         </div>
       </div>
 
@@ -249,9 +249,9 @@ export function AppearancePage() {
 
       <${LookPresets}/>
 
-      <${List} title="底部">
+      <${List} title="底部边距">
         <${ListItem} title="底部整体上移" multiline
-          subtitle=${`现在 ${s.bottomLift || 0}px。底下那条小横杠被地址栏压住时往上抬一点。加到主屏幕当 PWA 用一般不需要`}/>
+          subtitle=${`当前 ${s.bottomLift || 0}px。底部内容被浏览器地址栏遮挡时上调此值。以 PWA 方式添加到主屏幕后通常无需调整。`}/>
       <//>
       <div class="pad-x">
         <${Field} label=${`${s.bottomLift || 0} px`}>
@@ -270,7 +270,7 @@ export function AppearancePage() {
       <//>
 
       <div class="pad-x">
-        <${Field} label="图标颜色" desc="所有 SVG 的描边颜色">
+        <${Field} label="图标颜色" desc="所有 SVG 图标的描边颜色。">
           <div class="color-row">
             ${PRESET_COLORS.map(c => html`
               <button key=${c} class=${`swatch${(s.iconColor || '#000000').toLowerCase() === c.toLowerCase() ? ' is-active' : ''}`}
@@ -285,24 +285,24 @@ export function AppearancePage() {
         <//>
       </div>
 
-      <${List} title="换图标">
-        <${ListItem} title="批量换图" multiline
-          subtitle="勾一批应用，再一次选多张图，按勾选顺序一一对应" arrow
+      <${List} title="应用图标">
+        <${ListItem} title="批量更换" multiline
+          subtitle="先勾选若干应用，再一次选择多张图片，按勾选顺序依次对应。" arrow
           left=${html`<${Icon} name="grid" size=${19}/>`}
           onClick=${() => setBatchOpen(true)}/>
         ${apps.map(a => {
           const cur = (s.appIcons || {})[a.id] || {};
           return html`
             <${ListItem} key=${a.id} title=${a.name}
-              subtitle=${cur.imageId ? '用了图片' : cur.icon ? '换了图标' : '默认'} arrow
+              subtitle=${cur.imageId ? '已使用图片' : cur.icon ? '已更换图标' : '默认'} arrow
               left=${html`<div class="app-tile app-tile-mini"><${Icon} name=${a.icon} size=${18}/></div>`}
               onClick=${() => setPicking(a.id)}/>`;
         })}
       <//>
 
-      <${List} title="进阶">
+      <${List} title="高级">
         <${ListItem} title="自定义 CSS"
-          subtitle=${s.customCSS ? '已应用，点这里继续编辑' : '粘贴或导入一份 CSS，覆盖默认外观'} arrow multiline
+          subtitle=${s.customCSS ? '已应用，点击继续编辑' : '粘贴或导入 CSS，覆盖默认外观'} arrow multiline
           left=${html`<${Icon} name="layers" size=${19}/>`}
           onClick=${() => setCssOpen(true)}/>
       <//>

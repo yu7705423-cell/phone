@@ -89,11 +89,11 @@ export function StickerManager() {
     try {
       if (/\.docx$/i.test(file.name)) {
         const { rows, blobs } = await api.parseDocx(file);
-        if (!rows.length && !blobs.length) { toast('这个 docx 里没找到链接或图片', 'error'); return; }
+        if (!rows.length && !blobs.length) { toast('该 docx 中未找到链接或图片', 'error'); return; }
         setPending({ rows, blobs });
       } else {
         const rows = api.parseText(await file.text());
-        if (!rows.length) { toast('没解析出任何一行，每行需要包含一个图片链接', 'error', 4000); return; }
+        if (!rows.length) { toast('未解析出有效内容，每行需包含一个图片链接', 'error', 4000); return; }
         setPending({ rows, blobs: [] });
       }
     } catch (err) {
@@ -102,32 +102,32 @@ export function StickerManager() {
   };
 
   const cacheAll = async () => {
-    if (!remote.length) { toast('没有需要缓存的'); return; }
+    if (!remote.length) { toast('没有需要缓存的表情'); return; }
     setCaching({ done: 0, total: remote.length });
     const r = await api.cacheRemote(remote, (done, total) => setCaching({ done, total }));
     setCaching(null);
-    toast(`已缓存 ${r.ok} 个${r.fail ? `，${r.fail} 个取不回来（多半是跨域）` : ''}`,
+    toast(`已缓存 ${r.ok} 个${r.fail ? `，${r.fail} 个获取失败（通常为跨域限制）` : ''}`,
       r.fail ? 'error' : 'ok', 4000);
   };
 
   const wipeGroup = async g => {
     const list = api.inGroup(g);
-    if (!await confirm({ title: `删除分组「${g}」`, message: `其中 ${list.length} 个表情会一起删除。`, danger: true })) return;
+    if (!await confirm({ title: `删除分组「${g}」`, message: `该分组下的 ${list.length} 个表情将一并删除。`, danger: true })) return;
     list.forEach(s => { if (s.imageId) db.images.remove(s.imageId); db.stickers.remove(s.id); });
   };
 
   return html`
     <${Page} title="表情包" onBack=${nav.pop}>
       <${List} title="导入">
-        <${ListItem} title="批量选图片" subtitle="一次选多张，文件名当名称" arrow
+        <${ListItem} title="批量选择图片" subtitle="可一次选择多张，文件名作为表情名称" arrow
           left=${html`<${Icon} name="image" size=${18}/>`}
           onClick=${() => imgRef.current?.click()}/>
         <${ListItem} title="从 txt 导入" multiline
-          subtitle="每行一个：名称|链接，或名称 链接，或只有链接。以 # 开头的行跳过。" arrow
+          subtitle="每行一条：名称|链接、名称 链接，或仅链接。以 # 开头的行将被忽略。" arrow
           left=${html`<${Icon} name="notes" size=${18}/>`}
           onClick=${() => fileRef.current?.click()}/>
         <${ListItem} title="从 docx 导入" multiline
-          subtitle="读取正文里的链接、文档超链接，以及内嵌的图片。" arrow
+          subtitle="读取正文中的链接、文档超链接以及内嵌图片。" arrow
           left=${html`<${Icon} name="book" size=${18}/>`}
           onClick=${() => fileRef.current?.click()}/>
       <//>
@@ -161,13 +161,13 @@ export function StickerManager() {
                 </button>`)}
             </div>
           </div>`;
-      }) : html`<${EmptyState} icon="heart" title="还没有表情包"
-        desc="用上面三种方式之一导入。导入前会让你确认并选分组。"/>`}
+      }) : html`<${EmptyState} icon="heart" title="暂无表情包"
+        desc="可通过以上三种方式导入。导入前需确认内容并指定分组。"/>`}
 
       ${pending ? html`
         <${Review} rows=${pending.rows} blobs=${pending.blobs}
           onCancel=${() => setPending(null)}
-          onDone=${n => { setPending(null); toast(`导入了 ${n} 个`); }}/>` : null}
+          onDone=${n => { setPending(null); toast(`已导入 ${n} 个`); }}/>` : null}
 
       ${editing ? html`
         <${Sheet} open=${true} onClose=${() => setEditing(null)} title=${editing.name || '表情'}>
@@ -176,7 +176,7 @@ export function StickerManager() {
             <${Input} value=${editing.name}
               onInput=${v => { db.stickers.update(editing.id, { name: v }); setEditing({ ...editing, name: v }); }}/>
           <//>
-          <${Field} label="关键词" desc="逗号分隔。在输入框里打这些词会推荐这个表情。">
+          <${Field} label="关键词" desc="以逗号分隔。输入框中出现这些词时会推荐该表情。">
             <${Input} value=${(editing.keywords || []).join('，')}
               onInput=${v => {
                 const kws = api.splitKeywords(v);
@@ -199,7 +199,7 @@ export function StickerManager() {
           <//>
           <div class="sheet-acts">
             <${Button} variant="ghost" onClick=${async () => {
-              if (!await confirm({ title: '删除这个表情', danger: true })) return;
+              if (!await confirm({ title: '删除该表情', danger: true })) return;
               if (editing.imageId) db.images.remove(editing.imageId);
               db.stickers.remove(editing.id);
               setEditing(null);

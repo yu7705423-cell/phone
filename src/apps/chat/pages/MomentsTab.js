@@ -109,7 +109,7 @@ export function MomentsTab() {
       const ids = [];
       for (const f of files.slice(0, room)) ids.push(await db.images.put(f, PHOTO_MAX));
       setImgs([...imgs, ...ids]);
-      if (files.length > room) toast('最多九张');
+      if (files.length > room) toast('最多九张图片');
     } catch (err) { toast('图片处理失败：' + err.message, 'error'); }
   };
 
@@ -122,13 +122,13 @@ export function MomentsTab() {
   };
 
   const genMoment = async () => {
-    if (!chars.length) { toast('先建一个角色卡'); return; }
-    if (!ai.isConfigured()) { toast('还没有配置模型接口', 'error'); return; }
+    if (!chars.length) { toast('请先创建角色卡'); return; }
+    if (!ai.isConfigured()) { toast('尚未配置模型接口', 'error'); return; }
     setBusy(true);
     try {
       const char = chars[Math.floor(Math.random() * chars.length)];
       await ai.moments.createMoment(char.id);
-      toast(`${char.name} 发了一条动态`);
+      toast(`${char.name} 发布了一条动态`);
     } catch (err) { toast(String(err.message || err), 'error', 4000); }
     finally { setBusy(false); }
   };
@@ -152,11 +152,11 @@ export function MomentsTab() {
 
       ${list.length ? list.map(mo => html`
         <${MomentCard} key=${mo.id} mo=${mo} onComment=${m => { setTarget(m); setComment(''); }}/>`)
-      : html`<${EmptyState} icon="moments" title="还没有动态"
-          desc="你可以自己发，也可以让角色根据人设和最近的聊天自动发一条。图片从本地上传，存在这台设备上。"/>`}
+      : html`<${EmptyState} icon="moments" title="暂无动态"
+          desc="可自行发布，也可由角色依据人设与近期对话自动生成。图片从本地上传，仅保存在本设备。"/>`}
 
-      <${Sheet} open=${composing} onClose=${() => setComposing(false)} title="发动态">
-        <${Textarea} rows=${4} value=${text} onInput=${setText} placeholder="这一刻的想法"/>
+      <${Sheet} open=${composing} onClose=${() => setComposing(false)} title="发布动态">
+        <${Textarea} rows=${4} value=${text} onInput=${setText} placeholder="此刻的想法"/>
         <div class="mo-upload">
           ${imgs.map(id => html`
             <div key=${id} class="mo-thumb">
@@ -185,7 +185,7 @@ export function MomentsTab() {
             })}
           </div>
           <div class="composer composer-inline">
-            <textarea rows="1" value=${comment} placeholder="说点什么"
+            <textarea rows="1" value=${comment} placeholder="写下评论"
               onInput=${e => setComment(e.target.value)}></textarea>
             <button class="send-btn press" disabled=${!comment.trim()} onClick=${sendComment}>
               <${Icon} name="send" size=${16}/></button>

@@ -31,61 +31,61 @@ export function CharacterEdit({ id }) {
         </div>
 
         <${List} inset=${false}>
-          <${ListItem} title="人设、情境、开场白、说话示例" arrow multiline
-            subtitle=${char.persona ? '去「联系」里改' : '还没写。这些决定她是谁，去「联系」里写'}
+          <${ListItem} title="人设、情境、开场白、对话示例" arrow multiline
+            subtitle=${char.persona ? '在「联系」中编辑' : '尚未填写。这些内容决定角色是谁，请在「联系」中填写'}
             left=${html`<${Icon} name="user" size=${18}/>`}
             onClick=${() => phone.intent.open('contact', { route: `/char/${id}` })}/>
         <//>
 
         <${Field} label="音色 ID"
-          desc="语音合成用哪个音色。接口和模型在「设置」的「语音」里配，这里只填这个角色用哪个音色。">
+          desc="语音合成使用的音色。接口与模型在「设置 - 语音」中配置，此处仅指定该角色使用的音色。">
           <${Input} value=${char.voiceId || ''} placeholder="例如 male-qn-qingse"
             onInput=${v => patch({ voiceId: v })}/>
         <//>
 
-        <${Field} label=${`语速　${(char.voiceSpeed ?? 1).toFixed(2)}`} desc="1 是正常速度">
+        <${Field} label=${`语速　${(char.voiceSpeed ?? 1).toFixed(2)}`} desc="1 为正常语速">
           <input type="range" min="0.5" max="2" step="0.05" value=${char.voiceSpeed ?? 1}
             onInput=${e => patch({ voiceSpeed: parseFloat(e.target.value) })}/>
         <//>
       </div>
 
-      <${List} title="她可以主动发什么">
-        <${ListItem} title="发语音" multiline
-          subtitle=${char.voiceId ? '模型觉得合适时会用说的代替打字' : '还没填音色 ID，填了才会生效'}
+      <${List} title="角色可主动发送的内容">
+        <${ListItem} title="语音" multiline
+          subtitle=${char.voiceId ? '角色会在合适时以语音代替文字' : '尚未填写音色 ID，填写后生效'}
           right=${html`<${Switch} checked=${char.canSendVoice !== false}
             onChange=${v => patch({ canSendVoice: v })}/>`}/>
-        <${ListItem} title="发图片" subtitle="模型觉得合适时会描述一个画面，交给生图接口"
+        <${ListItem} title="图片" subtitle="角色会在合适时描述画面，交由生图接口生成"
           multiline
           right=${html`<${Switch} checked=${char.canSendImage !== false}
             onChange=${v => patch({ canSendImage: v })}/>`}/>
       <//>
 
       ${clock.enabled() ? html`
-        <${List} title="她在哪儿">
+        <${List} title="角色所在时区">
           <${ListItem} title="所在时区" arrow multiline
             subtitle=${char.timezone
-              ? `${clock.zoneLabel(char.timezone)} · 现在 ${clock.clockOnly(clock.now(), char.timezone)}`
-              : `跟你同一个时区 · 现在 ${clock.clockOnly(clock.now(), clock.userZone())}`}
+              ? `${clock.zoneLabel(char.timezone)} · 当前 ${clock.clockOnly(clock.now(), char.timezone)}`
+              : `与本人相同 · 当前 ${clock.clockOnly(clock.now(), clock.userZone())}`}
             left=${html`<${Icon} name="map" size=${18}/>`}
             onClick=${() => setPicking(true)}/>
         <//>
         <div class="settings-foot">
-          设成别的国家，她就按那边的作息过日子，你半夜发消息她可能正在上班。
-          你自己在哪儿在「上下文与记忆 - 时间感知」里设。
+          设为其他国家后，角色将按该地的作息与时间作出反应。
+          本人所在时区在「上下文与记忆 - 时间感知」中设置。
         </div>` : null}
 
       <${List} title="关联世界书">
         ${db.lorebooks.all().map(b => html`
           <${ListItem} key=${b.id} title=${b.name}
-            subtitle=${b.global ? '全局生效，不需要关联' : `${(b.entries || []).length} 个条目`}
+            subtitle=${b.global ? '全局生效，无需关联' : `${(b.entries || []).length} 个条目`}
             right=${html`<${Switch} checked=${b.global || (char.lorebookIds || []).includes(b.id)}
               onChange=${() => !b.global && toggleBook(b.id)}/>`}/>`)}
-        ${!db.lorebooks.count() ? html`<${ListItem} title="还没有世界书"/>` : null}
+        ${!db.lorebooks.count() ? html`<${ListItem} title="暂无世界书"/>` : null}
       <//>
       <div class="pad-b"></div>
 
       <${ZonePicker} open=${picking} value=${char.timezone || ''} allowSame
-        title=${`${char.name} 在哪儿`}
+        title=${`${char.name} 所在时区`}
         onPick=${z => patch({ timezone: z })}
         onClose=${() => setPicking(false)}/>
     <//>`;

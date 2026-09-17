@@ -11,7 +11,7 @@ export const LOCAL = 'local';
 
 // 按用得上的概率排，不求全。要别的直接填 IANA 名。
 export const ZONES = [
-  { id: LOCAL, label: '跟这台设备一样' },
+  { id: LOCAL, label: '跟随本设备' },
   { id: 'Asia/Shanghai', label: '中国 · 北京、上海' },
   { id: 'Asia/Hong_Kong', label: '中国香港' },
   { id: 'Asia/Taipei', label: '中国台北' },

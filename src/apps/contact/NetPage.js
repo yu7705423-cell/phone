@@ -14,15 +14,15 @@ export function NetPage({ id }) {
   const char = db.characters.get(id);
   if (!char) {
     return html`<${Page} title="关系网" onBack=${nav.pop}>
-      <${EmptyState} title="这个角色已被删除"/><//>`;
+      <${EmptyState} title="该角色已被删除"/><//>`;
   }
 
   const { nodes, edges } = card.graphAround(id, 2);
   if (nodes.length <= 1) {
     return html`
       <${Page} title="关系网" onBack=${nav.pop}>
-        <${EmptyState} icon="users" title="还没有关联的人"
-          desc=${`${char.name}目前是孤零零一个。去关联几个角色，这里就会画出来。`}
+        <${EmptyState} icon="users" title="暂无关联角色"
+          desc=${`${char.name} 目前没有任何关联。添加关联角色后，此处会绘制关系网。`}
           action=${html`<${Button} size="sm" icon="plus"
             onClick=${() => nav.replace(`/npc/${id}`)}>关联角色<//>`}/>
       <//>`;

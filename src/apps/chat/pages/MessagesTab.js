@@ -76,8 +76,8 @@ export function MessagesTab() {
   };
 
   if (!all.length) {
-    return html`<${EmptyState} icon="message" title="还没有会话"
-      desc="去「联系人」建一个角色卡，然后就能开始聊了。"/>`;
+    return html`<${EmptyState} icon="message" title="暂无会话"
+      desc="请先在「联系人」中创建角色卡。"/>`;
   }
 
   return html`

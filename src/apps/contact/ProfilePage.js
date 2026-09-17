@@ -14,7 +14,7 @@ export function ProfilePage({ id }) {
   const avatar = useImage(char?.avatar);
   if (!char) {
     return html`<${Page} title="资料" onBack=${nav.pop}>
-      <${EmptyState} title="这个角色已被删除"/><//>`;
+      <${EmptyState} title="该角色已被删除"/><//>`;
   }
 
   const rels = card.relationsOf(id);
@@ -61,7 +61,7 @@ export function ProfilePage({ id }) {
               left=${html`<${Icon} name="user" size=${18}/>`}
               onClick=${() => nav.push(`/profile/${r.charId}`)}/>`;
         })}
-        <${ListItem} title="关联角色" subtitle="手动挑一个，或者让模型一次生成一批" arrow multiline
+        <${ListItem} title="关联角色" subtitle="手动选择，或由模型批量生成" arrow multiline
           left=${html`<${Icon} name="plus" size=${18}/>`}
           onClick=${() => nav.push(`/npc/${id}`)}/>
       <//>
@@ -72,7 +72,7 @@ export function ProfilePage({ id }) {
           ${char.altReason ? html`她给自己的理由：${char.altReason}` : null}
         </div>` : null}
       ${alts.length ? html`
-        <${List} title=${`她的小号 · ${alts.length}`}>
+        <${List} title=${`该角色的小号 · ${alts.length}`}>
           ${alts.map(a => html`
             <${ListItem} key=${a.id} title=${a.name} subtitle=${a.altReason || ''} arrow multiline
               left=${html`<${Icon} name="user" size=${18}/>`}

@@ -7,7 +7,7 @@ import { ZonePicker } from './ZonePicker.js';
 const { db, nav, clock } = phone;
 
 const MODES = [
-  { value: 'real', label: '跟真实时间' },
+  { value: 'real', label: '系统时间' },
   { value: 'virtual', label: '自定义' },
 ];
 
@@ -39,7 +39,7 @@ export function TimePage() {
   // 设了新时刻就重新对表：记下这一刻的真实时间，往后按差值走
   const setVirtual = ms => db.settings.set({ timeVirtualAt: ms, timeSetAt: Date.now() });
 
-  const useNow = () => { setVirtual(Date.now()); toast('对上现在这一刻了'); };
+  const useNow = () => { setVirtual(Date.now()); toast('已校准到当前时间'); };
 
   // 时区不一样的角色列出来，省得为了确认一眼要翻遍所有角色卡
   // 按实际时差比，不按 id 比 —— 我选「本地」、她填「中国·上海」，那是同一个地方
@@ -49,24 +49,24 @@ export function TimePage() {
     <${Page} title="时间感知" onBack=${nav.pop}>
       <${List}>
         <${ListItem} title="时间感知" multiline
-          subtitle="告诉角色现在几点、你们差几个时区、上次聊天隔了多久。关掉就一个字都不提"
+          subtitle="向角色提供当前时间、双方时差与距上次对话的间隔。关闭后不注入任何时间信息"
           right=${html`<${Switch} checked=${on}
             onChange=${v => db.settings.set({ injectTime: v })}/>`}/>
       <//>
 
       ${on ? html`
         <${List}>
-          <${ListItem} title="让她自己写出时间" multiline
-            subtitle="每条回复先写一行当地时间，显示的时候过滤掉。光在设定里写「现在三点」模型常常视而不见，自己写过一遍才算真看见"
+          <${ListItem} title="要求角色写出时间" multiline
+            subtitle="角色每条回复先输出一行当地时间，界面上过滤不显示。仅在设定中告知时间，模型往往不会真正参照；要求其输出一次，时间才会进入推理"
             right=${html`<${Switch} checked=${s.timeStamp !== false}
               onChange=${v => db.settings.set({ timeStamp: v })}/>`}/>
         <//>
 
         <div class="pad">
-          <${Field} label="时间从哪儿来"
+          <${Field} label="时间来源"
             desc=${virtual
-              ? '自定义之后，时间会从你设的那一刻接着往下走，不是钉死在一个点上'
-              : '用这台设备的真实时间'}>
+              ? '自设定的时刻起继续推进，而非固定在该时刻'
+              : '采用本设备的系统时间'}>
             <${Segmented} value=${s.timeMode || 'real'} items=${MODES}
               onChange=${v => {
                 if (v === 'virtual' && !s.timeVirtualAt) setVirtual(Date.now());
@@ -75,7 +75,7 @@ export function TimePage() {
           <//>
 
           ${virtual ? html`
-            <${Field} label="从哪一刻开始">
+            <${Field} label="起始时刻">
               <input class="dt-input" type="datetime-local"
                 value=${toLocalInput(s.timeVirtualAt || Date.now())}
                 onInput=${e => {
@@ -83,31 +83,30 @@ export function TimePage() {
                   if (!Number.isNaN(ms)) setVirtual(ms);
                 }}/>
               <div class="btn-row pad-t">
-                <${Button} size="sm" variant="ghost" icon="clock" onClick=${useNow}>对到现在<//>
+                <${Button} size="sm" variant="ghost" icon="clock" onClick=${useNow}>校准到当前时间<//>
               </div>
             <//>` : null}
         </div>
 
         ${virtual ? html`
           <${List}>
-            <${ListItem} title="停在这一刻" multiline
-              subtitle="开了时间就不再往前走，永远是你设的那个点。适合一场不该天亮的戏"
+            <${ListItem} title="固定时刻" multiline
+              subtitle="开启后时间不再推进，始终停留在设定的时刻"
               right=${html`<${Switch} checked=${!!s.timeFrozen}
                 onChange=${v => db.settings.set({ timeFrozen: v })}/>`}/>
           <//>` : null}
 
-        <${List} title="谁在哪儿">
-          <${ListItem} title="我在" subtitle=${clock.zoneLabel(uz)} arrow multiline
+        <${List} title="所在时区">
+          <${ListItem} title="本人所在时区" subtitle=${clock.zoneLabel(uz)} arrow multiline
             left=${html`<${Icon} name="map" size=${18}/>`}
             onClick=${() => setPicking(true)}/>
         <//>
         <div class="settings-foot">
-          角色在哪儿写在各自的角色卡里 —— 那是她的事，不是这儿的事。
-          没单独设的就当和你同城。
+          角色所在时区在各自的角色卡中设置。未单独设置的角色，视为与本人处于同一时区。
         </div>
 
         ${away.length ? html`
-          <${List} title="跟你不在一个时区的">
+          <${List} title="与本人存在时差的角色">
             ${away.map(c => html`
               <${ListItem} key=${c.id} title=${c.name} subtitle=${clock.zoneLabel(c.timezone)}
                 right=${html`<span class="zone-now">${clock.clockOnly(now, c.timezone)}</span>`}
@@ -120,16 +119,16 @@ export function TimePage() {
             <div class="time-sub">${clock.format(now, uz)} · ${clock.zoneLabel(uz)}</div>
             <div class="time-note">
               ${virtual
-                ? (s.timeFrozen ? '虚拟时间，停着不走' : '虚拟时间，正在往下走')
-                : '真实时间'}
+                ? (s.timeFrozen ? '自定义时间 · 已固定' : '自定义时间 · 持续推进')
+                : '系统时间'}
             </div>
           </div>
         </div>`
       : html`<div class="settings-foot">
-          关着的时候，角色不知道今天几号、现在几点，也不知道你隔了多久才回。
+          关闭状态下，角色不知道当前日期与时间，也不知道距上次对话过去了多久。
         </div>`}
 
-      <${ZonePicker} open=${picking} value=${uz} title="我在哪儿"
+      <${ZonePicker} open=${picking} value=${uz} title="本人所在时区"
         onPick=${id => db.settings.set({ timeZoneUser: id })}
         onClose=${() => setPicking(false)}/>
     <//>`;

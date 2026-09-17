@@ -44,7 +44,7 @@ export function Dock() {
       clearPicked();
       return;
     }
-    if (!slots[i]) { toast('先点一个图标，再点这里把它挪过来'); return; }
+    if (!slots[i]) { toast('请先选择一个图标，再点击此处移入'); return; }
     setMenu(i);
   };
 
@@ -71,10 +71,10 @@ export function Dock() {
         title=${menu !== null && slots[menu] ? (appLook(slots[menu])?.name || '') : ''}>
         ${menu !== null ? html`
           <${List} inset=${false}>
-            <${ListItem} title="移动到别处" subtitle="接着点网格里的位置，或底部另一格" arrow multiline
+            <${ListItem} title="移动到其他位置" subtitle="随后点击网格中的位置，或底部的其他格位" arrow multiline
               left=${html`<${Icon} name="drag" size=${18}/>`}
               onClick=${() => { setPicked({ type: 'dock', i: menu }); setMenu(null); }}/>
-            <${ListItem} title="从底部移除" subtitle="应用本身还在，只是不放在这一排" danger arrow multiline
+            <${ListItem} title="从底栏移除" subtitle="应用本身保留，仅从该栏移出" danger arrow multiline
               left=${html`<${Icon} name="trash" size=${18}/>`}
               onClick=${() => { clearDockSlot(menu); setMenu(null); }}/>
           <//>` : null}

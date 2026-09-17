@@ -28,7 +28,7 @@ export function TemplatesPage() {
     toast('已保存');
   };
   const reset = async () => {
-    if (!await confirm({ title: '恢复默认', message: '这条模板会还原为内置版本。' })) return;
+    if (!await confirm({ title: '恢复默认', message: '该模板将还原为内置版本。' })) return;
     const next = { ...s.promptTemplates };
     delete next[editing];
     db.settings.replace({ ...s, promptTemplates: next });

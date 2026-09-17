@@ -80,7 +80,7 @@ export function Root() {
       ${s.screen === 'home' ? html`<${Dock}/>` : null}
       ${s.screen !== 'lock' ? html`
         <div class="home-indicator" onClick=${goHome}
-          onDblClick=${() => setSwitcher(true)} title="点击回到主界面，双击打开多任务">
+          onDblClick=${() => setSwitcher(true)} title="点击返回主界面，双击打开多任务">
           <span class="hi-bar"></span>
         </div>` : null}
       <${NotifyBanner}/>

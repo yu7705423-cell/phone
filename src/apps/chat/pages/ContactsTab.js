@@ -69,14 +69,14 @@ export function ContactsTab() {
   };
 
   const newGroup = async () => {
-    const name = await prompt({ title: '新建分组', placeholder: '例如：同事、旧友' });
+    const name = await prompt({ title: '新建分组', placeholder: '例如：同事、同学' });
     if (name == null) return;
     setGroup(name.trim());
   };
 
   if (!all.length) {
-    return html`<${EmptyState} icon="users" title="还没有角色卡"
-      desc="角色卡是整套系统的核心。它不属于任何一个页面，聊天、朋友圈、主页用的都是同一份。"
+    return html`<${EmptyState} icon="users" title="暂无角色卡"
+      desc="角色卡是整套系统的核心数据。聊天、朋友圈与主页共用同一份。"
       action=${html`<${Button} size="sm" icon="plus" onClick=${add}>新建角色卡<//>`}/>`;
   }
 
@@ -84,7 +84,7 @@ export function ContactsTab() {
     <div class="msg-list">
       <div class="search-bar">
         <${Icon} name="search" size=${16}/>
-        <input value=${q} placeholder="搜索名字、签名、人设、分组"
+        <input value=${q} placeholder="搜索姓名、签名、人设或分组"
           onInput=${e => setQ(e.target.value)}/>
         ${q ? html`<button class="press" onClick=${() => setQ('')}>
           <${Icon} name="close" size=${15}/></button>` : null}
@@ -97,7 +97,7 @@ export function ContactsTab() {
             ${groups.get(g).map(c => html`<${Row} key=${c.id} char=${c} onHold=${setHeld}/>`)}
           </div>
         </div>`)
-      : html`<${EmptyState} icon="search" title="没有匹配的角色"/>`}
+      : html`<${EmptyState} icon="search" title="无匹配的角色"/>`}
 
       <div class="pad">
         <${Button} full variant="ghost" icon="plus" onClick=${add}>新建角色卡<//>
@@ -117,13 +117,13 @@ export function ContactsTab() {
               left=${html`<${Icon} name="plus" size=${18}/>`} onClick=${newGroup}/>
           <//>
           <${List} inset=${false}>
-            <${ListItem} title=${held.pinned ? '取消置顶' : '在分组里置顶'} arrow
+            <${ListItem} title=${held.pinned ? '取消置顶' : '在分组内置顶'} arrow
               left=${html`<${Icon} name=${held.pinned ? 'chevronDown' : 'chevronUp'} size=${18}/>`}
               onClick=${() => { db.characters.update(held.id, { pinned: !held.pinned }); setHeld(null); }}/>
-            <${ListItem} title="改人设" arrow
+            <${ListItem} title="编辑人设" arrow
               left=${html`<${Icon} name="user" size=${18}/>`}
               onClick=${() => { const id = held.id; setHeld(null); phone.intent.open('contact', { route: `/char/${id}` }); }}/>
-            <${ListItem} title="角色卡" subtitle="语音、发图、主动找我、世界书" arrow multiline
+            <${ListItem} title="角色卡" subtitle="语音、图片、主动发起对话、世界书、时区" arrow multiline
               left=${html`<${Icon} name="edit" size=${18}/>`}
               onClick=${() => { const id = held.id; setHeld(null); nav.push(`/edit/${id}`); }}/>
           <//>` : null}

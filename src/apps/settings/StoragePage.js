@@ -62,7 +62,7 @@ export function StoragePage() {
     a.download = `小手机备份-${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-    toast('备份已导出。注意：图片不含在内');
+    toast('备份已导出。图片不包含在内');
   };
 
   const importAll = async e => {
@@ -71,7 +71,7 @@ export function StoragePage() {
     if (!file) return;
     if (!await confirm({
       title: '导入备份', danger: true,
-      message: '当前的角色卡、世界书、记忆、会话会被备份里的内容覆盖。',
+      message: '当前的角色卡、世界书、记忆与会话将被备份内容覆盖。',
     })) return;
     setBusy(true);
     try {
@@ -95,15 +95,15 @@ export function StoragePage() {
     const used = collectUsedImageIds();
     const orphans = db.images.ids().filter(id => !used.has(id));
     if (!orphans.length) { toast('没有需要清理的图片'); return; }
-    if (!await confirm({ title: '清理无引用图片', message: `将删除 ${orphans.length} 张不再被使用的图片。`, danger: true })) return;
+    if (!await confirm({ title: '清理无引用图片', message: `将删除 ${orphans.length} 张未被引用的图片。`, danger: true })) return;
     await Promise.all(orphans.map(id => db.images.remove(id)));
-    toast(`已清理 ${orphans.length} 张`);
+    toast(`已清理 ${orphans.length} 张图片`);
   };
 
   const wipe = async () => {
     if (!await confirm({
       title: '清空全部数据', danger: true, okText: '全部删除',
-      message: '角色卡、世界书、记忆、聊天记录、动态、图片会被全部删除，无法恢复。',
+      message: '角色卡、世界书、记忆、聊天记录、动态与图片将全部删除，且无法恢复。',
     })) return;
     setBusy(true);
     for (const n of ['characters', 'lorebooks', 'memories', 'chats', 'messages', 'moments']) {
@@ -127,14 +127,14 @@ export function StoragePage() {
       <//>
 
       <${List} title="维护">
-        <${ListItem} title="清理无引用图片" subtitle="删除已不被任何角色或动态使用的图片" arrow
+        <${ListItem} title="清理无引用图片" subtitle="删除未被任何角色或动态引用的图片" arrow
           left=${html`<${Icon} name="filter" size=${18}/>`} onClick=${cleanOrphans}/>
       <//>
 
       <${List} title="备份">
-        <${ListItem} title="导出备份" subtitle="JSON 文件。不含图片与 API 密钥" arrow
+        <${ListItem} title="导出备份" subtitle="JSON 文件，不含图片与 API 密钥" arrow
           left=${html`<${Icon} name="download" size=${18}/>`} onClick=${exportAll}/>
-        <${ListItem} title="导入备份" subtitle="会覆盖当前数据" arrow
+        <${ListItem} title="导入备份" subtitle="将覆盖当前数据" arrow
           left=${html`<${Icon} name="upload" size=${18}/>`}
           onClick=${() => fileRef.current?.click()}/>
       <//>

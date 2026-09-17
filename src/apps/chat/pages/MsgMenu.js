@@ -12,12 +12,12 @@ const textOf = m => m.kind === 'image' ? (m.prompt || '')
 // 改的是「这条消息的正文」，但正文在哪个字段要看消息类型：
 // 图片改的是画面描述，语音改的是要说的话，改完那份媒体得重新生成。
 async function editMessage(msg) {
-  const label = msg.kind === 'image' ? '改图片描述'
-    : msg.kind === 'voice' ? '改语音文字' : '编辑消息';
+  const label = msg.kind === 'image' ? '修改图片描述'
+    : msg.kind === 'voice' ? '修改语音文本' : '编辑消息';
   const v = await prompt({ title: label, value: textOf(msg), multiline: true });
   if (v == null) return;
   const t = v.trim();
-  if (!t) { toast('内容不能为空，想删就用删除'); return; }
+  if (!t) { toast('内容不能为空。如需移除请使用删除'); return; }
   if (t === textOf(msg)) return;
 
   if (msg.kind === 'image') {
@@ -49,16 +49,16 @@ function RepairSheet({ msgId, open, onClose }) {
   const all = () => {
     try {
       const done = ai.repair.applyAll(msgId);
-      toast(done.length ? done.join('、') : '没什么可改的');
+      toast(done.length ? done.join('、') : '没有可修正的项');
       onClose();
     } catch (err) { toast(String(err.message || err), 'error'); }
   };
 
   return html`
-    <${Sheet} open=${open} onClose=${onClose} title="修格式" height="66%">
+    <${Sheet} open=${open} onClose=${onClose} title="修正格式" height="66%">
       ${fixes.length ? html`
         <div class="fix-head">
-          模型偶尔会把格式写歪。下面这些是按规则认出来的，不用再调一次接口。
+          以下问题由本地规则识别，直接修正，无需重新调用接口。
         </div>
         <${List} inset=${false}>
           ${fixes.map(f => html`
@@ -68,10 +68,10 @@ function RepairSheet({ msgId, open, onClose }) {
             <div key=${`p-${f.id}`} class="fix-preview">${f.preview}</div>`)}
         <//>
         <div class="pad">
-          <${Button} full onClick=${all}>${`全部修一遍（${fixes.length} 项）`}<//>
+          <${Button} full onClick=${all}>${`全部修正（${fixes.length} 项）`}<//>
         </div>`
-      : html`<${EmptyState} icon="check" title="这条格式没问题"
-          desc="没认出需要修的地方。内容本身不对的话用「编辑」直接改。"/>`}
+      : html`<${EmptyState} icon="check" title="未发现格式问题"
+          desc="没有识别到可修正的项。如需修改内容本身，请使用「编辑」。"/>`}
     <//>`;
 }
 
@@ -98,18 +98,18 @@ export function MsgMenu({ msg, char, onClose, onQuote, onMultiSelect, onDelete }
     try {
       await navigator.clipboard.writeText(fresh.content || '');
       toast('已复制');
-    } catch { toast('复制失败，浏览器没给权限', 'error'); }
+    } catch { toast('复制失败：浏览器未授予剪贴板权限', 'error'); }
     close();
   };
 
   const del = async () => {
-    if (!await confirm({ title: '删除这条消息', message: '删掉之后就不再进上下文了。', danger: true })) return;
+    if (!await confirm({ title: '删除这条消息', message: '删除后不再进入上下文。', danger: true })) return;
     onDelete(msg.id);
     close();
   };
 
   return html`
-    <${Sheet} open=${true} onClose=${close} title=${gone ? '这条已经不在了' : ''}>
+    <${Sheet} open=${true} onClose=${close} title=${gone ? '该消息已不存在' : ''}>
       ${gone ? html`
         <div class="pad"><${Button} full variant="ghost" onClick=${close}>知道了<//></div>`
       : html`
@@ -120,15 +120,15 @@ export function MsgMenu({ msg, char, onClose, onQuote, onMultiSelect, onDelete }
               left=${html`<${Icon} name="edit" size=${18}/>`}
               onClick=${() => { close(); editMessage(fresh); }}/>` : null}
           ${fixes.length ? html`
-            <${ListItem} title="修格式" subtitle=${`认出 ${fixes.length} 处可以修的`} arrow multiline
+            <${ListItem} title="修正格式" subtitle=${`识别到 ${fixes.length} 处可修正的问题`} arrow multiline
               left=${html`<${Icon} name="sparkle" size=${18}/>`}
               onClick=${() => setRepairing(true)}/>` : null}
-          <${ListItem} title="引用" subtitle="回这一条，对方能看到你在接哪句" arrow multiline
+          <${ListItem} title="引用" subtitle="回复这一条，角色可据此判断你在回应哪句" arrow multiline
             left=${html`<${Icon} name="reply" size=${18}/>`}
             onClick=${() => { close(); onQuote(fresh); }}/>
           <${ListItem} title="复制" arrow
             left=${html`<${Icon} name="copy" size=${18}/>`} onClick=${copy}/>
-          <${ListItem} title="多选" subtitle="挑几条一起删" arrow multiline
+          <${ListItem} title="多选" subtitle="选择多条消息后一并删除" arrow multiline
             left=${html`<${Icon} name="check" size=${18}/>`}
             onClick=${() => { close(); onMultiSelect(fresh); }}/>
           <${ListItem} title="删除" danger arrow

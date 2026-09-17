@@ -42,7 +42,7 @@ export function ContextPage() {
     <${Page} title="上下文与记忆" onBack=${nav.pop}>
       <div class="pad">
         <${Field} label="注入顺序"
-          desc="身份开场与回复风格收尾固定在首尾，不参与排序。顺序会自动补齐新增的区块，老配置不会失效。">
+          desc="身份开场与回复风格收尾固定于首尾，不参与排序。新增区块会自动补入顺序，旧配置不会失效。">
           <div class="order-list">
             ${order.map((id, i) => html`
               <${OrderRow} key=${id} id=${id} idx=${i} total=${order.length} onMove=${move}/>`)}
@@ -53,10 +53,10 @@ export function ContextPage() {
       <${List} title="上下文">
         <${ListItem} title="时间感知" arrow multiline
           subtitle=${s.injectTime === false
-            ? '关着。角色不知道今天几号、现在几点'
-            : `现在几点、两边的时差、隔了多久才回${s.timeMode === 'virtual' ? ' · 用的是虚拟时间' : ''}`}
+            ? '已关闭。角色不知道当前日期与时间'
+            : `当前时间、双方时差、对话间隔${s.timeMode === 'virtual' ? ' · 使用自定义时间' : ''}`}
           onClick=${() => nav.push('/time')}/>
-        <${ListItem} title="历史轮次" subtitle="带入 prompt 的最近消息条数"
+        <${ListItem} title="历史轮次" subtitle="进入 prompt 的最近消息条数"
           right=${html`<span>${s.historyLimit}</span>`}/>
       <//>
       <div class="pad-x">
@@ -66,7 +66,7 @@ export function ContextPage() {
 
       <${List}>
         <${ListItem} title="扫描窗口" multiline
-          subtitle="世界书与 B 级记忆在最近几条消息里找关键词。太窄会漏：上一句说「下周面试」，这一句说「好紧张」就命中不了。"
+          subtitle="世界书与 B 级记忆在最近若干条消息中匹配关键词。窗口过窄会导致漏检：上一句提到「下周面试」，下一句的「好紧张」将无法命中。"
           right=${html`<span>${s.scanWindow}</span>`}/>
       <//>
       <div class="pad-x">
@@ -84,10 +84,10 @@ export function ContextPage() {
       </div>
 
       <${List} title="记忆">
-        <${ListItem} title="启用记忆" subtitle="关闭后不注入记忆，也不自动总结"
+        <${ListItem} title="启用记忆" subtitle="关闭后不注入记忆，也不执行自动总结"
           right=${html`<${Switch} checked=${s.memoryEnabled}
             onChange=${v => db.settings.set({ memoryEnabled: v })}/>`}/>
-        <${ListItem} title="自动总结间隔" subtitle="每 N 轮角色回复后提取一次记忆，0 为关闭"
+        <${ListItem} title="自动总结间隔" subtitle="每 N 轮角色回复后提取一次记忆，0 表示关闭"
           right=${html`<span>${s.autoSummarizeInterval || '关'}</span>`}/>
       <//>
       <div class="pad-x pad-b">
@@ -98,8 +98,8 @@ export function ContextPage() {
       <${List} title="怎么找记忆">
         <${ListItem} title="按意思找" multiline
           subtitle=${vecReady
-            ? `已索引 ${indexed} / ${total} 条。关掉就退回原来的关键词匹配`
-            : '需要先在「设置 - 向量」里配好接口。没配就一直走关键词匹配'}
+            ? `已索引 ${indexed} / ${total} 条。关闭后退回关键词匹配`
+            : '需先在「设置 - 向量」中配置接口。未配置时始终使用关键词匹配'}
           right=${vecReady
             ? html`<${Switch} checked=${s.memoryVector !== false}
                 onChange=${v => db.settings.set({ memoryVector: v })}/>`
@@ -108,19 +108,19 @@ export function ContextPage() {
       ${vecReady && s.memoryVector !== false ? html`
         <div class="pad-x">
           <${Field} label=${`最多取 ${s.memoryTopK || 12} 条`}
-            desc="S 级记忆永远都在，不占这个名额。剩下的按相似度排，取前几条">
+            desc="S 级记忆始终注入，不计入此上限。其余记忆按相似度排序后取前若干条。">
             <input type="range" min="3" max="40" step="1" value=${s.memoryTopK || 12}
               onInput=${e => db.settings.set({ memoryTopK: parseInt(e.target.value, 10) })}/>
           <//>
           <${Field} label=${`相似度门槛 ${(s.memoryThreshold ?? 0.22).toFixed(2)}`}
-            desc="低于这个就当没关系。调高更精准但容易漏，调低记得多但会带进噪音">
+            desc="相似度低于该值视为无关。调高更精准但易漏检，调低召回更多但会引入噪音。">
             <input type="range" min="0" max="0.7" step="0.01" value=${s.memoryThreshold ?? 0.22}
               onInput=${e => db.settings.set({ memoryThreshold: parseFloat(e.target.value) })}/>
           <//>
         </div>
         ${todo ? html`
           <div class="settings-foot">
-            还有 ${todo} 条记忆没建索引，暂时只能靠关键词命中。去「设置 - 向量」里补齐。
+            尚有 ${todo} 条记忆未建立索引，暂时仅能通过关键词命中。请在「设置 - 向量」中补齐。
           </div>` : null}
       ` : null}
     <//>`;

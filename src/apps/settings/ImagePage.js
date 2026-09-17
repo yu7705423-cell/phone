@@ -33,7 +33,7 @@ function Editor({ id, onClose }) {
   };
 
   const del = async () => {
-    if (!await confirm({ title: '删除这个生图接口', message: preset.name, danger: true })) return;
+    if (!await confirm({ title: '删除该生图接口', message: preset.name, danger: true })) return;
     svc.removeImagePreset(id);
     onClose();
   };
@@ -44,7 +44,7 @@ function Editor({ id, onClose }) {
         <${Input} value=${preset.name} onInput=${v => set({ name: v })}/>
       <//>
 
-      <${Field} label="类型" desc="官方直连，或填中转站地址">
+      <${Field} label="类型" desc="官方直连，或填写中转站地址。">
         <${Segmented} value=${preset.kind} onChange=${v => set({ kind: v, baseUrl: '' })}
           items=${[{ value: 'openai', label: 'OpenAI 官方' }, { value: 'relay', label: '中转站' }]}/>
       <//>
@@ -54,13 +54,13 @@ function Editor({ id, onClose }) {
       <//>
 
       ${preset.kind === 'relay' ? html`
-        <${Field} label="接口地址" desc="填到 /v1 为止">
+        <${Field} label="接口地址" desc="填写至 /v1 为止。">
           <${Input} value=${preset.baseUrl} placeholder="https://api.example.com/v1"
             onInput=${v => set({ baseUrl: v })}/>
         <//>` : null}
 
       <${Field} label="模型">
-        <${Input} value=${preset.model} onInput=${v => set({ model: v })} placeholder="生图模型名"/>
+        <${Input} value=${preset.model} onInput=${v => set({ model: v })} placeholder="生图模型名称"/>
         <div class="pad-t">
           <${Button} size="sm" variant="ghost" icon="search"
             onClick=${() => setPicking(true)}>拉取并选择<//>
@@ -101,13 +101,13 @@ export function ImagePage() {
         <${List} title="已保存的接口">
           ${img.presets.map(p => html`
             <${ListItem} key=${p.id} title=${p.name}
-              subtitle=${`${p.kind === 'openai' ? 'OpenAI 官方' : '中转站'} · ${p.model || '未选模型'}`}
+              subtitle=${`${p.kind === 'openai' ? 'OpenAI 官方' : '中转站'} · ${p.model || '未选择模型'}`}
               arrow right=${html`<${Switch} checked=${img.activeId === p.id}
                 onChange=${() => svc.setActiveImage(p.id)}/>`}
               onClick=${() => setEditing(p.id)}/>`)}
         <//>`
-      : html`<${EmptyState} icon="image" title="还没有配置生图接口"
-          desc="可以存官方直连和中转站两套，随时切换。"/>`}
+      : html`<${EmptyState} icon="image" title="尚未配置生图接口"
+          desc="可同时保存官方直连与中转站两套配置，随时切换。"/>`}
 
       <div class="pad">
         <div class="btn-row">

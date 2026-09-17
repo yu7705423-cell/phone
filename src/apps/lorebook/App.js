@@ -33,8 +33,8 @@ function BookList() {
               arrow left=${html`<${Icon} name="book" size=${18}/>`}
               onClick=${() => nav.push(`/book/${b.id}`)}/>`)}
         <//>`
-      : html`<${EmptyState} icon="book" title="还没有世界书"
-          desc="世界书用来放不属于某个角色的设定。条目可以常驻，也可以在聊到相关内容时才注入。"
+      : html`<${EmptyState} icon="book" title="暂无世界书"
+          desc="世界书用于存放不属于特定角色的设定。条目可设为常驻，也可在对话涉及相关内容时才注入。"
           action=${html`<${Button} size="sm" onClick=${add} icon="plus">新建世界书<//>`}/>`}
 
       <div class="pad-x pad-b">
@@ -47,7 +47,7 @@ function BookList() {
 function BookPage({ id }) {
   useStore(db.lorebooks.store);
   const book = db.lorebooks.get(id);
-  if (!book) return html`<${Page} title="世界书" onBack=${nav.pop}><${EmptyState} title="这本世界书已被删除"/><//>`;
+  if (!book) return html`<${Page} title="世界书" onBack=${nav.pop}><${EmptyState} title="该世界书已被删除"/><//>`;
 
   const patchEntry = (eid, patch) => db.lorebooks.update(id, b => ({
     entries: b.entries.map(e => e.id === eid ? { ...e, ...patch } : e),
@@ -64,7 +64,7 @@ function BookPage({ id }) {
   };
 
   const del = async () => {
-    if (!await confirm({ title: '删除世界书', message: `「${book.name}」及其条目会被删除。`, danger: true })) return;
+    if (!await confirm({ title: '删除世界书', message: `将删除「${book.name}」及其全部条目。`, danger: true })) return;
     db.lorebooks.remove(id);
     nav.pop();
   };
@@ -78,7 +78,7 @@ function BookPage({ id }) {
         <//>
       </div>
       <${List}>
-        <${ListItem} title="全局生效" subtitle="开启后对所有角色注入，不需要单独关联"
+        <${ListItem} title="全局生效" subtitle="开启后对所有角色注入，无需单独关联"
           right=${html`<${Switch} checked=${book.global}
             onChange=${v => db.lorebooks.update(id, { global: v })}/>`}/>
       <//>
@@ -87,14 +87,14 @@ function BookPage({ id }) {
         ${(book.entries || []).map(e => html`
           <${ListItem} key=${e.id}
             title=${e.comment || e.content.slice(0, 18) || '未命名条目'}
-            subtitle=${e.constant ? '常驻' : (e.keys.length ? `关键词：${e.keys.join('、')}` : '没有关键词，不会触发')}
+            subtitle=${e.constant ? '常驻' : (e.keys.length ? `关键词：${e.keys.join('、')}` : '未填写关键词，不会触发')}
             arrow
             left=${html`<${Switch} checked=${e.enabled}
               onChange=${v => patchEntry(e.id, { enabled: v })}/>`}
             onClick=${() => nav.push(`/entry/${id}/${e.id}`)}/>`)}
       <//>
       ${!(book.entries || []).length ? html`
-        <${EmptyState} icon="book" title="还没有条目"
+        <${EmptyState} icon="book" title="暂无条目"
           action=${html`<${Button} size="sm" icon="plus" onClick=${addEntry}>新建条目<//>`}/>` : null}
 
       <div class="pad">
@@ -107,7 +107,7 @@ function EntryPage({ bookId, entryId }) {
   useStore(db.lorebooks.store);
   const book = db.lorebooks.get(bookId);
   const entry = book?.entries.find(e => e.id === entryId);
-  if (!entry) return html`<${Page} title="条目" onBack=${nav.pop}><${EmptyState} title="条目不存在"/><//>`;
+  if (!entry) return html`<${Page} title="条目" onBack=${nav.pop}><${EmptyState} title="该条目不存在"/><//>`;
 
   const patch = p => db.lorebooks.update(bookId, b => ({
     entries: b.entries.map(e => e.id === entryId ? { ...e, ...p } : e),
@@ -122,22 +122,22 @@ function EntryPage({ bookId, entryId }) {
   return html`
     <${Page} title="条目" onBack=${nav.pop}>
       <div class="pad">
-        <${Field} label="备注" desc="只给你自己看，不进 prompt">
+        <${Field} label="备注" desc="仅供本地识别，不进入 prompt。">
           <${Input} value=${entry.comment} onInput=${v => patch({ comment: v })}
-            placeholder="这条是干什么的"/>
+            placeholder="该条目的用途"/>
         <//>
 
-        <${Field} label="内容" desc="命中后原样注入 prompt">
+        <${Field} label="内容" desc="命中后原样注入 prompt。">
           <${Textarea} rows=${6} value=${entry.content} onInput=${v => patch({ content: v })}/>
         <//>
 
-        <${Field} label="关键词" desc="逗号分隔。在扫描窗口里出现任意一个就命中">
+        <${Field} label="关键词" desc="以逗号分隔。扫描窗口内出现任意一个即命中。">
           <${Input} value=${(entry.keys || []).join('，')}
             placeholder="社团，学生会"
             onInput=${v => patch({ keys: v.split(/[,，]/).map(s => s.trim()).filter(Boolean) })}/>
         <//>
 
-        <${Field} label="二级关键词" desc="填了就必须同时命中一个，用来收窄触发范围">
+        <${Field} label="二级关键词" desc="填写后须同时命中其中一个，用于收窄触发范围。">
           <${Input} value=${(entry.secondaryKeys || []).join('，')}
             onInput=${v => patch({ secondaryKeys: v.split(/[,，]/).map(s => s.trim()).filter(Boolean) })}/>
         <//>
@@ -147,7 +147,7 @@ function EntryPage({ bookId, entryId }) {
             onChange=${v => patch({ position: v })}/>
         <//>
 
-        <${Field} label=${`优先级　${entry.priority}`} desc="预算不足时从低优先级开始丢弃">
+        <${Field} label=${`优先级　${entry.priority}`} desc="注入预算不足时，从低优先级开始丢弃。">
           <input type="range" min="0" max="400" step="10" value=${entry.priority}
             onInput=${e => patch({ priority: parseInt(e.target.value, 10) })}/>
         <//>
@@ -159,7 +159,7 @@ function EntryPage({ bookId, entryId }) {
       </div>
 
       <${List}>
-        <${ListItem} title="常驻" subtitle="不需要关键词，每次都注入"
+        <${ListItem} title="常驻" subtitle="无需关键词，每次均注入"
           right=${html`<${Switch} checked=${entry.constant} onChange=${v => patch({ constant: v })}/>`}/>
         <${ListItem} title="区分大小写"
           right=${html`<${Switch} checked=${entry.caseSensitive} onChange=${v => patch({ caseSensitive: v })}/>`}/>
@@ -202,7 +202,7 @@ function PreviewPage() {
 
         <${Field} label="模拟对话内容">
           <${Textarea} rows=${5} value=${text} onInput=${setText}
-            placeholder="把最近几条消息粘进来"/>
+            placeholder="粘贴最近几条消息"/>
         <//>
       </div>
 
@@ -213,7 +213,7 @@ function PreviewPage() {
             subtitle=${e.content}
             right=${html`<span>${e.constant ? '常驻' : '命中'}</span>`}/>`)}
       <//>
-      ${!result.items.length ? html`<${EmptyState} icon="eye" title="没有条目被激活"/>` : null}
+      ${!result.items.length ? html`<${EmptyState} icon="eye" title="无条目被激活"/>` : null}
     <//>`;
 }
 

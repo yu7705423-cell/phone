@@ -42,7 +42,7 @@ export function FontPicker() {
       const rec = await fonts.add(file);
       // 装完先加载一次，预览那一行立刻就能看到
       await fonts.ensureLoaded(rec.id);
-      toast(`装好了 ${rec.name}`, 'ok');
+      toast(`已安装 ${rec.name}`, 'ok');
     } catch (err) {
       toast(String(err.message || err), 'error', 5000);
     } finally { setBusy(false); }
@@ -65,17 +65,17 @@ export function FontPicker() {
     const using = s.fontBody === rec.id || s.fontSerif === rec.id;
     if (!await confirm({
       title: '删掉字体', danger: true, okText: '删掉',
-      message: using ? `「${rec.name}」正在用，删了会变回系统默认。` : `「${rec.name}」会被删掉。`,
+      message: using ? `「${rec.name}」正在使用中，删除后将恢复为系统默认字体。` : `将删除「${rec.name}」。`,
     })) return;
     await fonts.remove(rec.id);
-    toast('删了');
+    toast('已删除');
   };
 
   return html`
     <${List} title="字体">
-      <${Slot} label="正文" desc="整个界面的字"
+      <${Slot} label="正文" desc="界面正文使用的字体"
         value=${s.fontBody} onPick=${() => setSlot('fontBody')}/>
-      <${Slot} label="衬线" desc="挂件里勾了「衬线」的那几行文字用它"
+      <${Slot} label="衬线" desc="小组件中勾选「衬线」的文字使用该字体"
         value=${s.fontSerif} onPick=${() => setSlot('fontSerif')}/>
     <//>
 

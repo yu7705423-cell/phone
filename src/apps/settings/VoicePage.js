@@ -44,7 +44,7 @@ function VoiceModelPicker({ open, cfg, onPick, onClose }) {
         </div>` : null}
       <div class="sheet-acts">
         <${Button} variant="ghost" full onClick=${() => {
-          if (!q.trim()) { toast('先在上面输入模型名'); return; }
+          if (!q.trim()) { toast('请先在上方输入模型名称'); return; }
           onPick(q.trim()); onClose();
         }}>用输入框里的名字<//>
       </div>
@@ -86,7 +86,7 @@ export function VoicePage() {
           每个角色用哪个音色写在各自的角色卡里。
         </div>
 
-        <${Field} label="接口地址" desc="留空用 https://api.minimax.chat">
+        <${Field} label="接口地址" desc="留空则使用 https://api.minimax.chat。">
           <${Input} value=${v.baseUrl} placeholder="https://api.minimax.chat"
             onInput=${x => svc.setVoice({ baseUrl: x })}/>
         <//>
@@ -100,7 +100,7 @@ export function VoicePage() {
         <//>
 
         <${Field} label="模型">
-          <${Input} value=${v.model} placeholder="语音合成模型名"
+          <${Input} value=${v.model} placeholder="语音合成模型名称"
             onInput=${x => svc.setVoice({ model: x })}/>
           <div class="pad-t">
             <${Button} size="sm" variant="ghost" icon="search"
@@ -115,9 +115,9 @@ export function VoicePage() {
       <${List} title="各角色的音色">
         ${chars.length ? chars.map(c => html`
           <${ListItem} key=${c.id} title=${c.name}
-            subtitle=${c.voiceId || '还没填音色 ID'}
+            subtitle=${c.voiceId || '尚未填写音色 ID'}
             right=${html`<${Icon} name=${c.voiceId ? 'check' : 'close'} size=${15}/>`}/>`)
-        : html`<${ListItem} title="还没有角色卡"/>`}
+        : html`<${ListItem} title="暂无角色卡"/>`}
       <//>
       <div class="pad-x pad-b">
         <div class="field-desc">音色 ID 在角色卡里填，这里只是汇总查看。</div>

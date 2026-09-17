@@ -108,7 +108,7 @@ function Home() {
           <${Row} subject=${me} tag=${me.parentId ? '小号' : null}
             onClick=${() => nav.push(`/me/${me.id}`)}/>` : null}
         <${ListItem} title="切换账号" multiline arrow
-          subtitle=${`一共 ${roots.length} 个账号。不同账号之间完全独立，互相看不到对方的会话和记忆`}
+          subtitle=${`共 ${roots.length} 个账号。各账号之间完全独立，互不共享会话与记忆`}
           left=${html`<${Icon} name="users" size=${18}/>`}
           onClick=${() => setPicking(true)}/>
       <//>
@@ -119,8 +119,8 @@ function Home() {
           ${chars.map(c => html`<${Card} key=${c.id} char=${c}
             onClick=${() => nav.push(`/char/${c.id}`)}/>`)}
         </div>`
-      : html`<${EmptyState} icon="users" title="还没有角色"
-          desc="新建一个，或者把写好的 txt / docx 资料导进来。"
+      : html`<${EmptyState} icon="users" title="暂无角色"
+          desc="可新建角色，或导入已写好的 txt / docx 资料。"
           action=${html`<${Button} size="sm" icon="plus" onClick=${addChar}>新建角色<//>`}/>`}
 
       <div class="settings-foot">
@@ -160,7 +160,7 @@ function MePage({ id }) {
   const me = accounts.get(id) || accounts.current();
   if (!me) {
     return html`<${Page} title="账号" onBack=${nav.pop}>
-      <${EmptyState} title="这个账号不在了"/><//>`;
+      <${EmptyState} title="该账号已不存在"/><//>`;
   }
   const set = p => db.personas.update(me.id, p);
   const alts = me.parentId ? [] : accounts.altsOf(me.id);
@@ -175,7 +175,7 @@ function MePage({ id }) {
 
   const del = async () => {
     if (accounts.roots().length <= 1 && !me.parentId) {
-      toast('这是唯一的账号，删不了'); return;
+      toast('这是唯一的账号，无法删除'); return;
     }
     if (!await confirm({
       title: me.parentId ? '删掉这个小号' : '删掉这个账号', danger: true, okText: '删掉',
@@ -191,21 +191,21 @@ function MePage({ id }) {
     <${Page} title=${me.parentId ? '小号' : '账号'} onBack=${nav.pop}
       right=${isCurrent ? null : html`
         <button class="nav-text press"
-          onClick=${() => { accounts.switchTo(me.id); toast(`切到${me.name}`, 'ok'); }}>切过来</button>`}>
+          onClick=${() => { accounts.switchTo(me.id); toast(`已切换至 ${me.name}`, 'ok'); }}>切换至此</button>`}>
       <div class="pad">
         <${AvatarPicker} src=${me.avatar} name=${me.name}
           onPick=${(imgId, old) => { set({ avatar: imgId }); if (old) images.remove(old); }}/>
 
-        <${Field} label="昵称" desc="角色会这样称呼你">
+        <${Field} label="昵称" desc="角色将以此称呼你。">
           <${Input} value=${me.name} onInput=${v => set({ name: v })}/>
         <//>
-        <${Field} label="个性签名" desc="显示在主页上">
+        <${Field} label="个性签名" desc="显示在主页上。">
           <${Input} value=${me.signature || ''} onInput=${v => set({ signature: v })}/>
         <//>
         <${Field} label="人设描述"
-          desc="这段会作为「对方是谁」注入到 prompt。写你希望角色怎么认识你。">
+          desc="该内容将作为「对方是谁」注入 prompt。请写明你希望角色如何认识你。">
           <${Textarea} rows=${8} value=${me.description || ''}
-            placeholder="例如：大学生，学设计，话不多但想到什么说什么，讨厌被说教。"
+            placeholder="例如：大学生，设计专业，话不多但想到什么说什么，不喜欢被说教。"
             onInput=${v => set({ description: v })}/>
         <//>
       </div>
@@ -222,8 +222,8 @@ function MePage({ id }) {
               subtitle=${a.signature || ''}
               left=${html`<${Icon} name="user" size=${18}/>`}
               onClick=${() => nav.push(`/me/${a.id}`)}/>`)}
-          <${ListItem} title="开一个小号" arrow multiline
-            subtitle="换个身份去加同一个角色。角色记得的事都在，但不认识这个新身份"
+          <${ListItem} title="创建小号" arrow multiline
+            subtitle="以另一身份与同一角色对话。角色保留原有记忆，但不认识该新身份"
             left=${html`<${Icon} name="plus" size=${18}/>`}
             onClick=${addAlt}/>
         <//>`}
@@ -240,14 +240,14 @@ function EditPage({ id }) {
   const char = db.characters.get(id);
   if (!char) {
     return html`<${Page} title="人设" onBack=${nav.pop}>
-      <${EmptyState} title="这个角色已被删除"/><//>`;
+      <${EmptyState} title="该角色已被删除"/><//>`;
   }
   const patch = p => db.characters.update(id, p);
 
   const del = async () => {
     if (!await confirm({
       title: '删除这个角色', danger: true, okText: '删除',
-      message: `「${char.name}」会被删掉。和她的聊天记录不会自动删除。`,
+      message: `将删除「${char.name}」。与该角色的聊天记录不会一并删除。`,
     })) return;
     db.characters.remove(id);
     nav.pop();
@@ -262,7 +262,7 @@ function EditPage({ id }) {
         <${Field} label="名字">
           <${Input} value=${char.name} onInput=${v => patch({ name: v })}/>
         <//>
-        <${Field} label="个性签名" desc="一句话，十五字以内">
+        <${Field} label="个性签名" desc="一句话，建议十五字以内。">
           <${Input} value=${char.signature || ''} onInput=${v => patch({ signature: v })}/>
         <//>
         <div class="quiet-row">
@@ -273,23 +273,23 @@ function EditPage({ id }) {
             <${Input} value=${char.gender || ''} onInput=${v => patch({ gender: v })}/>
           <//>
         </div>
-        <${Field} label="生日" desc="写成 3月14日 或 1999-03-14 都行">
+        <${Field} label="生日" desc="可填写为 3月14日 或 1999-03-14。">
           <${Input} value=${char.birthday || ''} onInput=${v => patch({ birthday: v })}/>
         <//>
-        <${Field} label="人设" desc="进入 prompt 的主体。写这个人是谁、什么性格、怎么说话。">
+        <${Field} label="人设" desc="进入 prompt 的主体内容。写明这个人是谁、性格如何、说话方式如何。">
           <${Textarea} rows=${9} value=${char.persona}
-            placeholder="例如：林晓，二十二岁，美院大三。说话带点漫不经心，熟了之后会突然认真。不喜欢被安慰。"
+            placeholder="例如：林晓，二十二岁，美术学院三年级。说话略带漫不经心，熟悉后会突然认真。不喜欢被安慰。"
             onInput=${v => patch({ persona: v })}/>
         <//>
-        <${Field} label="情境" desc="你们是什么关系、现在处在什么场景">
+        <${Field} label="情境" desc="双方是什么关系，当前处于什么场景。">
           <${Textarea} rows=${3} value=${char.scenario || ''}
             onInput=${v => patch({ scenario: v })}/>
         <//>
-        <${Field} label="开场白" desc="新会话里她发的第一条消息">
+        <${Field} label="开场白" desc="新会话中角色发出的第一条消息。">
           <${Textarea} rows=${3} value=${char.firstMessage || ''}
             onInput=${v => patch({ firstMessage: v })}/>
         <//>
-        <${Field} label="说话方式示例" desc="给模型看几句她会怎么说，比形容词管用">
+        <${Field} label="对话示例" desc="提供几句角色的典型发言。示例比形容词更有效。">
           <${Textarea} rows=${6} value=${char.exampleDialogue || ''}
             onInput=${v => patch({ exampleDialogue: v })}/>
         <//>
@@ -302,15 +302,15 @@ function EditPage({ id }) {
           它和本体是两个身份，各自和你单独聊，记忆也分开。
         </div>`
       : html`
-        <${List} title=${`她的小号 · ${db.characters.where(x => x.parentId === id).length}`}>
+        <${List} title=${`该角色的小号 · ${db.characters.where(x => x.parentId === id).length}`}>
           ${db.characters.where(x => x.parentId === id).map(a => html`
             <${ListItem} key=${a.id} title=${a.name} arrow multiline
               subtitle=${a.altReason || a.signature || ''}
               left=${html`<${Icon} name="user" size=${18}/>`}
               onClick=${() => nav.push(`/char/${a.id}`)}/>`)}
           ${db.characters.where(x => x.parentId === id).length ? null : html`
-            <${ListItem} title="还没有" multiline
-              subtitle="小号是她自己开的，你开不了。在会话的「主动找我」里把开关打开，聊得够久她可能会动这个念头"/>`}
+            <${ListItem} title="暂无" multiline
+              subtitle="角色小号由角色自行创建，无法手动添加。在会话的「主动发起对话」中开启相应开关后，对话累积到一定程度可能出现"/>`}
         <//>`}
 
       <div class="settings-foot">

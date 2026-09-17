@@ -33,14 +33,14 @@ function Editor({ id, onClose }) {
   };
 
   const del = async () => {
-    if (!await confirm({ title: '删除这个接口', message: preset.name, danger: true })) return;
+    if (!await confirm({ title: '删除该接口', message: preset.name, danger: true })) return;
     svc.removeChatPreset(id);
     onClose();
   };
 
   return html`
     <${Sheet} open=${true} onClose=${onClose} title=${preset.name || '接口'} height="88%">
-      <${Field} label="名称" desc="给自己看的，比如「官方」「中转站A」">
+      <${Field} label="名称" desc="仅用于本地识别，例如「官方」「中转站 A」。">
         <${Input} value=${preset.name} onInput=${v => set({ name: v })}/>
       <//>
 
@@ -50,35 +50,35 @@ function Editor({ id, onClose }) {
       <//>
 
       <${Field} label="API Key"
-        desc="只存在这台设备的浏览器里。纯前端直连意味着打开这个页面的人都能拿到它。">
+        desc="仅保存在本设备的浏览器中。纯前端直连意味着能打开此页面的人均可读取该密钥。">
         <${Input} type="password" value=${preset.apiKey} placeholder="sk-..."
           onInput=${v => set({ apiKey: v })}/>
       <//>
 
       <${Field} label="接口地址"
         desc=${preset.provider === 'anthropic'
-          ? '留空用官方地址。浏览器直连会带上 anthropic-dangerous-direct-browser-access 头。'
-          : '中转站填到 /v1 为止，例如 https://api.example.com/v1'}>
+          ? '留空则使用官方地址。浏览器直连时会附带 anthropic-dangerous-direct-browser-access 请求头。'
+          : '中转站地址填写至 /v1 为止，例如 https://api.example.com/v1'}>
         <${Input} value=${preset.baseUrl} onInput=${v => set({ baseUrl: v })}
           placeholder=${preset.provider === 'anthropic' ? 'https://api.anthropic.com' : 'https://api.openai.com/v1'}/>
       <//>
 
-      <${Field} label="模型" desc="可以从接口拉列表来选，也可以直接填">
-        <${Input} value=${preset.model} onInput=${v => set({ model: v })} placeholder="模型名"/>
+      <${Field} label="模型" desc="可从接口获取列表后选择，也可直接填写。">
+        <${Input} value=${preset.model} onInput=${v => set({ model: v })} placeholder="模型名称"/>
         <div class="pad-t">
           <${Button} size="sm" variant="ghost" icon="search"
-            onClick=${() => setPicking(true)}>拉取并选择<//>
+            onClick=${() => setPicking(true)}>获取并选择<//>
         </div>
       <//>
 
       ${preset.provider === 'anthropic' ? html`
         <${Field} label="思考深度"
-          desc="Opus 5 一族不接受 temperature，传了会 400，输出深浅改用 effort 控制。日常聊天 low 就够。">
+          desc="Opus 5 系列不接受 temperature 参数，传入会返回 400，输出深度改由 effort 控制。日常对话选择「低」即可。">
           <${Segmented} value=${preset.effort || 'low'} onChange=${v => set({ effort: v })}
             items=${[{ value: 'low', label: '低' }, { value: 'medium', label: '中' }, { value: 'high', label: '高' }]}/>
         <//>`
       : html`
-        <${Field} label=${`temperature　${preset.temperature ?? 0.9}`} desc="越高越发散，角色扮演一般 0.8 到 1.0">
+        <${Field} label=${`temperature　${preset.temperature ?? 0.9}`} desc="数值越高输出越发散。角色扮演建议 0.8 至 1.0。">
           <input type="range" min="0" max="2" step="0.05" value=${preset.temperature ?? 0.9}
             onInput=${e => set({ temperature: parseFloat(e.target.value) })}/>
         <//>`}
@@ -120,7 +120,7 @@ export function ApiPage() {
             const tag = isMain ? '主用' : isSpare ? '副用' : '';
             return html`
               <${ListItem} key=${p.id} title=${p.name}
-                subtitle=${`${p.provider === 'anthropic' ? 'Anthropic' : '兼容接口'} · ${p.model || '未选模型'}`}
+                subtitle=${`${p.provider === 'anthropic' ? 'Anthropic' : '兼容接口'} · ${p.model || '未选择模型'}`}
                 arrow
                 left=${html`<div class=${`svc-dot${isMain ? ' is-main' : isSpare ? ' is-spare' : ''}`}></div>`}
                 right=${tag ? html`<span class="svc-tag">${tag}</span>` : null}
@@ -131,41 +131,41 @@ export function ApiPage() {
         <${List} title="主用" >
           ${presets.map(p => html`
             <${ListItem} key=${p.id} title=${p.name}
-              subtitle=${incomplete(p) ? '没填全，用不了' : ''} multiline=${incomplete(p)}
+              subtitle=${incomplete(p) ? '配置不完整，无法使用' : ''} multiline=${incomplete(p)}
               right=${html`<${Switch} checked=${chat.activeId === p.id}
                 onChange=${v => svc.setActiveChat(v ? p.id : null)}/>`}/>`)}
         <//>
         ${chat.activeId ? null : html`
-          <div class="settings-foot">没选主用，聊天发不出去。</div>`}
+          <div class="settings-foot">未指定主用接口，对话无法发送。</div>`}
 
         <${List} title="副用" >
           ${presets.map(p => html`
             <${ListItem} key=${p.id} title=${p.name}
-              subtitle=${p.id === chat.activeId ? '和主用是同一个也行' : incomplete(p) ? '没填全，用不了' : ''}
+              subtitle=${p.id === chat.activeId ? '可与主用为同一接口' : incomplete(p) ? '配置不完整，无法使用' : ''}
               multiline=${p.id === chat.activeId || incomplete(p)}
               right=${html`<${Switch} checked=${chat.fallbackId === p.id}
                 onChange=${v => svc.setFallbackChat(v ? p.id : null)}/>`}/>`)}
         <//>
         <div class="settings-foot">
-          主用报错时自动改用副用再试一次。取消不算失败，不会触发。<br/>
-          不想要副用就把上面的开关全关掉。
+          主用接口报错时自动改用副用重试一次。主动取消不计为失败，不会触发。<br/>
+          如不需要副用，将以上开关全部关闭即可。
         </div>
 
         ${chat.fallbackId ? html`
-          <${List} title="后台活儿走哪条">
-            <${ListItem} title="交给副用" multiline
-              subtitle="整理记忆、导入角色卡、生成 NPC 这些你不会盯着等的活儿，
-                优先走副用接口，副用挂了再退回主用。主用留给聊天回复和主动消息。"
+          <${List} title="后台任务的接口">
+            <${ListItem} title="优先使用副用接口" multiline
+              subtitle="整理记忆、导入角色卡、生成 NPC 等无需即时等待的任务优先走副用接口，
+                副用不可用时退回主用。主用接口保留给对话回复与主动消息。"
               right=${html`<${Switch} checked=${s.backgroundSpare !== false}
                 onChange=${v => db.settings.set({ backgroundSpare: v })}/>`}/>
           <//>
           <div class="settings-foot">
-            归副用的：自动总结记忆、历史压缩、从文字导入记忆、导入角色卡、
-            批量生成 NPC、角色自己琢磨开小号。<br/>
-            归主用的：聊天回复、主动消息、朋友圈动态与评论。
+            走副用：自动总结记忆、历史压缩、从文本导入记忆、导入角色卡、
+            批量生成 NPC、角色创建小号。<br/>
+            走主用：对话回复、主动消息、朋友圈动态与评论。
           </div>` : null}`
-      : html`<${EmptyState} icon="key" title="还没有配置接口"
-          desc="可以存多个接口随时切换，并指定一个副用，主用报错时自动顶上。"/>`}
+      : html`<${EmptyState} icon="key" title="尚未配置接口"
+          desc="可保存多个接口随时切换，并指定一个副用接口，在主用报错时自动接替。"/>`}
 
       <div class="pad">
         <div class="btn-row">

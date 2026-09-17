@@ -30,6 +30,6 @@ export function AppSwitcher() {
               </button>
             </div>`)}
         </div>`
-      : html`<${EmptyState} icon="layers" title="没有后台运行的应用"/>`}
+      : html`<${EmptyState} icon="layers" title="无后台运行的应用"/>`}
     </div>`;
 }

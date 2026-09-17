@@ -37,7 +37,7 @@ export function BatchIcons({ open, onClose }) {
     const files = [...(e.target.files || [])];
     e.target.value = '';
     if (!files.length) return;
-    if (!picked.length) { toast('先勾选要换的应用'); return; }
+    if (!picked.length) { toast('请先勾选需要更换的应用'); return; }
 
     setBusy(true);
     const n = Math.min(picked.length, files.length);
@@ -56,7 +56,7 @@ export function BatchIcons({ open, onClose }) {
         : files.length > picked.length
           ? `，多出的 ${files.length - picked.length} 张没用上`
           : '';
-      toast(`换好了 ${n} 个${extra}`, extra ? 'plain' : 'ok', 4000);
+      toast(`已更换 ${n} 个${extra}`, extra ? 'plain' : 'ok', 4000);
       setPicked([]);
     } catch (err) {
       toast('处理失败：' + err.message, 'error', 4000);
@@ -73,7 +73,7 @@ export function BatchIcons({ open, onClose }) {
       <${Field} label=${`已勾选 ${picked.length} 个`}>
         <div class="batch-acts">
           <${Button} size="sm" variant="ghost" disabled=${!picked.length}
-            onClick=${() => setPicked([])}>清空勾选<//>
+            onClick=${() => setPicked([])}>取消全选<//>
           <${Button} size="sm" variant="ghost"
             onClick=${() => setPicked(apps.map(a => a.id))}>全选<//>
         </div>

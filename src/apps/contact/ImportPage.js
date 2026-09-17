@@ -17,7 +17,7 @@ export function ImportPage() {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
-    if (!ai.isConfigured()) { toast('还没配聊天接口，整理不了', 'error', 4000); return; }
+    if (!ai.isConfigured()) { toast('尚未配置聊天接口，无法解析', 'error', 4000); return; }
     setBusy(true); setGot(null);
     try {
       setGot(await card.parseCard(file));
@@ -33,7 +33,7 @@ export function ImportPage() {
       firstMessage: got.firstMessage, exampleDialogue: got.exampleDialogue,
       relations: [], lorebookIds: [], canSendVoice: true, canSendImage: true,
     });
-    toast(`建好了 ${c.name}`, 'ok');
+    toast(`已创建 ${c.name}`, 'ok');
     nav.replace(`/profile/${c.id}`);
   };
 
@@ -60,7 +60,7 @@ export function ImportPage() {
       ` : html`
         <div class="pad-x pad-t">
           <${Field} label="选一个文件"
-            desc="支持 txt、md、docx。整段资料丢进来就行，不用自己排版">
+            desc="支持 txt、md、docx。直接粘贴整段资料即可，无需排版。">
             <${Button} full variant="ghost" icon="upload" disabled=${busy}
               onClick=${() => fileRef.current?.click()}>
               ${busy ? html`<${Spinner} size=${15}/> 正在读` : '选文件'}

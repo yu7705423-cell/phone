@@ -20,19 +20,19 @@ export function NpcPage({ id }) {
 
   if (!char) {
     return html`<${Page} title="关联角色" onBack=${nav.pop}>
-      <${EmptyState} title="这个角色已被删除"/><//>`;
+      <${EmptyState} title="该角色已被删除"/><//>`;
   }
 
   const linked = new Set(card.relationsOf(id).map(r => r.charId));
   const others = db.characters.all().filter(c => c.id !== id && !linked.has(c.id));
 
   const gen = async () => {
-    if (!ai.isConfigured()) { toast('还没配聊天接口', 'error', 4000); return; }
+    if (!ai.isConfigured()) { toast('尚未配置聊天接口', 'error', 4000); return; }
     setBusy(true); setRows(null); setOff(new Set());
     try {
       const r = await card.generateNpcs(id, count);
       setRows(r);
-      toast(`写出 ${r.length} 个`, 'ok');
+      toast(`已生成 ${r.length} 个`, 'ok');
     } catch (e) {
       toast(String(e.message || e), 'error', 6000);
     } finally { setBusy(false); }
@@ -40,32 +40,32 @@ export function NpcPage({ id }) {
 
   const save = () => {
     const keep = rows.filter((_, i) => !off.has(i));
-    if (!keep.length) { toast('一个都没勾'); return; }
+    if (!keep.length) { toast('尚未勾选任何角色'); return; }
     const made = card.commitNpcs(id, keep);
-    toast(`加了 ${made.length} 个`, 'ok');
+    toast(`已添加 ${made.length} 个`, 'ok');
     nav.pop();
   };
 
   const manual = async other => {
     setPicking(false);
     const label = await prompt({
-      title: `在${char.name}眼里，${other.name}是她的什么`,
+      title: `在 ${char.name} 看来，${other.name} 是什么关系`,
       placeholder: '例如 妈妈 / 室友 / 前男友',
     });
     if (label === null) return;
     const back = await prompt({
-      title: `反过来，在${other.name}眼里，${char.name}是他的什么`,
+      title: `反过来，在 ${other.name} 看来，${char.name} 是什么关系`,
       placeholder: '例如 女儿 / 室友 / 前女友',
       value: '',
     });
     if (back === null) return;
     card.link(id, other.id, (label || '').trim(), (back || '').trim() || (label || '').trim());
-    toast('连上了', 'ok');
+    toast('已建立关联', 'ok');
   };
 
   const cut = r => {
     card.unlink(id, r.charId);
-    toast('断开了');
+    toast('已解除关联');
   };
 
   const rels = card.relationsOf(id);
@@ -104,14 +104,14 @@ export function NpcPage({ id }) {
                 right=${html`<button class="press li-cut" onClick=${e => { e.stopPropagation(); cut(r); }}>
                   <${Icon} name="close" size=${15}/></button>`}/>`;
           })}
-          <${ListItem} title="手动关联一个" subtitle=${`从已有的 ${others.length} 个角色里挑`} arrow multiline
+          <${ListItem} title="手动添加关联" subtitle=${`从已有的 ${others.length} 个角色中选择`} arrow multiline
             left=${html`<${Icon} name="plus" size=${18}/>`}
-            onClick=${() => others.length ? setPicking(true) : toast('没有别的角色可以连')}/>
+            onClick=${() => others.length ? setPicking(true) : toast('没有可关联的其他角色')}/>
         <//>
 
         <${List} title="批量生成">
-          <${ListItem} title="让模型围着她写一批人" multiline
-            subtitle="家人、同学、前任、对头都可能有。写出来先给你看，勾掉不要的再存"/>
+          <${ListItem} title="围绕该角色批量生成" multiline
+            subtitle="可能包含家人、同学、旧识、对手等。生成结果先行展示，取消勾选后再保存"/>
         <//>
         <div class="pad">
           <${Segmented} value=${count} items=${COUNTS} onChange=${setCount}/>
@@ -123,7 +123,7 @@ export function NpcPage({ id }) {
         </div>
       `}
 
-      <${Sheet} open=${picking} onClose=${() => setPicking(false)} title="挑一个连上" height="70%">
+      <${Sheet} open=${picking} onClose=${() => setPicking(false)} title="选择要关联的角色" height="70%">
         <${List} inset=${false}>
           ${others.map(c => html`
             <${ListItem} key=${c.id} title=${c.name} subtitle=${c.signature || ''} multiline arrow

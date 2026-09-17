@@ -43,17 +43,17 @@ export function LookPresets() {
     setBusy(true);
     looks.save((name || '').trim() || `装修 ${list.length + 1}`);
     setBusy(false);
-    toast('存好了', 'ok');
+    toast('已保存', 'ok');
   };
 
   const applyOne = async item => {
     if (!await confirm({
       title: `换成「${item.name}」`,
-      message: '壁纸、图标、图标位置、挂件、主题参数都会被换掉。当前这套没存过的话就找不回来了。',
+      message: '壁纸、图标、图标位置、小组件与主题参数将全部被替换。当前配置若未保存将无法恢复。',
       okText: '换',
     })) return;
     const r = looks.apply(item.id);
-    toast(r.missing ? `换好了，有 ${r.missing} 张图已经被删掉了` : '换好了',
+    toast(r.missing ? `已应用，其中 ${r.missing} 张图片已被删除` : '已应用',
       r.missing ? 'plain' : 'ok', r.missing ? 4500 : 2000);
   };
 
@@ -61,11 +61,11 @@ export function LookPresets() {
     setHeld(null);
     if (!await confirm({
       title: `覆盖「${item.name}」`,
-      message: '用现在这套装修盖掉它。原来存的那一套就没了。',
+      message: '以当前外观覆盖该预设，原有内容将被替换。',
       okText: '覆盖',
     })) return;
     looks.update(item.id);
-    toast('覆盖好了', 'ok');
+    toast('已覆盖', 'ok');
   };
 
   const doRename = async item => {
@@ -77,16 +77,16 @@ export function LookPresets() {
 
   const doRemove = async item => {
     setHeld(null);
-    if (!await confirm({ title: '删掉预设', message: `「${item.name}」会被删掉。壁纸和图标本身不会删。`, okText: '删掉', danger: true })) return;
+    if (!await confirm({ title: '删除预设', message: `将删除「${item.name}」。壁纸与图标本身不会被删除。`, okText: '删除', danger: true })) return;
     looks.remove(item.id);
-    toast('删了');
+    toast('已删除');
   };
 
   return html`
     <${List} title="外观预设">
       ${list.length ? null : html`
-        <${ListItem} title="还没有预设" multiline
-          subtitle="把现在这套装修存下来，以后换了壁纸和图标还能一键切回去"/>`}
+        <${ListItem} title="暂无预设" multiline
+          subtitle="保存当前外观配置，更换壁纸与图标后可一键切回。"/>`}
     <//>
     ${list.length ? html`
       <div class="look-list">
@@ -105,7 +105,7 @@ export function LookPresets() {
           <${ListItem} title="换成这一套" arrow
             left=${html`<${Icon} name="check" size=${18}/>`}
             onClick=${() => { const it = held; setHeld(null); applyOne(it); }}/>
-          <${ListItem} title="用现在的样子覆盖" subtitle="把当前装修存回这个预设" arrow multiline
+          <${ListItem} title="以当前外观覆盖" subtitle="将当前配置保存回该预设" arrow multiline
             left=${html`<${Icon} name="refresh" size=${18}/>`}
             onClick=${() => overwrite(held)}/>
           <${ListItem} title="改名字" arrow

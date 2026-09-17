@@ -23,7 +23,7 @@ export function Profile({ subjectId, embedded }) {
   const avatarRef = useRef(null);
 
   if (!subject) {
-    return html`<${Page} title="主页" onBack=${nav.pop}><${EmptyState} title="这个人不存在了"/><//>`;
+    return html`<${Page} title="主页" onBack=${nav.pop}><${EmptyState} title="该角色已不存在"/><//>`;
   }
 
   const patch = p => isMe ? db.personas.update(me.id, p) : db.characters.update(subjectId, p);
@@ -46,7 +46,7 @@ export function Profile({ subjectId, embedded }) {
   const del = async () => {
     if (!await confirm({
       title: '删除角色卡', danger: true,
-      message: `「${subject.name}」的会话、记忆、动态都会一并删除。`,
+      message: `「${subject.name}」的会话、记忆与动态将一并删除。`,
     })) return;
     db.chats.all().filter(c => (c.characterIds || []).includes(subjectId)).forEach(c => {
       db.messages.removeWhere(m => m.chatId === c.id);
@@ -82,7 +82,7 @@ export function Profile({ subjectId, embedded }) {
       <div class="pad-x">
         ${isMe
           ? html`<${Button} full variant="ghost" icon="edit"
-              onClick=${() => phone.intent.open('contact', { route: `/me/${me.id}` })}>编辑我的人设<//>`
+              onClick=${() => phone.intent.open('contact', { route: `/me/${me.id}` })}>编辑本人人设<//>`
           : html`<${Button} full icon="message"
               onClick=${() => { const c = chatFor(subjectId); nav.push(`/chat/${c.id}`); }}>发消息<//>`}
       </div>
@@ -91,12 +91,12 @@ export function Profile({ subjectId, embedded }) {
         ${mine.length ? mine.map(m => html`
           <${ListItem} key=${m.id} multiline title=${m.text}
             subtitle=${relTime(m.createdAt)}/>`)
-        : html`<${ListItem} title="还没有动态"/>`}
+        : html`<${ListItem} title="暂无动态"/>`}
       <//>
 
       ${!isMe ? html`
         <div class="pad">
-          <${Button} full variant="danger" onClick=${del}>删除这个角色<//>
+          <${Button} full variant="danger" onClick=${del}>删除该角色<//>
         </div>` : html`<div class="pad-b"></div>`}
 
     </div>`;

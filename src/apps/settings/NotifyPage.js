@@ -37,9 +37,9 @@ export function NotifyPage() {
       if (old) db.files.remove(old);
       sound.unlock();
       sound.ring({ ...cfg, soundFileId: id });
-      toast('换好了', 'ok');
+      toast('已更换', 'ok');
     } catch (err) {
-      toast('用不了这个文件：' + err.message, 'error', 4000);
+      toast('该文件无法使用：' + err.message, 'error', 4000);
     } finally { setBusy(false); }
   };
 
@@ -63,7 +63,7 @@ export function NotifyPage() {
       await push.ask();
       setPerm(push.permission());
       set({ system: true });
-      toast('授权好了，试一条系统通知看看', 'ok');
+      toast('已授权，可发送一条系统通知进行测试', 'ok');
     } catch (e) {
       setPerm(push.permission());
       toast(String(e.message || e), 'error', 6000);
@@ -83,7 +83,7 @@ export function NotifyPage() {
         body: '这是一条真的系统通知，点一下会跳进聊天',
         appId: 'chat', route: chat ? `/chat/${chat.id}` : '/',
       });
-      toast('发出去了。退到桌面或下拉通知中心看看', 'ok', 5000);
+      toast('已发送。返回桌面或下拉通知中心查看', 'ok', 5000);
     } catch (e) {
       toast(String(e.message || e), 'error', 6000);
     } finally { setBusy(false); }
@@ -105,17 +105,17 @@ export function NotifyPage() {
     const text = JSON.stringify(sub.toJSON ? sub.toJSON() : sub, null, 2);
     try {
       await navigator.clipboard.writeText(text);
-      toast('订阅已复制，粘给你的服务器', 'ok', 4000);
+      toast('订阅信息已复制，请粘贴至服务端', 'ok', 4000);
     } catch {
-      toast('复制不了，从控制台拿：' + text.slice(0, 40) + '...', 'plain', 5000);
+      toast('复制失败，请从控制台获取：' + text.slice(0, 40) + '...', 'plain', 5000);
     }
   };
 
   const drop = async () => {
-    if (!await confirm({ title: '退订', message: '退订之后服务器就推不动这台设备了。', okText: '退订', danger: true })) return;
+    if (!await confirm({ title: '退订', message: '退订后服务端将无法向本设备推送。', okText: '退订', danger: true })) return;
     await push.unsubscribe();
     setSub(null);
-    toast('退订了');
+    toast('已退订');
   };
 
   const pcfg = push.pushConfig();
@@ -124,7 +124,7 @@ export function NotifyPage() {
     <${Page} title="通知" onBack=${nav.pop}>
       <${List}>
         <${ListItem} title="横幅" multiline
-          subtitle="来消息时从顶上掉下来一条，点开进会话，往上一推收起"
+          subtitle="新消息到达时从顶部下滑显示，点击进入会话，上滑收起。"
           right=${html`<${Switch} checked=${cfg.banner}
             onChange=${v => set({ banner: v })}/>`}/>
       <//>
@@ -140,7 +140,7 @@ export function NotifyPage() {
             : html`<${Button} size="sm" variant="ghost" disabled=${busy}
                 onClick=${askPerm}>去授权<//>`}/>
         <${ListItem} title="试一条系统通知" arrow multiline
-          subtitle="走 Service Worker，和应用内横幅是两条路"
+          subtitle="经由 Service Worker 发送，与应用内横幅是两套独立机制。"
           left=${html`<${Icon} name="bell" size=${18}/>`}
           onClick=${busy ? null : testSystem}/>
       <//>
@@ -157,7 +157,7 @@ export function NotifyPage() {
             right=${!cfg.soundFileId && cfg.sound === p.id
               ? html`<${Icon} name="check" size=${17}/>` : null}/>`)}
         <${ListItem} title="自己传一个" multiline
-          subtitle=${cfg.soundFileId ? '正在用自己传的那个' : '任意音频文件，存在本地'}
+          subtitle=${cfg.soundFileId ? '正在使用自行上传的音频' : '支持任意音频文件，保存在本地'}
           right=${cfg.soundFileId ? html`<${Icon} name="check" size=${17}/>` : null}
           onClick=${() => fileRef.current?.click()}/>
       <//>
@@ -176,18 +176,18 @@ export function NotifyPage() {
 
       <${List} title="Web Push">
         <${ListItem} title="订阅状态" multiline
-          subtitle=${sub ? '已订阅。把订阅复制给你的服务器就能推了' : '没订阅'}
+          subtitle=${sub ? '已订阅。将订阅信息提供给服务端即可推送' : '未订阅'}
           right=${sub ? html`<${Icon} name="check" size=${17}/>` : null}/>
       <//>
       <div class="pad-x">
         <${Field} label="VAPID 公钥"
-          desc="服务器生成的那一对里的公钥。没有服务器就填不了，也订阅不了">
+          desc="服务端生成的 VAPID 密钥对中的公钥。没有服务端则无法填写，也无法订阅。">
           <${Input} value=${pcfg.vapidPublicKey}
             onInput=${v => db.settings.set({ push: { ...(s.push || {}), vapidPublicKey: v.trim() } })}
             placeholder="BEl62i..."/>
         <//>
         <${Field} label="订阅上报地址（可选）"
-          desc="填了就在订阅成功后 POST 给它。不填就自己复制粘过去">
+          desc="填写后将在订阅成功时自动 POST 至该地址。留空则需手动复制订阅信息。">
           <${Input} value=${pcfg.reportUrl}
             onInput=${v => db.settings.set({ push: { ...(s.push || {}), reportUrl: v.trim() } })}
             placeholder="https://.../subscribe"/>

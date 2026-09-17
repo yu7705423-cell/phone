@@ -44,7 +44,7 @@ function MemoryList() {
 
   const add = () => {
     const charId = who !== 'all' && who !== 'none' ? who : (chars[0]?.id || null);
-    if (!charId) { toast('先去「联系」里建一个角色'); return; }
+    if (!charId) { toast('请先在「联系」中创建角色'); return; }
     const m = db.memories.create({
       charId, personaId: phone.accounts.currentId(),
       content: '', category: 'fact', rank: 'B', keywords: [], source: 'manual',
@@ -64,7 +64,7 @@ function MemoryList() {
             <div key=${s.r} class="stat-chip"><b>${s.n}</b><span>${s.r} 级</span></div>`)}
         </div>
         <div class="hint-box">
-          S 和 A 级每次都注入（当前 ${injected} 条）；B 级要在最近消息里命中关键词才进；C 级只存档。
+          S 与 A 级每次均注入（当前 ${injected} 条）；B 级需在最近消息中命中关键词；C 级仅存档。
         </div>
       </div>
 
@@ -89,8 +89,8 @@ function MemoryList() {
               left=${html`<span class=${`rank rank-${m.rank}`}>${m.rank}</span>`}
               arrow onClick=${() => nav.push(`/edit/${m.id}`)}/>`)}
         <//>`
-      : html`<${EmptyState} icon="brain" title="还没有记忆"
-          desc="在会话里点「立即总结记忆」，手动添加，或者从别处粘一大段文字进来自动拆。"
+      : html`<${EmptyState} icon="brain" title="暂无记忆"
+          desc="可在会话中点击「立即总结记忆」，手动添加，或粘贴整段文本自动拆分。"
           action=${html`<${Button} size="sm" icon="upload"
             onClick=${() => nav.push('/import')}>从文字导入<//>`}/>`}
     <//>`;
@@ -99,7 +99,7 @@ function MemoryList() {
 function EditPage({ id }) {
   useStore(db.memories.store);
   const m = db.memories.get(id);
-  if (!m) return html`<${Page} title="记忆" onBack=${nav.pop}><${EmptyState} title="这条记忆已被删除"/><//>`;
+  if (!m) return html`<${Page} title="记忆" onBack=${nav.pop}><${EmptyState} title="该条记忆已被删除"/><//>`;
 
   const patch = p => db.memories.update(id, p);
   const del = async () => {
@@ -113,12 +113,12 @@ function EditPage({ id }) {
   return html`
     <${Page} title="编辑记忆" onBack=${nav.pop}>
       <div class="pad">
-        <${Field} label="内容" desc="用简洁的第三人称陈述">
+        <${Field} label="内容" desc="使用简洁的第三人称陈述。">
           <${Textarea} rows=${4} value=${m.content} onInput=${v => patch({ content: v })}/>
         <//>
 
         <${Field} label="重要级别"
-          desc="S 和 A 每次都注入；B 需要命中关键词；C 只存档不注入">
+          desc="S 与 A 级每次均注入；B 级需命中关键词；C 级仅存档，不注入。">
           <${Segmented} value=${m.rank} items=${RANK_ITEMS} onChange=${v => patch({ rank: v })}/>
         <//>
 
@@ -131,13 +131,13 @@ function EditPage({ id }) {
         <//>
 
         <${Field} label="关键词"
-          desc=${m.rank === 'B' ? '逗号分隔。B 级必须有关键词，否则永远不会被注入。' : '逗号分隔。只有 B 级会用到。'}>
+          desc=${m.rank === 'B' ? '以逗号分隔。B 级必须填写关键词，否则不会被注入。' : '以逗号分隔，仅 B 级记忆使用。'}>
           <${Input} value=${(m.keywords || []).join('，')}
             onInput=${v => patch({ keywords: v.split(/[,，]/).map(s => s.trim()).filter(Boolean) })}/>
         <//>
 
         <${Field} label="属于谁"
-          desc=${m.charId ? '只在和这个角色聊天时注入' : '老版本留下的「全局」记忆，对所有角色都生效。挑一个角色就能归位'}>
+          desc=${m.charId ? '仅在与该角色对话时注入' : '旧版本遗留的「全局」记忆，对所有角色生效。指定一个角色即可归位'}>
           <div class="chip-row">
             ${chars.map(c => html`
               <button key=${c.id} class=${`chip${m.charId === c.id ? ' is-active' : ''}`}
@@ -146,7 +146,7 @@ function EditPage({ id }) {
         <//>
 
         ${m.rank === 'B' && !(m.keywords || []).length ? html`
-          <div class="warn-box">这条是 B 级但没有关键词，永远不会被注入。</div>` : null}
+          <div class="warn-box">该条为 B 级但未填写关键词，将不会被注入。</div>` : null}
 
         <${Button} full variant="danger" onClick=${del}>删除<//>
       </div>
