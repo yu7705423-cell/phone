@@ -1512,6 +1512,30 @@ Avatar / Badge / Toast / EmptyState / Spinner / Skeleton
 
 ---
 
+### 10.04 Esc 归谁管
+
+浮层和外壳都想响应 Esc：浮层要关自己，外壳要「返回」。
+
+原先各自挂一个 `window` keydown，同一次按键两边都跑 —— 外壳先注册所以先执行，
+于是浮层还没关，人已经被退出会话了。命令式的 `confirm` / `prompt` 更糟，
+它们压根没处理 Esc，按下去弹窗留在原地，底下的页面却退掉了。
+
+改成**全场只有一个监听器**，在 `shell/Root.js` 里。
+`ui/overlay.js` 只维护一个关闭函数的栈，外壳按下 Esc 时先问它：
+
+```js
+if (e.key === 'Escape') {
+  if (!closeTopOverlay()) back();
+}
+```
+
+关掉了最上面那层就到此为止，一层都没有才轮到「返回」。
+栈是后进先出，所以浮层套浮层时一次只关一层。
+
+`Sheet` / `FullSheet` / `Modal` 走同一个 `useCloser`，
+命令式的 `confirm` / `prompt` 在创建时压栈、`done` 时出栈。
+不要再往 window 上挂第二个 Esc 监听 —— 两个监听器就一定会各跑各的。
+
 ### 10.05 长按与系统的选中浮层
 
 挂了长按手势的元素必须带 `.no-callout`（CLAUDE.md 第 12 条）。

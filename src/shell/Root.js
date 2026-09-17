@@ -9,6 +9,7 @@ import { LockScreen } from '../screens/LockScreen.js';
 import { HomeScreen } from '../screens/home/HomeScreen.js';
 import { AppSwitcher } from '../screens/AppSwitcher.js';
 import { AppHost } from '../system/runtime.js';
+import { closeTopOverlay } from '../ui/overlay.js';
 import { useImage } from '../system/db/useImage.js';
 import { applyLook, applyCustomCSS } from '../system/look.js';
 import { apply as applyFonts } from '../system/fonts.js';
@@ -53,9 +54,13 @@ export function Root() {
   // 系统通知：点了要能跳回来，页面不在前台时改由系统弹
   useEffect(() => { installBridge(); }, []);
 
+  // 全场唯一的 Esc 监听。开着浮层时 Esc 归浮层 —— 只关最上面那一层，
+  // 不退出当前页；一层都没开才轮到「返回」。见 ui/overlay.js 顶上那段。
   useEffect(() => {
     const onKey = e => {
-      if (e.key === 'Escape') back();
+      if (e.key === 'Escape') {
+        if (!closeTopOverlay()) back();
+      }
       if (e.key === 'Home') goHome();
     };
     window.addEventListener('keydown', onKey);
