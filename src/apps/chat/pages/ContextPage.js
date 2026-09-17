@@ -1,6 +1,6 @@
-import { html } from '../../../lib.js';
+import { html, useState } from '../../../lib.js';
 import { phone, useStore } from '../../../sdk/index.js';
-import { Page, List, ListItem, Field, Switch, Icon, toast } from '../../../ui/index.js';
+import { Page, List, ListItem, Field, Input, Switch, Icon, toast } from '../../../ui/index.js';
 
 const { db, nav, ai } = phone;
 
@@ -30,6 +30,32 @@ export function ContextPage() {
   const todo = ai.memvec.pending().length;
   const order = ai.resolveOrder(s.injectOrder);
   const styleCost = ai.estimateTokens(ai.template('skeleton.style'));
+
+  // 轮数是自己填的。输入过程中会经过「空」和「0」这些中间状态，
+  // 直接写进设置会把自动总结顺手关掉，所以编辑期间先放在 draft 里，
+  // 只有解析出合法数字才落盘，失焦再回到真实值。
+  const interval = s.autoSummarizeInterval || 0;
+  const autoOn = interval > 0;
+  const [draft, setDraft] = useState(null);
+  const [remembered, setRemembered] = useState(interval || 6);
+
+  const onRounds = v => {
+    setDraft(v);
+    const n = parseInt(v, 10);
+    if (!Number.isFinite(n) || n < 1) return;
+    const next = Math.min(n, 999);
+    setRemembered(next);
+    db.settings.set({ autoSummarizeInterval: next });
+  };
+
+  const toggleAuto = on => {
+    setDraft(null);
+    if (on) db.settings.set({ autoSummarizeInterval: remembered || 6 });
+    else {
+      if (interval > 0) setRemembered(interval);
+      db.settings.set({ autoSummarizeInterval: 0 });
+    }
+  };
 
   const move = (idx, dir) => {
     const next = [...order];
@@ -102,13 +128,30 @@ export function ContextPage() {
         <${ListItem} title="启用记忆" subtitle="关闭后不注入记忆，也不执行自动总结"
           right=${html`<${Switch} checked=${s.memoryEnabled}
             onChange=${v => db.settings.set({ memoryEnabled: v })}/>`}/>
-        <${ListItem} title="自动总结间隔" subtitle="每 N 轮角色回复后提取一次记忆，0 表示关闭"
-          right=${html`<span>${s.autoSummarizeInterval || '关'}</span>`}/>
+        <${ListItem} title="自动总结" multiline
+          subtitle=${!s.memoryEnabled
+            ? '记忆已关闭，自动总结不会执行。手动的「立即总结记忆」不受影响'
+            : autoOn
+              ? `角色每回复 ${interval} 轮，自动提取一次记忆`
+              : '已关闭。记忆只在会话菜单里点「立即总结记忆」时才提取'}
+          right=${html`<${Switch} checked=${autoOn} onChange=${toggleAuto}/>`}/>
       <//>
-      <div class="pad-x pad-b">
-        <input type="range" min="0" max="30" step="1" value=${s.autoSummarizeInterval}
-          onInput=${e => db.settings.set({ autoSummarizeInterval: parseInt(e.target.value, 10) })}/>
-      </div>
+
+      ${autoOn ? html`
+        <div class="pad-x pad-b">
+          <${Field} label="间隔轮数"
+            desc="填角色回复的轮数。数值越小记得越勤，接口调用也越频繁；
+              不确定就先用 6，一段完整的来回大概就是这个量。">
+            <div class="round-row">
+              <${Input} type="number" inputmode="numeric" min="1" max="999"
+                value=${draft ?? String(interval)}
+                onInput=${onRounds}
+                onBlur=${() => setDraft(null)}/>
+              <span class="round-unit">轮</span>
+            </div>
+          <//>
+        </div>`
+      : html`<div class="pad-b"></div>`}
 
       <${List} title="怎么找记忆">
         <${ListItem} title="按意思找" multiline

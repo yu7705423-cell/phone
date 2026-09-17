@@ -456,7 +456,7 @@ export function Conversation({ chatId }) {
 
           <div class="composer-bar">
             <button class="composer-side press" onClick=${() => setPanel(panel === 'menu' ? null : 'menu')}
-              aria-label="更多"><${Icon} name="plus" size=${20}/></button>
+              aria-label="添加内容"><${Icon} name="plus" size=${20}/></button>
 
             <textarea class="composer-input" rows="1" value=${draft} placeholder="说点什么"
               onInput=${e => setDraft(e.target.value)}
@@ -522,7 +522,10 @@ export function Conversation({ chatId }) {
           <${ListItem} title="Prompt 模板" subtitle="骨架与各任务的提示词" arrow
             left=${html`<${Icon} name="sparkle" size=${18}/>`}
             onClick=${() => { setMenu(false); nav.push('/templates'); }}/>
-          <${ListItem} title="立即总结记忆" subtitle=${`尚有 ${pending} 条未总结`} arrow
+          <${ListItem} title="立即总结记忆" arrow multiline
+            subtitle=${`尚有 ${pending} 条未总结 · ${settings.autoSummarizeInterval > 0
+              ? `自动总结每 ${settings.autoSummarizeInterval} 轮一次`
+              : '自动总结已关闭'}`}
             left=${html`<${Icon} name="brain" size=${18}/>`} onClick=${summarize}/>
           <${ListItem} title="表情包" subtitle=${`共 ${db.stickers.count()} 个`} arrow
             left=${html`<${Icon} name="heart" size=${18}/>`}

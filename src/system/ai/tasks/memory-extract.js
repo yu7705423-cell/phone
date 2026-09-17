@@ -1,5 +1,5 @@
 import { touch as touchVec } from '../memvec.js';
-import { memories, chats, characters, messagesOf } from '../../db/index.js';
+import { memories, chats, characters, settings, messagesOf } from '../../db/index.js';
 import { template, runJSONTask } from '../engine.js';
 import { fillTemplate } from '../templates.js';
 import { listFor, CATEGORIES, RANKS } from '../context/memory.js';
@@ -75,7 +75,12 @@ export async function extract(chatId) {
 }
 
 // 每累计 N 轮角色回复触发一次。0 为关闭。
+//
+// 记忆整个关掉时不该还在后台提取 —— 提出来也不注入，白烧接口。
+// 「立即总结」不受这条限制：那是明确的手动动作，
+// 有人会先把记忆攒起来，回头再打开注入。
 export function shouldAutoExtract(chatId, interval) {
+  if (!settings.get().memoryEnabled) return false;
   if (!interval) return false;
   return pendingOf(chatId).filter(m => m.role === 'char').length >= interval;
 }
