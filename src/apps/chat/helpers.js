@@ -39,3 +39,22 @@ export function displayName(authorId) {
 export function splitBubbles(text) {
   return String(text || '').split(/\n\s*\n/).map(s => s.trim()).filter(Boolean);
 }
+
+// 引用块显示用。原消息还在就跟着它走（可能被编辑过），
+// 删了就退回发送当时存下的那份快照 —— 引用不该因为原话被删就变成空的。
+export function quoteOf(msg, { char, chat } = {}) {
+  if (!msg || (!msg.quoteId && !msg.quoteText)) return null;
+  const src = msg.quoteId ? db.messages.get(msg.quoteId) : null;
+  const text = (src ? src.content : msg.quoteText) || '';
+  if (!text.trim()) return null;
+
+  const role = src ? src.role : msg.quoteRole;
+  const authorId = src ? src.authorId : msg.quoteAuthorId;
+  const name = role === 'user'
+    ? (phone.accounts.get(chat?.personaId)?.name || phone.accounts.current()?.name || '我')
+    : role === 'char'
+      ? (db.characters.get(authorId)?.name || char?.name || '对方')
+      : '';
+
+  return { id: src ? src.id : null, name, text: phone.ai.reply.snippet(text) };
+}

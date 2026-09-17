@@ -5,7 +5,7 @@ import { Icon, Spinner, toast } from '../../../ui/index.js';
 const { db } = phone;
 
 // 图片消息
-function ImageBubble({ msg, onDelete }) {
+function ImageBubble({ msg }) {
   const url = useImage(msg.imageId);
   if (msg.media === 'pending') {
     return html`
@@ -15,20 +15,20 @@ function ImageBubble({ msg, onDelete }) {
   }
   if (msg.media === 'error' || msg.media === 'off') {
     return html`
-      <div class="bubble media-failed" onDblClick=${() => onDelete(msg)}>
+      <div class="bubble media-failed">
         <div class="media-prompt">[图片] ${msg.prompt}</div>
         <div class="media-note">${msg.mediaError || '没生成出来'}</div>
       </div>`;
   }
   if (!url) return html`<div class="bubble media-pending"><${Spinner} size=${16}/></div>`;
   return html`
-    <div class="bubble-image" onDblClick=${() => onDelete(msg)}>
+    <div class="bubble-image">
       <img src=${url} alt=${msg.prompt || ''} loading="lazy"/>
     </div>`;
 }
 
 // 语音消息。可以播，也可以单独存到本地。
-function VoiceBubble({ msg, char, onDelete }) {
+function VoiceBubble({ msg, char }) {
   const url = useFile(msg.audioId);
   const [playing, setPlaying] = useState(false);
   const [showText, setShowText] = useState(false);
@@ -42,7 +42,7 @@ function VoiceBubble({ msg, char, onDelete }) {
   }
   if (msg.media === 'error' || msg.media === 'off') {
     return html`
-      <div class="bubble media-failed" onDblClick=${() => onDelete(msg)}>
+      <div class="bubble media-failed">
         <div class="media-prompt">[语音] ${msg.voiceText}</div>
         <div class="media-note">${msg.mediaError || '没合成出来'}</div>
       </div>`;
@@ -68,7 +68,7 @@ function VoiceBubble({ msg, char, onDelete }) {
 
   return html`
     <div class="voice-wrap">
-      <button class="bubble bubble-voice press" onClick=${toggle} onDblClick=${() => onDelete(msg)}>
+      <button class="bubble bubble-voice press" onClick=${toggle}>
         <${Icon} name=${playing ? 'close' : 'headphone'} size=${16}/>
         <span class="voice-bars">${[...Array(4)].map((_, i) => html`
           <i key=${i} class=${playing ? 'is-on' : ''} style=${`height:${6 + (i % 3) * 4}px`}></i>`)}</span>
@@ -84,8 +84,8 @@ function VoiceBubble({ msg, char, onDelete }) {
     </div>`;
 }
 
-export function MediaBubble({ msg, char, onDelete }) {
+export function MediaBubble({ msg, char }) {
   return msg.kind === 'image'
-    ? html`<${ImageBubble} msg=${msg} onDelete=${onDelete}/>`
-    : html`<${VoiceBubble} msg=${msg} char=${char} onDelete=${onDelete}/>`;
+    ? html`<${ImageBubble} msg=${msg}/>`
+    : html`<${VoiceBubble} msg=${msg} char=${char}/>`;
 }

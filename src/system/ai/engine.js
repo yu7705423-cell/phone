@@ -1,4 +1,4 @@
-import { settings, persona, characters, chats, messagesOf } from '../db/index.js';
+import { settings, persona, characters, chats, messages, messagesOf } from '../db/index.js';
 import * as accounts from '../accounts.js';
 import { assemble } from './context/index.js';
 import { DEFAULT_TEMPLATES, fillTemplate } from './templates.js';
@@ -146,7 +146,19 @@ export function buildChatSystem(chat, char, msgs, opts = {}) {
 
   out += '\n\n' + template('skeleton.closing');
   out += mediaInstruction(char);
+  // 引用是双向的：你能引他的，他也能引你的或者自己早先说过的
+  if (msgs.length >= 2) out += '\n\n' + template('skeleton.quote');
   return { system: out, failed, tokens: estimate(out) };
+}
+
+// 引用过的消息在上下文里要带上出处,不然「是啊」这种回应模型根本不知道在应哪句。
+// 原消息还在就取现文(可能被编辑过),删了就用当初存的快照。
+function withQuote(m) {
+  if (!m.quoteId && !m.quoteText) return m.content;
+  const src = m.quoteId ? messages.get(m.quoteId) : null;
+  const q = String((src ? src.content : m.quoteText) || '').replace(/\s+/g, ' ').trim();
+  if (!q) return m.content;
+  return `（回应前面那句「${q.length > 40 ? q.slice(0, 40) + '…' : q}」）${m.content}`;
 }
 
 // 历史消息转 API 格式。群聊时给非本人的发言加上说话人前缀。
@@ -160,13 +172,14 @@ export function buildHistory(chat, char, msgs) {
 
   return kept.slice(-s.historyLimit).map(m => {
     const mine = m.role === 'char' && m.authorId === char.id;
+    const text = withQuote(m);
     if (m.role === 'user') {
-      return { role: 'user', content: m.content };
+      return { role: 'user', content: text };
     }
-    if (mine) return { role: 'assistant', content: m.content };
+    if (mine) return { role: 'assistant', content: text };
     // 群里别人说的话,以旁白形式并入 user 侧,避免被当成自己说过的
     const who = characters.get(m.authorId)?.name || '某人';
-    return { role: 'user', content: isGroup ? `${who}：${m.content}` : m.content };
+    return { role: 'user', content: isGroup ? `${who}：${text}` : text };
   }).reduce((acc, m) => {
     // 合并相邻同角色消息,部分接口不接受连续同角色
     const last = acc[acc.length - 1];

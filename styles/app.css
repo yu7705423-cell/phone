@@ -194,6 +194,81 @@ input[type="range"] {
 .swipes { display: flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-11); color: var(--text-3); }
 .swipe-btn { color: var(--text-2); display: flex; }
 
+/* 引用块。气泡上面顶一小条，点一下跳回原话。
+   align-self 收着，不然它会撑满整列，比底下那条正文还宽 */
+.quote-ref {
+  align-self: flex-start;
+  display: flex; align-items: baseline; gap: var(--sp-2);
+  max-width: 100%; min-width: 0; text-align: left;
+  padding: 5px var(--sp-2); border-radius: var(--r-sm);
+  background: var(--group-fill); border-left: 2px solid var(--group-line);
+  font-size: var(--fs-11); color: var(--text-3); line-height: 1.5;
+}
+.quote-ref.is-dead { opacity: .6; }
+.quote-name { flex: none; color: var(--text-2); }
+.quote-text { min-width: 0; }
+/* 自己发的靠右，但名字仍然读在前面，别跟着一起翻过来 */
+.msg.is-mine .quote-ref {
+  align-self: flex-end;
+  border-left: none; border-right: 2px solid var(--group-line);
+}
+
+/* 被引用的那条跳过去之后闪一下 */
+.msg.is-flash .bubble { animation: msg-flash var(--dur-slow) var(--ease-out) 2 alternate; }
+@keyframes msg-flash { to { background: var(--accent-weak); } }
+
+/* 长按菜单里先把这条原样摆出来，别让人对着一列动作猜自己按中了哪条 */
+.msg-menu-quote {
+  margin: 0 var(--sp-4) var(--sp-3); padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r-sm); background: var(--group-fill);
+  font-size: var(--fs-12); color: var(--text-2); line-height: 1.6;
+  max-height: 84px; overflow: hidden;
+}
+
+/* 修格式 */
+.fix-head {
+  padding: 0 var(--sp-4) var(--sp-3);
+  font-size: var(--fs-12); color: var(--text-3); line-height: 1.6;
+}
+.fix-preview {
+  margin: 0 var(--sp-4) var(--sp-3); padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r-sm); background: var(--group-fill);
+  font-size: var(--fs-12); color: var(--text-2); line-height: 1.6;
+  white-space: pre-wrap; word-break: break-word;
+  max-height: 120px; overflow: hidden;
+}
+
+/* 多选 */
+.msg.is-picking { cursor: pointer; }
+.msg.is-picking .msg-col { pointer-events: none; }
+.msg.is-picked .bubble { box-shadow: 0 0 0 2px var(--accent); }
+.msg.is-picked .bubble-image img,
+.msg.is-picked .bubble-sticker { box-shadow: 0 0 0 2px var(--accent); }
+.pick-dot {
+  flex: none; align-self: center; width: 18px; height: 18px; border-radius: var(--r-full);
+  border: 1px solid var(--group-line); background: var(--surface);
+  display: flex; align-items: center; justify-content: center; color: var(--on-accent);
+}
+.pick-dot.is-on { background: var(--accent); border-color: var(--accent); }
+
+.select-bar {
+  flex: none; display: flex; align-items: center; justify-content: space-between;
+  gap: var(--sp-3); padding: var(--sp-3) var(--sp-4);
+  padding-bottom: calc(var(--sp-3) + var(--safe-bottom));
+  background: var(--bg);
+}
+.select-hint { font-size: var(--fs-13); color: var(--text-3); }
+.nav-text.is-off { color: var(--text-3); }
+.nav-text.is-danger { color: var(--danger); }
+
+/* 引用栏：正要引着谁说话，压在输入框上面 */
+.quote-bar {
+  flex: none; display: flex; align-items: center; gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3) 0;
+}
+.quote-bar .quote-ref { flex: 1; min-width: 0; }
+.quote-bar > button { flex: none; color: var(--text-3); display: flex; padding: var(--sp-1); }
+
 /* 输入区与消息区同底，不要分隔线也不要换颜色 */
 .composer-bar {
   flex: none; display: flex; gap: var(--sp-2); align-items: flex-end;
