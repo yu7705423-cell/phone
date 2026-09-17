@@ -1,4 +1,4 @@
-import { memories, personas } from '../../db/index.js';
+import { memories } from '../../db/index.js';
 import { takeTopWithin } from '../tokens.js';
 import { dot, embedReady } from '../embed.js';
 import { rootIdOf } from '../../accounts.js';
@@ -31,12 +31,10 @@ export function listFor(charId, chatId, personaId) {
   });
 }
 
-// 这条记忆是不是关于「现在这个人」。不是的话要标出来是关于谁的。
-export function aboutOther(m, personaId) {
-  if (!personaId || !m.personaId) return null;
-  if (m.personaId === personaId) return null;
-  return personas.get(m.personaId)?.name || null;
-}
+// 记忆一律原样注入，不标「这条是关于谁的」。
+// 试过标，结果适得其反：一旦点名大号，模型就开始琢磨眼前这人是不是大号。
+// 记忆内容本来就是第三人称、带着名字的（「阿园喜欢…」），
+// 谁是谁靠内容自己说清楚，比外加一个标签可靠。
 
 // 向量检索：S 级照旧钉死（身份级的事实，不该由相似度决定进不进），
 // 剩下的预算交给语义相似度挑。关键词命中的直接算满分并进。
@@ -101,12 +99,8 @@ export function build(ctx) {
     })
     : select(char?.id, chat?.id, scanText, budgets.memory, personaId);
   if (!items.length) return '';
-  // 关于别的身份的记忆要点名是关于谁的，否则模型会把它当成现在这个人的事
-  const lines = items.map(m => {
-    const who = aboutOther(m, personaId);
-    const tag = `[${m.rank}/${CATEGORIES[m.category] || m.category}]`;
-    return who ? `${tag}（关于${who}）${m.content}` : `${tag} ${m.content}`;
-  });
+  const lines = items.map(m =>
+    `[${m.rank}/${CATEGORIES[m.category] || m.category}] ${m.content}`);
   return '\n\n[对话记忆 — 基于历史对话的客观分析结果，请自然地运用这些信息]\n' + lines.join('\n');
 }
 

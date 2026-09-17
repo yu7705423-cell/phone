@@ -1,5 +1,5 @@
 // 角色人设 / 用户信息 / 时间情境
-import { rootOf, isAlt } from '../../accounts.js';
+import { isAlt } from '../../accounts.js';
 
 export const character = {
   meta: { id: 'character', label: '角色人设', desc: '角色卡里写的设定' },
@@ -22,15 +22,12 @@ export const user = {
     if (persona.description) bits.push(persona.description.trim());
     let out = bits.length ? `\n\n[对方是谁]\n${bits.join('\n')}` : '';
 
-    // 小号：角色还是那个角色，记得大号那边发生过的事，
-    // 但眼前这个人对它来说是个陌生人，不能表现得像早就认识。
+    // 小号：只说「刚认识」这一个事实，绝口不提大号。
+    // 试过详细解释「你认识另一个人但别把他俩联系起来」，反而是在提醒模型去联想。
+    // 角色自己的记忆照常带着 —— 就像真人认识新朋友：自己的过去都在，
+    // 只是对眼前这个人一片空白。
     if (isAlt(persona.id)) {
-      const main = rootOf(persona.id);
-      out += `\n\n[你和这个人的关系]\n你不认识${persona.name || '这个人'}，这是第一次说上话。`
-        + `\n你自己的经历、性格、记得的事都还在 —— 包括你和${main?.name || '另一个人'}之间发生过的一切。`
-        + `\n但你没有任何理由把眼前这个人和${main?.name || '那个人'}联系起来。`
-        + `\n记忆里标着「关于某某」的条目说的是别人，不是眼前这个人，别张口就提。`
-        + `\n像对一个陌生人那样说话：有分寸、有距离，该有的好奇也有。`;
+      out += '\n\n[你和这个人的关系]\n你们是刚认识的，还不熟。';
     }
     return out;
   },
