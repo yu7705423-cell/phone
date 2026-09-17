@@ -7,7 +7,8 @@ import { StickerPanel, StickerSuggest } from './StickerPanel.js';
 import { StickerImg } from './StickerBits.js';
 import { MediaBubble } from './MediaBubble.js';
 import { MsgMenu } from './MsgMenu.js';
-import { TransferBubble, NoticeLine, TransferSheet, SettleSheet } from './TransferBits.js';
+import { TransferBubble, NoticeLine, TransferSheet, SettleSheet,
+         LocationBubble, LocationSheet } from './TransferBits.js';
 
 const { db, nav, ai } = phone;
 
@@ -95,6 +96,8 @@ const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, onSwipe,
 
         ${msg.kind === 'transfer'
           ? html`<${TransferBubble} msg=${msg} onSettle=${selecting ? null : onSettle}/>`
+          : msg.kind === 'location'
+          ? html`<${LocationBubble} msg=${msg}/>`
           : msg.kind === 'sticker'
           ? html`<div class="bubble-sticker">
               ${sticker ? html`<${StickerImg} sticker=${sticker} size=${112}/>`
@@ -149,6 +152,7 @@ export function Conversation({ chatId, focusId = '' }) {
   const [recSec, setRecSec] = useState(-1);      // -1 = 没在录音
   const [paying, setPaying] = useState(false);   // 转账面板开着
   const [settling, setSettling] = useState(null);// 正在处理的那一笔
+  const [placing, setPlacing] = useState(false); // 发位置的面板开着
   // 只画最近这么多条。聊了两万条的会话一次性铺出来要一两秒，手机上十几秒，
   // 而且往上翻从来也不会翻到那么远。不够就按「查看更早的消息」再要一段。
   const [shown, setShown] = useState(PAGE);
@@ -556,7 +560,7 @@ export function Conversation({ chatId, focusId = '' }) {
     { id: 'transfer', icon: 'wallet', label: '转账', onTap: () => setPaying(true) },
     { id: 'call', icon: 'phone', label: '通话' },
     { id: 'gift', icon: 'gift', label: '礼物' },
-    { id: 'location', icon: 'map', label: '位置' },
+    { id: 'location', icon: 'map', label: '位置', onTap: () => setPlacing(true) },
     { id: 'listen', icon: 'music', label: '一起听' },
   ].map(it => ({ ...it, onTap: it.onTap || (() => toast(`「${it.label}」尚未实现`)) }));
 
@@ -661,6 +665,7 @@ export function Conversation({ chatId, focusId = '' }) {
         onChange=${sendImage} style="display:none"/>
 
       <${TransferSheet} open=${paying} chatId=${chatId} onClose=${() => setPaying(false)}/>
+      <${LocationSheet} open=${placing} chatId=${chatId} onClose=${() => setPlacing(false)}/>
       <${SettleSheet} msg=${settling} onClose=${() => setSettling(null)}/>
 
       <${MsgMenu} msg=${held} char=${char} onClose=${() => setHeld(null)}

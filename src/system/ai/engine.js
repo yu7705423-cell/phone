@@ -6,6 +6,7 @@ import { DEFAULT_TEMPLATES, fillTemplate } from './templates.js';
 import { embedQuery, embedReady } from './embed.js';
 import { getProvider } from './providers/index.js';
 import { activeChat, fallbackChat, visionMode } from './services.js';
+import * as currency from '../currency.js';
 import { images } from '../db/images.js';
 import { toDataUrl } from '../audio.js';
 import { mediaInstruction } from './reply.js';
@@ -180,7 +181,20 @@ export function buildChatSystem(chat, char, msgs, opts = {}) {
   // 转账。开关在角色卡上（第 5 条：属于这个角色的事放在这个角色身上）。
   // 不按「聊过才讲」来收 token —— 那样角色永远迈不出第一步，
   // 只能等用户先转一笔，等于这个能力对它是单向的。
-  if (char.canTransfer !== false) out += '\n\n' + template('skeleton.transfer');
+  if (char.canTransfer !== false) {
+    const money = currency.label();
+    out += '\n\n' + fillTemplate(template('skeleton.transfer'), {
+      currency: money ? `\n这段对话里的钱是${money}，按这个量级写金额。` : '',
+    });
+  }
+
+  // 位置。角色报的地点要落在它自己待的那个地方 —— 时区设了就拿它当锚，
+  // 没设就只能靠人设里写的，不替它瞎猜一个城市。
+  if (char.canSendLocation !== false) {
+    out += '\n\n' + fillTemplate(template('skeleton.location'), {
+      city: char.timezone ? `（你在${clock.zoneLabel(char.timezone)}）` : '',
+    });
+  }
   // 让它自己把当地时间写出来。这一行显示时会被过滤掉，见 ai/reply.js
   if (clock.stampOn()) out += '\n\n' + template('skeleton.time');
 

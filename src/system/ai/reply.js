@@ -8,14 +8,16 @@ import { byName as stickerByName, markUsed } from '../stickers.js';
 import { notify } from '../notify.js';
 import { nav } from '../nav.js';
 import * as transfer from '../transfer.js';
+import * as place from '../place.js';
 
 // 角色回复里可以带这几种标记，由模型自己决定什么时候用。
 // 中英文冒号都认，方括号也认全角。
-const MARK = /[[【]\s*(图片|照片|image|pic|语音|voice|audio|表情|sticker|emoji|转账|transfer)\s*[:：]\s*([^\]】]+)[\]】]/gi;
+const MARK = /[[【]\s*(图片|照片|image|pic|语音|voice|audio|表情|sticker|emoji|转账|transfer|位置|定位|location)\s*[:：]\s*([^\]】]+)[\]】]/gi;
 
 const IMAGE_KINDS = new Set(['图片', '照片', 'image', 'pic']);
 const STICKER_KINDS = new Set(['表情', 'sticker', 'emoji']);
 const TRANSFER_KINDS = new Set(['转账', 'transfer']);
+const PLACE_KINDS = new Set(['位置', '定位', 'location']);
 
 // 转账那一条里，金额在前，后面随手写的是留言
 const AMOUNT = /^\s*(?:[¥￥$]\s*)?(\d+(?:\.\d{1,2})?)\s*(?:元|块)?\s*(.*)$/;
@@ -120,7 +122,10 @@ export function splitReply(raw) {
     const kind = m[1].toLowerCase();
     const body = m[2].trim();
     if (body) {
-      if (TRANSFER_KINDS.has(kind)) {
+      if (PLACE_KINDS.has(kind)) {
+        const loc = place.parse(body);
+        if (loc) push({ type: 'location', ...loc });
+      } else if (TRANSFER_KINDS.has(kind)) {
         const a = body.match(AMOUNT);
         // 金额读不出来就整条丢掉。凭空造一笔金额不明的转账比少发一条更糟。
         if (a) push({ type: 'transfer', amount: Number(a[1]), note: (a[2] || '').trim() });
@@ -208,6 +213,12 @@ export function materialize(part, base, char) {
     return transfer.send({
       chatId: base.chatId, role: base.role, authorId: base.authorId,
       amount: part.amount, note: part.note, extra: row,
+    });
+  }
+  if (part.type === 'location') {
+    return place.send({
+      chatId: base.chatId, role: base.role, authorId: base.authorId,
+      place: part.place, address: part.address, extra: row,
     });
   }
   if (part.type === 'settle') {

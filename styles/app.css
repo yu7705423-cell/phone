@@ -756,3 +756,18 @@ button.search-bar { width: 100%; border: none; }
   border: none; border-radius: var(--r-full);
   background: var(--group-fill); color: var(--text-3); font-size: var(--fs-12);
 }
+
+/* 位置气泡。虚拟定位，没有真地图，所以也不画一块假的地图底纹 */
+.bubble-location {
+  display: flex; align-items: center; gap: var(--sp-3);
+  min-width: 168px; max-width: 244px;
+}
+.bubble-location .loc-body { min-width: 0; flex: 1; }
+.loc-name { font-size: var(--fs-15); font-weight: var(--fw-medium); }
+.loc-addr { font-size: var(--fs-12); opacity: .66; margin-top: 2px; }
+.bubble-location .loc-map {
+  flex: none; width: 44px; height: 44px; border-radius: var(--r-sm);
+  display: flex; align-items: center; justify-content: center;
+  background: var(--group-fill); opacity: .8;
+}
+.msg.is-mine .bubble-location .loc-map { background: rgba(255, 255, 255, .16); }

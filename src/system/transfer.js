@@ -1,5 +1,6 @@
 import { messages, chats, characters } from './db/index.js';
 import * as accounts from './accounts.js';
+import * as currency from './currency.js';
 
 // 转账。两边都能发，收到的一方可以收下，也可以退回。
 //
@@ -16,21 +17,20 @@ export const RETURNED = 'returned';
 
 export const MAX = 1000000;
 
-// 金额一律两位小数。输入框里随便写，落库前在这儿收口，
+// 金额落库前收口到当前币种该有的位数（人民币两位、日元零位），
 // 免得 0.1 + 0.2 那种东西跑到界面上。
-export function money(n) {
-  const v = Math.round(Number(n) * 100) / 100;
-  return Number.isFinite(v) ? v : 0;
-}
-export function format(n) { return money(n).toFixed(2); }
+export const money = currency.round;
+export const format = currency.format;
+// 带货币符号，只给界面用；上下文里一律是纯数字
+export const display = currency.display;
 
 export function stateLabel(state) {
   return state === TAKEN ? '已收款' : state === RETURNED ? '已退回' : '待收款';
 }
 
 // 上下文里的写法。模型读到的和它自己该写的是同一套格式。
-function contentOf(amount, note, state) {
-  const head = `[转账：${format(amount)}${note ? ' ' + note : ''}]`;
+function contentOf(amount, note, state, code) {
+  const head = `[转账：${format(amount, code)}${note ? ' ' + note : ''}]`;
   return state === TAKEN ? `${head}（已被收下）`
     : state === RETURNED ? `${head}（已被退回）` : head;
 }
@@ -50,10 +50,12 @@ export function send({ chatId, role, authorId, amount, note = '', extra = {} }) 
   if (!(v > 0)) throw new Error('金额需大于 0');
   if (v > MAX) throw new Error(`金额不能超过 ${format(MAX)}`);
   const text = String(note || '').trim().slice(0, 40);
+  // 币种记在这一笔上。之后改设置只影响新发的，已经发出去的不动。
+  const code = currency.current().code;
   const msg = messages.create({
     chatId, role, authorId, kind: 'transfer',
-    amount: v, note: text, transfer: PENDING,
-    content: contentOf(v, text, PENDING),
+    amount: v, note: text, transfer: PENDING, currency: code,
+    content: contentOf(v, text, PENDING, code),
     status: 'done', ...extra,
   });
   chats.update(chatId, { lastMessageAt: Date.now() });
@@ -81,7 +83,7 @@ export function settle(msgId, take, extra = {}) {
   if (!m || m.kind !== 'transfer' || m.transfer !== PENDING) return null;
 
   const state = take ? TAKEN : RETURNED;
-  messages.update(msgId, { transfer: state, content: contentOf(m.amount, m.note, state) });
+  messages.update(msgId, { transfer: state, content: contentOf(m.amount, m.note, state, m.currency) });
 
   // 处理的人是收到的那一方，和发的人相反
   const chat = chats.get(m.chatId);
@@ -95,7 +97,7 @@ export function settle(msgId, take, extra = {}) {
     role: byUser ? 'user' : 'char',
     authorId: byUser ? 'me' : charId,
     kind: 'notice', settledId: msgId,
-    content: `[${who}${take ? '收下了' : '退回了'}${from}的转账 ${format(m.amount)}]`,
+    content: `[${who}${take ? '收下了' : '退回了'}${from}的转账 ${format(m.amount, m.currency)}]`,
     status: 'done', ...extra,
   });
   chats.update(m.chatId, { lastMessageAt: Date.now() });
@@ -109,6 +111,6 @@ export function unsettle(noticeId) {
   if (!n || n.kind !== 'notice' || !n.settledId) return false;
   const m = messages.get(n.settledId);
   if (!m || m.kind !== 'transfer') return false;
-  messages.update(m.id, { transfer: PENDING, content: contentOf(m.amount, m.note, PENDING) });
+  messages.update(m.id, { transfer: PENDING, content: contentOf(m.amount, m.note, PENDING, m.currency) });
   return true;
 }

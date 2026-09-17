@@ -70,6 +70,12 @@ export function CharacterEdit({ id }) {
           subtitle="角色可以转账给你，也可以收下或退回你转过去的款项。关闭后角色不再转账，你转过去的款项也将无人处理"
           right=${html`<${Switch} checked=${char.canTransfer !== false}
             onChange=${v => patch({ canTransfer: v })}/>`}/>
+        <${ListItem} title="位置" multiline
+          subtitle=${char.timezone
+            ? `角色会发送所在地的地点。地点以所在时区「${clock.zoneLabel(char.timezone)}」为准`
+            : '角色会发送所在地的地点。未设置所在时区时，地点依据人设判断'}
+          right=${html`<${Switch} checked=${char.canSendLocation !== false}
+            onChange=${v => patch({ canSendLocation: v })}/>`}/>
       <//>
 
       ${clock.enabled() ? html`

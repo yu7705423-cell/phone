@@ -62,6 +62,8 @@ export const DEFAULT_SETTINGS = {
   timeFrozen: false,              // 停在那一刻不往下走
   timeZoneUser: 'local',          // 我在哪个时区。角色的在各自角色卡上
 
+  currency: 'CNY',                // 转账用哪种钱。只影响显示与小数位，不换算
+
   historyMode: 'count',           // count 按条数 | turn 按轮次
   historyLimit: 20,               // 按条数时取最近多少条
   historyTurns: 10,               // 按轮次时取最近多少轮。一轮 = 用户发言 + 角色回复
