@@ -28,6 +28,7 @@
 
 /* 字体 */
 .font-slot-val { max-width: 130px; font-size: var(--fs-14); color: var(--text-2); }
+.li-hint { font-size: var(--fs-13); color: var(--text-3); }
 .font-sample {
   font-size: var(--fs-17); color: var(--text); margin-top: 4px;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;

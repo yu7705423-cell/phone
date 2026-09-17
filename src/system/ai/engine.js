@@ -1,6 +1,7 @@
 import { settings, persona, characters, chats, messagesOf } from '../db/index.js';
 import { assemble } from './context/index.js';
 import { DEFAULT_TEMPLATES, fillTemplate } from './templates.js';
+import { embedQuery, embedReady } from './embed.js';
 import { getProvider } from './providers/index.js';
 import { activeChat, fallbackChat } from './services.js';
 import { mediaInstruction } from './reply.js';
@@ -64,7 +65,23 @@ function scanTextOf(msgs, n) {
   return msgs.slice(-n).map(m => m.content || '').join('\n');
 }
 
-export function buildChatSystem(chat, char, msgs) {
+// 查询向量。扫描窗口那段文字拿去算一次，交给记忆块做语义检索。
+// 单独拎出来是因为 buildChatSystem 是同步的，这一步要发请求。
+// 失败不抛：拿不到就退回关键词检索，聊天不能因为向量接口挂了就发不出去。
+export async function queryVecFor(msgs) {
+  const s = settings.get();
+  if (!s.memoryEnabled || s.memoryVector === false || !embedReady()) return null;
+  const text = scanTextOf(msgs, s.scanWindow).trim();
+  if (!text) return null;
+  try {
+    return await embedQuery(text);
+  } catch (err) {
+    console.warn('[memory] 取查询向量失败，这轮退回关键词检索:', err.message || err);
+    return null;
+  }
+}
+
+export function buildChatSystem(chat, char, msgs, opts = {}) {
   const s = settings.get();
   const me = persona.get();
   const others = (chat.characterIds || []).filter(id => id !== char.id)
@@ -74,6 +91,7 @@ export function buildChatSystem(chat, char, msgs) {
     char, chat, messages: msgs, persona: me, settings: s,
     scanText: scanTextOf(msgs, s.scanWindow),
     budgets: budgets(s.contextBudget),
+    queryVec: opts.queryVec || null,
   };
 
   let out = fillTemplate(template('skeleton.opening'), {
@@ -130,13 +148,14 @@ export const cancelReply = (chatId, charId) => cancel(replyKey(chatId, charId));
 
 export function streamReply({ chat, char, onDelta }) {
   const msgs = messagesOf(chat.id).filter(m => m.status !== 'error');
-  const { system } = buildChatSystem(chat, char, msgs);
   const history = buildHistory(chat, char, msgs);
 
-  return enqueue(replyKey(chat.id, char.id), signal =>
-    withFallback(c => getProvider(c.provider)
-      .stream(c, { system, messages: history, maxTokens: c.maxTokens, signal, onDelta })),
-    { replace: true, retries: 1 });
+  return enqueue(replyKey(chat.id, char.id), async signal => {
+    const queryVec = await queryVecFor(msgs);
+    const { system } = buildChatSystem(chat, char, msgs, { queryVec });
+    return withFallback(c => getProvider(c.provider)
+      .stream(c, { system, messages: history, maxTokens: c.maxTokens, signal, onDelta }));
+  }, { replace: true, retries: 1 });
 }
 
 // 结构化任务:非流式 + 稳健 JSON 解析

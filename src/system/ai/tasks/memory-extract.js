@@ -1,3 +1,4 @@
+import { touch as touchVec } from '../memvec.js';
 import { memories, chats, characters, messagesOf } from '../../db/index.js';
 import { template, runJSONTask } from '../engine.js';
 import { fillTemplate } from '../templates.js';
@@ -52,14 +53,17 @@ export async function extract(chatId) {
     const keywords = Array.isArray(r.keywords) ? r.keywords.filter(Boolean).map(String) : [];
 
     if (r.updateId && memories.has(r.updateId)) {
-      memories.update(r.updateId, { content: r.content, category, rank, keywords });
+      // 内容变了旧向量就作废，清掉再排队重算
+      memories.update(r.updateId, { content: r.content, category, rank, keywords, vec: null, vecModel: '' });
+      touchVec(r.updateId);
       updated++;
       continue;
     }
-    memories.create({
+    const row = memories.create({
       id: uid('mem'), scope, content: r.content, category, rank, keywords,
       source: 'auto',
     });
+    touchVec(row.id);
     added++;
   }
 

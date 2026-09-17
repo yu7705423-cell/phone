@@ -23,6 +23,11 @@ function OrderRow({ id, idx, total, onMove }) {
 
 export function ContextPage() {
   const s = useStore(db.settings.store);
+  useStore(db.memories.store);
+  const vecReady = ai.services.embedReady();
+  const total = db.memories.count();
+  const indexed = ai.memvec.indexedCount();
+  const todo = ai.memvec.pending().length;
   const order = ai.resolveOrder(s.injectOrder);
 
   const move = (idx, dir) => {
@@ -87,5 +92,34 @@ export function ContextPage() {
         <input type="range" min="0" max="30" step="1" value=${s.autoSummarizeInterval}
           onInput=${e => db.settings.set({ autoSummarizeInterval: parseInt(e.target.value, 10) })}/>
       </div>
+
+      <${List} title="怎么找记忆">
+        <${ListItem} title="按意思找" multiline
+          subtitle=${vecReady
+            ? `已索引 ${indexed} / ${total} 条。关掉就退回原来的关键词匹配`
+            : '需要先在「设置 - 向量」里配好接口。没配就一直走关键词匹配'}
+          right=${vecReady
+            ? html`<${Switch} checked=${s.memoryVector !== false}
+                onChange=${v => db.settings.set({ memoryVector: v })}/>`
+            : html`<span class="li-hint">未配置</span>`}/>
+      <//>
+      ${vecReady && s.memoryVector !== false ? html`
+        <div class="pad-x">
+          <${Field} label=${`最多取 ${s.memoryTopK || 12} 条`}
+            desc="S 级记忆永远都在，不占这个名额。剩下的按相似度排，取前几条">
+            <input type="range" min="3" max="40" step="1" value=${s.memoryTopK || 12}
+              onInput=${e => db.settings.set({ memoryTopK: parseInt(e.target.value, 10) })}/>
+          <//>
+          <${Field} label=${`相似度门槛 ${(s.memoryThreshold ?? 0.22).toFixed(2)}`}
+            desc="低于这个就当没关系。调高更精准但容易漏，调低记得多但会带进噪音">
+            <input type="range" min="0" max="0.7" step="0.01" value=${s.memoryThreshold ?? 0.22}
+              onInput=${e => db.settings.set({ memoryThreshold: parseFloat(e.target.value) })}/>
+          <//>
+        </div>
+        ${todo ? html`
+          <div class="settings-foot">
+            还有 ${todo} 条记忆没建索引，暂时只能靠关键词命中。去「设置 - 向量」里补齐。
+          </div>` : null}
+      ` : null}
     <//>`;
 }

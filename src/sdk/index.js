@@ -14,6 +14,8 @@ import { useImage } from '../system/db/useImage.js';
 import * as engine from '../system/ai/engine.js';
 import * as queue from '../system/ai/queue.js';
 import * as memoryCtx from '../system/ai/context/memory.js';
+import * as embedApi from '../system/ai/embed.js';
+import * as memvecApi from '../system/ai/memvec.js';
 import * as loreCtx from '../system/ai/context/lorebook.js';
 import { extract, shouldAutoExtract, pendingOf } from '../system/ai/tasks/memory-extract.js';
 import * as momentTasks from '../system/ai/tasks/moments.js';
@@ -71,6 +73,8 @@ export const phone = {
     defaultOrder: DEFAULT_ORDER,
     resolveOrder,
     memory: { ...memoryCtx, extract, shouldAutoExtract, pendingOf },
+    embed: embedApi,
+    memvec: memvecApi,
     lore: loreCtx,
     moments: momentTasks,
     services: svc,

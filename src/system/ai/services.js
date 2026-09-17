@@ -6,6 +6,7 @@ export const EMPTY_SERVICES = {
   chat:  { presets: [], activeId: null, fallbackId: null },
   image: { presets: [], activeId: null },
   voice: { enabled: false, baseUrl: '', groupId: '', apiKey: '', model: '' },
+  embed: { baseUrl: '', apiKey: '', model: '', dims: 0 },
 };
 
 export function services() {
@@ -14,6 +15,7 @@ export function services() {
     chat:  { ...EMPTY_SERVICES.chat,  ...(s?.chat || {}) },
     image: { ...EMPTY_SERVICES.image, ...(s?.image || {}) },
     voice: { ...EMPTY_SERVICES.voice, ...(s?.voice || {}) },
+    embed: { ...EMPTY_SERVICES.embed, ...(s?.embed || {}) },
   };
 }
 
@@ -94,6 +96,14 @@ export function removeImagePreset(id) {
   write({ image: { ...i, presets, activeId: i.activeId === id ? (presets[0]?.id || null) : i.activeId } });
 }
 export function setActiveImage(id) { write({ image: { ...services().image, activeId: id } }); }
+
+// ---- 向量（嵌入）。只有一份，走 OpenAI 兼容的 /v1/embeddings ----
+export function embedConfig() { return services().embed; }
+export function setEmbed(patch) { write({ embed: { ...services().embed, ...patch } }); }
+export function embedReady() {
+  const e = services().embed;
+  return !!(e.apiKey && e.model);
+}
 
 // ---- 语音 ----
 export function voiceConfig() { return services().voice; }

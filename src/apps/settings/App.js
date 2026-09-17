@@ -7,6 +7,7 @@ import { ImagePage } from './ImagePage.js';
 import { AppearancePage } from './AppearancePage.js';
 import { StoragePage } from './StoragePage.js';
 import { NotifyPage } from './NotifyPage.js';
+import { EmbedPage } from './EmbedPage.js';
 import { BUILD } from '../../version.js';
 import { forceUpdate } from './forceUpdate.js';
 
@@ -25,6 +26,12 @@ function Home() {
   const voiceDesc = voice.enabled && voice.apiKey ? `已配置 · ${voice.model || '未选模型'}` : '未配置';
   const imgActive = svc.activeImage();
   const imageDesc = imgActive ? `${imgActive.name} · ${imgActive.model || '未选模型'}` : '未配置';
+
+  const emb = svc.embedConfig();
+  const embDone = phone.ai.memvec.indexedCount();
+  const embDesc = emb.apiKey && emb.model
+    ? `${emb.model} · 已索引 ${embDone} / ${db.memories.count()} 条记忆`
+    : '未配置。配了之后记忆按意思检索，不再硬碰关键词';
 
   const nc = phone.sound.config();
   const soundName = nc.soundFileId ? '自己传的'
@@ -51,6 +58,9 @@ function Home() {
         <${ListItem} title="生图" subtitle=${imageDesc} arrow
           left=${html`<${Icon} name="camera" size=${19}/>`}
           onClick=${() => nav.push('/image')}/>
+        <${ListItem} title="向量" subtitle=${embDesc} arrow multiline
+          left=${html`<${Icon} name="brain" size=${19}/>`}
+          onClick=${() => nav.push('/embed')}/>
       <//>
 
       <${List} title="外观">
@@ -84,6 +94,7 @@ function Home() {
 export default function SettingsApp({ route }) {
   if (route === '/api') return html`<${ApiPage}/>`;
   if (route === '/notify') return html`<${NotifyPage}/>`;
+  if (route === '/embed') return html`<${EmbedPage}/>`;
   if (route === '/voice') return html`<${VoicePage}/>`;
   if (route === '/image') return html`<${ImagePage}/>`;
   if (route === "/appearance") return html`<${AppearancePage}/>`;

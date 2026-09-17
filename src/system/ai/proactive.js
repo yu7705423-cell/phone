@@ -1,6 +1,6 @@
 import { chats, characters, messages as messagesDb } from '../db/index.js';
 import { notify } from '../notify.js';
-import { template, buildChatSystem, isConfigured, isReplying, runTextTask } from './engine.js';
+import { template, buildChatSystem, isConfigured, isReplying, runTextTask, queryVecFor } from './engine.js';
 import { fillTemplate } from './templates.js';
 import { renderTurn } from './reply.js';
 
@@ -101,7 +101,7 @@ export async function sendProactive(chatId, charId) {
     .sort((a, b) => a.createdAt - b.createdAt);
   const last = msgs[msgs.length - 1];
 
-  const { system } = buildChatSystem(chat, char, msgs);
+  const { system } = buildChatSystem(chat, char, msgs, { queryVec: await queryVecFor(msgs) });
   const instruction = fillTemplate(template('task.proactive'), {
     charName: char.name || '你',
     time: new Date().toLocaleString('zh-CN', { hour12: false }),

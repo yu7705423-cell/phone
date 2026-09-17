@@ -1,5 +1,6 @@
 import { memories } from '../../db/index.js';
 import { takeTopWithin } from '../tokens.js';
+import { dot, embedReady } from '../embed.js';
 
 export const CATEGORIES = {
   fact: '事实', emotion: '情绪', pending: '待办',
@@ -17,6 +18,35 @@ export function scopesFor(charId, chatId) {
 export function listFor(charId, chatId) {
   const scopes = new Set(scopesFor(charId, chatId));
   return memories.where(m => scopes.has(m.scope));
+}
+
+// 向量检索：S 级照旧钉死（身份级的事实，不该由相似度决定进不进），
+// 剩下的预算交给语义相似度挑。关键词命中的直接算满分并进。
+// queryVec 由 build() 提前算好传进来 —— 这一层是同步的，不能在这里发请求。
+export function selectByVector(charId, chatId, scanText, budget, queryVec, opts = {}) {
+  const topK = opts.topK || 12;
+  const floor = typeof opts.threshold === 'number' ? opts.threshold : 0.22;
+  const text = String(scanText || '').toLowerCase();
+
+  const all = listFor(charId, chatId);
+  const pinned = all.filter(m => m.rank === 'S');
+  const rest = all.filter(m => m.rank !== 'S');
+
+  const scored = rest.map(m => {
+    const kws = (m.keywords || []).filter(Boolean);
+    const hit = kws.length > 0 && kws.some(k => text.includes(String(k).toLowerCase()));
+    const sim = m.vec?.length ? dot(queryVec, m.vec) : -1;
+    // 关键词命中是明确信号，不要被相似度压下去
+    return { m, score: hit ? Math.max(1, sim) : sim, hit };
+  }).filter(x => x.hit || x.score >= floor);
+
+  scored.sort((a, b) => b.score - a.score);
+
+  const pool = [
+    ...pinned.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0)),
+    ...scored.slice(0, topK).map(x => x.m),
+  ];
+  return takeTopWithin(pool, budget, m => m.content || '');
 }
 
 // S/A 全注入; B 在扫描窗口里命中关键词才进; C 只存档不注入
@@ -38,13 +68,21 @@ export function select(charId, chatId, scanText, budget) {
 }
 
 export function build(ctx) {
-  const { settings, char, chat, scanText, budgets } = ctx;
+  const { settings, char, chat, scanText, budgets, queryVec } = ctx;
   if (!settings.memoryEnabled) return '';
-  const { items } = select(char?.id, chat?.id, scanText, budgets.memory);
+  // 拿得到查询向量就走语义检索，否则退回关键词那一套。
+  // 接口没配、还没补向量、这一轮取向量失败，都会落到后面这条路上。
+  const useVec = settings.memoryVector !== false && embedReady() && queryVec?.length;
+  const { items } = useVec
+    ? selectByVector(char?.id, chat?.id, scanText, budgets.memory, queryVec, {
+      topK: settings.memoryTopK || 12,
+      threshold: typeof settings.memoryThreshold === 'number' ? settings.memoryThreshold : 0.22,
+    })
+    : select(char?.id, chat?.id, scanText, budgets.memory);
   if (!items.length) return '';
   const lines = items.map(m =>
     `[${m.rank}/${CATEGORIES[m.category] || m.category}] ${m.content}`);
   return '\n\n[对话记忆 — 基于历史对话的客观分析结果，请自然地运用这些信息]\n' + lines.join('\n');
 }
 
-export const meta = { id: 'memory', label: '对话记忆', desc: 'S/A 级全注入，B 级按关键词命中' };
+export const meta = { id: 'memory', label: '对话记忆', desc: '配了向量就按语义检索，否则 S/A 全注入、B 按关键词命中' };
