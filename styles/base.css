@@ -1,11 +1,11 @@
-/* 全局基础。视口单位全项目只在 .root 出现一次,见 CLAUDE.md */
+/* 全局基础。最外层这一串容器统一用 100vh,不许混 100% / dvh,见 CLAUDE.md */
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
 html, body {
   margin: 0;
   padding: 0;
-  height: 100%;
+  height: 100vh;
   overflow: hidden;
   overscroll-behavior: none;
 }
@@ -18,7 +18,7 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-#app { height: 100%; }
+#app { height: 100vh; }
 
 button, input, textarea, select {
   font: inherit;
@@ -42,10 +42,11 @@ textarea { resize: vertical; line-height: 1.6; }
 img { max-width: 100%; display: block; }
 svg { display: block; flex: none; }
 
-/* ---- 全项目唯一的视口单位。--app-h 由 shell/Root.js 量出真实可视高度，
-       视口单位只是拿不到它时的兜底。见 CLAUDE.md ---- */
+/* ---- 外壳。和 html / body / #app 一样是 100vh，一个都不能换成别的写法。
+       只要有一层用了 100% 或量出来的像素值，它就只撑到 WebKit 认为的可视区，
+       撑不到屏幕底部，底下那条会被 iOS 拿页面底色填掉。见 CLAUDE.md ---- */
 .root {
-  height: var(--app-h, 100vh);
+  height: 100vh;
   display: flex;
   flex-direction: column;
   background: var(--bg);

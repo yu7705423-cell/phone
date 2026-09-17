@@ -36,30 +36,6 @@ export function Root() {
     document.documentElement.dataset.wallpaper = wallpaper ? 'on' : 'off';
   }, [wallpaper]);
 
-  // 手机浏览器里 100vh 算的是地址栏收起后的高度，比实际可视区高一截，
-  // 底部会被压到屏幕外。这里量一次真实可视高度写进 --app-h。
-  // 只在宽度变化（横竖屏切换）时重算：地址栏显隐只改高度，忽略它，
-  // 界面就不会像用了 dvh 那样抽动。见 CLAUDE.md 第 1 条。
-  useEffect(() => {
-    const apply = () => {
-      const h = (window.visualViewport && window.visualViewport.height) || window.innerHeight;
-      document.documentElement.style.setProperty('--app-h', Math.round(h) + 'px');
-    };
-    apply();
-    let lastW = window.innerWidth;
-    const onResize = () => {
-      if (window.innerWidth === lastW) return;   // 只是地址栏,不动
-      lastW = window.innerWidth;
-      apply();
-    };
-    const onOrient = () => setTimeout(apply, 260);
-    window.addEventListener('resize', onResize);
-    window.addEventListener('orientationchange', onOrient);
-    return () => {
-      window.removeEventListener('resize', onResize);
-      window.removeEventListener('orientationchange', onOrient);
-    };
-  }, []);
 
   // 角色主动发消息的调度。跟着整个外壳的生命周期跑，
   // 所以不管当前开着哪个 app 都在数着时间。
