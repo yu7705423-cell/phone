@@ -82,13 +82,6 @@
 .pf-fact span { font-size: var(--fs-11); color: var(--text-3); }
 .pf-acts { display: flex; gap: var(--sp-2); padding: var(--sp-4); }
 .pf-acts > * { flex: 1; }
-.pf-body { padding: 0 var(--sp-4) var(--sp-6); }
-.pf-block { margin-bottom: var(--sp-5); }
-.pf-block h4 {
-  margin: 0 0 var(--sp-2); font-size: var(--fs-12);
-  color: var(--text-3); font-weight: var(--fw-regular);
-}
-.pf-block p { margin: 0; font-size: var(--fs-14); line-height: 1.7; white-space: pre-wrap; }
 
 /* 关系网 */
 .net-wrap { padding: var(--sp-4); }

@@ -49,13 +49,7 @@ export function ProfilePage({ id }) {
           onClick=${() => nav.push(`/net/${id}`)}>关系网<//>
       </div>
 
-      ${char.persona || char.scenario ? html`
-        <div class="pf-body">
-          ${char.persona ? html`
-            <div class="pf-block"><h4>人设</h4><p>${char.persona}</p></div>` : null}
-          ${char.scenario ? html`
-            <div class="pf-block"><h4>情境</h4><p>${char.scenario}</p></div>` : null}
-        </div>` : html`
+      ${char.persona ? null : html`
         <div class="settings-foot">还没写人设。点「编辑资料」补上，或者导入一份 txt / docx。</div>`}
 
       <${List} title=${`关系 · ${rels.length}`}>
