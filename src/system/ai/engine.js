@@ -1,4 +1,4 @@
-import { settings, persona, characters, chats, messages, messagesOf } from '../db/index.js';
+import { settings, persona, characters, chats, messages, stickers, messagesOf } from '../db/index.js';
 import * as accounts from '../accounts.js';
 import * as clock from '../time.js';
 import { assemble } from './context/index.js';
@@ -90,6 +90,22 @@ const withSpareFirst = run => backgroundUsesSpare()
 // 任务按 id 决定走哪条路
 const runnerFor = taskId => (BACKGROUND_TASKS.has(taskId) ? withSpareFirst : withFallback);
 
+// 角色能用哪些表情。名字要原样列给模型，它才知道可以写什么；
+// 但表情库可能有几百个，全列出来光这一段就把预算吃掉了，所以只给最常用的。
+const STICKER_LIMIT = 60;
+function stickerNames(char) {
+  if (char.canSendSticker === false) return '';
+  const all = stickers.all();
+  if (!all.length) return '';
+  return all
+    .slice()
+    .sort((a, b) => (b.useCount || 0) - (a.useCount || 0))
+    .slice(0, STICKER_LIMIT)
+    .map(s => String(s.name || '').trim())
+    .filter(Boolean)
+    .join('、');
+}
+
 function budgets(total) {
   return { lorebook: Math.round(total * 0.4), memory: Math.round(total * 0.35) };
 }
@@ -147,6 +163,12 @@ export function buildChatSystem(chat, char, msgs, opts = {}) {
 
   out += '\n\n' + template('skeleton.closing');
   out += mediaInstruction(char);
+
+  const stickerList = stickerNames(char);
+  if (stickerList) {
+    out += '\n\n' + fillTemplate(template('skeleton.sticker'), { names: stickerList });
+  }
+
   // 引用是双向的：你能引他的，他也能引你的或者自己早先说过的
   if (msgs.length >= 2) out += '\n\n' + template('skeleton.quote');
   // 让它自己把当地时间写出来。这一行显示时会被过滤掉，见 ai/reply.js

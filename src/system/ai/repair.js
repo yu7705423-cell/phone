@@ -81,22 +81,35 @@ const textOf = msg => msg.kind === 'image' ? (msg.prompt || '')
   : (msg.content || '');
 
 // 重新分条：先把歪掉的标记扶正，再按空行和标记拆。
-// 只有拆出来跟现在不一样才算一条修法。
+// 拆出来跟现在一模一样才不算一条修法 —— 注意「一样」包括没有多出
+// 时间行和引用标记。旧消息里那些没被剥掉的时间行正是靠这一条清掉的。
 function partsFor(msg) {
   if (msg.kind !== 'text') return null;
-  const parts = splitReply(normalizeMarks(msg.content || ''));
-  if (parts.length < 2 && !parts.some(p => p.type !== 'text')) return null;
-  if (parts.length === 1 && parts[0].type === 'text' && parts[0].text === (msg.content || '').trim()) return null;
-  return parts;
+  const cur = (msg.content || '').trim();
+  const parts = splitReply(normalizeMarks(cur));
+  if (!parts.length) return null;
+  const unchanged = parts.length === 1 && parts[0].type === 'text'
+    && !parts[0].quote && !parts[0].stamp && parts[0].text === cur;
+  return unchanged ? null : parts;
 }
 
 function describe(parts) {
-  const n = { image: 0, voice: 0 };
+  const n = { image: 0, voice: 0, sticker: 0 };
   parts.forEach(p => { if (p.type !== 'text') n[p.type]++; });
   const extra = [];
   if (n.image) extra.push(`${n.image} 张图片`);
   if (n.voice) extra.push(`${n.voice} 段语音`);
-  return `拆分为 ${parts.length} 条${extra.length ? '，其中包含 ' + extra.join('、') : ''}`;
+  if (n.sticker) extra.push(`${n.sticker} 个表情`);
+
+  const notes = [];
+  if (parts[0]?.stamp) notes.push('移出时间行');
+  if (parts.some(p => p.quote)) notes.push('识别出引用');
+
+  const head = parts.length > 1 ? `拆分为 ${parts.length} 条` : '整理为 1 条';
+  return [
+    head + (extra.length ? `，其中包含 ${extra.join('、')}` : ''),
+    ...notes,
+  ].join('；');
 }
 
 // 这条消息用得上的修法，附带改完长什么样
@@ -113,7 +126,11 @@ export function fixesFor(msg) {
   }
 
   const parts = partsFor(msg);
-  if (parts) out.push({ id: 'rows', label: '按标记重新分条', desc: '图片或语音标记未被识别，或本应拆分的内容合并在了一条中', preview: describe(parts) });
+  if (parts) out.push({
+    id: 'rows', label: '按标记重新整理',
+    desc: '正文里混进了时间行或引用标记，或者图片、语音、表情标记未被识别',
+    preview: describe(parts),
+  });
 
   return out;
 }
@@ -162,7 +179,8 @@ export function applyFix(msgId, fixId) {
   if (fixId === 'rows') {
     const parts = partsFor(msg);
     if (!parts) throw new Error('该消息无需重新分条');
-    return `已拆分为 ${rebuild(msg, parts)} 条`;
+    const n = rebuild(msg, parts);
+    return n > 1 ? `已拆分为 ${n} 条` : '已整理';
   }
 
   const f = TEXT_FIXES.find(x => x.id === fixId);
@@ -193,7 +211,10 @@ export function applyAll(msgId) {
 
   const fresh = messages.get(msgId);
   const parts = fresh ? partsFor(fresh) : null;
-  if (parts) { rebuild(fresh, parts); done.push(`拆分为 ${parts.length} 条`); }
+  if (parts) {
+    rebuild(fresh, parts);
+    done.push(parts.length > 1 ? `拆分为 ${parts.length} 条` : '整理格式');
+  }
 
   return done;
 }

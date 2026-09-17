@@ -146,6 +146,22 @@ export function inGroup(group) {
     .sort((a, b) => (b.useCount || 0) - (a.useCount || 0) || (b.createdAt || 0) - (a.createdAt || 0));
 }
 
+// 角色写 [表情：名字] 时按名字找。模型偶尔写得不完全一样，
+// 名称对不上就退回关键词，再退回包含匹配。一个字的名字不做包含匹配，
+// 否则「哦」能匹上一半的表情。
+export function byName(name) {
+  const q = String(name || '').trim().toLowerCase();
+  if (!q) return null;
+  const all = stickers.all();
+  const nameOf = s => String(s.name || '').trim().toLowerCase();
+  return all.find(s => nameOf(s) === q)
+    || all.find(s => (s.keywords || []).some(k => String(k).trim().toLowerCase() === q))
+    || (q.length >= 2
+      ? all.find(s => nameOf(s).length >= 2 && (nameOf(s).includes(q) || q.includes(nameOf(s))))
+      : null)
+    || null;
+}
+
 export function markUsed(id) {
   const s = stickers.get(id);
   if (s) stickers.update(id, { useCount: (s.useCount || 0) + 1 });

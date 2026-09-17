@@ -10,9 +10,11 @@ export function CharacterEdit({ id }) {
   useStore(db.characters.store);
   useStore(db.lorebooks.store);
   useStore(db.settings.store);
+  useStore(db.stickers.store);
   const [picking, setPicking] = useState(false);
   const char = db.characters.get(id);
   const avatar = useImage(char?.avatar);
+  const stickerCount = db.stickers.count();
 
   if (!char) return html`<${Page} title="编辑" onBack=${nav.pop}/>`;
   const patch = p => db.characters.update(id, p);
@@ -58,6 +60,12 @@ export function CharacterEdit({ id }) {
           multiline
           right=${html`<${Switch} checked=${char.canSendImage !== false}
             onChange=${v => patch({ canSendImage: v })}/>`}/>
+        <${ListItem} title="表情" multiline
+          subtitle=${stickerCount
+            ? `可用表情 ${stickerCount} 个。名称会随对话一并提供给角色，由角色自行选用`
+            : '尚无表情包。在会话菜单的「表情包」中导入后生效'}
+          right=${html`<${Switch} checked=${char.canSendSticker !== false}
+            onChange=${v => patch({ canSendSticker: v })}/>`}/>
       <//>
 
       ${clock.enabled() ? html`

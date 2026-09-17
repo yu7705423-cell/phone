@@ -81,7 +81,9 @@ function Bubble({ msg, char, chat, frozen, onRetry, onSwipe, onHold,
         ${msg.kind === 'sticker'
           ? html`<div class="bubble-sticker">
               ${sticker ? html`<${StickerImg} sticker=${sticker} size=${112}/>`
-                        : html`<span class="stk-miss">表情已删除</span>`}
+                : html`<span class="stk-gone">
+                    ${msg.stickerName ? `表情：${msg.stickerName}` : '表情已删除'}
+                  </span>`}
             </div>`
           : (msg.kind === 'image' || msg.kind === 'voice')
           ? html`<${MediaBubble} msg=${msg} char=${char}/>`

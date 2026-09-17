@@ -693,3 +693,11 @@ input[type="range"] {
   background: var(--accent); animation: rec-blink 1s steps(1) infinite;
 }
 @keyframes rec-blink { 50% { opacity: .2; } }
+
+/* 角色写了一个表情名，但库里没有对得上的。显示它想发的是哪个，
+   总比悄悄吞掉一条消息强。 */
+.stk-gone {
+  display: inline-block; padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r-md); background: var(--group-fill);
+  font-size: var(--fs-12); color: var(--text-3);
+}

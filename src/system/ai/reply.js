@@ -4,12 +4,14 @@ import * as imageSvc from './image.js';
 import * as voiceSvc from './voice.js';
 import { isImageReady } from './image.js';
 import { isVoiceReady } from './voice.js';
+import { byName as stickerByName, markUsed } from '../stickers.js';
 
 // 角色回复里可以带这几种标记，由模型自己决定什么时候用。
 // 中英文冒号都认，方括号也认全角。
-const MARK = /[[【]\s*(图片|照片|image|pic|语音|voice|audio)\s*[:：]\s*([^\]】]+)[\]】]/gi;
+const MARK = /[[【]\s*(图片|照片|image|pic|语音|voice|audio|表情|sticker|emoji)\s*[:：]\s*([^\]】]+)[\]】]/gi;
 
 const IMAGE_KINDS = new Set(['图片', '照片', 'image', 'pic']);
+const STICKER_KINDS = new Set(['表情', 'sticker', 'emoji']);
 
 // 引用单独成行，挂在它下面那一条上，不自己占一个气泡。
 const QUOTE_LINE = /^[[【(（]?\s*(?:引用|回复|quote)\s*[:：]\s*([^\n\]】)）]+)[\]】)）]?\s*$/i;
@@ -17,7 +19,35 @@ const QUOTE_LINE = /^[[【(（]?\s*(?:引用|回复|quote)\s*[:：]\s*([^\n\]】
 // 时间行同理。让模型自己写一遍当地时间，是目前最靠谱的时间感知 ——
 // 写过一遍才算真看见。但它是给模型自己定位用的，不该显示给用户，
 // 所以这里剥掉，只把内容记在消息上，回头再塞回上下文（见 engine.buildHistory）。
+//
+// 模型多半会照着模板写 [时间：…]，但也常常只丢一个 [2026-01-01 周三 14:30]，
+// 标签说掉就掉。两种都得认 —— 认不出来那一行就当正文渲染出去了，
+// 而且它挡在最前面，后面那行引用标记也跟着剥不掉，整条消息全乱。
 const STAMP_LINE = /^[[【(（]?\s*(?:时间|time)\s*[:：]\s*([^\n\]】)）]+)[\]】)）]?\s*$/i;
+const BRACKETED = /^[[【(（]\s*([^\n\]】)）]+?)\s*[\]】)）]\s*$/;
+// 只由数字和时间用字构成，且确实带着钟点或日期的样子
+const TIMEISH = /^[\d\s:：\-/.年月日时分秒周一二三四五六天上下午aApPmM]+$/;
+const isTimeStamp = t => /[:：]/.test(t) || /\d{4}[-/.]\d/.test(t);
+
+// 整行就是一个时间戳的，不管在第几行都摘掉。
+// 模型常常每条都写一遍，那样白白多花 token 也没有额外信息 ——
+// 一轮回复就是一个时刻，留第一个就够。
+function stripStamps(raw) {
+  const stamps = [];
+  const kept = [];
+  for (const line of String(raw || '').split('\n')) {
+    const t = line.trim();
+    const labelled = t.match(STAMP_LINE);
+    if (labelled) { stamps.push(labelled[1].trim()); continue; }
+    const bare = t.match(BRACKETED);
+    if (bare && /\d/.test(bare[1]) && TIMEISH.test(bare[1]) && isTimeStamp(bare[1])) {
+      stamps.push(bare[1].trim());
+      continue;
+    }
+    kept.push(line);
+  }
+  return { text: kept.join('\n'), stamp: stamps[0] || '' };
+}
 
 // 引用块只留一小段，长了在气泡上顶掉正文
 export function snippet(text, max = 40) {
@@ -27,17 +57,16 @@ export function snippet(text, max = 40) {
 
 // 把一整段回复拆成按顺序排列的若干条。空行分段，标记单独成条。
 export function splitReply(raw) {
-  const text = String(raw || '').trim();
-  if (!text) return [];
+  const { text, stamp } = stripStamps(String(raw || '').trim());
+  if (!text.trim()) return [];
+
   const parts = [];
   let last = 0;
-  // 读到的标记行先记着，挂到紧随其后的那一条上
+  // 读到的引用行先记着，挂到紧随其后的那一条上
   let pendingQuote = null;
-  let pendingStamp = null;
 
   const push = part => {
     if (pendingQuote) { part.quote = pendingQuote; pendingQuote = null; }
-    if (pendingStamp) { part.stamp = pendingStamp; pendingStamp = null; }
     parts.push(part);
   };
 
@@ -45,14 +74,12 @@ export function splitReply(raw) {
     chunk.split(/\n\s*\n/).forEach(seg => {
       let t = seg.trim();
       if (!t) return;
-      // 开头可能连着好几行标记（时间、引用），一行一行剥干净
+      // 开头可能连着好几行引用标记，一行一行剥干净
       for (;;) {
         const lines = t.split('\n');
         const q = lines[0].match(QUOTE_LINE);
-        const st = q ? null : lines[0].match(STAMP_LINE);
-        if (!q && !st) break;
-        if (q) pendingQuote = q[1].trim();
-        else pendingStamp = st[1].trim();
+        if (!q) break;
+        pendingQuote = q[1].trim();
         t = lines.slice(1).join('\n').trim();
         if (!t) break;
       }
@@ -67,13 +94,16 @@ export function splitReply(raw) {
     const kind = m[1].toLowerCase();
     const body = m[2].trim();
     if (body) {
-      push(IMAGE_KINDS.has(kind)
-        ? { type: 'image', prompt: body }
+      push(IMAGE_KINDS.has(kind) ? { type: 'image', prompt: body }
+        : STICKER_KINDS.has(kind) ? { type: 'sticker', name: body }
         : { type: 'voice', text: body });
     }
     last = m.index + m[0].length;
   }
   pushText(text.slice(last));
+
+  // 时间只挂在整轮第一条上
+  if (stamp && parts.length) parts[0].stamp = stamp;
   return parts;
 }
 
@@ -126,6 +156,18 @@ export function materialize(part, base, char) {
   const quote = quoteFields(base.chatId, part.quote);
   const row = { ...base, ...quote, ...(part.stamp ? { stamp: part.stamp } : {}) };
 
+  if (part.type === 'sticker') {
+    // 名字对不上也照发。stickerName 留着，气泡上显示它想发的是哪个，
+    // 总比悄悄吞掉一条消息强。
+    const found = stickerByName(part.name);
+    if (found) markUsed(found.id);
+    return messages.create({
+      ...row, kind: 'sticker',
+      content: `[表情：${found ? found.name : part.name}]`,
+      stickerId: found ? found.id : null,
+      stickerName: part.name,
+    });
+  }
   if (part.type === 'image') {
     const msg = messages.create({ ...row, kind: 'image', content: `[图片：${part.prompt}]`,
       prompt: part.prompt, imageId: null, media: 'pending' });
