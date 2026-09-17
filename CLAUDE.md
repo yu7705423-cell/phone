@@ -90,7 +90,23 @@ html, body   height: 100vh
 
 同一个开关只能有一个入口。别在两个地方各放一份。
 
-## 6. 模块边界
+## 6. 人设只在「编辑资料」里出现
+
+**人设正文（`persona` / `description` / `scenario` / 开场白 / 说话示例）
+只允许出现在编辑页的输入框里。** 列表、卡片、资料页、副标题、预览行，
+一个字都不许露。
+
+已经因为这条来回改过三次。人设是一大段长文，塞进任何列表都会把那一屏
+挤得只剩它，这正是当初要拆出「联系」app 的原因。
+
+列表里要显示点什么，用 `signature`（一句话签名）。没有就空着，
+不要拿人设去顶。
+
+**唯一的例外**：生成结果的确认页 —— 导入角色卡、批量生成 NPC
+那种「先看一眼再决定存不存」的界面。那里不看内容就没法判断，
+而且东西还没入库。
+
+## 7. 模块边界
 
 ```
 apps/*  只能 import:  sdk/, ui/, icons/
@@ -103,7 +119,7 @@ apps/*  永远不能 import  system/
 
 由 `scripts/check-boundaries.mjs` 扫描拦截。
 
-## 7. 无构建
+## 8. 无构建
 
 原生 ES Modules，不引入打包器，不需要 `npm install`。
 第三方库手工放进 `vendor/`，import 本地文件。
@@ -114,12 +130,12 @@ ES Modules 在 `file://` 下受 CORS 限制，需静态服务器运行：
 python3 -m http.server 8000
 ```
 
-## 8. AI 请求
+## 9. AI 请求
 
 不允许在组件里直接 `fetch` 模型接口。一律走 `phone.ai.*`，
 底下经过 AIQueue（并发限制、去重、取消、重试）与 provider 适配层。
 
-## 9. Prompt 不写死
+## 10. Prompt 不写死
 
 骨架开场、收尾、各任务的 instruction 全部存在 `settings.promptTemplates`，
 代码里只保留 `DEFAULT_TEMPLATES` 作为回落。改语气不应该需要改代码。
@@ -155,5 +171,5 @@ doctor 的「导入导出」只查模块之间的引用。**文件内部引用�
 它查不到** —— 那种错要到运行时打开那个页面才炸，而且 ErrorBoundary 会把它
 兜住，只留下一句「XX 已停止」。已经因此漏出去过两次。
 
-本项目不装 npm 依赖（第 7 条），所以 playwright 从别处借，用 `SMOKE_PW` 指过去。
+本项目不装 npm 依赖（第 8 条），所以 playwright 从别处借，用 `SMOKE_PW` 指过去。
 找不到就跳过，不拦提交。

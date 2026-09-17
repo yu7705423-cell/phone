@@ -87,11 +87,6 @@ export function Profile({ subjectId, embedded }) {
               onClick=${() => { const c = chatFor(subjectId); nav.push(`/chat/${c.id}`); }}>发消息<//>`}
       </div>
 
-      ${(isMe ? me.description : subject.persona) ? html`
-        <${List} title=${isMe ? '我的人设' : '人设'}>
-          <${ListItem} multiline title=${isMe ? me.description : subject.persona}/>
-        <//>` : null}
-
       <${List} title=${`动态 ${mine.length}`}>
         ${mine.length ? mine.map(m => html`
           <${ListItem} key=${m.id} multiline title=${m.text}

@@ -12,6 +12,9 @@ const AVATAR_MAX = 256;
 
 // 「这个人是谁」都在这儿：我的人设，和每个角色的人设。
 // 聊天里的角色卡只留「她在对话里怎么表现」那部分（语音、发图、主动找我、世界书）。
+//
+// 注意：人设正文只在「编辑资料」页的输入框里出现。列表和资料页一个字都不露，
+// 要显示就用 signature。见 CLAUDE.md 第 6 条。
 
 function AvatarPicker({ src, name, onPick }) {
   const fileRef = useRef(null);
@@ -52,14 +55,14 @@ function Card({ char, onClick }) {
     </button>`;
 }
 
-function Row({ subject, isMe, onClick, right, tag }) {
+// 只显示签名。人设一个字都不往外露 —— 那是只有「编辑资料」里才出现的东西。
+function Row({ subject, onClick, right, tag }) {
   const url = useImage(subject.avatar);
-  const text = isMe ? subject.description : subject.persona;
   return html`
     <${ListItem} multiline onClick=${onClick} right=${right} arrow=${!right}
       left=${html`<${Avatar} src=${url} name=${subject.name} size=${40}/>`}
       title=${html`${subject.name || '未命名'}${tag ? html`<span class="acc-tag">${tag}</span>` : null}`}
-      subtitle=${text ? String(text).slice(0, 40) : '还没写人设'}/>`;
+      subtitle=${subject.signature || ''}/>`;
 }
 
 function Home() {
@@ -102,7 +105,7 @@ function Home() {
         <${IconButton} name="plus" label="新建角色" onClick=${addChar}/>`}>
       <${List} title="当前账号">
         ${me ? html`
-          <${Row} subject=${me} isMe tag=${me.parentId ? '小号' : null}
+          <${Row} subject=${me} tag=${me.parentId ? '小号' : null}
             onClick=${() => nav.push(`/me/${me.id}`)}/>` : null}
         <${ListItem} title="切换账号" multiline arrow
           subtitle=${`一共 ${roots.length} 个账号。不同账号之间完全独立，互相看不到对方的会话和记忆`}
@@ -129,12 +132,12 @@ function Home() {
         <${List} inset=${false}>
           ${roots.map(r => html`
             <div key=${r.id}>
-              <${Row} subject=${r} isMe
+              <${Row} subject=${r}
                 right=${me?.id === r.id ? html`<${Icon} name="check" size=${17}/>` : null}
                 onClick=${() => pickAccount(r.id)}/>
               ${accounts.altsOf(r.id).map(a2 => html`
                 <div key=${a2.id} class="acc-alt">
-                  <${Row} subject=${a2} isMe tag="小号"
+                  <${Row} subject=${a2} tag="小号"
                     right=${me?.id === a2.id ? html`<${Icon} name="check" size=${17}/>` : null}
                     onClick=${() => pickAccount(a2.id)}/>
                 </div>`)}
@@ -216,7 +219,7 @@ function MePage({ id }) {
         <${List} title=${`小号 · ${alts.length}`}>
           ${alts.map(a => html`
             <${ListItem} key=${a.id} title=${a.name} arrow multiline
-              subtitle=${a.description ? String(a.description).slice(0, 34) : '还没写人设'}
+              subtitle=${a.signature || ''}
               left=${html`<${Icon} name="user" size=${18}/>`}
               onClick=${() => nav.push(`/me/${a.id}`)}/>`)}
           <${ListItem} title="开一个小号" arrow multiline
@@ -302,7 +305,7 @@ function EditPage({ id }) {
         <${List} title=${`她的小号 · ${db.characters.where(x => x.parentId === id).length}`}>
           ${db.characters.where(x => x.parentId === id).map(a => html`
             <${ListItem} key=${a.id} title=${a.name} arrow multiline
-              subtitle=${a.altReason || (a.persona ? String(a.persona).slice(0, 34) : '还没写人设')}
+              subtitle=${a.altReason || a.signature || ''}
               left=${html`<${Icon} name="user" size=${18}/>`}
               onClick=${() => nav.push(`/char/${a.id}`)}/>`)}
           ${db.characters.where(x => x.parentId === id).length ? null : html`

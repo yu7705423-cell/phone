@@ -22,7 +22,7 @@ function Row({ char, onHold }) {
       <div class="msg-main">
         <div class="msg-name ellipsis">${char.name}</div>
         <div class="msg-preview ellipsis">
-          ${char.signature || (char.persona || '').slice(0, 30) || '还没有设定'}
+          ${char.signature || ''}
         </div>
       </div>
       <${Icon} name="chevronRight" size=${16} class="li-arrow"/>

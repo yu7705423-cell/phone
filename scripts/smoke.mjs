@@ -22,7 +22,7 @@ const ROUTES = {
     '/appearance', '/storage'],
 };
 
-// 本项目不装 npm 依赖（CLAUDE.md 第 7 条），所以 playwright 从别处借：
+// 本项目不装 npm 依赖（CLAUDE.md 第 8 条），所以 playwright 从别处借：
 // SMOKE_PW 指向一个装了 playwright 的目录即可。
 let chromium;
 const pw = process.env.SMOKE_PW ? `${process.env.SMOKE_PW}/node_modules/playwright/index.mjs` : 'playwright';

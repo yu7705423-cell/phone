@@ -29,7 +29,7 @@ export function CharacterEdit({ id }) {
 
         <${List} inset=${false}>
           <${ListItem} title="人设、情境、开场白、说话示例" arrow multiline
-            subtitle=${char.persona ? String(char.persona).slice(0, 34) : '还没写。这些决定她是谁，去「联系」里写'}
+            subtitle=${char.persona ? '去「联系」里改' : '还没写。这些决定她是谁，去「联系」里写'}
             left=${html`<${Icon} name="user" size=${18}/>`}
             onClick=${() => phone.intent.open('contact', { route: `/char/${id}` })}/>
         <//>

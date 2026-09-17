@@ -1,5 +1,5 @@
 // prompt 默认模板。代码里只留默认值,运行时一律从 settings.promptTemplates 读取。
-// 见 CLAUDE.md 第 8 条。占位符用 {{name}}。
+// 见 CLAUDE.md 第 10 条。占位符用 {{name}}。
 
 export const DEFAULT_TEMPLATES = {
 

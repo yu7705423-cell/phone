@@ -1,6 +1,6 @@
 import { sources, read, rel, report } from './lib.mjs';
 
-// apps 之间不能互相 import,也不能直接 import system/。见 CLAUDE.md 第 5 条
+// apps 之间不能互相 import,也不能直接 import system/。见 CLAUDE.md 第 7 条
 const IMPORT = /(?:^|\n)\s*(?:import|export)[\s\S]*?from\s+['"]([^'"]+)['"]/g;
 
 export function check() {

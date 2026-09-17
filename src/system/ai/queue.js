@@ -1,5 +1,5 @@
 // 所有模型请求都从这里出去。并发限制、去重、取消、重试。
-// 组件里直接 fetch 是禁止的,见 CLAUDE.md 第 7 条。
+// 组件里直接 fetch 是禁止的,见 CLAUDE.md 第 9 条。
 
 const waiting = [];
 const active = new Map();   // key -> { controller, promise }
