@@ -27,6 +27,7 @@ import * as momentTasks from '../system/ai/tasks/moments.js';
 import { DEFAULT_TEMPLATES } from '../system/ai/templates.js';
 import * as svc from '../system/ai/services.js';
 import { fetchModels, filterModels } from '../system/ai/models.js';
+import { estimate as estimateTokens } from '../system/ai/tokens.js';
 import * as voice from '../system/ai/voice.js';
 import * as image from '../system/ai/image.js';
 import * as visionApi from '../system/ai/vision.js';
@@ -78,6 +79,7 @@ export const phone = {
     runJSONTask: engine.runJSONTask,
     runTextTask: engine.runTextTask,
     template: engine.template,
+    estimateTokens,
     templates: DEFAULT_TEMPLATES,
     blocks: BLOCKS,
     defaultOrder: DEFAULT_ORDER,

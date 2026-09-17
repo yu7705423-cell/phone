@@ -162,6 +162,9 @@ export function buildChatSystem(chat, char, msgs, opts = {}) {
   }
 
   out += '\n\n' + template('skeleton.closing');
+  // 自然表达协议。接在回复风格后面，管的是同一件事：这一条回复该怎么写。
+  // 一千多 token，所以给了开关，见「上下文与记忆」。
+  if (s.styleProtocol !== false) out += '\n\n' + template('skeleton.style');
   out += mediaInstruction(char);
 
   const stickerList = stickerNames(char);

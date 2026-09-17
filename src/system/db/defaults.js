@@ -41,6 +41,9 @@ export const DEFAULT_SETTINGS = {
   // 后台活儿（整理记忆、导入、生成 NPC…）优先走副用接口，见 ai/engine.js
   backgroundSpare: true,
 
+  // 回复风格。自然表达协议，见 ai/templates.js 的 skeleton.style
+  styleProtocol: true,
+
   // 上下文
   injectOrder: ['character', 'lorebook', 'user', 'time', 'memory'],
 

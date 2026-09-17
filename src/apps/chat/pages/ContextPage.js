@@ -29,6 +29,7 @@ export function ContextPage() {
   const indexed = ai.memvec.indexedCount();
   const todo = ai.memvec.pending().length;
   const order = ai.resolveOrder(s.injectOrder);
+  const styleCost = ai.estimateTokens(ai.template('skeleton.style'));
 
   const move = (idx, dir) => {
     const next = [...order];
@@ -49,6 +50,15 @@ export function ContextPage() {
           </div>
         <//>
       </div>
+
+      <${List} title="回复风格">
+        <${ListItem} title="自然表达协议" multiline
+          subtitle=${`一份写在提示词里的行文约束：句式去重、句长打散、禁止固定回应模板、`
+            + `允许情绪错位与漏听、留白不升华。每轮注入，约 ${styleCost} token。`
+            + `${s.styleProtocol === false ? '当前已关闭。' : ''}正文可在「Prompt 模板」中修改。`}
+          right=${html`<${Switch} checked=${s.styleProtocol !== false}
+            onChange=${v => db.settings.set({ styleProtocol: v })}/>`}/>
+      <//>
 
       <${List} title="上下文">
         <${ListItem} title="时间感知" arrow multiline
