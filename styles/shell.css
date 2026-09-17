@@ -63,7 +63,10 @@
   box-shadow: var(--tile-shadow);
   transition: transform var(--dur-fast) var(--ease);
 }
-:root[data-icon-label="off"] .app-tile { height: calc(var(--cell, 76px) * .74); }
+/* 关掉名称时不要改图标大小。Dock 的高度和胶囊的 min-height 都是拿
+   --tile-ratio 算的，这里单独把 .app-tile 调高，胶囊不会跟着长，
+   图标就顶出胶囊了。名称只是藏起来，格子里剩下的空间靠居中吃掉。 */
+:root[data-icon-label="off"] .cell-app { justify-content: center; }
 :root[data-icon-shadow="off"] .app-tile { box-shadow: none; }
 /* 只能写 background-color。写 background 简写会把下面 .has-image 的
    background-size 一起重置成 auto，自定义图标就按原尺寸画、只露出一角。 */
