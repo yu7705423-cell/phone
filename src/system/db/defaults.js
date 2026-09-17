@@ -11,6 +11,9 @@ export const DEFAULT_SETTINGS = {
   statusBar: 'auto',              // auto | on | off  见 shell/StatusBar.js
   showLockScreen: true,
 
+  // 通知。横幅与提示音，见 system/sound.js
+  notify: { banner: true, sound: 'ding', soundFileId: null, volume: 0.7 },
+
   // AI 服务配置。聊天与生图是「预设列表 + 当前选中」，语音只有一份。
   services: {
     chat:  { presets: [], activeId: null, fallbackId: null },

@@ -246,6 +246,49 @@
 }
 .hi-bar { width: 108px; height: 4px; border-radius: var(--r-full); background: var(--text-3); opacity: .5; }
 
+/* ---- 通知横幅。从顶上掉下来，往上一推收起 ---- */
+.banner-host {
+  position: absolute; top: 0; left: 0; right: 0; z-index: var(--z-banner);
+  /* 绝对定位是贴着 .root 的 padding box 算的，量不到 .root 自己的 padding-top，
+     所以刘海这段要在这儿再让一次，否则横幅会掉到状态栏底下。 */
+  padding: calc(var(--safe-top) + var(--sp-2)) var(--sp-3) 0;
+  pointer-events: none;
+}
+.banner {
+  pointer-events: auto;
+  display: flex; align-items: flex-start; gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--r-lg);
+  background: var(--capsule-bg); border: 1px solid var(--capsule-border);
+  backdrop-filter: blur(var(--glass-blur)); -webkit-backdrop-filter: blur(var(--glass-blur));
+  box-shadow: var(--shadow-2);
+  cursor: pointer;
+  animation: banner-in var(--dur) var(--ease-out);
+}
+.banner.is-leaving { animation: banner-out .2s var(--ease) forwards; }
+@keyframes banner-in  { from { transform: translateY(-130%); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes banner-out { to { transform: translateY(-130%); opacity: 0; } }
+
+.banner-icon {
+  flex: none; width: 34px; height: 34px; border-radius: var(--r-md);
+  background: var(--tile-bg); color: var(--icon-color);
+  display: flex; align-items: center; justify-content: center; overflow: hidden;
+}
+.banner-text { flex: 1; min-width: 0; }
+.banner-head {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2);
+  font-size: var(--fs-11); color: var(--text-3);
+}
+.banner-app { min-width: 0; }
+.banner-time { flex: none; }
+.banner-title { font-size: var(--fs-14); font-weight: var(--fw-semi); margin-top: 1px; }
+.banner-body {
+  font-size: var(--fs-13); color: var(--text-2); line-height: 1.4; margin-top: 2px;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+/* 没铺壁纸时胶囊底色几乎透明，横幅会看不清，这里补成实底 */
+:root[data-wallpaper="off"] .banner { background: var(--surface); border-color: var(--border); }
+
 /* ---- 锁屏 ---- */
 .lock {
   height: 100%; display: flex; flex-direction: column; padding: var(--sp-6) var(--sp-4);

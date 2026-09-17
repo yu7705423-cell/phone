@@ -1,6 +1,7 @@
 // 跨 app 的唯一合法通道。调用方不知道谁来处理。
 import { openApp } from './nav.js';
 import { listApps } from './registry.js';
+import { on, EVENTS } from './bus.js';
 
 const handlers = new Map();   // intentId -> { appId, fn }
 
@@ -26,3 +27,9 @@ export async function request(intentId, params) {
 }
 
 export const canHandle = intentId => handlers.has(intentId);
+
+// 点通知就跳过去。锁屏上的通知、顶上掉下来的横幅都走这里，
+// notify() 本身只管发出事件，不知道点了会发生什么。
+on(EVENTS.notificationOpen, item => {
+  if (item?.appId) open(item.appId, item.payload);
+});

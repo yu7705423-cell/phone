@@ -4,6 +4,7 @@ import { nav, setSwitcher, goHome, back } from '../system/nav.js';
 import { settings } from '../system/db/index.js';
 import { StatusBar } from './StatusBar.js';
 import { Dock } from './Dock.js';
+import { NotifyBanner } from './NotifyBanner.js';
 import { LockScreen } from '../screens/LockScreen.js';
 import { HomeScreen } from '../screens/home/HomeScreen.js';
 import { AppSwitcher } from '../screens/AppSwitcher.js';
@@ -12,6 +13,7 @@ import { useImage } from '../system/db/useImage.js';
 import { applyLook, applyCustomCSS } from '../system/look.js';
 import { layout } from '../system/db/index.js';
 import { start as startProactive } from '../system/ai/proactive.js';
+import { installUnlock } from '../system/sound.js';
 
 export function Root() {
   const s = useStore(nav);
@@ -40,6 +42,9 @@ export function Root() {
   // 角色主动发消息的调度。跟着整个外壳的生命周期跑，
   // 所以不管当前开着哪个 app 都在数着时间。
   useEffect(() => startProactive(), []);
+
+  // iOS 上 AudioContext 必须由一次真实触摸唤醒，越早挂上越好
+  useEffect(() => { installUnlock(); }, []);
 
   useEffect(() => {
     const onKey = e => {
@@ -71,5 +76,6 @@ export function Root() {
           onDblClick=${() => setSwitcher(true)} title="点击回到主界面，双击打开多任务">
           <span class="hi-bar"></span>
         </div>` : null}
+      <${NotifyBanner}/>
     </div>`;
 }

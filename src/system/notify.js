@@ -8,6 +8,8 @@ export function notify({ title, body, icon = 'bell', appId, payload, avatar }) {
   const item = { id: uid('n'), title, body, icon, appId, payload, avatar, createdAt: Date.now(), read: false };
   const items = [item, ...notifications.get().items].slice(0, MAX);
   notifications.set({ items });
+  // 横幅和提示音都挂在这个事件上，notify 本身不管怎么呈现
+  emit(EVENTS.notify, item);
   return item.id;
 }
 

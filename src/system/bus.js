@@ -19,5 +19,6 @@ export const EVENTS = {
   unlock: 'system:unlock',
   theme: 'system:theme',
   notificationOpen: 'system:notification-open',
+  notify: 'system:notify',
   appOpen: 'system:app-open',
 };

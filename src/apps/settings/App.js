@@ -6,6 +6,7 @@ import { VoicePage } from './VoicePage.js';
 import { ImagePage } from './ImagePage.js';
 import { AppearancePage } from './AppearancePage.js';
 import { StoragePage } from './StoragePage.js';
+import { NotifyPage } from './NotifyPage.js';
 import { BUILD } from '../../version.js';
 import { forceUpdate } from './forceUpdate.js';
 
@@ -24,6 +25,11 @@ function Home() {
   const voiceDesc = voice.enabled && voice.apiKey ? `已配置 · ${voice.model || '未选模型'}` : '未配置';
   const imgActive = svc.activeImage();
   const imageDesc = imgActive ? `${imgActive.name} · ${imgActive.model || '未选模型'}` : '未配置';
+
+  const nc = phone.sound.config();
+  const soundName = nc.soundFileId ? '自己传的'
+    : (phone.sound.PRESETS.find(p => p.id === nc.sound) || {}).label || '清脆';
+  const notifyDesc = `${nc.banner ? '横幅开着' : '横幅关着'} · 提示音 ${soundName}`;
 
   const update = async () => {
     toast('正在取新代码', 'plain');
@@ -48,6 +54,9 @@ function Home() {
       <//>
 
       <${List} title="外观">
+        <${ListItem} title="通知" subtitle=${notifyDesc} arrow multiline
+          left=${html`<${Icon} name="bell" size=${18}/>`}
+          onClick=${() => nav.push('/notify')}/>
         <${ListItem} title="主题"
           subtitle="深色模式、壁纸、图标颜色与阴影、自定义 CSS" arrow multiline
           left=${html`<${Icon} name="grid" size=${18}/>`}
@@ -74,6 +83,7 @@ function Home() {
 
 export default function SettingsApp({ route }) {
   if (route === '/api') return html`<${ApiPage}/>`;
+  if (route === '/notify') return html`<${NotifyPage}/>`;
   if (route === '/voice') return html`<${VoicePage}/>`;
   if (route === '/image') return html`<${ImagePage}/>`;
   if (route === "/appearance") return html`<${AppearancePage}/>`;

@@ -93,6 +93,7 @@
   --z-sheet:   60;
   --z-modal:   70;
   --z-toast:   80;
+  --z-banner:  90;
 
   /* 结构尺寸 */
   --statusbar-h: 26px;

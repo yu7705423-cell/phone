@@ -625,6 +625,25 @@ moment.reply  角色回复
 （见 CLAUDE.md 第 5 条）。每个角色自己一个落点，存在 `localStorage` 的一张
  charId 到时间戳的表里；角色删掉，落点跟着清。
 
+### 4.69 通知横幅与提示音
+
+`notify()` 只管发出一条通知并广播 `EVENTS.notify`，它不知道会被怎么呈现。
+听这个事件的有两处：`shell/NotifyBanner.js` 负责从顶上掉下来的横幅，
+`system/sound.js` 负责响一声。锁屏上的通知列表另外直接读 `notifications` 这个 store。
+
+- **提示音不放音频文件**。预设一律用 WebAudio 现场合成（起音 8ms、指数衰减，
+  听着像敲出来的而不是蜂鸣器），想要真实录音就自己传一个，存进 `files` 域。
+  iOS 上 AudioContext 必须由一次真实触摸唤醒，`installUnlock()` 在外壳挂载时
+  就绑好第一次 touch/click。
+- **正开着那个会话就不弹**，人就在看，真机也是这么做的。
+- 点横幅或点锁屏上的通知，都走 `EVENTS.notificationOpen`，
+  由 `system/intents.js` 统一转成 `open(appId, payload)`。通知自己不认识路由。
+- 横幅的安全区要在 `.banner-host` 上再让一次：绝对定位是贴着 `.root` 的
+  padding box 算的，量不到 `.root` 自己的 `padding-top`。
+
+开关在 `设置 - 通知`（横幅、提示音、音量、试一条）。这是整机行为，不属于某个角色，
+所以放全局设置里不违反 CLAUDE.md 第 5 条。
+
 ### 4.7 群聊
 
 一个会话可以挂多个角色(`chat.characterIds` 为数组)。
