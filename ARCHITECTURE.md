@@ -1431,35 +1431,88 @@ phone.settings.get(key) / set(key, v)
 
 ## 13. 路线图
 
-**P0 骨架**
-- shell + 内核 + sdk + 令牌 + 图标系统 + Page 原语
-- 系统界面: 全屏根容器、状态栏、底部 Dock、锁屏、主界面(4 列网格 + 挂件 + 多页翻页 + 编辑模式)、多任务
-- 主界面布局持久化与自愈、挂件宿主、placeholder 占位、壁纸上传
-- db 数据域(IndexedDB)+ 迁移机制 + 图片压缩存取
-- AI 引擎 + 队列 + Anthropic/OpenAI 兼容双 provider
-- 四个 app: settings / chat(四 tab) / lorebook / memory
-- 检查脚本: 零 emoji、依赖边界
+原来那份 P0–P4 是开工前拍的，现在已经跑完并且长歪了不少（向量记忆、多账号、
+「联系」app 都不在原计划里）。这一节按**实际做完的**重写，后面接**还没做的**。
 
-**P1 打磨聊天**
-- 流式回复、重 roll 多版本切换、编辑消息、删除重发
-- 世界书激活预览
-- 自动记忆提取
-- 历史压缩
+### 13.1 已经落地的
 
-**P2 朋友圈闭环**
-- 动态生成、点赞、评论、回复
-- 本地图片上传、九宫格、存储占用统计
-- 角色主页与我的主页
-- 内容写回记忆
-- 群聊与发言调度
+**骨架**
+- shell（Root / StatusBar / Dock / NotifyBanner）+ screens（home / LockScreen / AppSwitcher）
+- 主界面 4 列网格、多页翻页、编辑模式、长按改图标与名字、布局持久化与自愈
+- 全屏外壳：`html / body / #app / .root` 四层统一 `100vh` + `viewport-fit=cover`
+  + `black-translucent`，壁纸 `position: fixed` 独立于布局
+- 令牌系统 `styles/tokens.css`，单色 SVG 图标表 `icons/paths.js`
 
-**P3 系统能力**
-- 通知中心、控制中心、桌面小组件
-- 主题与壁纸
-- 数据导入导出
+**数据层**
+- IndexedDB 九个集合：`characters` `lorebooks` `memories` `chats` `messages`
+  `moments` `stickers` `looks` `personas`
+- KV 三个：`settings` `persona` `layout`
+- 内存镜像（同步渲染）+ 每 store 一条写队列
+- `DB_VERSION = 5` / `DATA_VERSION = 3`，迁移从 0 起跑，全新安装也走一遍
+- 图片压缩存取、文件存取、存储占用统计
 
-**P4 更多 app**
-- 按同一套契约扩展
+**AI 引擎**
+- AIQueue：并发上限、去重、取消、指数退避重试
+- 双 provider：Anthropic / OpenAI 兼容；多预设，主用 + 副用，主用报错自动顶上
+- 半填的预设（缺密钥或模型）一律当没配，报错带预设名
+- 上下文块装配（`context/` 下 basic / lorebook / memory），`resolveOrder` + 逐块 try/catch
+- 五个任务：`card` `char-alt` `memory-extract` `memory-import` `moments`
+- 后台活儿（整理记忆、导卡、生 NPC、角色开小号）默认走副用，可开关
+- prompt 模板全存 `settings.promptTemplates`，代码只留 `DEFAULT_TEMPLATES`
+
+**记忆**
+- S/A/B/C 四级 + 六分类，`updateId` 增量更新，扫描窗口 + token 预算
+- 只按角色分（不再有全局/会话之分），跨身份按大号隔离
+- 向量记忆：OpenAI 兼容 `/v1/embeddings`，`Float32Array` 存在记忆行上，
+  归一化后点积即余弦，查询向量按文本缓存；失败三层回落到关键词
+- 从一大段文字导入记忆（粘贴 / docx / txt）
+
+**聊天**
+- 流式回复、重 roll 多版本、编辑、删除重发
+- 分条回复：`[图片：…]` `[语音：…]` 标记切分，错峰投递
+- 表情包、语音、上下文预览、模板编辑、主动消息（按角色单独配频率）
+
+**联系（角色人设中心）**
+- ins 卡片式网格、资料页（只有姓名/年龄/性别/生日/签名，**不露人设**）、编辑资料页
+- 角色卡导入（PNG / JSON / docx / txt）、批量生成关联 NPC、手绘风关系网（BFS）
+- 多账号与小号：用户可以有多个人设，同一人设可开小号；角色也能自己开小号
+- 小号只带「关于这个人的记忆」，不做任何跨身份提示
+
+**系统能力**
+- 通知横幅 + 合成铃声（WebAudio，5 套预设）
+- Service Worker + Web Push 客户端（服务端还没有）
+- 外观预设、自定义字体、壁纸
+
+**护栏**
+- `scripts/doctor.mjs` 六项：视口单位、零 emoji、导入导出、hook 顺序、依赖边界、硬编码颜色
+- `scripts/smoke.mjs`：30 条路由全开一遍，抓 ErrorBoundary
+
+### 13.2 接下来
+
+按「用户能不能感觉到」排序，不按实现难度。
+
+**N1 把小菜单那八个格子填了**
+现在点开全是「还没做」的 toast，是界面上最扎眼的一块空白。
+优先级：图片 > 语音 > 来电 > 红包 > 位置 > 礼物 > 文件。
+图片和语音的渲染层（`MediaBubble`）已经有了，缺的是发送侧的入口。
+来电可以直接吃 `system/sound.js` 已经有的铃声合成。
+
+**N2 群聊**
+数据结构早就留了位（`chats.characterIds` 是数组），发言调度也设计过，
+但一行没写。这是唯一一块「架构已经为它让过路、却还空着」的地方，
+拖越久越容易被后面的改动堵死。
+
+**N3 Web Push 服务端**
+客户端半边（SW 注册、权限、订阅）已经好了，差一个能存 subscription
+并发 VAPID 的后端。等你先挑一个托管的地方再说，没定之前不动。
+
+**N4 后台中转 / GitHub 备份**
+纯前端直连的两个后果：密钥暴露在页面里，数据只在这台设备上。
+两件事其实是同一个后端。同样等 N3 的托管决定。
+
+**长期**
+- 更多 app 按同一套契约扩展（`stub` 里已经占着位）
+- MiniMax T2A 语音端点从没拿真 key 验证过，哪天配上了要先测
 
 ---
 
