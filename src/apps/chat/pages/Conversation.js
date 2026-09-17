@@ -11,7 +11,7 @@ const { db, nav, ai } = phone;
 
 function Bubble({ msg, char, onRetry, onSwipe, onDelete }) {
   const mine = msg.role === 'user';
-  const avatar = useImage(mine ? db.persona.get().avatar : char?.avatar);
+  const avatar = useImage(mine ? phone.accounts.current()?.avatar : char?.avatar);
   const parts = splitBubbles(msg.content);
   const swipes = msg.swipes || [];
   const sticker = msg.kind === 'sticker' ? db.stickers.get(msg.stickerId) : null;
@@ -19,7 +19,7 @@ function Bubble({ msg, char, onRetry, onSwipe, onDelete }) {
 
   return html`
     <div class=${`msg${mine ? ' is-mine' : ''}`}>
-      <${Avatar} src=${avatar} name=${mine ? db.persona.get().name : char?.name} size=${36} radius=${18}/>
+      <${Avatar} src=${avatar} name=${mine ? phone.accounts.current()?.name : char?.name} size=${36} radius=${18}/>
       <div class="msg-col">
         ${msg.kind === 'sticker'
           ? html`<div class="bubble-sticker" onDblClick=${() => onDelete(msg)}>

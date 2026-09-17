@@ -14,8 +14,9 @@ export const messages   = makeCollection('messages', 'msg');
 export const moments    = makeCollection('moments', 'mo');
 export const stickers   = makeCollection('stickers', 'stk');
 export const looks      = makeCollection('looks', 'look');
+export const personas   = makeCollection('personas', 'me');
 
-const COLLECTIONS = { characters, lorebooks, memories, chats, messages, moments, stickers, looks };
+const COLLECTIONS = { characters, lorebooks, memories, chats, messages, moments, stickers, looks, personas };
 
 // ---- kv: settings / persona / layout ----
 function makeKV(key, fallback, { deep = false } = {}) {
@@ -71,20 +72,20 @@ export const ready = (async function boot() {
     layout.load(),
   ]);
 
+  // 全新安装也从 0 跑一遍。迁移本身都是幂等的，而且新库同样需要
+  // 迁移里那些「建根账号」之类的初始化。
   const row = await idb.get('kv', KV.schemaVersion);
-  const from = row ? row.v : DATA_VERSION;
+  const from = row ? row.v : 0;
   if (from < DATA_VERSION) {
     const to = runMigrations(from, { ...COLLECTIONS, settings, persona, layout });
     await idb.put('kv', { k: KV.schemaVersion, v: to });
-  } else if (!row) {
-    await idb.put('kv', { k: KV.schemaVersion, v: DATA_VERSION });
   }
 })();
 
 window.addEventListener('pagehide', () => { images.revokeAll(); files.revokeAll(); });
 
 export const db = {
-  characters, lorebooks, memories, chats, messages, moments, stickers, looks,
+  characters, lorebooks, memories, chats, messages, moments, stickers, looks, personas,
   images, files, settings, persona, layout,
   messagesOf, lastMessageOf, ready,
 };

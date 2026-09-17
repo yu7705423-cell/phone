@@ -1,4 +1,5 @@
 import { chats, characters, messages as messagesDb } from '../db/index.js';
+import * as accounts from '../accounts.js';
 import { notify } from '../notify.js';
 import { template, buildChatSystem, isConfigured, isReplying, runTextTask, queryVecFor } from './engine.js';
 import { fillTemplate } from './templates.js';
@@ -83,8 +84,10 @@ function gapText(ms) {
 
 // 这个角色现在能不能被发：有单人会话、没在生成、未读没堆满
 function chatFor(charId) {
+  // 只往当前账号发。换了账号，别的身份那边的会话不该突然冒出新消息
+  const me = accounts.currentId();
   const chat = chats.all().find(c => (c.characterIds || []).length === 1
-    && c.characterIds[0] === charId);
+    && c.characterIds[0] === charId && (c.personaId || me) === me);
   if (!chat) return null;
   if ((chat.unread || 0) >= MAX_UNREAD) return null;
   if (isReplying(chat.id, charId)) return null;

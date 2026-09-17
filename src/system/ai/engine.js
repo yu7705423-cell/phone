@@ -1,4 +1,5 @@
 import { settings, persona, characters, chats, messagesOf } from '../db/index.js';
+import * as accounts from '../accounts.js';
 import { assemble } from './context/index.js';
 import { DEFAULT_TEMPLATES, fillTemplate } from './templates.js';
 import { embedQuery, embedReady } from './embed.js';
@@ -83,7 +84,8 @@ export async function queryVecFor(msgs) {
 
 export function buildChatSystem(chat, char, msgs, opts = {}) {
   const s = settings.get();
-  const me = persona.get();
+  // 这段对话属于哪个身份。老会话没有 personaId，落到当前账号上
+  const me = accounts.get(chat?.personaId) || accounts.current() || persona.get();
   const others = (chat.characterIds || []).filter(id => id !== char.id)
     .map(id => characters.get(id)).filter(Boolean);
 

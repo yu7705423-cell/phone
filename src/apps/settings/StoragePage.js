@@ -13,7 +13,7 @@ function collectUsedImageIds() {
   const add = id => id && used.add(id);
   db.characters.all().forEach(c => { add(c.avatar); add(c.cover); });
   db.moments.all().forEach(m => (m.images || []).forEach(add));
-  const me = db.persona.get(); add(me.avatar); add(me.cover);
+  db.personas.all().forEach(p => { add(p.avatar); add(p.cover); });
   const w = db.layout.get().wallpaper || {}; add(w.home); add(w.lock);
   Object.values(db.settings.get().appIcons || {}).forEach(v => add(v?.imageId));
   (db.layout.get().pages || []).forEach(p =>
@@ -52,6 +52,7 @@ export function StoragePage() {
       messages: db.messages.all(),
       moments: db.moments.all(),
       persona: db.persona.get(),
+      personas: db.personas.all(),
       settings: { ...db.settings.get(), apiKey: '' },
       layout: db.layout.get(),
     };
@@ -82,6 +83,7 @@ export function StoragePage() {
         (data[name] || []).forEach(r => db[name].put(r));
       }
       if (data.persona) db.persona.replace({ ...db.persona.get(), ...data.persona });
+      if (Array.isArray(data.personas)) data.personas.forEach(p => db.personas.put ? db.personas.put(p) : db.personas.create(p));
       if (data.settings) db.settings.replace({ ...db.settings.get(), ...data.settings, apiKey: db.settings.get().apiKey });
       toast('导入完成');
     } catch (err) {

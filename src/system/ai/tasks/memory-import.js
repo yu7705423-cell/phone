@@ -4,6 +4,7 @@ import { fillTemplate } from '../templates.js';
 import { listFor, CATEGORIES, RANKS } from '../context/memory.js';
 import { touch as touchVec } from '../memvec.js';
 import { uid } from '../../store.js';
+import * as accounts from '../../accounts.js';
 
 // 粘一大段文字进来，交给聊天模型拆成一条条结构化记忆。
 // 注意：拆分靠的是聊天模型，不是向量接口 —— 向量接口只负责把文字变成向量。
@@ -40,15 +41,15 @@ export function chunk(text, size = CHUNK) {
 const norm = s => String(s || '').replace(/\s+/g, '').toLowerCase();
 
 // 只做解析，不写库。先让人看一眼再决定存哪些。
-export async function parse(raw, { scope = 'global', onProgress, signal } = {}) {
+export async function parse(raw, { scope = 'global', personaId = accounts.currentId(), onProgress, signal } = {}) {
   const parts = chunk(raw);
   if (!parts.length) throw new Error('没有可整理的内容');
 
   const [kind, id] = String(scope).split(':');
-  const existing = listFor(kind === 'character' ? id : null, null)
+  const existing = listFor(kind === 'character' ? id : null, null, personaId)
     .slice(0, 40).map(m => `- ${m.content}`).join('\n') || '（暂无）';
 
-  const seen = new Set(listFor(kind === 'character' ? id : null, null).map(m => norm(m.content)));
+  const seen = new Set(listFor(kind === 'character' ? id : null, null, personaId).map(m => norm(m.content)));
   const out = [];
 
   for (let i = 0; i < parts.length; i++) {
@@ -79,11 +80,11 @@ export async function parse(raw, { scope = 'global', onProgress, signal } = {}) 
 }
 
 // 把挑好的条目真正写进记忆库，并排队补向量
-export function commit(items, scope = 'global') {
+export function commit(items, scope = 'global', personaId = accounts.currentId()) {
   const created = items.map(it => memories.create({
     id: uid('mem'), scope,
     content: it.content, category: it.category, rank: it.rank,
-    keywords: it.keywords || [], source: 'import',
+    keywords: it.keywords || [], source: 'import', personaId,
   }));
   created.forEach(m => touchVec(m.id));
   return created.length;

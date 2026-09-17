@@ -13,17 +13,25 @@ export function relTime(ts) {
   return `${d.getMonth() + 1}月${d.getDate()}日`;
 }
 
-export function chatFor(charId) {
+// 会话属于「某个身份 + 某个角色」。换成小号去找同一个角色，开的是新会话。
+export function chatFor(charId, personaId = phone.accounts.currentId()) {
   const found = db.chats.all().find(c => (c.characterIds || []).length === 1
-    && c.characterIds[0] === charId);
+    && c.characterIds[0] === charId && c.personaId === personaId);
   if (found) return found;
   return db.chats.create({
-    characterIds: [charId], title: '', lastMessageAt: Date.now(), unread: 0, summary: '',
+    characterIds: [charId], personaId,
+    title: '', lastMessageAt: Date.now(), unread: 0, summary: '',
   });
 }
 
+// 当前身份能看到的会话
+export function myChats() {
+  const me = phone.accounts.currentId();
+  return db.chats.where(c => (c.personaId || me) === me);
+}
+
 export function displayName(authorId) {
-  if (authorId === 'me') return db.persona.get().name || '我';
+  if (authorId === 'me') return phone.accounts.current()?.name || '我';
   return db.characters.get(authorId)?.name || '未知';
 }
 

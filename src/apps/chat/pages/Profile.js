@@ -12,10 +12,10 @@ const { db, nav } = phone;
 export function Profile({ subjectId, embedded }) {
   useStore(db.characters.store);
   useStore(db.moments.store);
-  useStore(db.persona.store);
+  useStore(db.personas.store);
 
   const isMe = subjectId === 'me';
-  const me = db.persona.get();
+  const me = phone.accounts.current() || db.persona.get();
   const subject = isMe ? me : db.characters.get(subjectId);
   const avatar = useImage(subject?.avatar);
   const cover = useImage(subject?.cover);
@@ -26,7 +26,7 @@ export function Profile({ subjectId, embedded }) {
     return html`<${Page} title="主页" onBack=${nav.pop}><${EmptyState} title="这个人不存在了"/><//>`;
   }
 
-  const patch = p => isMe ? db.persona.set(p) : db.characters.update(subjectId, p);
+  const patch = p => isMe ? db.personas.update(me.id, p) : db.characters.update(subjectId, p);
 
   const mine = db.moments.all()
     .filter(m => m.authorId === subjectId)
@@ -82,7 +82,7 @@ export function Profile({ subjectId, embedded }) {
       <div class="pad-x">
         ${isMe
           ? html`<${Button} full variant="ghost" icon="edit"
-              onClick=${() => phone.intent.open('contact', { route: '/me' })}>编辑我的人设<//>`
+              onClick=${() => phone.intent.open('contact', { route: `/me/${me.id}` })}>编辑我的人设<//>`
           : html`<${Button} full icon="message"
               onClick=${() => { const c = chatFor(subjectId); nav.push(`/chat/${c.id}`); }}>发消息<//>`}
       </div>

@@ -2,6 +2,7 @@
 import * as navApi from '../system/nav.js';
 import * as intents from '../system/intents.js';
 import * as notifyApi from '../system/notify.js';
+import * as accountsApi from '../system/accounts.js';
 import * as soundApi from '../system/sound.js';
 import * as pushApi from '../system/push.js';
 import * as looksApi from '../system/looks.js';
@@ -97,6 +98,7 @@ export const phone = {
     },
   },
 
+  accounts: accountsApi,
   sound: soundApi,
   push: pushApi,
   looks: looksApi,

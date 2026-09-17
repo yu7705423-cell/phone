@@ -1,6 +1,7 @@
-import { memories } from '../../db/index.js';
+import { memories, personas } from '../../db/index.js';
 import { takeTopWithin } from '../tokens.js';
 import { dot, embedReady } from '../embed.js';
+import { rootIdOf } from '../../accounts.js';
 
 export const CATEGORIES = {
   fact: '事实', emotion: '情绪', pending: '待办',
@@ -15,20 +16,38 @@ export function scopesFor(charId, chatId) {
   return s;
 }
 
-export function listFor(charId, chatId) {
+// personaId 决定一条记忆属于谁。规则：
+//  - 不同根账号之间完全隔离，一条都不给
+//  - 同一个根下面，大号的记忆对小号也可见（角色还是同一个角色，它记得那些事），
+//    但会被标成「关于某某」，而不是「关于你现在在聊的这个人」
+export function listFor(charId, chatId, personaId) {
   const scopes = new Set(scopesFor(charId, chatId));
-  return memories.where(m => scopes.has(m.scope));
+  const root = personaId ? rootIdOf(personaId) : null;
+  return memories.where(m => {
+    if (!scopes.has(m.scope)) return false;
+    if (!root) return true;                       // 没给身份就不过滤，给调用方兜底
+    if (!m.personaId) return true;                // 迁移前的老记忆，当作大号的
+    return rootIdOf(m.personaId) === root;
+  });
+}
+
+// 这条记忆是不是关于「现在这个人」。不是的话要标出来是关于谁的。
+export function aboutOther(m, personaId) {
+  if (!personaId || !m.personaId) return null;
+  if (m.personaId === personaId) return null;
+  return personas.get(m.personaId)?.name || null;
 }
 
 // 向量检索：S 级照旧钉死（身份级的事实，不该由相似度决定进不进），
 // 剩下的预算交给语义相似度挑。关键词命中的直接算满分并进。
 // queryVec 由 build() 提前算好传进来 —— 这一层是同步的，不能在这里发请求。
 export function selectByVector(charId, chatId, scanText, budget, queryVec, opts = {}) {
+  const personaId = opts.personaId || null;
   const topK = opts.topK || 12;
   const floor = typeof opts.threshold === 'number' ? opts.threshold : 0.22;
   const text = String(scanText || '').toLowerCase();
 
-  const all = listFor(charId, chatId);
+  const all = listFor(charId, chatId, personaId);
   const pinned = all.filter(m => m.rank === 'S');
   const rest = all.filter(m => m.rank !== 'S');
 
@@ -50,9 +69,9 @@ export function selectByVector(charId, chatId, scanText, budget, queryVec, opts 
 }
 
 // S/A 全注入; B 在扫描窗口里命中关键词才进; C 只存档不注入
-export function select(charId, chatId, scanText, budget) {
+export function select(charId, chatId, scanText, budget, personaId) {
   const text = String(scanText || '').toLowerCase();
-  const pool = listFor(charId, chatId).filter(m => {
+  const pool = listFor(charId, chatId, personaId).filter(m => {
     if (m.rank === 'S' || m.rank === 'A') return true;
     if (m.rank !== 'B') return false;
     const kws = (m.keywords || []).filter(Boolean);
@@ -68,20 +87,26 @@ export function select(charId, chatId, scanText, budget) {
 }
 
 export function build(ctx) {
-  const { settings, char, chat, scanText, budgets, queryVec } = ctx;
+  const { settings, char, chat, scanText, budgets, queryVec, persona } = ctx;
+  const personaId = persona?.id || null;
   if (!settings.memoryEnabled) return '';
   // 拿得到查询向量就走语义检索，否则退回关键词那一套。
   // 接口没配、还没补向量、这一轮取向量失败，都会落到后面这条路上。
   const useVec = settings.memoryVector !== false && embedReady() && queryVec?.length;
   const { items } = useVec
     ? selectByVector(char?.id, chat?.id, scanText, budgets.memory, queryVec, {
+      personaId,
       topK: settings.memoryTopK || 12,
       threshold: typeof settings.memoryThreshold === 'number' ? settings.memoryThreshold : 0.22,
     })
-    : select(char?.id, chat?.id, scanText, budgets.memory);
+    : select(char?.id, chat?.id, scanText, budgets.memory, personaId);
   if (!items.length) return '';
-  const lines = items.map(m =>
-    `[${m.rank}/${CATEGORIES[m.category] || m.category}] ${m.content}`);
+  // 关于别的身份的记忆要点名是关于谁的，否则模型会把它当成现在这个人的事
+  const lines = items.map(m => {
+    const who = aboutOther(m, personaId);
+    const tag = `[${m.rank}/${CATEGORIES[m.category] || m.category}]`;
+    return who ? `${tag}（关于${who}）${m.content}` : `${tag} ${m.content}`;
+  });
   return '\n\n[对话记忆 — 基于历史对话的客观分析结果，请自然地运用这些信息]\n' + lines.join('\n');
 }
 

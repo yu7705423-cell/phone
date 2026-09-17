@@ -2,6 +2,7 @@ import { html, useState } from '../lib.js';
 import { Icon } from '../icons/Icon.js';
 import { useStore } from '../system/store.js';
 import { layout, chats, settings } from '../system/db/index.js';
+import * as accounts from '../system/accounts.js';
 import { registryStore } from '../system/registry.js';
 import { appLook } from '../system/look.js';
 import { openApp } from '../system/nav.js';
@@ -13,7 +14,9 @@ import { Sheet, List, ListItem, toast } from '../ui/index.js';
 
 function unreadFor(appId) {
   if (appId !== 'chat') return 0;
-  return chats.all().reduce((n, c) => n + (c.unread || 0), 0);
+  const me = accounts.currentId();
+  return chats.where(c => (c.personaId || me) === me)
+    .reduce((n, c) => n + (c.unread || 0), 0);
 }
 
 // 底部四个 app 图标，包在一个胶囊里。整理模式下也能点，

@@ -14,7 +14,7 @@ function Photo({ id }) {
 
 // 顶部是我自己的背景、头像和 ID，发布按钮在右上角
 function MomentsHeader({ onPost, onRefresh, busy }) {
-  const me = db.persona.get();
+  const me = phone.accounts.current() || db.persona.get();
   const cover = useImage(me.cover);
   const avatar = useImage(me.avatar);
   return html`
@@ -34,7 +34,7 @@ function MomentsHeader({ onPost, onRefresh, busy }) {
 
 function MomentCard({ mo, onComment }) {
   const isMe = mo.authorId === 'me';
-  const author = isMe ? db.persona.get() : db.characters.get(mo.authorId);
+  const author = isMe ? (phone.accounts.current() || db.persona.get()) : db.characters.get(mo.authorId);
   const avatar = useImage(author?.avatar);
   const liked = (mo.likes || []).includes('me');
 
@@ -77,7 +77,7 @@ function MomentCard({ mo, onComment }) {
           <div class="mo-comments">
             ${mo.comments.map(c => {
               const who = c.authorId === 'me'
-                ? (db.persona.get().name || '我')
+                ? (phone.accounts.current()?.name || '我')
                 : (db.characters.get(c.authorId)?.name || '某人');
               return html`<div key=${c.id} class="mo-comment"><b>${who}</b>：${c.text}</div>`;
             })}
@@ -179,7 +179,7 @@ export function MomentsTab() {
           <div class="mo-comment-list">
             ${(db.moments.get(target.id)?.comments || []).map(c => {
               const who = c.authorId === 'me'
-                ? (db.persona.get().name || '我')
+                ? (phone.accounts.current()?.name || '我')
                 : (db.characters.get(c.authorId)?.name || '某人');
               return html`<div key=${c.id} class="mo-comment"><b>${who}</b>：${c.text}</div>`;
             })}

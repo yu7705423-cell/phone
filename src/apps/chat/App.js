@@ -1,6 +1,7 @@
 import { html, useState } from '../../lib.js';
 import { phone, useStore } from '../../sdk/index.js';
 import { Page, EmptyState } from '../../ui/index.js';
+import { myChats } from './helpers.js';
 import { MessagesTab } from './pages/MessagesTab.js';
 import { ContactsTab } from './pages/ContactsTab.js';
 import { MomentsTab } from './pages/MomentsTab.js';
@@ -30,7 +31,7 @@ function Tabs({ initial }) {
   const [tab, setTabLocal] = useState(tabState.current);
   const setTab = id => { tabState.current = id; setTabLocal(id); };
   useStore(db.chats.store);
-  const unread = db.chats.all().reduce((n, c) => n + (c.unread || 0), 0);
+  const unread = myChats().reduce((n, c) => n + (c.unread || 0), 0);
 
   const items = TABS.map(t => t.id === 'messages' ? { ...t, badge: unread } : t);
   const titles = { messages: '消息', contacts: '联系人', moments: '朋友圈', me: '主页' };

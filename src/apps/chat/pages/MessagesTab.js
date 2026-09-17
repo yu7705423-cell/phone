@@ -2,7 +2,7 @@ import { html, useState } from '../../../lib.js';
 import { phone, useStore, useImage } from '../../../sdk/index.js';
 import { Avatar, EmptyState, Button, Icon, Sheet, List, ListItem,
          toast, confirm } from '../../../ui/index.js';
-import { relTime, splitBubbles } from '../helpers.js';
+import { relTime, splitBubbles, myChats } from '../helpers.js';
 
 const { db, nav } = phone;
 
@@ -62,7 +62,7 @@ export function MessagesTab() {
   const [held, setHeld] = useState(null);
 
   const byTime = (a, b) => (b.lastMessageAt || 0) - (a.lastMessageAt || 0);
-  const all = db.chats.all();
+  const all = myChats();
   const pinned = all.filter(c => c.pinned).sort(byTime);
   const rest = all.filter(c => !c.pinned).sort(byTime);
 

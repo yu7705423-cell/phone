@@ -4,6 +4,7 @@ import { template, runJSONTask } from '../engine.js';
 import { fillTemplate } from '../templates.js';
 import { listFor, CATEGORIES, RANKS } from '../context/memory.js';
 import { uid } from '../../store.js';
+import * as accounts from '../../accounts.js';
 
 // 未总结的对话 = memoryUpTo 之后的消息。
 // 不另存一份缓冲区,避免与 messages 重复存储、日久漂移。
@@ -62,6 +63,8 @@ export async function extract(chatId) {
     const row = memories.create({
       id: uid('mem'), scope, content: r.content, category, rank, keywords,
       source: 'auto',
+      // 这条记忆是和哪个身份聊出来的。换账号之后互相看不见
+      personaId: chats.get(chatId)?.personaId || accounts.currentId(),
     });
     touchVec(row.id);
     added++;
