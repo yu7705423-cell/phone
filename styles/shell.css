@@ -61,8 +61,10 @@
 }
 :root[data-icon-label="off"] .app-tile { height: calc(var(--cell, 76px) * .74); }
 :root[data-icon-shadow="off"] .app-tile { box-shadow: none; }
+/* 只能写 background-color。写 background 简写会把下面 .has-image 的
+   background-size 一起重置成 auto，自定义图标就按原尺寸画、只露出一角。 */
 :root[data-wallpaper="on"] .app-tile {
-  background: var(--capsule-bg); border: 1px solid var(--capsule-border);
+  background-color: var(--capsule-bg); border: 1px solid var(--capsule-border);
   backdrop-filter: blur(var(--glass-blur)); -webkit-backdrop-filter: blur(var(--glass-blur));
   box-shadow: none;
 }
