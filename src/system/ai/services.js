@@ -28,11 +28,15 @@ function write(patch) {
 export function chatPresets() { return services().chat.presets; }
 export function activeChat() {
   const c = services().chat;
+  // activeId 是 null 表示用户主动关掉了主用，别自作主张顶一个上来。
+  // 只有从来没设过（undefined）才回落到第一条，兼容老数据。
+  if (c.activeId === null) return null;
   return c.presets.find(p => p.id === c.activeId) || c.presets[0] || null;
 }
+// 主用和副用允许是同一个 —— 有人就只有一个中转站，也想让后台活儿走它
 export function fallbackChat() {
   const c = services().chat;
-  if (!c.fallbackId || c.fallbackId === c.activeId) return null;
+  if (!c.fallbackId) return null;
   return c.presets.find(p => p.id === c.fallbackId) || null;
 }
 

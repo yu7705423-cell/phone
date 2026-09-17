@@ -35,13 +35,14 @@ function asConfig(preset) {
   };
 }
 
-export function config() { return asConfig(activeChat()); }
-export function fallbackConfig() { return asConfig(fallbackChat()); }
+// 只认「填全了的」预设。半填的预设当没配 —— 否则每个后台任务都要先
+// 往它撞一次墙再退回来，白白慢一倍还刷一屏报错。
+const usable = c => (c && c.apiKey && c.model) ? c : null;
 
-export function isConfigured() {
-  const c = config();
-  return !!(c && c.apiKey && c.model);
-}
+export function config() { return usable(asConfig(activeChat())); }
+export function fallbackConfig() { return usable(asConfig(fallbackChat())); }
+
+export function isConfigured() { return !!config(); }
 
 // 后台活儿：用户不会盯着屏幕等结果的那些。默认丢给副用接口，
 // 主用留给「你正等着看」的东西（聊天回复、主动消息、朋友圈动态）。
@@ -61,13 +62,19 @@ export function backgroundUsesSpare() {
 
 // 先试 a 再试 b。取消不算失败，不触发兜底。
 async function tryBoth(run, first, second, label) {
-  if (!first) throw new Error('还没有配置接口');
+  const a = first || second;
+  if (!a) throw new Error('还没有配置接口，或者配的那个没填全（缺密钥或模型）');
+  const b = first ? second : null;
   try {
-    return await run(first);
+    return await run(a);
   } catch (err) {
-    if (!second || isAbort(err)) throw err;
+    if (!b || isAbort(err)) {
+      // 把是哪个预设挂的写进报错，不然一句「请求失败」根本没法查
+      err.message = `${a.name || label}：${err.message}`;
+      throw err;
+    }
     console.warn(`[ai] ${label}失败，改用另一个接口`, err.message);
-    return run(second);
+    return run(b);
   }
 }
 

@@ -100,6 +100,7 @@ export function ApiPage() {
   const [editing, setEditing] = useState(null);
   const chat = svc.services().chat;
   const presets = chat.presets;
+  const incomplete = p => !(p.apiKey || '').trim() || !(p.model || '').trim();
 
   const add = provider => {
     const p = svc.newChatPreset({
@@ -127,23 +128,28 @@ export function ApiPage() {
           })}
         <//>
 
-        <${List} title="主用">
+        <${List} title="主用" >
           ${presets.map(p => html`
             <${ListItem} key=${p.id} title=${p.name}
+              subtitle=${incomplete(p) ? '没填全，用不了' : ''} multiline=${incomplete(p)}
               right=${html`<${Switch} checked=${chat.activeId === p.id}
-                onChange=${() => svc.setActiveChat(p.id)}/>`}/>`)}
+                onChange=${v => svc.setActiveChat(v ? p.id : null)}/>`}/>`)}
         <//>
+        ${chat.activeId ? null : html`
+          <div class="settings-foot">没选主用，聊天发不出去。</div>`}
 
         <${List} title="副用" >
-          <${ListItem} title="不设副用" multiline
-            subtitle="主用报错时自动改用副用再试一次。取消不算失败，不会触发。"
-            right=${html`<${Switch} checked=${!chat.fallbackId}
-              onChange=${() => svc.setFallbackChat(null)}/>`}/>
-          ${presets.filter(p => p.id !== chat.activeId).map(p => html`
+          ${presets.map(p => html`
             <${ListItem} key=${p.id} title=${p.name}
+              subtitle=${p.id === chat.activeId ? '和主用是同一个也行' : incomplete(p) ? '没填全，用不了' : ''}
+              multiline=${p.id === chat.activeId || incomplete(p)}
               right=${html`<${Switch} checked=${chat.fallbackId === p.id}
-                onChange=${() => svc.setFallbackChat(p.id)}/>`}/>`)}
+                onChange=${v => svc.setFallbackChat(v ? p.id : null)}/>`}/>`)}
         <//>
+        <div class="settings-foot">
+          主用报错时自动改用副用再试一次。取消不算失败，不会触发。<br/>
+          不想要副用就把上面的开关全关掉。
+        </div>
 
         ${chat.fallbackId ? html`
           <${List} title="后台活儿走哪条">
