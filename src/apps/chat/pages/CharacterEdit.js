@@ -92,10 +92,6 @@ export function CharacterEdit({ id }) {
           multiline
           right=${html`<${Switch} checked=${char.canSendImage !== false}
             onChange=${v => patch({ canSendImage: v })}/>`}/>
-        <${ListItem} title="自己先开口" multiline
-          subtitle="不等你说话，隔一阵子自己发消息来。总开关在「设置」的「主动消息」里"
-          right=${html`<${Switch} checked=${char.proactive !== false}
-            onChange=${v => patch({ proactive: v })}/>`}/>
       <//>
 
       <${List} title="关联世界书">

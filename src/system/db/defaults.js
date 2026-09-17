@@ -37,15 +37,6 @@ export const DEFAULT_SETTINGS = {
   memoryEnabled: true,
   autoSummarizeInterval: 0,       // 0 = 关闭
 
-  // 主动消息。角色自己挑时间发来，见 system/ai/proactive.js
-  proactive: {
-    enabled: false,
-    minutes: 60,        // 平均间隔，实际落点 0.5x ~ 1.5x 随机
-    quietFrom: 0,       // 免打扰起始小时
-    quietTo: 8,         // 免打扰结束小时，两者相等表示不设
-    maxUnread: 3,       // 堆了这么多条没看就先不发
-  },
-
   // 群聊
   groupMode: 'per-character',     // per-character | single-call
   groupSpeakersPerTurn: 2,

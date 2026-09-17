@@ -10,6 +10,7 @@ import { Conversation } from './pages/Conversation.js';
 import { ContextPage } from './pages/ContextPage.js';
 import { TemplatesPage } from './pages/TemplatesPage.js';
 import { StickerManager } from './pages/StickerManager.js';
+import { ProactivePage } from './pages/ProactivePage.js';
 
 const { db, nav } = phone;
 
@@ -52,6 +53,9 @@ export default function ChatApp({ route }) {
 
   const edit = route?.match(/^\/edit\/(.+)$/);
   if (edit) return html`<${CharacterEdit} id=${edit[1]}/>`;
+
+  const pro = route?.match(/^\/proactive\/(.+)$/);
+  if (pro) return html`<${ProactivePage} charId=${pro[1]}/>`;
 
   if (route === '/stickers') return html`<${StickerManager}/>`;
   if (route === '/context') return html`<${ContextPage}/>`;

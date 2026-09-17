@@ -193,6 +193,13 @@ export function Conversation({ chatId }) {
 
   const pending = ai.memory.pendingOf(chatId).length;
 
+  const pro = ai.proactive.configOf(char);
+  const proDesc = pro.proactive
+    ? `开着 · 大概 ${pro.proactiveMinutes < 60
+        ? pro.proactiveMinutes + ' 分钟'
+        : Math.round(pro.proactiveMinutes / 60) + ' 小时'}一条`
+    : '关着。开了她就会自己挑时间发消息来';
+
   const MENU_ITEMS = [
     { id: 'photo', icon: 'image', label: '图片' },
     { id: 'voice', icon: 'headphone', label: '语音' },
@@ -269,6 +276,10 @@ export function Conversation({ chatId }) {
           <${ListItem} title="角色主页" arrow
             left=${html`<${Icon} name="camera" size=${18}/>`}
             onClick=${() => { setMenu(false); nav.push(`/profile/${char.id}`); }}/>
+          <${ListItem} title="主动找我" arrow multiline
+            subtitle=${proDesc}
+            left=${html`<${Icon} name="bell" size=${18}/>`}
+            onClick=${() => { setMenu(false); nav.push(`/proactive/${char.id}`); }}/>
         <//>
 
         <${List} title="上下文">
