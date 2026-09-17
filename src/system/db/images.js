@@ -86,6 +86,7 @@ export const images = {
     return write('images', () => idb.del('images', id));
   },
 
+  has(id) { return !!id && sizes.has(id); },
   totalBytes() { return [...sizes.values()].reduce((a, b) => a + b, 0); },
   count() { return sizes.size; },
   ids() { return [...sizes.keys()]; },

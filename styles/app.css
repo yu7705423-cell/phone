@@ -6,6 +6,26 @@
 .pad-b  { padding-bottom: var(--sp-6); }
 .quiet-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4); }
 
+/* 外观预设 */
+.look-list { display: flex; flex-direction: column; gap: var(--sp-2); padding: 0 var(--sp-4); }
+.look-row { display: flex; align-items: center; gap: var(--sp-2); }
+.look-card {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--sp-3);
+  padding: var(--sp-3); border-radius: var(--r-md);
+  background: var(--group-fill); text-align: left;
+}
+.look-card:active { opacity: .7; }
+.look-thumb {
+  flex: none; width: 46px; height: 46px; border-radius: var(--r-sm);
+  background: var(--surface-3); color: var(--text-3);
+  display: flex; align-items: center; justify-content: center; overflow: hidden;
+}
+.look-thumb.has-image { background-size: cover; background-position: center; }
+.look-meta { flex: 1; min-width: 0; }
+.look-name { font-size: var(--fs-15); font-weight: var(--fw-medium); }
+.look-sub { font-size: var(--fs-12); color: var(--text-3); margin-top: 2px; }
+.look-more { flex: none; padding: var(--sp-2); color: var(--text-3); }
+
 .nav-text { font-size: var(--fs-14); color: var(--accent); padding: var(--sp-2); }
 
 .hint-box {

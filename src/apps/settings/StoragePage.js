@@ -15,6 +15,12 @@ function collectUsedImageIds() {
   db.moments.all().forEach(m => (m.images || []).forEach(add));
   const me = db.persona.get(); add(me.avatar); add(me.cover);
   const w = db.layout.get().wallpaper || {}; add(w.home); add(w.lock);
+  Object.values(db.settings.get().appIcons || {}).forEach(v => add(v?.imageId));
+  (db.layout.get().pages || []).forEach(p =>
+    (p.cells || []).forEach(c => add(c.config?.imageId)));
+  db.stickers.all().forEach(st => add(st.imageId));
+  // 外观预设里的图也算有引用，否则一清理存好的预设就成了空壳
+  phone.looks.allImageIds().forEach(add);
   return used;
 }
 
