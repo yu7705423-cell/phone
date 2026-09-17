@@ -18,7 +18,13 @@ function buildBody(cfg, { system, messages, maxTokens, stream }) {
   const msgs = system ? [{ role: 'system', content: system }, ...messages] : messages;
   const body = {
     model: cfg.model,
-    messages: msgs.map(m => ({ role: m.role === 'char' ? 'assistant' : m.role, content: m.content })),
+    // 带图的消息换成内容块数组。图片以 dataURL 内联，不经过任何中转存储。
+    messages: msgs.map(m => ({
+      role: m.role === 'char' ? 'assistant' : m.role,
+      content: m.image
+        ? [{ type: 'text', text: m.content }, { type: 'image_url', image_url: { url: m.image.dataUrl } }]
+        : m.content,
+    })),
     max_tokens: maxTokens,
   };
   if (cfg.temperature != null) body.temperature = cfg.temperature;

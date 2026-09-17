@@ -1,9 +1,15 @@
 import { html, useState, useRef } from '../../lib.js';
 import { phone, useStore } from '../../sdk/index.js';
-import { Page, List, ListItem, Field, Input, Button, toast } from '../../ui/index.js';
+import { Page, List, ListItem, Field, Input, Button, Segmented, toast } from '../../ui/index.js';
 
 const { db, nav, ai } = phone;
 const svc = ai.services;
+
+const MODES = [
+  { value: 'off', label: '关闭' },
+  { value: 'chat', label: '交给聊天模型' },
+  { value: 'api', label: '单独的接口' },
+];
 
 export function VisionPage() {
   useStore(db.settings.store);
@@ -29,14 +35,23 @@ export function VisionPage() {
     } finally { setTesting(false); }
   };
 
+  const mode = svc.visionMode();
+
   return html`
     <${Page} title="识图" onBack=${nav.pop}>
-      <div class="settings-foot">
-        聊天接口只收文字，角色看不到你发的图片。配置识图接口后，
-        图片会先被读成一段描述，描述随消息一起进入上下文。
-        未配置时图片仍可正常发送与查看，角色只是不知道图上有什么。
+      <div class="pad">
+        <${Field} label="图片怎么让角色看见"
+          desc=${mode === 'chat'
+            ? '图片跟着下一次对话请求直接发给聊天模型，不额外调接口，也不额外花钱。要求聊天模型本身能看图，否则请求会报错。'
+            : mode === 'api'
+              ? '图片先交给下面这套接口读成一段描述，描述随消息一起进入上下文。聊天模型本身不能看图时用这一档。'
+              : '不识别。图片仍可正常发送与查看，角色只知道你发了一张图，不知道图上有什么。'}>
+          <${Segmented} value=${mode} items=${MODES}
+            onChange=${m => set({ mode: m })}/>
+        <//>
       </div>
 
+      ${mode !== 'api' ? null : html`
       <div class="pad">
         <${Field} label="接口地址" desc="OpenAI 兼容的 chat/completions 端点。留空则使用 https://api.openai.com/v1。中转站填写至 /v1 为止。">
           <${Input} value=${v.baseUrl} onInput=${x => set({ baseUrl: x })}
@@ -69,6 +84,6 @@ export function VisionPage() {
         <${Button} full variant="ghost"
           onClick=${() => { set({ apiKey: '', model: '', baseUrl: '' }); setResult(''); toast('已清空'); }}>
           清空配置<//>
-      </div>
+      </div>`}
     <//>`;
 }

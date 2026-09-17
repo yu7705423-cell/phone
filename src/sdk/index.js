@@ -33,6 +33,7 @@ import * as image from '../system/ai/image.js';
 import * as visionApi from '../system/ai/vision.js';
 import * as asrApi from '../system/ai/asr.js';
 import * as audioApi from '../system/audio.js';
+import * as keepAliveApi from '../system/keepalive.js';
 import { forceUpdate } from '../system/refresh.js';
 import * as stickerApi from '../system/stickers.js';
 import * as replyApi from '../system/ai/reply.js';
@@ -120,6 +121,7 @@ export const phone = {
   fonts: fontsApi,
   clock: clockApi,
   audio: audioApi,
+  keepAlive: keepAliveApi,
 
   // 把缓存里的旧代码换掉再重开，见 system/refresh.js
   refresh: forceUpdate,

@@ -125,3 +125,56 @@ export function toDataUrl(blob) {
     r.readAsDataURL(blob);
   });
 }
+
+
+// ---- 浏览器自带的语音识别 ----
+//
+// 没配语音识别接口时的保底。Safari 与 Chrome 都有，只是要加前缀，
+// 而且它是**边说边识别**的：不录文件，直接给文字。
+// 所以走这条路时得同时开着录音（留一份音频给气泡播放）和它（拿文字）。
+//
+// 它的账算在浏览器身上，不花接口的钱，代价是只有文字，没有语气，
+// 而且识别质量取决于系统，中英混说时常常只认一种。
+const SR = typeof window !== 'undefined'
+  && (window.SpeechRecognition || window.webkitSpeechRecognition);
+
+export function speechSupported() { return !!SR; }
+
+// 返回一个把手：stop() 拿到目前识别出来的整段文字。
+export function listenLocally(lang = 'zh-CN') {
+  if (!SR) throw new Error('这个浏览器不支持本机语音识别');
+  const rec = new SR();
+  rec.lang = lang;
+  rec.continuous = true;
+  rec.interimResults = true;
+
+  let settled = '';
+  let interim = '';
+  let failed = null;
+
+  rec.onresult = e => {
+    interim = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      const r = e.results[i];
+      if (r.isFinal) settled += r[0].transcript;
+      else interim += r[0].transcript;
+    }
+  };
+  rec.onerror = e => { failed = e.error || 'unknown'; };
+
+  try { rec.start(); } catch { /* 已经在跑了 */ }
+
+  return {
+    text: () => (settled + interim).trim(),
+    stop() {
+      return new Promise(resolve => {
+        const done = () => resolve({ text: (settled + interim).trim(), error: failed });
+        rec.onend = done;
+        try { rec.stop(); } catch { done(); }
+        // 有些实现不触发 onend，兜一个超时
+        setTimeout(done, 1200);
+      });
+    },
+    cancel() { try { rec.abort(); } catch { /* 没在跑 */ } },
+  };
+}

@@ -17,6 +17,7 @@ import { layout } from '../system/db/index.js';
 import { start as startProactive } from '../system/ai/proactive.js';
 import { installUnlock } from '../system/sound.js';
 import { installBridge } from '../system/push.js';
+import * as keepAlive from '../system/keepalive.js';
 
 export function Root() {
   const s = useStore(nav);
@@ -53,6 +54,13 @@ export function Root() {
 
   // 系统通知：点了要能跳回来，页面不在前台时改由系统弹
   useEffect(() => { installBridge(); }, []);
+
+  // 保活。开着就放无声音频；没有过真实触摸时浏览器会拦下来，等第一次点击补一次
+  useEffect(() => {
+    if (!cfg.keepAlive) { keepAlive.stop(); return undefined; }
+    keepAlive.start();
+    return keepAlive.installRetry(() => settings.get().keepAlive);
+  }, [cfg.keepAlive]);
 
   // 全场唯一的 Esc 监听。开着浮层时 Esc 归浮层 —— 只关最上面那一层，
   // 不退出当前页；一层都没开才轮到「返回」。见 ui/overlay.js 顶上那段。

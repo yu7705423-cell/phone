@@ -14,6 +14,9 @@ export const DEFAULT_SETTINGS = {
   statusBar: 'auto',              // auto | on | off  见 shell/StatusBar.js
   showLockScreen: true,
 
+  // 保活。循环播放无声音频，换取后台多活一阵，见 system/keepalive.js
+  keepAlive: false,
+
   // 通知。横幅与提示音，见 system/sound.js
   notify: { banner: true, sound: 'ding', soundFileId: null, volume: 0.7, system: false },
 
@@ -26,7 +29,7 @@ export const DEFAULT_SETTINGS = {
     image: { presets: [], activeId: null },
     voice: { enabled: false, baseUrl: '', groupId: '', apiKey: '', model: '' },
     embed: { baseUrl: '', apiKey: '', model: '', dims: 0 },
-    vision: { baseUrl: '', apiKey: '', model: '' },
+    vision: { mode: 'off', baseUrl: '', apiKey: '', model: '' },
     asr: { baseUrl: '', apiKey: '', model: '', mode: 'text' },
   },
 
@@ -40,6 +43,9 @@ export const DEFAULT_SETTINGS = {
 
   // 后台活儿（整理记忆、导入、生成 NPC…）优先走副用接口，见 ai/engine.js
   backgroundSpare: true,
+
+  // 翻译。语言挂在会话上（chat.translateTo），这里只管怎么显示
+  translateOpen: 'tap',           // tap | always
 
   // 回复风格。自然表达协议，见 ai/templates.js 的 skeleton.style
   styleProtocol: true,

@@ -1,6 +1,6 @@
 import { html } from '../../lib.js';
 import { phone, useStore } from '../../sdk/index.js';
-import { Page, List, ListItem, Icon, toast } from '../../ui/index.js';
+import { Page, List, ListItem, Icon, Switch, toast } from '../../ui/index.js';
 import { ApiPage } from './ApiPage.js';
 import { VoicePage } from './VoicePage.js';
 import { ImagePage } from './ImagePage.js';
@@ -17,6 +17,7 @@ const { db, nav } = phone;
 function Home() {
   const s = useStore(db.settings.store);
   const svc = phone.ai.services;
+  const ai = phone.ai;
   const chat = svc.services().chat;
   const active = svc.activeChat();
   const spare = svc.fallbackChat();
@@ -26,13 +27,18 @@ function Home() {
   const voice = svc.voiceConfig();
   const voiceDesc = voice.enabled && voice.apiKey ? `已配置 · ${voice.model || '未选择模型'}` : '未配置';
   const vision = svc.visionConfig();
-  const visionDesc = svc.visionReady()
-    ? `${vision.model} · 角色能看到你发的图片`
-    : '未配置。角色看不到你发的图片，只知道你发了一张图';
+  const visionMode = svc.visionMode();
+  const visionDesc = visionMode === 'chat'
+    ? '交给聊天模型 · 不额外调接口'
+    : visionMode === 'api'
+      ? (svc.visionReady() ? `单独的接口 · ${vision.model}` : '选了单独的接口，但还没填全')
+      : '关闭。角色看不到你发的图片，只知道你发了一张图';
   const asr = svc.asrConfig();
   const asrDesc = svc.asrReady()
     ? `${asr.model} · ${asr.mode === 'tone' ? '同时识别语气' : '仅转写文字'}`
-    : '未配置。配置后才能发送语音';
+    : ai.asr.canSendVoice()
+      ? '未配置，当前使用浏览器自带的识别。只有文字，没有语气'
+      : '未配置，且这个浏览器不支持本机识别，暂时发不了语音';
   const imgActive = svc.activeImage();
   const imageDesc = imgActive ? `${imgActive.name} · ${imgActive.model || '未选择模型'}` : '未配置';
 
@@ -89,6 +95,16 @@ function Home() {
           subtitle="深色模式、壁纸、图标颜色与阴影、自定义 CSS" arrow multiline
           left=${html`<${Icon} name="grid" size=${18}/>`}
           onClick=${() => nav.push('/appearance')}/>
+      <//>
+
+      <${List} title="后台">
+        <${ListItem} title="保活" multiline
+          left=${html`<${Icon} name="power" size=${18}/>`}
+          subtitle=${`循环播放一段无声音频，让系统把本页当成正在播放的标签页，`
+            + `切到后台后不那么快被冻结，主动消息更有机会按时发出。`
+            + `会持续占用少量电量，且在锁屏后通常仍会停止。`}
+          right=${html`<${Switch} checked=${!!s.keepAlive}
+            onChange=${v => db.settings.set({ keepAlive: v })}/>`}/>
       <//>
 
       <${List} title="数据">

@@ -1,7 +1,7 @@
 import { html, useState, useEffect, useRef } from '../../../lib.js';
 import { phone, useStore, useImage } from '../../../sdk/index.js';
 import { Page, Avatar, Icon, IconButton, FullSheet, List, ListItem,
-         EmptyState, toast, confirm } from '../../../ui/index.js';
+         EmptyState, toast, confirm, prompt } from '../../../ui/index.js';
 import { splitBubbles, quoteOf } from '../helpers.js';
 import { StickerPanel, StickerSuggest } from './StickerPanel.js';
 import { StickerImg } from './StickerBits.js';
@@ -31,16 +31,20 @@ function QuoteRef({ quote, onClick }) {
 }
 
 function Bubble({ msg, char, chat, frozen, onRetry, onSwipe, onHold,
-                  selecting, selected, onToggle }) {
+                  selecting, selected, onToggle, transOpen }) {
   const mine = msg.role === 'user';
   const avatar = useImage(mine ? phone.accounts.current()?.avatar : char?.avatar);
   const hold = useRef({ timer: null, fired: false });
+  // 默认展开时就一直开着；点一下展开这一档，点过才开
+  const [openTrans, setOpenTrans] = useState(false);
 
   const parts = splitBubbles(msg.content);
   const swipes = msg.swipes || [];
   const sticker = msg.kind === 'sticker' ? db.stickers.get(msg.stickerId) : null;
   const typing = msg.kind === 'typing';
   const quote = quoteOf(msg, { char, chat });
+  const trans = (msg.translation || '').trim();
+  const showTrans = trans && (transOpen === 'always' || openTrans);
 
   const start = () => {
     if (frozen || typing || selecting) return;
@@ -88,7 +92,14 @@ function Bubble({ msg, char, chat, frozen, onRetry, onSwipe, onHold,
           : (msg.kind === 'image' || msg.kind === 'voice')
           ? html`<${MediaBubble} msg=${msg} char=${char}/>`
           : parts.length ? parts.map((p, i) => html`
-              <div key=${i} class=${`bubble${typing ? ' is-typing' : ''}`}>${p}</div>`)
+              <div key=${i}
+                class=${`bubble${typing ? ' is-typing' : ''}${trans && i === parts.length - 1 ? ' has-trans' : ''}`}
+                onClick=${trans && i === parts.length - 1 && !selecting
+                  ? () => setOpenTrans(v => !v) : null}>
+                ${p}
+                ${trans && i === parts.length - 1 && showTrans ? html`
+                  <div class="bubble-trans">${trans}</div>` : null}
+              </div>`)
           : html`<div class="bubble bubble-empty"><span class="spinner"></span></div>`}
 
         ${msg.status === 'error' ? html`
@@ -125,6 +136,7 @@ export function Conversation({ chatId }) {
   const [recSec, setRecSec] = useState(-1);      // -1 = 没在录音
   const bodyRef = useRef(null);
   const recRef = useRef(null);
+  const localRef = useRef(null);
   const imgRef = useRef(null);
 
   const chat = db.chats.get(chatId);
@@ -139,7 +151,10 @@ export function Conversation({ chatId }) {
   }, [chatId, chat?.unread]);
 
   // 录着音的时候退出这一页，麦克风会一直开着，指示灯也一直亮
-  useEffect(() => () => { recRef.current?.cancel(); recRef.current = null; }, []);
+  useEffect(() => () => {
+    recRef.current?.cancel(); recRef.current = null;
+    localRef.current?.cancel(); localRef.current = null;
+  }, []);
 
   // 录音时长。只在录着的时候起一个计时器，停了就撤掉
   useEffect(() => {
@@ -181,10 +196,13 @@ export function Conversation({ chatId }) {
 
       const turnId = reuseTurn || phone.uid('turn');
       const swipes = prevSwipes ? [...prevSwipes, clean] : [clean];
-      await ai.reply.renderTurn({
+      const made = await ai.reply.renderTurn({
         chat, char, raw: clean, turnId,
         swipes, swipeIndex: swipes.length - 1,
       });
+      // 人不在这个会话里（切到别的 app、锁屏、页面在后台）才弹。
+      // 页面不在前台时会转成系统通知，见 system/push.js
+      ai.reply.notifyTurn(chat, char, made);
 
       if (ai.memory.shouldAutoExtract(chatId, settings.autoSummarizeInterval)) {
         ai.memory.extract(chatId)
@@ -248,14 +266,16 @@ export function Conversation({ chatId }) {
     try {
       const imageId = await db.images.put(file);
       setQuoting(null);
-      const seeing = ai.vision.isVisionReady();
+      // chat 档不调任何额外接口，图片跟着下一次请求直接发给聊天模型
+      const mode = ai.services.visionMode();
+      const usable = mode === 'api' && ai.vision.isVisionReady();
       const msg = db.messages.create({
         chatId, role: 'user', authorId: 'me', kind: 'image',
         imageId, content: '[图片]', status: 'done', media: 'done',
-        vision: seeing ? 'pending' : 'off', ...q,
+        vision: mode === 'chat' ? 'chat' : usable ? 'pending' : 'off', ...q,
       });
       db.chats.update(chatId, { lastMessageAt: Date.now() });
-      if (!seeing) return;
+      if (!usable) return;
       ai.vision.describeImage(imageId, `vision:${msg.id}`)
         .then(text => db.messages.update(msg.id, {
           imageDesc: text, vision: 'done', content: `[图片：${text}]`,
@@ -266,14 +286,17 @@ export function Conversation({ chatId }) {
     } catch (err) { toast('图片处理失败：' + (err.message || err), 'error'); }
   };
 
+  // 配了接口就走接口；没配就用浏览器自带的识别做保底 —— 它边说边转，
+  // 不花接口的钱，代价是只有文字没有语气。两个都没有才真发不了。
   const startRec = async () => {
-    if (!ai.asr.isAsrReady()) {
-      toast('尚未配置语音识别接口，请先在「设置 - 语音识别」中配置', 'error', 5000);
+    if (!ai.asr.canSendVoice()) {
+      toast('这个浏览器不支持语音识别，请在「设置 - 语音识别」中配置接口', 'error', 5000);
       return;
     }
     setPanel(null);
     try {
       recRef.current = await phone.audio.record();
+      localRef.current = ai.asr.isAsrReady() ? null : phone.audio.listenLocally();
       setRecSec(0);
     } catch (err) {
       toast('无法录音：' + (err.message || err), 'error', 5000);
@@ -283,26 +306,40 @@ export function Conversation({ chatId }) {
   const cancelRec = () => {
     recRef.current?.cancel();
     recRef.current = null;
+    localRef.current?.cancel();
+    localRef.current = null;
     setRecSec(-1);
   };
 
   // 原件按录下来的格式存着，送去识别前才临时转成 wav（见 system/audio.js）
   const sendRec = async () => {
     const h = recRef.current;
+    const local = localRef.current;
     recRef.current = null;
+    localRef.current = null;
     setRecSec(-1);
     if (!h) return;
     const q = draftQuote();
     try {
       const { blob, seconds } = await h.stop();
+      const heard = local ? await local.stop() : null;
       const audioId = await db.files.put(blob, { name: `voice-${Date.now()}`, type: blob.type });
       setQuoting(null);
+
+      // 浏览器那条路是边说边转的，停下来时文字已经有了，直接落库
+      const done = heard && heard.text;
       const msg = db.messages.create({
         chatId, role: 'user', authorId: 'me', kind: 'voice',
-        audioId, seconds, content: '[语音]', status: 'done', media: 'done',
-        asr: 'pending', ...q,
+        audioId, seconds, status: 'done', media: 'done',
+        ...(done
+          ? { voiceText: heard.text, tone: '', asr: 'done', content: `[语音：${heard.text}]` }
+          : { content: '[语音]', asr: local ? 'error' : 'pending',
+              ...(local ? { mediaError: '本机识别没有听出内容' } : {}) }),
+        ...q,
       });
       db.chats.update(chatId, { lastMessageAt: Date.now() });
+      if (local) return;
+
       ai.asr.listen({ blob, key: `asr:${msg.id}` })
         .then(r => db.messages.update(msg.id, {
           voiceText: r.text, tone: r.tone || '', asr: 'done',
@@ -312,6 +349,23 @@ export function Conversation({ chatId }) {
           asr: 'error', mediaError: String(err.message || err),
         }));
     } catch (err) { toast('录音失败：' + (err.message || err), 'error', 5000); }
+  };
+
+  // 不想开口的时候，自己打一段字发成语音。角色那边看到的和真录一段没有区别。
+  const typeVoice = async () => {
+    setPanel(null);
+    const text = await prompt({ title: '写成语音发出去', multiline: true, okText: '发送' });
+    const t = String(text || '').trim();
+    if (!t) return;
+    const q = draftQuote();
+    setQuoting(null);
+    db.messages.create({
+      chatId, role: 'user', authorId: 'me', kind: 'voice',
+      audioId: null, seconds: Math.max(1, Math.round(t.length / 4)),
+      voiceText: t, asr: 'done', status: 'done', media: 'done',
+      content: `[语音：${t}]`, ...q,
+    });
+    db.chats.update(chatId, { lastMessageAt: Date.now() });
   };
 
   // 整轮删掉重来，新原文追加进候选。
@@ -401,12 +455,12 @@ export function Conversation({ chatId }) {
   const MENU_ITEMS = [
     { id: 'photo', icon: 'image', label: '图片', onTap: () => imgRef.current?.click() },
     { id: 'voice', icon: 'headphone', label: '语音', onTap: startRec },
+    { id: 'voice-text', icon: 'edit', label: '写成语音', onTap: typeVoice },
     { id: 'redpack', icon: 'wallet', label: '红包' },
-    { id: 'call', icon: 'bell', label: '来电' },
-    { id: 'gift', icon: 'cup', label: '礼物' },
+    { id: 'call', icon: 'phone', label: '通话' },
+    { id: 'gift', icon: 'gift', label: '礼物' },
     { id: 'location', icon: 'map', label: '位置' },
-    { id: 'file', icon: 'notes', label: '文件' },
-    { id: 'more', icon: 'more', label: '更多' },
+    { id: 'listen', icon: 'music', label: '一起听' },
   ].map(it => ({ ...it, onTap: it.onTap || (() => toast(`「${it.label}」尚未实现`)) }));
 
   const quotingRef = quoting ? quoteOf({ quoteId: quoting.id }, { char, chat }) : null;
@@ -428,7 +482,7 @@ export function Conversation({ chatId }) {
             <${Bubble} key=${m.id} msg=${m} char=${char} chat=${chat}
               onRetry=${onRetry} onSwipe=${onSwipe} onHold=${setHeld}
               selecting=${selecting} selected=${selecting && picked.includes(m.id)}
-              onToggle=${togglePick}/>`)}
+              onToggle=${togglePick} transOpen=${settings.translateOpen}/>`)}
           ${!msgs.length && !char.firstMessage ? html`
             <div class="conv-hint">发送第一条消息开始对话</div>` : null}
         </div>
@@ -528,6 +582,12 @@ export function Conversation({ chatId }) {
           <${ListItem} title="上下文与记忆" subtitle="注入顺序、扫描窗口、历史轮次、自动总结" arrow multiline
             left=${html`<${Icon} name="layers" size=${18}/>`}
             onClick=${() => { setMenu(false); nav.push('/context'); }}/>
+          <${ListItem} title="翻译" arrow multiline
+            subtitle=${chat.translateTo
+              ? `每条同时给出${chat.translateTo}译文，${settings.translateOpen === 'always' ? '默认展开' : '点气泡展开'}`
+              : '关着。开启后角色每说一条会同时给出译文'}
+            left=${html`<${Icon} name="translate" size=${18}/>`}
+            onClick=${() => { setMenu(false); nav.push(`/translate/${chatId}`); }}/>
           <${ListItem} title="Prompt 模板" subtitle="骨架与各任务的提示词" arrow
             left=${html`<${Icon} name="sparkle" size=${18}/>`}
             onClick=${() => { setMenu(false); nav.push('/templates'); }}/>

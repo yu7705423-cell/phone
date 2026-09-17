@@ -7,8 +7,11 @@ export const EMPTY_SERVICES = {
   image: { presets: [], activeId: null },
   voice: { enabled: false, baseUrl: '', groupId: '', apiKey: '', model: '' },
   embed: { baseUrl: '', apiKey: '', model: '', dims: 0 },
-  // 识图：把用户发的图片读成文字，角色才看得见
-  vision: { baseUrl: '', apiKey: '', model: '' },
+  // 识图。mode 决定图片怎么让角色看见：
+  //   off   不识别，角色只知道你发了一张图
+  //   chat  直接把图交给聊天模型（它自己能看图的话，不必再配一套接口）
+  //   api   交给下面这套单独的识图接口
+  vision: { mode: 'off', baseUrl: '', apiKey: '', model: '' },
   // 语音识别：把用户发的语音读成文字。mode 决定只转文字还是连语气一起读
   asr: { baseUrl: '', apiKey: '', model: '', mode: 'text' },
 };
@@ -122,9 +125,21 @@ export function setVoice(patch) { write({ voice: { ...services().voice, ...patch
 // ---- 识图。OpenAI 兼容的 chat/completions，带一个 image_url 内容块 ----
 export function visionConfig() { return services().vision; }
 export function setVision(patch) { write({ vision: { ...services().vision, ...patch } }); }
+export function visionMode() {
+  const m = services().vision.mode;
+  return m === 'chat' || m === 'api' ? m : 'off';
+}
+
+// 单独那套识图接口配全了没有
 export function visionReady() {
   const v = services().vision;
   return !!(v.apiKey && v.model);
+}
+
+// 图片到底能不能被看见
+export function visionActive() {
+  const m = visionMode();
+  return m === 'chat' || (m === 'api' && visionReady());
 }
 
 // ---- 语音识别 ----

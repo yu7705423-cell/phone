@@ -2,7 +2,7 @@ import { asrConfig, asrReady } from './services.js';
 import { enqueue } from './queue.js';
 import { template } from './engine.js';
 import { parseJSON } from './sse.js';
-import { toWav, toBase64 } from '../audio.js';
+import { toWav, toBase64, speechSupported } from '../audio.js';
 
 // 把用户发的语音读成文字。两档：
 //
@@ -20,6 +20,9 @@ const trim = u => String(u || '').replace(/\/+$/, '');
 
 export { asrReady as isAsrReady };
 export function asrMode() { return asrConfig().mode === 'tone' ? 'tone' : 'text'; }
+
+// 能不能发语音：配了接口，或者浏览器自己能识别。两个都没有才真发不了。
+export function canSendVoice() { return asrReady() || speechSupported(); }
 
 function base(a) {
   const b = trim(a.baseUrl) || 'https://api.openai.com/v1';

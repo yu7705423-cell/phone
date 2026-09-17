@@ -51,7 +51,9 @@ export function AsrPage() {
     <${Page} title="语音识别" onBack=${nav.pop}>
       <div class="settings-foot">
         用于识别你发出的语音。角色说话用的是「语音合成」，两者是不同的接口。
-        未配置时无法发送语音。
+        未配置时改用浏览器自带的识别：边说边转，不消耗接口额度，
+        但只有文字、没有语气，识别质量取决于系统。
+        ${phone.audio.speechSupported() ? '' : '这个浏览器不支持本机识别，必须配置接口才能发送语音。'}
       </div>
 
       <div class="pad">

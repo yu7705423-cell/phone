@@ -5,6 +5,8 @@ import * as voiceSvc from './voice.js';
 import { isImageReady } from './image.js';
 import { isVoiceReady } from './voice.js';
 import { byName as stickerByName, markUsed } from '../stickers.js';
+import { notify } from '../notify.js';
+import { nav } from '../nav.js';
 
 // 角色回复里可以带这几种标记，由模型自己决定什么时候用。
 // 中英文冒号都认，方括号也认全角。
@@ -15,6 +17,10 @@ const STICKER_KINDS = new Set(['表情', 'sticker', 'emoji']);
 
 // 引用单独成行，挂在它下面那一条上，不自己占一个气泡。
 const QUOTE_LINE = /^[[【(（]?\s*(?:引用|回复|quote)\s*[:：]\s*([^\n\]】)）]+)[\]】)）]?\s*$/i;
+
+// 译文也单独成行，但挂在它**上面**那一条上 —— 先有原文才有译文。
+// 同样不占气泡，收在消息的 translation 字段里，点原文气泡才展开。
+const TRANS_LINE = /^[[【(（]?\s*(?:译文|翻译|译|translation)\s*[:：]\s*(.+?)[\]】)）]?\s*$/i;
 
 // 时间行同理。让模型自己写一遍当地时间，是目前最靠谱的时间感知 ——
 // 写过一遍才算真看见。但它是给模型自己定位用的，不该显示给用户，
@@ -70,20 +76,27 @@ export function splitReply(raw) {
     parts.push(part);
   };
 
+  // 按空行分段。模型经常只按单换行分，那样整轮会黏成一条 ——
+  // 所以单换行也算一次分条。真要在一条里换行，写成同一行或者用空格。
+  const segments = chunk => String(chunk).split(/\n+/);
+
   const pushText = chunk => {
-    chunk.split(/\n\s*\n/).forEach(seg => {
-      let t = seg.trim();
+    segments(chunk).forEach(seg => {
+      const t = seg.trim();
       if (!t) return;
-      // 开头可能连着好几行引用标记，一行一行剥干净
-      for (;;) {
-        const lines = t.split('\n');
-        const q = lines[0].match(QUOTE_LINE);
-        if (!q) break;
-        pendingQuote = q[1].trim();
-        t = lines.slice(1).join('\n').trim();
-        if (!t) break;
+      // 整行是个引用标记的，记下来挂到下一条上，自己不占气泡
+      const q = t.match(QUOTE_LINE);
+      if (q) { pendingQuote = q[1].trim(); return; }
+
+      // 译文相反，挂到刚刚那一条上。前面没有正文就只能丢掉。
+      const tr = t.match(TRANS_LINE);
+      if (tr) {
+        const prev = parts[parts.length - 1];
+        if (prev) prev.translation = tr[1].trim();
+        return;
       }
-      if (t) push({ type: 'text', text: t });
+
+      push({ type: 'text', text: t });
     });
   };
 
@@ -154,7 +167,11 @@ function pause(part) {
 // 单拎出来是因为「修格式」也要用同一条路，不然两边各写一遍迟早走岔。
 export function materialize(part, base, char) {
   const quote = quoteFields(base.chatId, part.quote);
-  const row = { ...base, ...quote, ...(part.stamp ? { stamp: part.stamp } : {}) };
+  const row = {
+    ...base, ...quote,
+    ...(part.stamp ? { stamp: part.stamp } : {}),
+    ...(part.translation ? { translation: part.translation } : {}),
+  };
 
   if (part.type === 'sticker') {
     // 名字对不上也照发。stickerName 留着，气泡上显示它想发的是哪个，
@@ -181,6 +198,28 @@ export function materialize(part, base, char) {
     return msg;
   }
   return messages.create({ ...row, kind: 'text', content: part.text });
+}
+
+// 这一轮消息该不该弹通知。人正盯着这个会话看就不弹 ——
+// 屏幕上已经有了，再弹一条横幅只是噪音。
+// 不在这个会话（在别的 app、在主界面、在另一段对话），或者页面根本不在前台，
+// 就照常弹；页面不在前台时 push.js 会把它转成系统通知。
+function shouldNotify(chatId) {
+  const s = nav.get();
+  const looking = s.screen === 'app' && s.appId === 'chat'
+    && (s.stacks?.chat || []).slice(-1)[0] === `/chat/${chatId}`;
+  return !(looking && document.visibilityState === 'visible');
+}
+
+export function notifyTurn(chat, char, created) {
+  if (!created.length || !shouldNotify(chat.id)) return;
+  const first = created.find(m => m.kind === 'text') || created[0];
+  notify({
+    title: char.name || '新消息',
+    body: first?.content || '发来一条消息',
+    icon: 'message', appId: 'chat', avatar: char.avatar,
+    payload: { route: `/chat/${chat.id}` },
+  });
 }
 
 export async function renderTurn({ chat, char, raw, turnId, swipes, swipeIndex, onEach, signal, instant }) {

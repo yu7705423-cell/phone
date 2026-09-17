@@ -698,3 +698,12 @@ input[type="range"] {
 .round-row { display: flex; align-items: center; gap: var(--sp-3); }
 .round-row input { flex: 1; min-width: 0; }
 .round-unit { flex: none; font-size: var(--fs-15); color: var(--text-3); }
+
+/* 译文收在原文气泡里。点一下展开，不单独占一条消息，也不另加按钮 */
+.bubble.has-trans { cursor: pointer; }
+.bubble-trans {
+  margin-top: 6px; padding-top: 6px;
+  border-top: 1px solid var(--group-line);
+  font-size: var(--fs-13); line-height: 1.55; opacity: .72;
+}
+.msg.is-mine .bubble-trans { border-top-color: var(--capsule-border); }

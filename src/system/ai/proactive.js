@@ -1,9 +1,9 @@
 import { chats, characters, messages as messagesDb } from '../db/index.js';
 import * as accounts from '../accounts.js';
-import { notify } from '../notify.js';
+
 import { template, buildChatSystem, isConfigured, isReplying, runTextTask, queryVecFor } from './engine.js';
 import { fillTemplate } from './templates.js';
-import { renderTurn } from './reply.js';
+import { renderTurn, notifyTurn } from './reply.js';
 
 // 每个角色自己一套设置，存在角色卡上。见 CLAUDE.md 第 5 条：
 // 属于某个角色的开关就放在那个角色身上，不放全局设置里。
@@ -129,12 +129,7 @@ export async function sendProactive(chatId, charId) {
   });
 
   chats.update(chat.id, { unread: (chats.get(chat.id)?.unread || 0) + created.length });
-  const first = created.find(m => m.kind === 'text') || created[0];
-  notify({
-    title: char.name, body: first?.content || '发来一条消息',
-    icon: 'message', appId: 'chat', avatar: char.avatar,
-    payload: { route: `/chat/${chat.id}` },
-  });
+  notifyTurn(chat, char, created);
   return created;
 }
 

@@ -18,7 +18,19 @@ function buildBody(cfg, { system, messages, maxTokens, stream }) {
   const body = {
     model: cfg.model,
     max_tokens: maxTokens,
-    messages: messages.map(m => ({ role: m.role, content: m.content })),
+    // 带图的消息换成内容块数组。Anthropic 收的是 base64 加 media_type，
+    // 和 OpenAI 那边的 dataURL 形状不一样，所以在各自的 provider 里转。
+    messages: messages.map(m => ({
+      role: m.role,
+      content: m.image
+        ? [
+          { type: 'text', text: m.content },
+          { type: 'image',
+            source: { type: 'base64', media_type: m.image.mediaType,
+              data: String(m.image.dataUrl).split(',')[1] || '' } },
+        ]
+        : m.content,
+    })),
   };
   if (system) body.system = system;
   if (stream) body.stream = true;

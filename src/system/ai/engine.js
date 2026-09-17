@@ -5,7 +5,9 @@ import { assemble } from './context/index.js';
 import { DEFAULT_TEMPLATES, fillTemplate } from './templates.js';
 import { embedQuery, embedReady } from './embed.js';
 import { getProvider } from './providers/index.js';
-import { activeChat, fallbackChat } from './services.js';
+import { activeChat, fallbackChat, visionMode } from './services.js';
+import { images } from '../db/images.js';
+import { toDataUrl } from '../audio.js';
 import { mediaInstruction } from './reply.js';
 import { enqueue, cancel, isRunning, isAbort } from './queue.js';
 import { parseJSON } from './sse.js';
@@ -176,6 +178,11 @@ export function buildChatSystem(chat, char, msgs, opts = {}) {
   if (msgs.length >= 2) out += '\n\n' + template('skeleton.quote');
   // 让它自己把当地时间写出来。这一行显示时会被过滤掉，见 ai/reply.js
   if (clock.stampOn()) out += '\n\n' + template('skeleton.time');
+
+  // 翻译。逐条给出译文，收在气泡里，点一下才展开
+  if (chat.translateTo) {
+    out += '\n\n' + fillTemplate(template('skeleton.translate'), { lang: chat.translateTo });
+  }
   return { system: out, failed, tokens: estimate(out) };
 }
 
@@ -200,8 +207,34 @@ function timeLine(m, prev) {
   return `[${clock.format(clock.toWorld(m.createdAt), clock.userZone())}] `;
 }
 
+// 「交给聊天模型」这一档要把图片原样塞进请求里。取图是异步的，
+// buildHistory 是同步的，所以在这儿先把用得上的那几张读成 dataURL。
+//
+// 只取最近几张：一张压缩过的图也有几十上百 KB，全带上既慢又贵，
+// 而且再往前的图对当前这轮基本没影响了。
+const IMAGE_CARRY = 3;
+export async function imagesFor(msgs) {
+  if (visionMode() !== 'chat') return null;
+  const wanted = msgs
+    .filter(m => m.kind === 'image' && m.role === 'user' && m.imageId)
+    .slice(-IMAGE_CARRY);
+  if (!wanted.length) return null;
+
+  const out = new Map();
+  for (const m of wanted) {
+    try {
+      const blob = await images.blob(m.imageId);
+      if (!blob) continue;
+      out.set(m.id, { dataUrl: await toDataUrl(blob), mediaType: blob.type || 'image/png' });
+    } catch (err) {
+      console.warn('[vision] 这张图读不出来，跳过', err.message || err);
+    }
+  }
+  return out.size ? out : null;
+}
+
 // 历史消息转 API 格式。群聊时给非本人的发言加上说话人前缀。
-export function buildHistory(chat, char, msgs) {
+export function buildHistory(chat, char, msgs, opts = {}) {
   const s = settings.get();
   const isGroup = (chat.characterIds || []).length > 1;
   const kept = takeLatestWithin(
@@ -209,21 +242,24 @@ export function buildHistory(chat, char, msgs) {
     s.contextBudget,
     m => m.content || '');
 
+  const pics = opts.images || null;
   const view = kept.slice(-s.historyLimit);
   return view.map((m, i) => {
     const mine = m.role === 'char' && m.authorId === char.id;
     const text = timeLine(m, view[i - 1]) + withQuote(m);
     if (m.role === 'user') {
-      return { role: 'user', content: text };
+      const pic = pics && pics.get(m.id);
+      return pic ? { role: 'user', content: text, image: pic } : { role: 'user', content: text };
     }
     if (mine) return { role: 'assistant', content: text };
     // 群里别人说的话,以旁白形式并入 user 侧,避免被当成自己说过的
     const who = characters.get(m.authorId)?.name || '某人';
     return { role: 'user', content: isGroup ? `${who}：${text}` : text };
   }).reduce((acc, m) => {
-    // 合并相邻同角色消息,部分接口不接受连续同角色
+    // 合并相邻同角色消息,部分接口不接受连续同角色。
+    // 带图的那条不合并 —— 合进去图就跟文字对不上了。
     const last = acc[acc.length - 1];
-    if (last && last.role === m.role) last.content += '\n' + m.content;
+    if (last && last.role === m.role && !last.image && !m.image) last.content += '\n' + m.content;
     else acc.push({ ...m });
     return acc;
   }, []);
@@ -235,9 +271,9 @@ export const cancelReply = (chatId, charId) => cancel(replyKey(chatId, charId));
 
 export function streamReply({ chat, char, onDelta }) {
   const msgs = messagesOf(chat.id).filter(m => m.status !== 'error');
-  const history = buildHistory(chat, char, msgs);
 
   return enqueue(replyKey(chat.id, char.id), async signal => {
+    const history = buildHistory(chat, char, msgs, { images: await imagesFor(msgs) });
     const queryVec = await queryVecFor(msgs);
     const { system } = buildChatSystem(chat, char, msgs, { queryVec });
     return withFallback(c => getProvider(c.provider)

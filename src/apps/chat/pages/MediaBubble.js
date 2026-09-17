@@ -25,9 +25,10 @@ function ImageBubble({ msg }) {
   }
   if (!url) return html`<div class="bubble media-pending"><${Spinner} size=${16}/></div>`;
 
-  const note = !mine ? '' 
+  // chat 档不用提示：图片会跟着下一次请求直接发给聊天模型
+  const note = !mine ? ''
     : msg.vision === 'pending' ? '正在识别'
-    : msg.vision === 'off' ? '未配置识图接口，角色看不到这张图'
+    : msg.vision === 'off' ? '识图未开启，角色看不到这张图'
     : msg.vision === 'error' ? `识图失败：${msg.visionError || '未知原因'}`
     : '';
 
