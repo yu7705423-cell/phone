@@ -31,6 +31,7 @@
 .li-hint { font-size: var(--fs-13); color: var(--text-3); }
 /* 导入预览里被勾掉的那几条 */
 .is-off { opacity: .4; }
+.char-name { font-size: var(--fs-17); font-weight: var(--fw-semi); }
 .font-sample {
   font-size: var(--fs-17); color: var(--text); margin-top: 4px;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;

@@ -1,7 +1,7 @@
-import { html, useRef, useState } from '../../../lib.js';
+import { html, useRef } from '../../../lib.js';
 import { phone, useStore, useImage } from '../../../sdk/index.js';
 import { Page, Avatar, Button, Icon, List, ListItem, Field, Input, Textarea,
-         Sheet, EmptyState, toast, confirm } from '../../../ui/index.js';
+         EmptyState, toast, confirm } from '../../../ui/index.js';
 import { relTime, chatFor } from '../helpers.js';
 import { PHOTO_MAX, AVATAR_MAX } from '../../../system/db/images.js';
 
@@ -13,7 +13,6 @@ export function Profile({ subjectId, embedded }) {
   useStore(db.characters.store);
   useStore(db.moments.store);
   useStore(db.persona.store);
-  const [editing, setEditing] = useState(false);
 
   const isMe = subjectId === 'me';
   const me = db.persona.get();
@@ -83,7 +82,7 @@ export function Profile({ subjectId, embedded }) {
       <div class="pad-x">
         ${isMe
           ? html`<${Button} full variant="ghost" icon="edit"
-              onClick=${() => setEditing(true)}>编辑我的人设<//>`
+              onClick=${() => phone.intent.open('contact', { route: '/me' })}>编辑我的人设<//>`
           : html`<${Button} full icon="message"
               onClick=${() => { const c = chatFor(subjectId); nav.push(`/chat/${c.id}`); }}>发消息<//>`}
       </div>
@@ -105,21 +104,6 @@ export function Profile({ subjectId, embedded }) {
           <${Button} full variant="danger" onClick=${del}>删除这个角色<//>
         </div>` : html`<div class="pad-b"></div>`}
 
-      <${Sheet} open=${editing} onClose=${() => setEditing(false)} title="我的人设" height="80%">
-        <${Field} label="昵称" desc="角色会这样称呼你">
-          <${Input} value=${me.name} onInput=${v => db.persona.set({ name: v })}/>
-        <//>
-        <${Field} label="个性签名" desc="显示在主页上">
-          <${Input} value=${me.signature} onInput=${v => db.persona.set({ signature: v })}/>
-        <//>
-        <${Field} label="人设描述"
-          desc="这段会作为「对方是谁」注入到 prompt。写你希望角色怎么认识你。">
-          <${Textarea} rows=${7} value=${me.description}
-            placeholder="例如：大学生，学设计，话不多但想到什么说什么，讨厌被说教。"
-            onInput=${v => db.persona.set({ description: v })}/>
-        <//>
-        <${Button} full onClick=${() => setEditing(false)}>完成<//>
-      <//>
     </div>`;
 
   // 作为聊天 app 的一个分区嵌入时不再套一层导航栏，避免出现两条标题栏
@@ -128,7 +112,7 @@ export function Profile({ subjectId, embedded }) {
   return html`
     <${Page} title=${subject.name} onBack=${nav.pop}
       right=${html`<button class="nav-text press"
-        onClick=${() => nav.push(`/edit/${subjectId}`)}>编辑</button>`}>
+        onClick=${() => phone.intent.open('contact', { route: `/char/${subjectId}` })}>编辑</button>`}>
       ${body}
     <//>`;
 }

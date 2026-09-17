@@ -60,7 +60,7 @@ export function ContactsTab() {
       name: '新角色', persona: '', scenario: '', firstMessage: '',
       exampleDialogue: '', lorebookIds: [], tags: [], group: '',
     });
-    nav.push(`/edit/${c.id}`);
+    phone.intent.open('contact', { route: `/char/${c.id}` });
   };
 
   const setGroup = async g => {
@@ -120,7 +120,10 @@ export function ContactsTab() {
             <${ListItem} title=${held.pinned ? '取消置顶' : '在分组里置顶'} arrow
               left=${html`<${Icon} name=${held.pinned ? 'chevronDown' : 'chevronUp'} size=${18}/>`}
               onClick=${() => { db.characters.update(held.id, { pinned: !held.pinned }); setHeld(null); }}/>
-            <${ListItem} title="编辑角色卡" arrow
+            <${ListItem} title="改人设" arrow
+              left=${html`<${Icon} name="user" size=${18}/>`}
+              onClick=${() => { const id = held.id; setHeld(null); phone.intent.open('contact', { route: `/char/${id}` }); }}/>
+            <${ListItem} title="角色卡" subtitle="语音、发图、主动找我、世界书" arrow multiline
               left=${html`<${Icon} name="edit" size=${18}/>`}
               onClick=${() => { const id = held.id; setHeld(null); nav.push(`/edit/${id}`); }}/>
           <//>` : null}
