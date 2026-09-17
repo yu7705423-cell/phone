@@ -11,6 +11,7 @@ import { AppSwitcher } from '../screens/AppSwitcher.js';
 import { AppHost } from '../system/runtime.js';
 import { useImage } from '../system/db/useImage.js';
 import { applyLook, applyCustomCSS } from '../system/look.js';
+import { apply as applyFonts } from '../system/fonts.js';
 import { layout } from '../system/db/index.js';
 import { start as startProactive } from '../system/ai/proactive.js';
 import { installUnlock } from '../system/sound.js';
@@ -33,6 +34,8 @@ export function Root() {
     [cfg.iconColor, cfg.iconShadow, cfg.iconLabels, cfg.bottomLift]);
 
   useEffect(() => { applyCustomCSS(cfg.customCSS); }, [cfg.customCSS]);
+
+  useEffect(() => { applyFonts(cfg); }, [cfg.fontBody, cfg.fontSerif, cfg.fonts]);
 
   // 铺了壁纸就换成毛玻璃那套底色，避免白板灰板压在壁纸上
   useEffect(() => {

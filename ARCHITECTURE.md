@@ -990,6 +990,24 @@ Dock 只是快捷方式,点击进入 app 的行为与从网格点进去完全一
 
 ---
 
+### 8.75 自定义字体
+
+`system/fonts.js`。字体文件存进 `files` 域（二进制，不压缩），
+用 `FontFace` 直接喂 `ArrayBuffer` 注册 —— 比 blob URL 稳，不用猜 `format()`，
+ttf / otf / woff / woff2 一视同仁。family 名用记录 id（`uf-<id>`），
+保证不和系统里同名字体打架。
+
+两个槽位：`--font`（正文）和 `--font-serif`（挂件里勾了「衬线」的那几行）。
+选中之后立刻把 CSS 变量设上去，加载还没完成时浏览器自己会回落到后面的系统字体，
+不会白屏；加载失败就把变量摘掉。
+
+- 传进来先 `FontFace.load()` 验一遍，坏文件直接报错，不存进库。
+- 删掉正在用的字体会自动把槽位清空并回落，不会指向一个不存在的 family。
+- `fontBody` / `fontSerif` 在 `LOOK_KEYS` 里，外观预设会带上。
+- 中文字体动辄十几 M，界面里直接标出体积。
+
+入口在 `设置 - 主题`，和别的观感设置在一起。
+
 ### 8.8 外观预设
 
 `system/looks.js`。把整套装修拍个快照存进 `looks` 数据域（IndexedDB，DB_VERSION 提到 4），

@@ -10,6 +10,7 @@ export { looks };
 const LOOK_KEYS = [
   'theme', 'appIcons', 'iconColor', 'iconShadow', 'iconLabels',
   'bottomLift', 'customCSS', 'statusBar', 'showLockScreen',
+  'fontBody', 'fontSerif',
 ];
 
 function pick(obj, keys) {

@@ -21,6 +21,7 @@ function collectUsedImageIds() {
   db.stickers.all().forEach(st => add(st.imageId));
   // 外观预设里的图也算有引用，否则一清理存好的预设就成了空壳
   phone.looks.allImageIds().forEach(add);
+  // 字体存在 files 域，不在这一批里，删字体走「主题」那边
   return used;
 }
 

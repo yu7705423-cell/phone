@@ -6,6 +6,7 @@ import { PHOTO_MAX, ICON_MAX } from '../../system/db/images.js';
 import { ICON_NAMES } from '../../icons/paths.js';
 import { BatchIcons } from './BatchIcons.js';
 import { LookPresets } from './LookPresets.js';
+import { FontPicker } from './FontPicker.js';
 
 const { db, nav, apps: appsApi } = phone;
 
@@ -243,6 +244,8 @@ export function AppearancePage() {
           <${WallpaperRow} slot="lock" label="锁屏" desc="时钟与通知下面"/>
         </div>
       </div>
+
+      <${FontPicker}/>
 
       <${LookPresets}/>
 
