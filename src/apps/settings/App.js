@@ -11,6 +11,7 @@ import { EmbedPage } from './EmbedPage.js';
 import { VisionPage } from './VisionPage.js';
 import { AsrPage } from './AsrPage.js';
 import { MusicPage } from './MusicPage.js';
+import { LimitsPage } from './LimitsPage.js';
 import { BUILD } from '../../version.js';
 
 const { db, nav } = phone;
@@ -106,6 +107,14 @@ function Home() {
           onClick=${() => nav.push('/appearance')}/>
       <//>
 
+      <${List} title="用量">
+        <${ListItem} title="用量与上限" arrow multiline
+          left=${html`<${Icon} name="filter" size=${18}/>`}
+          subtitle=${`通话回复长度、视频通话画面间隔、表情名单长度、主动消息的未读阈值、`
+            + `会话渲染条数、搜索结果条数、一起听的上报门槛。均可填 0 表示不限。`}
+          onClick=${() => nav.push('/limits')}/>
+      <//>
+
       <${List} title="后台">
         <${ListItem} title="保活" multiline
           left=${html`<${Icon} name="power" size=${18}/>`}
@@ -141,6 +150,7 @@ export default function SettingsApp({ route }) {
   if (route === '/vision') return html`<${VisionPage}/>`;
   if (route === '/asr') return html`<${AsrPage}/>`;
   if (route === '/music') return html`<${MusicPage}/>`;
+  if (route === '/limits') return html`<${LimitsPage}/>`;
   if (route === '/voice') return html`<${VoicePage}/>`;
   if (route === '/image') return html`<${ImagePage}/>`;
   if (route === "/appearance") return html`<${AppearancePage}/>`;

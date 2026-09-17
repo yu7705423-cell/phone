@@ -1,4 +1,4 @@
-import { chats, characters, messages as messagesDb } from '../db/index.js';
+import { chats, characters, messages as messagesDb, settings } from '../db/index.js';
 import * as accounts from '../accounts.js';
 
 import { template, buildChatSystem, isConfigured, isReplying, runTextTask, queryVecFor } from './engine.js';
@@ -14,8 +14,8 @@ export const DEFAULTS = {
   proactiveQuietTo: 8,     // 免打扰结束小时，两者相等表示不设
 };
 
-// 堆了这么多条没看就先停下，不是设置项，写死就行
-const MAX_UNREAD = 3;
+// 堆了这么多条没看就先停下。用户可以改，填 0 就是一直发。
+const maxUnread = () => Math.max(0, settings.get().proactiveMaxUnread || 0);
 const KEY = 'phone.proactive.next';
 
 export function configOf(char) {
@@ -94,7 +94,8 @@ function chatFor(charId) {
   const chat = chats.all().find(c => (c.characterIds || []).length === 1
     && c.characterIds[0] === charId && (c.personaId || me) === me);
   if (!chat) return null;
-  if ((chat.unread || 0) >= MAX_UNREAD) return null;
+  const unreadCap = maxUnread();
+  if (unreadCap && (chat.unread || 0) >= unreadCap) return null;
   if (isReplying(chat.id, charId)) return null;
   return chat;
 }

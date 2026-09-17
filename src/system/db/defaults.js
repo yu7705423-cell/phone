@@ -67,6 +67,16 @@ export const DEFAULT_SETTINGS = {
   callMic: false,                 // 通话默认打字，不开麦克风
   callSelfReal: false,            // 视频通话默认用虚拟头像，不开摄像头
 
+  // ---- 用量与上限。见 CLAUDE.md 第 13 条：0 一律表示「不限 / 全都要」 ----
+  callMaxTokens: 400,             // 通话里每轮回复的上限。电话里说一两句就停
+  callFrameGap: 8,                // 视频通话最短隔几秒带一帧画面。0 = 每轮都带
+  stickerCold: 12,                // 没在用表情时列几个名字给模型。0 = 全列
+  stickerHot: 60,                 // 最近用过表情时列几个。0 = 全列
+  proactiveMaxUnread: 3,          // 堆了几条没看就不再主动发。0 = 一直发
+  chatPage: 200,                  // 会话一次画多少条。0 = 全画
+  searchLimit: 200,               // 搜索最多给多少条结果。0 = 全给
+  scrobbleAfter: 30,              // 一首歌放够几秒才给网易云打卡。0 = 一放就打
+
   promptLean: true,               // 功能说明平时只给一张目录，用上了才给细则
   giftBlind: true,                // 礼物拆开之前，里面装什么不进上下文
 

@@ -1,4 +1,4 @@
-import { chats, messagesOf } from './db/index.js';
+import { chats, messagesOf, settings } from './db/index.js';
 import * as accounts from './accounts.js';
 
 // 搜聊天记录。
@@ -19,7 +19,10 @@ import * as accounts from './accounts.js';
 
 const SLICE_MS = 8;         // 一片最多占用主线程这么久
 const CHECK_EVERY = 512;    // 每扫这么多条查一次表，每条都查太贵
-const DEFAULT_LIMIT = 200;
+
+// 一轮最多给多少条结果。设置里能改，填 0 就是全给 —— 全给的代价是
+// 「晚」这种到处都是的词也得把全库扫完，不能提前停。
+const defaultLimit = () => Math.max(0, settings.get().searchLimit || 0);
 
 // 让出主线程。setTimeout 有 4ms 下限，切几百片就白等好几百毫秒；
 // MessageChannel 没有这个下限，歇的那一下就是浏览器真正要用的那一下。
@@ -70,13 +73,18 @@ function chatIdsFor(scope) {
  * 一片一片往上加，界面照着它随扫随显示。
  *
  * done 给出 { hits, finished, truncated }。truncated 为 true 表示是凑满 limit
- * 提前停的，后面还有更多没扫 —— 所以界面写「仅显示最近 200 条」而不是报个总数：
+ * 提前停的，后面还有更多没扫 —— 所以界面写「仅显示最近若干条」而不是报个总数：
  * 报总数就得把十几万条全过一遍，为了一个数字白扫一遍不划算。
+ *
+ * limit 不传就用设置里的值，填 0 表示不封顶：不封顶就没有「够数就停」，
+ * 常见词也得扫完全库，慢是慢在这儿，不是别的地方。
  *
  * chatId 传了就只搜这一段对话。
  */
-export function searchMessages(query, { chatId = '', limit = DEFAULT_LIMIT, onBatch } = {}) {
+export function searchMessages(query, { chatId = '', limit = null, onBatch } = {}) {
   const q = String(query || '').trim().toLowerCase();
+  // 0 和不传都表示不封顶；不封顶就没法提前停，常见词也得扫全库。
+  const cap = limit == null ? defaultLimit() : Math.max(0, limit);
   let cancelled = false;
   const hits = [];
 
@@ -121,7 +129,7 @@ export function searchMessages(query, { chatId = '', limit = DEFAULT_LIMIT, onBa
           // V8 对没有大写字母的字符串直接返回原串，不会多占内存。
           if (String(m.content).toLowerCase().includes(q)) {
             hits.push(m.id);
-            if (hits.length >= limit) { finish(true, true); return; }
+            if (cap && hits.length >= cap) { finish(true, true); return; }
           }
         }
 

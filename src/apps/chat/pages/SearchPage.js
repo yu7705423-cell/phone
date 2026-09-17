@@ -8,7 +8,8 @@ const { db, nav, search } = phone;
 // 敲字和开扫之间隔这么久。每敲一下就开一轮，扫到一半又被下一下取消，
 // 白扫的比扫完的还多。
 const DEBOUNCE = 140;
-const LIMIT = 200;
+// 一次最多给多少条结果。设置里能改，填 0 就是全给。
+const limitOf = () => db.settings.get().searchLimit || 0;
 
 // 全局搜索要回答的是「这句话在哪儿说的」，所以标题写会话，自己说的那条
 // 在正文前加一个「我」；在一段对话里搜则相反 —— 会话是同一个，
@@ -79,7 +80,7 @@ export function SearchPage({ chatId }) {
       // 一片一片往上加。罕见词要把十几万条都过一遍，但先扫到的就是最新的，
       // 不必等整轮扫完才看得见第一条。
       const job = search.searchMessages(text, {
-        chatId, limit: LIMIT,
+        chatId, limit: limitOf(),
         onBatch: (found, finished) => {
           setHits(found.slice());
           if (finished) setState('done');
@@ -135,7 +136,7 @@ export function SearchPage({ chatId }) {
               <${HitRow} key=${id} id=${id} q=${query} scoped=${scoped} onOpen=${open}/>`)}
           </div>
           ${state === 'running' ? html`<div class="search-note">正在搜索</div>`
-            : more ? html`<div class="search-note">仅显示最近 ${LIMIT} 条结果，请输入更具体的关键词</div>`
+            : more ? html`<div class="search-note">仅显示最近 ${limitOf()} 条结果，请输入更具体的关键词</div>`
             : html`<div class="search-note">共 ${hits.length} 条</div>`}`}
       </div>
     <//>`;

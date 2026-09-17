@@ -95,7 +95,8 @@ function budgets(total) {
 
 // 扫描窗口:最近 N 条消息拼接。世界书与 B 级记忆共用同一个窗口。
 function scanTextOf(msgs, n) {
-  return msgs.slice(-n).map(m => m.content || '').join('\n');
+  const list = n > 0 ? msgs.slice(-n) : msgs;   // 0 = 扫整段对话
+  return list.map(m => m.content || '').join('\n');
 }
 
 // 查询向量。扫描窗口那段文字拿去算一次，交给记忆块做语义检索。
@@ -190,7 +191,8 @@ export function currentTurn(msgs) {
 
 // 从尾往前数 n 个起点，取这 n 轮。不足 n 轮就全给。
 export function takeTurns(msgs, n) {
-  const limit = Math.max(1, Math.round(n) || 1);
+  const limit = Math.max(0, Math.round(n) || 0);
+  if (!limit) return msgs.slice();          // 0 = 整段对话都要
   let seen = 0;
   for (let i = msgs.length - 1; i >= 0; i--) {
     const start = msgs[i].role === 'user' && (i === 0 || msgs[i - 1].role !== 'user');
@@ -229,13 +231,16 @@ export function buildHistory(chat, char, msgs, opts = {}) {
   const s = settings.get();
   const isGroup = (chat.characterIds || []).length > 1;
   const byTurn = s.historyMode === 'turn';
+  // 条数和轮数都可以填 0，表示整段对话都进上下文（见 CLAUDE.md 第 13 条）。
+  // 真正兜底的是下面的 contextBudget，它按 token 算，不按条数算。
+  const capped = s.historyLimit > 0;
   const scope = byTurn
     ? takeTurns(msgs, s.historyTurns)
-    : msgs.slice(-Math.max(2, s.historyLimit * 2));
+    : capped ? msgs.slice(-Math.max(2, s.historyLimit * 2)) : msgs.slice();
   const kept = takeLatestWithin(scope, s.contextBudget, m => m.content || '');
 
   const pics = opts.images || null;
-  const view = byTurn ? kept : kept.slice(-s.historyLimit);
+  const view = (byTurn || !capped) ? kept : kept.slice(-s.historyLimit);
   const view2 = view.map((m, i) => {
     const mine = m.role === 'char' && m.authorId === char.id;
     const text = timeLine(m, view[i - 1]) + withQuote(m);
@@ -268,8 +273,9 @@ export function mergeAdjacent(list) {
 //   1. **system 只拼一次**，在通话开始时算好，整通电话复用。世界书、记忆、
 //      人设在通话期间不会变，每轮重算一遍纯属白花时间（还要多跑一次向量检索）。
 //   2. **回复上限压到几百 token**。电话里说一两句就停，给再多也用不上，
-//      给多了反而会诱导它一口气讲完。
-const CALL_MAX = 400;
+//      给多了反而会诱导它一口气讲完。这个数用户可以改，填 0 就是不压，
+//      退回接口本身的上限（见 CLAUDE.md 第 13 条）。
+const callMax = () => settings.get().callMaxTokens || 0;
 
 export async function buildCallSystem(chat, char) {
   const msgs = messagesOf(chat.id).filter(m => m.status !== 'error');
@@ -304,7 +310,7 @@ export function streamCall({ chat, char, system, lines = [], opening = '', image
   }
 
   return enqueue(callKey(chat.id), signal => withFallback(c => getProvider(c.provider)
-    .stream(c, { system, messages: all, maxTokens: CALL_MAX, signal, onDelta })),
+    .stream(c, { system, messages: all, maxTokens: callMax() || c.maxTokens, signal, onDelta })),
     { replace: true, retries: 1 });
 }
 

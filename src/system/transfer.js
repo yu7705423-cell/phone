@@ -15,8 +15,6 @@ export const PENDING = 'pending';
 export const TAKEN = 'taken';
 export const RETURNED = 'returned';
 
-export const MAX = 1000000;
-
 // 金额落库前收口到当前币种该有的位数（人民币两位、日元零位），
 // 免得 0.1 + 0.2 那种东西跑到界面上。
 export const money = currency.round;
@@ -48,7 +46,6 @@ export function namesOf(chat) {
 export function send({ chatId, role, authorId, amount, note = '', extra = {} }) {
   const v = money(amount);
   if (!(v > 0)) throw new Error('金额需大于 0');
-  if (v > MAX) throw new Error(`金额不能超过 ${format(MAX)}`);
   const text = String(note || '').trim().slice(0, 40);
   // 币种记在这一笔上。之后改设置只影响新发的，已经发出去的不动。
   const code = currency.current().code;

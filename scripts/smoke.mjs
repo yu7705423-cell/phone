@@ -20,7 +20,7 @@ const ROUTES = {
   memory: ['/', '/import', '/edit/:mem'],
   lorebook: ['/'],
   settings: ['/', '/api', '/voice', '/image', '/embed', '/notify', '/music',
-    '/appearance', '/storage', '/vision', '/asr'],
+    '/appearance', '/storage', '/vision', '/asr', '/limits'],
 };
 
 // 本项目不装 npm 依赖（CLAUDE.md 第 9 条），所以 playwright 从别处借：

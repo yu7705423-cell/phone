@@ -37,7 +37,7 @@ export function listFor(charId, personaId) {
 // queryVec 由 build() 提前算好传进来 —— 这一层是同步的，不能在这里发请求。
 export function selectByVector(charId, scanText, budget, queryVec, opts = {}) {
   const personaId = opts.personaId || null;
-  const topK = opts.topK || 12;
+  const topK = opts.topK > 0 ? opts.topK : Infinity;   // 0 = 全都要
   const floor = typeof opts.threshold === 'number' ? opts.threshold : 0.22;
   const text = String(scanText || '').toLowerCase();
 
@@ -57,7 +57,7 @@ export function selectByVector(charId, scanText, budget, queryVec, opts = {}) {
 
   const pool = [
     ...pinned.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0)),
-    ...scored.slice(0, topK).map(x => x.m),
+    ...(topK === Infinity ? scored : scored.slice(0, topK)).map(x => x.m),
   ];
   return takeTopWithin(pool, budget, m => m.content || '');
 }
@@ -90,7 +90,7 @@ export function build(ctx) {
   const { items } = useVec
     ? selectByVector(char?.id, scanText, budgets.memory, queryVec, {
       personaId,
-      topK: settings.memoryTopK || 12,
+      topK: settings.memoryTopK,
       threshold: typeof settings.memoryThreshold === 'number' ? settings.memoryThreshold : 0.22,
     })
     : select(char?.id, scanText, budgets.memory, personaId);

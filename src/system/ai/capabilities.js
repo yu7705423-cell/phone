@@ -30,15 +30,14 @@ const WINDOW = 8;   // 往回看这么多条，判断这个能力最近是不是
 const usedRecently = (msgs, re) =>
   msgs.slice(-WINDOW).some(m => re.test(String(m.content || '')) || re.test(String(m.kind || '')));
 
-const STICKER_COLD = 12;   // 冷着的时候只列这么多个名字
-const STICKER_HOT = 60;
-
+// 列几个表情名字给模型。冷着的时候少列几个，热起来多列几个，
+// 两个数都在设置里，填 0 就是全列。
 function stickerNames(char, limit) {
   if (char.canSendSticker === false) return '';
   return stickers.all()
     .slice()
     .sort((a, b) => (b.useCount || 0) - (a.useCount || 0))
-    .slice(0, limit)
+    .slice(0, limit > 0 ? limit : Infinity)
     .map(s => String(s.name || '').trim())
     .filter(Boolean)
     .join('、');
@@ -71,8 +70,8 @@ export const CAPS = [
     on: ({ char }) => !!stickerNames(char, 1),
     always: true,
     hot: ({ msgs }) => usedRecently(msgs, /^sticker$|[[【]表情/),
-    detail: ({ char, hot }) => fillTemplate(template('skeleton.sticker'), {
-      names: stickerNames(char, hot ? STICKER_HOT : STICKER_COLD),
+    detail: ({ char, hot, settings }) => fillTemplate(template('skeleton.sticker'), {
+      names: stickerNames(char, hot ? (settings.stickerHot || 0) : (settings.stickerCold || 0)),
     }),
   },
   {

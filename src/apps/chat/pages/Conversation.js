@@ -14,8 +14,9 @@ import { TransferBubble, NoticeLine, TransferSheet, SettleSheet,
 
 const { db, nav, ai, call } = phone;
 
-// 一屏装不下这么多，但往上翻几下够用；不够再按按钮要下一段
-const PAGE = 200;
+// 一屏装不下这么多，但往上翻几下够用；不够再按按钮要下一段。
+// 见 CLAUDE.md 第 13 条：这是默认值不是上限，设置里填 0 就一次画全。
+const pageSize = () => db.settings.get().chatPage || Infinity;
 
 // 点引用块跳回原话。闪一下再停，不然滚过去了也不知道是哪条。
 function jumpTo(id) {
@@ -167,7 +168,7 @@ export function Conversation({ chatId, focusId = '' }) {
   const [listenLog, setListenLog] = useState(null); // 正在看的那一场
   // 只画最近这么多条。聊了两万条的会话一次性铺出来要一两秒，手机上十几秒，
   // 而且往上翻从来也不会翻到那么远。不够就按「查看更早的消息」再要一段。
-  const [shown, setShown] = useState(PAGE);
+  const [shown, setShown] = useState(pageSize);
   const bodyRef = useRef(null);
   const keepRef = useRef(0);      // 加载更早时用来把滚动位置钉住
   const recRef = useRef(null);
@@ -231,7 +232,7 @@ export function Conversation({ chatId, focusId = '' }) {
   }, [recSec < 0]);
 
   // 换一段对话就把窗口收回去，不然从长会话退出来再进短的，窗口还开着
-  useEffect(() => { setShown(PAGE); }, [chatId]);
+  useEffect(() => { setShown(pageSize()); }, [chatId]);
 
   const landed = useRef(false);
   useEffect(() => { landed.current = false; }, [chatId, focusId]);
@@ -530,7 +531,7 @@ export function Conversation({ chatId, focusId = '' }) {
 
   const loadEarlier = () => {
     keepRef.current = bodyRef.current?.scrollHeight || 0;
-    setShown(n => Math.max(n, window_) + PAGE);
+    setShown(n => Math.max(n, window_) + pageSize());
   };
 
   const togglePick = msg => setPicked(cur =>

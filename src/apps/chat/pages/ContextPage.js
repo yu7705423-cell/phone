@@ -1,6 +1,6 @@
 import { html, useState } from '../../../lib.js';
 import { phone, useStore } from '../../../sdk/index.js';
-import { Page, List, ListItem, Field, Input, Switch, Segmented, Icon, toast } from '../../../ui/index.js';
+import { Page, List, ListItem, Field, Input, NumberInput, Switch, Segmented, Icon, toast } from '../../../ui/index.js';
 
 const { db, nav, ai } = phone;
 
@@ -49,9 +49,8 @@ export function ContextPage() {
     setDraft(v);
     const n = parseInt(v, 10);
     if (!Number.isFinite(n) || n < 1) return;
-    const next = Math.min(n, 999);
-    setRemembered(next);
-    db.settings.set({ autoSummarizeInterval: next });
+    setRemembered(n);
+    db.settings.set({ autoSummarizeInterval: n });
   };
 
   const toggleAuto = on => {
@@ -120,37 +119,47 @@ export function ContextPage() {
           subtitle=${byTurn
             ? '按轮次截取。一轮为用户的连续发言与角色随后的连续回复，整轮进入或整轮不进入。'
             : '按条数截取。可能只取到一轮的后半段，角色看不到你这一轮开头说了什么。'}
-          right=${html`<span>${byTurn ? `${s.historyTurns} 轮` : `${s.historyLimit} 条`}</span>`}/>
+          right=${html`<span>${byTurn
+            ? (s.historyTurns ? `${s.historyTurns} 轮` : '全部')
+            : (s.historyLimit ? `${s.historyLimit} 条` : '全部')}</span>`}/>
       <//>
       <div class="pad-x">
         <${Segmented} value=${byTurn ? 'turn' : 'count'} items=${HISTORY_MODES}
           onChange=${v => db.settings.set({ historyMode: v })}/>
       </div>
-      <div class="pad-x">
-        ${byTurn
-          ? html`<input type="range" min="1" max="40" step="1" value=${s.historyTurns}
-              onInput=${e => db.settings.set({ historyTurns: parseInt(e.target.value, 10) })}/>`
-          : html`<input type="range" min="4" max="60" step="2" value=${s.historyLimit}
-              onInput=${e => db.settings.set({ historyLimit: parseInt(e.target.value, 10) })}/>`}
+      <div class="pad-x pad-b">
+        <${Field} desc="填 0 表示不按条数或轮数截断，整段对话全部进入上下文。
+          无论填多少，超出「上下文预算」的部分仍会从最早的一条开始舍去。">
+          ${byTurn
+            ? html`<${NumberInput} value=${s.historyTurns} unit="轮" placeholder="全部"
+                onChange=${v => db.settings.set({ historyTurns: v })}/>`
+            : html`<${NumberInput} value=${s.historyLimit} unit="条" placeholder="全部"
+                onChange=${v => db.settings.set({ historyLimit: v })}/>`}
+        <//>
       </div>
 
       <${List}>
         <${ListItem} title="扫描窗口" multiline
           subtitle="世界书与 B 级记忆在最近若干条消息中匹配关键词。窗口过窄会导致漏检：上一句提到「下周面试」，下一句的「好紧张」将无法命中。"
-          right=${html`<span>${s.scanWindow}</span>`}/>
+          right=${html`<span>${s.scanWindow || '全部'}</span>`}/>
       <//>
-      <div class="pad-x">
-        <input type="range" min="1" max="20" step="1" value=${s.scanWindow}
-          onInput=${e => db.settings.set({ scanWindow: parseInt(e.target.value, 10) })}/>
+      <div class="pad-x pad-b">
+        <${Field} desc="填 0 表示在整段对话中匹配。窗口越大命中越多，注入的条目也越多。">
+          <${NumberInput} value=${s.scanWindow} unit="条" placeholder="全部"
+            onChange=${v => db.settings.set({ scanWindow: v })}/>
+        <//>
       </div>
 
       <${List}>
         <${ListItem} title="注入预算" subtitle="世界书与记忆合计占用的 token 上限"
-          right=${html`<span>${s.contextBudget}</span>`}/>
+          right=${html`<span>${s.contextBudget || '不限'}</span>`}/>
       <//>
-      <div class="pad-x">
-        <input type="range" min="1000" max="30000" step="500" value=${s.contextBudget}
-          onInput=${e => db.settings.set({ contextBudget: parseInt(e.target.value, 10) })}/>
+      <div class="pad-x pad-b">
+        <${Field} desc="按粗估的 token 数截断。填 0 表示不截断，命中的条目全部注入，
+          请求体与费用随之增长。">
+          <${NumberInput} value=${s.contextBudget} unit="token" placeholder="不限"
+            onChange=${v => db.settings.set({ contextBudget: v })}/>
+        <//>
       </div>
 
       <${List} title="记忆">
@@ -171,12 +180,12 @@ export function ContextPage() {
           <${Field} label="间隔轮数"
             desc="填角色回复的轮数。数值越小记得越勤，接口调用也越频繁；
               不确定就先用 6，一段完整的来回大概就是这个量。">
-            <div class="round-row">
-              <${Input} type="number" inputmode="numeric" min="1" max="999"
+            <div class="num-row">
+              <${Input} type="number" inputmode="numeric" min="1"
                 value=${draft ?? String(interval)}
                 onInput=${onRounds}
                 onBlur=${() => setDraft(null)}/>
-              <span class="round-unit">轮</span>
+              <span class="num-unit">轮</span>
             </div>
           <//>
         </div>`
@@ -194,10 +203,11 @@ export function ContextPage() {
       <//>
       ${vecReady && s.memoryVector !== false ? html`
         <div class="pad-x">
-          <${Field} label=${`最多取 ${s.memoryTopK || 12} 条`}
-            desc="S 级记忆始终注入，不计入此上限。其余记忆按相似度排序后取前若干条。">
-            <input type="range" min="3" max="40" step="1" value=${s.memoryTopK || 12}
-              onInput=${e => db.settings.set({ memoryTopK: parseInt(e.target.value, 10) })}/>
+          <${Field} label="最多取几条"
+            desc="S 级记忆始终注入，不计入此数。其余记忆按相似度排序后取前若干条。
+              填 0 表示凡是超过相似度门槛的全部取用，仍受上面的注入预算约束。">
+            <${NumberInput} value=${s.memoryTopK} unit="条" placeholder="全部"
+              onChange=${v => db.settings.set({ memoryTopK: v })}/>
           <//>
           <${Field} label=${`相似度门槛 ${(s.memoryThreshold ?? 0.22).toFixed(2)}`}
             desc="相似度低于该值视为无关。调高更精准但易漏检，调低召回更多但会引入噪音。">

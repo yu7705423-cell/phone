@@ -1,5 +1,5 @@
 import { createStore } from './store.js';
-import { chats, characters, messages, songs, files } from './db/index.js';
+import { chats, characters, messages, songs, files, settings } from './db/index.js';
 import * as music from './music.js';
 import * as netease from './netease.js';
 
@@ -33,13 +33,14 @@ let tick = null;
 let songSec = 0;          // 这一首自己放了多久，打卡要用
 
 // 放够这么久才算「听过」。网易云自己的客户端也是放一会儿才打卡，
-// 刚点开就切走的那种不该记进听歌记录。
-const SCROBBLE_AFTER = 30;
+// 刚点开就切走的那种不该记进听歌记录。用户可以改，填 0 就是一放就打卡。
+const scrobbleAfter = () => Math.max(0, settings.get().scrobbleAfter || 0);
 
 // 给两个号各打一次卡。不 await —— 打卡慢一点不该让换歌卡住。
 function scrobbleNow(song, seconds, charId) {
   if (!song || song.source !== 'netease' || !song.neteaseId) return;
-  if (seconds < Math.min(SCROBBLE_AFTER, song.seconds || SCROBBLE_AFTER)) return;
+  const after = scrobbleAfter();
+  if (after && seconds < Math.min(after, song.seconds || after)) return;
   netease.scrobble(song.neteaseId, seconds, charId).catch(() => {});
 }
 

@@ -694,11 +694,6 @@ input[type="range"] {
   font-size: var(--fs-12); color: var(--text-3);
 }
 
-/* 自己填轮数 */
-.round-row { display: flex; align-items: center; gap: var(--sp-3); }
-.round-row input { flex: 1; min-width: 0; }
-.round-unit { flex: none; font-size: var(--fs-15); color: var(--text-3); }
-
 /* 译文收在原文气泡里。点一下展开，不单独占一条消息，也不另加按钮 */
 .bubble.has-trans { cursor: pointer; }
 .bubble-trans {

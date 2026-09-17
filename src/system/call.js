@@ -128,8 +128,10 @@ function hush() {
   if (player) { try { player.pause(); } catch { /* 已经停了 */ } player = null; }
 }
 
+// 视频通话里两帧画面之间至少隔这么久。用户可以改，填 0 就是每轮都带。
+const frameGap = () => Math.max(0, settings.get().callFrameGap || 0) * 1000;
+
 // 句末标点处切开。切不出整句就先攒着 —— 半句念出来比等一下更难听。
-const FRAME_GAP = 8000;
 const SENT = /^[\s\S]*?[。！？!?…；;]+/;
 function takeSentences(buf) {
   const out = [];
@@ -303,7 +305,7 @@ async function turn(opening) {
   // 一轮最多带一帧，而且离上一帧至少这么久 —— 你来我往说得快的时候，
   // 每句话都传一张图，贵得没道理，画面也没怎么变。
   let frame = null;
-  if (charCanSee() && Date.now() - framedAt > FRAME_GAP) {
+  if (charCanSee() && Date.now() - framedAt >= frameGap()) {
     frame = camera.grab();
     if (frame) framedAt = Date.now();
   }
