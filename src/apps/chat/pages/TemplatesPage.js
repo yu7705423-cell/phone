@@ -30,6 +30,7 @@ const LABELS = {
   'task.chat-summarize': '任务 · 压缩历史',
   'task.card-import': '任务 · 导入角色卡',
   'task.npc-batch': '任务 · 批量生成 NPC',
+  'task.event-batch': '任务 · 批量生成随机事件',
   'task.char-alt': '任务 · 角色创建小号',
   'task.proactive': '任务 · 主动发起对话',
   'task.vision-describe': '任务 · 识图描述',

@@ -21,6 +21,7 @@ const ROUTES = {
   lorebook: ['/'],
   space: ['/', '/space/:chat', '/days/:chat', '/pacts/:chat', '/mail/:chat',
     '/log/:chat/gift', '/log/:chat/location', '/log/:chat/listen', '/log/:chat/call'],
+  daily: ['/', '/gen', '/cell/env/good', '/cell/social/bad', '/cell/luck/plain'],
   settings: ['/', '/api', '/voice', '/image', '/embed', '/notify', '/music',
     '/appearance', '/storage', '/vision', '/asr', '/limits'],
 };
@@ -55,6 +56,12 @@ const ids = await page.evaluate(async () => {
   db.messages.create({ chatId: chat.id, role: 'user', kind: 'text', content: '嗨', status: 'done' });
   const mem = db.memories.create({ scope: `character:${a.id}`, content: '一条记忆', category: 'fact', rank: 'A', keywords: [], personaId: me.id });
   db.lorebooks.create({ name: '一本世界书', entries: [] });
+
+  // 事件库也要有几条，空库只走空状态
+  const events = await import('/src/system/events.js');
+  events.add({ domain: 'env', tone: 'good', rarity: 'common', text: '路上一路绿灯' });
+  events.add({ domain: 'social', tone: 'bad', rarity: 'common', text: '被临时叫去加班' });
+  events.add({ domain: 'luck', tone: 'plain', rarity: 'rare', text: '排队时前面的人让了位' });
 
   // 情侣空间的几页要有东西才走得到真正的分支，空状态跑不出问题
   const space = await import('/src/system/space.js');

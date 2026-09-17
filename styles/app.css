@@ -961,3 +961,22 @@ button.search-bar { width: 100%; border: none; }
 .letter-title { font-size: var(--fs-16); font-weight: var(--fw-medium); }
 .bubble-pact.is-done { opacity: .62; }
 .bubble-pact.is-done .pact-title { text-decoration: line-through; }
+
+/* ---- 随机事件库的九宫格 ---- */
+.ev-grid {
+  display: grid; grid-template-columns: auto repeat(3, 1fr);
+  gap: var(--sp-2); align-items: stretch; margin-bottom: var(--sp-4);
+}
+.ev-head {
+  display: flex; align-items: center; justify-content: center;
+  font-size: var(--fs-12); color: var(--text-3); padding: var(--sp-1) 0;
+}
+.ev-head.is-row { justify-content: flex-end; padding-right: var(--sp-2); }
+.ev-cell {
+  padding: var(--sp-4) 0; border-radius: var(--r-md);
+  background: var(--group-fill); color: var(--text);
+}
+.ev-cell b { font-size: var(--fs-20); font-weight: var(--fw-semi); font-variant-numeric: tabular-nums; }
+.ev-cell.is-empty { color: var(--text-3); }
+.ev-input { display: flex; flex-direction: column; gap: 2px; }
+.ev-have { font-size: var(--fs-11); color: var(--text-3); text-align: center; }

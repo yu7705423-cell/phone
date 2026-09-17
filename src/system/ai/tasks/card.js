@@ -90,7 +90,7 @@ export async function generateNpcs(charId, count = 4, { signal } = {}) {
   const system = fillTemplate(template('task.npc-batch'), {
     charName: char.name,
     charPersona: char.persona || '（没写人设）',
-    count: Math.max(1, Math.min(8, count)),
+    count: Math.max(1, Math.round(count) || 1),
     existing: known ? `## 她身边已经有这些人（别重复）\n${known}` : '',
   });
 

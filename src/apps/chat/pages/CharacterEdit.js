@@ -115,6 +115,19 @@ export function CharacterEdit({ id }) {
           subtitle="角色可以送礼物给你，也可以拆开或拒收你送的礼物。礼物封面与实际内容可以不一致"
           right=${html`<${Switch} checked=${char.canSendGift !== false}
             onChange=${v => patch({ canSendGift: v })}/>`}/>
+        <${ListItem} title="约定" multiline
+          subtitle="角色可以提出约定，也可以把做到的约定标记为完成。约定记在情侣空间中"
+          right=${html`<${Switch} checked=${char.canPact !== false}
+            onChange=${v => patch({ canPact: v })}/>`}/>
+        <${ListItem} title="写信" multiline
+          subtitle="角色可以写信，信会放进情侣空间的信箱。关闭后角色不再写信，你仍可写给角色"
+          right=${html`<${Switch} checked=${char.canWriteLetter !== false}
+            onChange=${v => patch({ canWriteLetter: v })}/>`}/>
+        <${ListItem} title="随机事件" multiline
+          subtitle=${`角色的每一天可能撞上一件事，从「日常」的事件库中由本地随机数抽取，`
+            + `不消耗接口调用。关闭后这个角色不再遇到随机事件`}
+          right=${html`<${Switch} checked=${char.eventsOn !== false}
+            onChange=${v => patch({ eventsOn: v })}/>`}/>
         <${ListItem} title="位置" multiline
           subtitle=${char.timezone
             ? `角色会发送所在地的地点。地点以所在时区「${clock.zoneLabel(char.timezone)}」为准`

@@ -1,12 +1,10 @@
 import { html, useState } from '../../lib.js';
 import { phone, useStore } from '../../sdk/index.js';
-import { Page, List, ListItem, Field, Input, Segmented, Button, Icon, Spinner,
-         Sheet, EmptyState, toast, prompt } from '../../ui/index.js';
+import { Page, List, ListItem, Field, Input, Button, Icon, Spinner,
+         Sheet, EmptyState, NumberInput, toast, prompt } from '../../ui/index.js';
 
 const { db, nav, ai } = phone;
 const card = ai.card;
-
-const COUNTS = [2, 4, 6, 8].map(v => ({ value: v, label: `${v} 个` }));
 
 // 关联角色：手动挑一个连上，或者让模型一次生成一批。
 export function NpcPage({ id }) {
@@ -114,7 +112,9 @@ export function NpcPage({ id }) {
             subtitle="可能包含家人、同学、旧识、对手等。生成结果先行展示，取消勾选后再保存"/>
         <//>
         <div class="pad">
-          <${Segmented} value=${count} items=${COUNTS} onChange=${setCount}/>
+          <${Field} label="生成几个" desc="没有上限，填多少生成多少。数量越多，这一次请求也越长。">
+            <${NumberInput} unit="个" min=${1} value=${count} onChange=${setCount}/>
+          <//>
         </div>
         <div class="pad">
           <${Button} full disabled=${busy} onClick=${gen}>

@@ -47,6 +47,14 @@ export function LimitsPage() {
             onChange=${v => set({ stickerCold: v })}/>
         <//>
 
+        <${Field} label="批量生成时发多少条已有词条"
+          desc="批量生成随机事件时，会把该格已有的词条一并发给模型以避免重复。
+            条数越多重复越少，每次请求也越长。填 0 表示全部发送。
+            无论此处如何设置，入库时都会再比对一次。">
+          <${NumberInput} value=${s.eventDedupeList} unit="条" placeholder="全部"
+            onChange=${v => set({ eventDedupeList: v })}/>
+        <//>
+
         <${Field} label="表情名单长度（最近用过时）"
           desc="最近的消息中出现过表情包时改用这个数量。
             此时角色正在用表情，给出的名称越多可选范围越大。填 0 表示全部列出。">

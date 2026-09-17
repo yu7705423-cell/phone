@@ -39,6 +39,9 @@ import * as currencyApi from '../system/currency.js';
 import * as placeApi from '../system/place.js';
 import * as giftApi from '../system/gift.js';
 import * as spaceApi from '../system/space.js';
+import * as eventsApi from '../system/events.js';
+import * as drawApi from '../system/draw.js';
+import * as eventBatch from '../system/ai/tasks/event-batch.js';
 import * as musicApi from '../system/music.js';
 import * as listenApi from '../system/listen.js';
 import * as neteaseApi from '../system/netease.js';
@@ -113,6 +116,7 @@ export const phone = {
     proactive: proactiveApi,
     charAlt: charAltApi,
     card: cardApi,
+    eventBatch,
     runWithPreset: engine.runWithPreset,
 
     queue: {
@@ -138,6 +142,8 @@ export const phone = {
   place: placeApi,
   gift: giftApi,
   space: spaceApi,
+  events: eventsApi,
+  draw: drawApi,
   music: musicApi,
   listen: listenApi,
   netease: neteaseApi,

@@ -54,6 +54,7 @@ export const BACKGROUND_TASKS = new Set([
   'card.import',       // 导入角色卡
   'card.npc',          // 批量生成关联 NPC
   'char.alt',          // 角色自己琢磨开小号
+  'event.batch',       // 批量生成随机事件
 ]);
 
 export function backgroundUsesSpare() {
