@@ -38,6 +38,7 @@ import * as transferApi from '../system/transfer.js';
 import * as currencyApi from '../system/currency.js';
 import * as placeApi from '../system/place.js';
 import * as giftApi from '../system/gift.js';
+import * as spaceApi from '../system/space.js';
 import * as musicApi from '../system/music.js';
 import * as listenApi from '../system/listen.js';
 import * as neteaseApi from '../system/netease.js';
@@ -136,6 +137,7 @@ export const phone = {
   currency: currencyApi,
   place: placeApi,
   gift: giftApi,
+  space: spaceApi,
   music: musicApi,
   listen: listenApi,
   netease: neteaseApi,

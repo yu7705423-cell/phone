@@ -1,4 +1,4 @@
-import { personas, chats, settings } from './db/index.js';
+import { personas, chats, settings, spaceItems } from './db/index.js';
 
 // 用户身份树。一个根账号（大号）下面挂若干小号。
 //
@@ -71,7 +71,12 @@ export function remove(id) {
   if (!p) return;
   const ids = [id, ...(p.parentId ? [] : altsOf(id).map(a => a.id))];
   ids.forEach(pid => {
-    chats.where(c => c.personaId === pid).forEach(c => chats.remove(c.id));
+    chats.where(c => c.personaId === pid).forEach(c => {
+      // 空间里自己存的那两样（纪念日、没寄出的信）跟着会话一起走。
+      // 这里不走 space.js：它要用本模块，静态互引会成环。
+      spaceItems.byIndex(c.id).forEach(x => spaceItems.remove(x.id));
+      chats.remove(c.id);
+    });
     personas.remove(pid);
   });
   if (ids.includes(settings.get().activePersonaId)) {

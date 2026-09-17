@@ -17,8 +17,10 @@ export const looks      = makeCollection('looks', 'look');
 export const personas   = makeCollection('personas', 'me');
 export const songs      = makeCollection('songs', 'song');
 export const playlists  = makeCollection('playlists', 'pl');
+// 情侣空间里自己存的那两样：纪念日、还没寄出的信。别的都是消息的视图。
+export const spaceItems = makeCollection('spaceItems', 'si', { indexBy: 'chatId' });
 
-const COLLECTIONS = { characters, lorebooks, memories, chats, messages, moments, stickers, looks, personas, songs, playlists };
+const COLLECTIONS = { characters, lorebooks, memories, chats, messages, moments, stickers, looks, personas, songs, playlists, spaceItems };
 
 // ---- kv: settings / persona / layout ----
 function makeKV(key, fallback, { deep = false } = {}) {
@@ -101,7 +103,7 @@ window.addEventListener('pagehide', () => { images.revokeAll(); files.revokeAll(
 
 export const db = {
   characters, lorebooks, memories, chats, messages, moments, stickers, looks, personas,
-  songs, playlists,
+  songs, playlists, spaceItems,
   images, files, settings, persona, layout,
   messagesOf, lastMessageOf, ready,
 };

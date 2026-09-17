@@ -79,6 +79,7 @@ export function MessagesTab() {
   const remove = async () => {
     if (!await confirm({ title: '删除会话', message: '聊天记录会一起删除，记忆保留。', danger: true })) return;
     db.messages.removeWhere(m => m.chatId === held.id);
+    phone.space.dropSpace(held.id);
     db.chats.remove(held.id);
     close();
   };

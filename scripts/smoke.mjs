@@ -19,6 +19,8 @@ const ROUTES = {
     '/edit/:char', '/profile/:char', '/net/:char', '/npc/:char'],
   memory: ['/', '/import', '/edit/:mem'],
   lorebook: ['/'],
+  space: ['/', '/space/:chat', '/days/:chat', '/pacts/:chat', '/mail/:chat',
+    '/log/:chat/gift', '/log/:chat/location', '/log/:chat/listen', '/log/:chat/call'],
   settings: ['/', '/api', '/voice', '/image', '/embed', '/notify', '/music',
     '/appearance', '/storage', '/vision', '/asr', '/limits'],
 };
@@ -53,6 +55,26 @@ const ids = await page.evaluate(async () => {
   db.messages.create({ chatId: chat.id, role: 'user', kind: 'text', content: '嗨', status: 'done' });
   const mem = db.memories.create({ scope: `character:${a.id}`, content: '一条记忆', category: 'fact', rank: 'A', keywords: [], personaId: me.id });
   db.lorebooks.create({ name: '一本世界书', entries: [] });
+
+  // 情侣空间的几页要有东西才走得到真正的分支，空状态跑不出问题
+  const space = await import('/src/system/space.js');
+  db.chats.update(chat.id, { loveStartAt: Date.now() - 86400000 * 100, spaceInject: true });
+  space.addDay({ chatId: chat.id, title: '认识的日子', date: '2025-03-04', yearly: true });
+  space.makePact({ chatId: chat.id, role: 'user', authorId: 'me', title: '一起去看海' });
+  const donePact = space.makePact({ chatId: chat.id, role: 'char', authorId: a.id, title: '早点睡' });
+  space.completePact(donePact.id);
+  space.sendLetter({ chatId: chat.id, role: 'char', authorId: a.id, title: '给你', body: '今天路过那家店' });
+  space.saveDraft({ chatId: chat.id, title: '还没寄', body: '想说又没说的话' });
+  const gift = await import('/src/system/gift.js');
+  gift.send({ chatId: chat.id, role: 'char', authorId: a.id, cover: '一盒糖', inner: '一张纸条' });
+  const place = await import('/src/system/place.js');
+  place.send({ chatId: chat.id, role: 'user', authorId: 'me', place: '海边', address: '滨海路 1 号' });
+  db.messages.create({ chatId: chat.id, role: 'user', authorId: 'me', kind: 'listen',
+    seconds: 1830, trackIds: [], content: '[一起听了 30 分钟，0 首]', status: 'done' });
+  db.messages.create({ chatId: chat.id, role: 'user', authorId: 'me', kind: 'call',
+    direction: 'out', outcome: 'done', seconds: 95, callKind: 'voice', callLog: [],
+    content: '[通话 01:35]', status: 'done' });
+
   return { char: a.id, chat: chat.id, mem: mem.id, persona: me.id };
 });
 await page.waitForTimeout(400);

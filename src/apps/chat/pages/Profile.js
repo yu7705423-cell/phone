@@ -50,6 +50,7 @@ export function Profile({ subjectId, embedded }) {
     })) return;
     db.chats.all().filter(c => (c.characterIds || []).includes(subjectId)).forEach(c => {
       db.messages.removeWhere(m => m.chatId === c.id);
+      phone.space.dropSpace(c.id);
       db.chats.remove(c.id);
     });
     db.memories.removeWhere(m => m.charId === subjectId);

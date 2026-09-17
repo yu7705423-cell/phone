@@ -7,6 +7,7 @@ import { StickerPanel, StickerSuggest } from './StickerPanel.js';
 import { StickerImg } from './StickerBits.js';
 import { MediaBubble } from './MediaBubble.js';
 import { MsgMenu } from './MsgMenu.js';
+import { PactBubble, LetterBubble, LetterSheet, PactSheet } from './SpaceBits.js';
 import { TransferBubble, NoticeLine, TransferSheet, SettleSheet,
          LocationBubble, LocationSheet, CallBubble, CallLogSheet,
          GiftBubble, GiftSheet, UnwrapSheet,
@@ -107,6 +108,10 @@ const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, onSwipe,
           ? html`<${CallBubble} msg=${msg} onOpen=${selecting ? null : onOpenLog}/>`
           : msg.kind === 'listen'
           ? html`<${ListenBubble} msg=${msg} onOpen=${selecting ? null : onOpenLog}/>`
+          : msg.kind === 'pact'
+          ? html`<${PactBubble} msg=${msg} onFinish=${selecting ? null : onOpenLog}/>`
+          : msg.kind === 'letter'
+          ? html`<${LetterBubble} msg=${msg} onOpen=${selecting ? null : onOpenLog}/>`
           : msg.kind === 'sticker'
           ? html`<div class="bubble-sticker">
               ${sticker ? html`<${StickerImg} sticker=${sticker} size=${112}/>`
@@ -166,6 +171,8 @@ export function Conversation({ chatId, focusId = '' }) {
   const [gifting, setGifting] = useState(false); // 送礼物面板开着
   const [unwrap, setUnwrap] = useState(null);    // 正在拆的那一件
   const [listenLog, setListenLog] = useState(null); // 正在看的那一场
+  const [letter, setLetter] = useState(null);    // 正在读的那封信
+  const [pact, setPact] = useState(null);        // 正在标完成的那条约定
   // 只画最近这么多条。聊了两万条的会话一次性铺出来要一两秒，手机上十几秒，
   // 而且往上翻从来也不会翻到那么远。不够就按「查看更早的消息」再要一段。
   const [shown, setShown] = useState(pageSize);
@@ -538,9 +545,14 @@ export function Conversation({ chatId, focusId = '' }) {
     cur.includes(msg.id) ? cur.filter(x => x !== msg.id) : [...cur, msg.id]);
 
   // 上面那几个每次渲染都是新函数，兜进 ref 里，对外的 stable 不变
+  // 「点开看」这一件事四种气泡共用一个入口，按 kind 分流。各给一个 prop 的话，
+  // 气泡的记忆化就得多认四个函数身份，流式回复时每来一段都要重画一屏。
+  const openLog = m => (m.kind === 'listen' ? setListenLog(m)
+    : m.kind === 'letter' ? setLetter(m)
+    : m.kind === 'pact' ? setPact(m)
+    : setCallLog(m));
   latest.current = { onRetry, onSwipe, togglePick, onSettle: setSettling,
-    onOpenLog: m => (m.kind === 'listen' ? setListenLog(m) : setCallLog(m)),
-    onUnwrap: setUnwrap };
+    onOpenLog: openLog, onUnwrap: setUnwrap };
 
   const deletePicked = async () => {
     if (!picked.length) return;
@@ -693,6 +705,8 @@ export function Conversation({ chatId, focusId = '' }) {
       <${ListenLogSheet} msg=${listenLog} onClose=${() => setListenLog(null)}/>
       <${GiftSheet} open=${gifting} chatId=${chatId} onClose=${() => setGifting(false)}/>
       <${UnwrapSheet} msg=${unwrap} onClose=${() => setUnwrap(null)}/>
+      <${LetterSheet} msg=${letter} onClose=${() => setLetter(null)}/>
+      <${PactSheet} msg=${pact} onClose=${() => setPact(null)}/>
       <${TransferSheet} open=${paying} chatId=${chatId} onClose=${() => setPaying(false)}/>
       <${LocationSheet} open=${placing} chatId=${chatId} onClose=${() => setPlacing(false)}/>
       <${SettleSheet} msg=${settling} onClose=${() => setSettling(null)}/>

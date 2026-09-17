@@ -19,6 +19,8 @@ const LABELS = {
   'skeleton.voice': '骨架 · 发语音',
   'skeleton.gift': '骨架 · 送礼物',
   'skeleton.listen': '骨架 · 一起听歌',
+  'skeleton.pact': '骨架 · 约定',
+  'skeleton.letter': '骨架 · 写信',
   'skeleton.ring': '骨架 · 打电话',
   'skeleton.call': '骨架 · 通话中',
   'task.call-open': '任务 · 通话接通后开口',

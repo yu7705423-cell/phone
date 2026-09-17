@@ -13,10 +13,13 @@ import * as transfer from '../transfer.js';
 import * as place from '../place.js';
 import * as gift from '../gift.js';
 import * as music from '../music.js';
+import * as space from '../space.js';
 
 // 角色回复里可以带这几种标记，由模型自己决定什么时候用。
 // 中英文冒号都认，方括号也认全角。
-const MARK = /[[【]\s*(图片|照片|image|pic|语音|voice|audio|表情|sticker|emoji|转账|transfer|位置|定位|location|礼物|gift|点歌|建歌单)\s*[:：]\s*([^\]】]+)[\]】]/gi;
+// 「约定完成」必须排在「约定」前面 —— 交替是从左往右试的，反过来写
+// 「约定完成：早点睡」会先被「约定」吃掉，剩下「完成：早点睡」当成内容。
+const MARK = /[[【]\s*(图片|照片|image|pic|语音|voice|audio|表情|sticker|emoji|转账|transfer|位置|定位|location|礼物|gift|点歌|建歌单|约定完成|约定|pact|信|letter)\s*[:：]\s*([^\]】]+)[\]】]/gi;
 
 const IMAGE_KINDS = new Set(['图片', '照片', 'image', 'pic']);
 const STICKER_KINDS = new Set(['表情', 'sticker', 'emoji']);
@@ -24,6 +27,9 @@ const TRANSFER_KINDS = new Set(['转账', 'transfer']);
 const PLACE_KINDS = new Set(['位置', '定位', 'location']);
 const GIFT_KINDS = new Set(['礼物', 'gift']);
 const PICK_KINDS = new Set(['点歌']);
+const PACT_KINDS = new Set(['约定', 'pact']);
+const PACTDONE_KINDS = new Set(['约定完成']);
+const LETTER_KINDS = new Set(['信', 'letter']);
 const LIST_KINDS = new Set(['建歌单']);
 
 // 转账那一条里，金额在前，后面随手写的是留言
@@ -155,6 +161,16 @@ export function splitReply(raw) {
         push({ type: 'pick', name: body });
       } else if (LIST_KINDS.has(kind)) {
         push({ type: 'newlist', name: body });
+      } else if (PACT_KINDS.has(kind)) {
+        push({ type: 'pact', title: body });
+      } else if (PACTDONE_KINDS.has(kind)) {
+        push({ type: 'pactdone', title: body });
+      } else if (LETTER_KINDS.has(kind)) {
+        // 竖线前是信封上写的标题，后面是正文。不写竖线就整段都是正文。
+        const i = body.search(/[|｜]/);
+        const title = i < 0 ? '' : body.slice(0, i).trim();
+        const text = (i < 0 ? body : body.slice(i + 1)).trim();
+        if (text) push({ type: 'letter', title, text });
       } else if (GIFT_KINDS.has(kind)) {
         const g = gift.parse(body);
         if (g) push({ type: 'gift', ...g });
@@ -305,6 +321,23 @@ export function materialize(part, base, char) {
     const target = gift.pendingFrom(base.chatId, base.role === 'user' ? 'char' : 'user');
     return target ? gift.settle(target.id, part.open, row) : null;
   }
+  if (part.type === 'pact') {
+    return space.makePact({
+      chatId: base.chatId, role: base.role, authorId: base.authorId,
+      title: part.title, extra: row,
+    });
+  }
+  if (part.type === 'pactdone') {
+    // 认不出是哪一条约定就当没写过。凭空标完一条别的约定比不标更糟。
+    const target = space.findOpenPact(base.chatId, part.title);
+    return target ? space.completePact(target.id, row) : null;
+  }
+  if (part.type === 'letter') {
+    return space.sendLetter({
+      chatId: base.chatId, role: base.role, authorId: base.authorId,
+      title: part.title, body: part.text, extra: row,
+    });
+  }
   if (part.type === 'location') {
     return place.send({
       chatId: base.chatId, role: base.role, authorId: base.authorId,
@@ -387,7 +420,8 @@ export function dropMessage(id) {
   // 「已收款」「已拆开」那一行就是这件事的记录，删了它就当没处理过，
   // 那笔钱、那件礼物回到待处理。重新生成角色那一轮时整轮清空，走的也是这里。
   if (m.kind === 'notice' && m.settledId) {
-    (m.settledKind === 'gift' ? gift : transfer).unsettle(id);
+    if (m.settledKind === 'pact') space.unsettlePact(id);
+    else (m.settledKind === 'gift' ? gift : transfer).unsettle(id);
   }
   return messages.remove(id);
 }

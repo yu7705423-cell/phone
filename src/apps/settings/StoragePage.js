@@ -51,6 +51,7 @@ export function StoragePage() {
       chats: db.chats.all(),
       messages: db.messages.all(),
       moments: db.moments.all(),
+      spaceItems: db.spaceItems.all(),
       persona: db.persona.get(),
       personas: db.personas.all(),
       settings: { ...db.settings.get(), apiKey: '' },
@@ -77,7 +78,7 @@ export function StoragePage() {
     try {
       const data = JSON.parse(await file.text());
       if (data._format !== 'mini-phone-backup') throw new Error('不是小手机的备份文件');
-      const cols = ['characters', 'lorebooks', 'memories', 'chats', 'messages', 'moments'];
+      const cols = ['characters', 'lorebooks', 'memories', 'chats', 'messages', 'moments', 'spaceItems'];
       for (const name of cols) {
         await db[name].clear();
         (data[name] || []).forEach(r => db[name].put(r));
@@ -106,7 +107,7 @@ export function StoragePage() {
       message: '角色卡、世界书、记忆、聊天记录、动态与图片将全部删除，且无法恢复。',
     })) return;
     setBusy(true);
-    for (const n of ['characters', 'lorebooks', 'memories', 'chats', 'messages', 'moments']) {
+    for (const n of ['characters', 'lorebooks', 'memories', 'chats', 'messages', 'moments', 'spaceItems']) {
       await db[n].clear();
     }
     await Promise.all(db.images.ids().map(id => db.images.remove(id)));

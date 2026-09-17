@@ -7,6 +7,7 @@ import { isVoiceReady } from './voice.js';
 import { PENDING as TR_PENDING } from '../transfer.js';
 import { PENDING as GIFT_PENDING } from '../gift.js';
 import { listen } from '../listen.js';
+import { PACT_OPEN } from '../space.js';
 import { allSongs } from '../music.js';
 
 // 能力目录。
@@ -124,6 +125,22 @@ export const CAPS = [
     detail: ({ char }) => fillTemplate(template('skeleton.location'), {
       city: char.timezone ? `（你在${clock.zoneLabel(char.timezone)}）` : '',
     }),
+  },
+  {
+    id: 'pact',
+    on: ({ char }) => char.canPact !== false,
+    // 还欠着约定就必须是热的：它得知道「完成」怎么写，才标得掉
+    hot: ({ msgs }) => usedRecently(msgs, /^pact$|[[【]约定/)
+      || hasPending(msgs, 'pact', 'pact', PACT_OPEN),
+    line: () => '立约定：单独写一行 [约定：那件事]；做到了写 [约定完成：那件事]',
+    detail: () => template('skeleton.pact'),
+  },
+  {
+    id: 'letter',
+    on: ({ char }) => char.canWriteLetter !== false,
+    hot: ({ msgs }) => usedRecently(msgs, /^letter$|[[【]信[:：]/),
+    line: () => '写一封信：单独写一行 [信：信封上写什么 | 信的正文]',
+    detail: () => template('skeleton.letter'),
   },
   {
     id: 'time',

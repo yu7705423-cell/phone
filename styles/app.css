@@ -914,3 +914,50 @@ button.search-bar { width: 100%; border: none; }
   background: var(--surface); color: var(--text-2);
 }
 .row-acts { display: inline-flex; gap: var(--sp-3); }
+
+/* ---- 情侣空间 ---- */
+.sp-row {
+  display: flex; align-items: center; gap: var(--sp-3); width: 100%;
+  padding: var(--sp-3) var(--sp-4); text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+.sp-row:last-child { border-bottom: none; }
+.sp-row-body { flex: 1; min-width: 0; }
+.sp-row-name { font-size: var(--fs-16); font-weight: var(--fw-medium); }
+.sp-row-sub { font-size: var(--fs-12); color: var(--text-3); margin-top: 2px; }
+
+.sp-head { padding: var(--sp-6) var(--sp-4) var(--sp-4); text-align: center; }
+.sp-faces {
+  display: flex; align-items: center; justify-content: center; gap: var(--sp-4);
+  color: var(--text-3);
+}
+.sp-days {
+  display: block; margin: var(--sp-4) auto 0; padding: var(--sp-2) var(--sp-5);
+  border-radius: var(--r-full); background: var(--group-fill); color: var(--text-2);
+}
+.sp-days b {
+  display: block; font-size: var(--fs-24); font-weight: var(--fw-semi);
+  color: var(--text); line-height: 1.2; font-variant-numeric: tabular-nums;
+}
+.sp-days span { font-size: var(--fs-12); }
+
+.sp-thumb {
+  width: 32px; height: 32px; border-radius: var(--r-xs);
+  object-fit: cover; background: var(--surface-2);
+}
+.sp-letter {
+  white-space: pre-wrap; line-height: 1.8; font-size: var(--fs-15);
+  padding: var(--sp-4); border-radius: var(--r-md); background: var(--group-fill);
+}
+
+/* 约定与信的气泡。和转账、礼物同一套骨架 */
+.bubble-pact, .bubble-letter {
+  min-width: 168px; max-width: 232px; padding: var(--sp-3) var(--sp-4) 0;
+}
+.bubble-pact .tr-top, .bubble-letter .tr-top {
+  display: flex; align-items: center; gap: var(--sp-3); min-width: 0;
+}
+.pact-title { font-size: var(--fs-15); font-weight: var(--fw-medium); line-height: 1.45; }
+.letter-title { font-size: var(--fs-16); font-weight: var(--fw-medium); }
+.bubble-pact.is-done { opacity: .62; }
+.bubble-pact.is-done .pact-title { text-decoration: line-through; }
