@@ -1,7 +1,9 @@
 import { html, useState } from '../../lib.js';
 import { phone, useStore } from '../../sdk/index.js';
-import { Page, List, ListItem, Button, Icon, Field, Input, Textarea,
+import { Page, List, ListItem, Button, Icon, IconButton, Field, Input, Textarea,
          Segmented, EmptyState, toast, confirm } from '../../ui/index.js';
+
+import { ImportPage } from './ImportPage.js';
 
 const { db, nav, ai } = phone;
 const { CATEGORIES, RANKS } = ai.memory;
@@ -46,7 +48,10 @@ function MemoryList() {
 
   return html`
     <${Page} title="记忆"
-      right=${html`<button class="nav-text press" onClick=${add}>新建</button>`}>
+      right=${html`
+        <${IconButton} name="upload" label="从文字导入"
+          onClick=${() => nav.push('/import')}/>
+        <button class="nav-text press" onClick=${add}>新建</button>`}>
       <div class="pad-x pad-t">
         <div class="stat-row">
           ${stats.map(s => html`
@@ -79,7 +84,9 @@ function MemoryList() {
               arrow onClick=${() => nav.push(`/edit/${m.id}`)}/>`)}
         <//>`
       : html`<${EmptyState} icon="brain" title="还没有记忆"
-          desc="在会话里点「立即总结记忆」，或者在这里手动添加。"/>`}
+          desc="在会话里点「立即总结记忆」，手动添加，或者从别处粘一大段文字进来自动拆。"
+          action=${html`<${Button} size="sm" icon="upload"
+            onClick=${() => nav.push('/import')}>从文字导入<//>`}/>`}
     <//>`;
 }
 
@@ -143,6 +150,7 @@ function EditPage({ id }) {
 }
 
 export default function MemoryApp({ route }) {
+  if (route === '/import') return html`<${ImportPage}/>`;
   const edit = route?.match(/^\/edit\/(.+)$/);
   if (edit) return html`<${EditPage} id=${edit[1]}/>`;
   return html`<${MemoryList}/>`;

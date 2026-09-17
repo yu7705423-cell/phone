@@ -18,6 +18,7 @@ import * as embedApi from '../system/ai/embed.js';
 import * as memvecApi from '../system/ai/memvec.js';
 import * as loreCtx from '../system/ai/context/lorebook.js';
 import { extract, shouldAutoExtract, pendingOf } from '../system/ai/tasks/memory-extract.js';
+import * as memImport from '../system/ai/tasks/memory-import.js';
 import * as momentTasks from '../system/ai/tasks/moments.js';
 import { DEFAULT_TEMPLATES } from '../system/ai/templates.js';
 import * as svc from '../system/ai/services.js';
@@ -72,7 +73,7 @@ export const phone = {
     blocks: BLOCKS,
     defaultOrder: DEFAULT_ORDER,
     resolveOrder,
-    memory: { ...memoryCtx, extract, shouldAutoExtract, pendingOf },
+    memory: { ...memoryCtx, extract, shouldAutoExtract, pendingOf, import: memImport },
     embed: embedApi,
     memvec: memvecApi,
     lore: loreCtx,

@@ -29,6 +29,8 @@
 /* 字体 */
 .font-slot-val { max-width: 130px; font-size: var(--fs-14); color: var(--text-2); }
 .li-hint { font-size: var(--fs-13); color: var(--text-3); }
+/* 导入预览里被勾掉的那几条 */
+.is-off { opacity: .4; }
 .font-sample {
   font-size: var(--fs-17); color: var(--text); margin-top: 4px;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;

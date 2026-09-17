@@ -7,8 +7,9 @@ export const List = ({ children, title, inset = true }) => html`
     <div class=${`list${inset ? ' list-inset' : ''}`}>${children}</div>
   </div>`;
 
-export const ListItem = ({ title, subtitle, left, right, onClick, arrow, danger, multiline }) => html`
-  <div class=${`list-item${onClick ? ' is-tappable press' : ''}${danger ? ' is-danger' : ''}`}
+export const ListItem = ({ title, subtitle, left, right, onClick, arrow, danger, multiline,
+                          class: cls = '' }) => html`
+  <div class=${`list-item${onClick ? ' is-tappable press' : ''}${danger ? ' is-danger' : ''}${cls ? ' ' + cls : ''}`}
     onClick=${onClick}>
     ${left ? html`<div class="li-left">${left}</div>` : null}
     <div class=${`li-body${multiline ? ' li-multiline' : ''}`}>
