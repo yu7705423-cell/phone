@@ -141,3 +141,19 @@ node scripts/doctor.mjs
 - **hook 顺序**：hook 必须每次渲染都以相同顺序调用。在提前 return 之后再调
   hook，组件关闭再打开时数量就对不上，表现为状态串味或界面不刷新，而且
   不报异常，只会安静地出怪事。
+
+## 改完界面再跑一次冒烟
+
+```
+python3 -m http.server 8000 &
+SMOKE_PW=<某个装了 playwright 的目录> node scripts/smoke.mjs
+```
+
+把每个 app 的每条路由都打开一遍，看有没有页面炸掉。
+
+doctor 的「导入导出」只查模块之间的引用。**文件内部引用了一个不存在的函数
+它查不到** —— 那种错要到运行时打开那个页面才炸，而且 ErrorBoundary 会把它
+兜住，只留下一句「XX 已停止」。已经因此漏出去过两次。
+
+本项目不装 npm 依赖（第 7 条），所以 playwright 从别处借，用 `SMOKE_PW` 指过去。
+找不到就跳过，不拦提交。

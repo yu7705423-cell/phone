@@ -163,6 +163,13 @@ function MePage({ id }) {
   const alts = me.parentId ? [] : accounts.altsOf(me.id);
   const isCurrent = accounts.currentId() === me.id;
 
+  const addAlt = async () => {
+    const name = await prompt({ title: '开个小号', placeholder: `${me.name}的小号` });
+    if (name === null) return;
+    const a = accounts.createAlt(me.id, { name: (name || '').trim() || `${me.name}的小号` });
+    nav.push(`/me/${a.id}`);
+  };
+
   const del = async () => {
     if (accounts.roots().length <= 1 && !me.parentId) {
       toast('这是唯一的账号，删不了'); return;
@@ -233,17 +240,6 @@ function EditPage({ id }) {
       <${EmptyState} title="这个角色已被删除"/><//>`;
   }
   const patch = p => db.characters.update(id, p);
-
-  const addAlt = async () => {
-    const name = await prompt({ title: '给她开个小号', placeholder: `${char.name}的小号` });
-    if (name === null) return;
-    const a = db.characters.create({
-      name: (name || '').trim() || `${char.name}的小号`,
-      parentId: id, persona: '', signature: '',
-      lorebookIds: [], canSendVoice: true, canSendImage: true,
-    });
-    nav.push(`/profile/${a.id}`);
-  };
 
   const del = async () => {
     if (!await confirm({
