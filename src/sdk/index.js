@@ -29,6 +29,9 @@ import * as svc from '../system/ai/services.js';
 import { fetchModels, filterModels } from '../system/ai/models.js';
 import * as voice from '../system/ai/voice.js';
 import * as image from '../system/ai/image.js';
+import * as visionApi from '../system/ai/vision.js';
+import * as asrApi from '../system/ai/asr.js';
+import * as audioApi from '../system/audio.js';
 import * as stickerApi from '../system/stickers.js';
 import * as replyApi from '../system/ai/reply.js';
 import * as repairApi from '../system/ai/repair.js';
@@ -88,6 +91,8 @@ export const phone = {
     filterModels,
     voice,
     image,
+    vision: visionApi,
+    asr: asrApi,
     reply: replyApi,
     repair: repairApi,
     proactive: proactiveApi,
@@ -111,6 +116,7 @@ export const phone = {
   looks: looksApi,
   fonts: fontsApi,
   clock: clockApi,
+  audio: audioApi,
 
   intent: {
     open: intents.open,

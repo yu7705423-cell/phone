@@ -4,47 +4,61 @@ import { Icon, Spinner, toast } from '../../../ui/index.js';
 
 const { db } = phone;
 
-// 图片消息
+// 图片消息。角色发的是模型按描述生成的，用户发的是从相册选的 —— 后者已经在
+// 本地了，要等的是「识图」把它读成文字，角色才看得见。
 function ImageBubble({ msg }) {
   const url = useImage(msg.imageId);
-  if (msg.media === 'pending') {
+  const mine = msg.role === 'user';
+
+  if (!mine && msg.media === 'pending') {
     return html`
       <div class="bubble media-pending">
         <${Spinner} size=${16}/><span>正在生成图片</span>
       </div>`;
   }
-  if (msg.media === 'error' || msg.media === 'off') {
+  if (!mine && (msg.media === 'error' || msg.media === 'off')) {
     return html`
       <div class="bubble media-failed">
         <div class="media-prompt">[图片] ${msg.prompt}</div>
-        <div class="media-note">${msg.mediaError || '没生成出来'}</div>
+        <div class="media-note">${msg.mediaError || '生成失败'}</div>
       </div>`;
   }
   if (!url) return html`<div class="bubble media-pending"><${Spinner} size=${16}/></div>`;
+
+  const note = !mine ? '' 
+    : msg.vision === 'pending' ? '正在识别'
+    : msg.vision === 'off' ? '未配置识图接口，角色看不到这张图'
+    : msg.vision === 'error' ? `识图失败：${msg.visionError || '未知原因'}`
+    : '';
+
   return html`
-    <div class="bubble-image">
-      <img src=${url} alt=${msg.prompt || ''} loading="lazy"/>
+    <div class="media-wrap">
+      <div class="bubble-image">
+        <img src=${url} alt=${msg.imageDesc || msg.prompt || ''} loading="lazy"/>
+      </div>
+      ${note ? html`<div class="media-note">${note}</div>` : null}
     </div>`;
 }
 
-// 语音消息。可以播，也可以单独存到本地。
+// 语音消息。角色发的是合成出来的，用户发的是录的 —— 后者要等识别出文字。
 function VoiceBubble({ msg, char }) {
   const url = useFile(msg.audioId);
   const [playing, setPlaying] = useState(false);
   const [showText, setShowText] = useState(false);
   const audioRef = useRef(null);
+  const mine = msg.role === 'user';
 
   useEffect(() => () => { if (audioRef.current) audioRef.current.pause(); }, []);
 
-  if (msg.media === 'pending') {
+  if (!mine && msg.media === 'pending') {
     return html`
       <div class="bubble media-pending"><${Spinner} size=${16}/><span>正在合成语音</span></div>`;
   }
-  if (msg.media === 'error' || msg.media === 'off') {
+  if (!mine && (msg.media === 'error' || msg.media === 'off')) {
     return html`
       <div class="bubble media-failed">
         <div class="media-prompt">[语音] ${msg.voiceText}</div>
-        <div class="media-note">${msg.mediaError || '没合成出来'}</div>
+        <div class="media-note">${msg.mediaError || '合成失败'}</div>
       </div>`;
   }
 
@@ -64,7 +78,12 @@ function VoiceBubble({ msg, char }) {
     } catch (err) { toast(String(err.message || err), 'error'); }
   };
 
-  const seconds = Math.max(1, Math.round((msg.voiceText || '').length / 4));
+  // 自己录的知道真实时长；角色那边是合成的，按字数估一个
+  const seconds = msg.seconds || Math.max(1, Math.round((msg.voiceText || '').length / 4));
+  const note = !mine ? ''
+    : msg.asr === 'pending' ? '正在识别'
+    : msg.asr === 'error' ? `识别失败：${msg.mediaError || '未知原因'}`
+    : '';
 
   return html`
     <div class="voice-wrap">
@@ -77,10 +96,15 @@ function VoiceBubble({ msg, char }) {
       <div class="voice-acts">
         <button class="press" onClick=${() => setShowText(!showText)} aria-label="文字">
           <${Icon} name="notes" size=${14}/></button>
-        <button class="press" onClick=${save} aria-label="存到本地">
+        <button class="press" onClick=${save} aria-label="保存到本地">
           <${Icon} name="download" size=${14}/></button>
       </div>
-      ${showText ? html`<div class="voice-text">${msg.voiceText}</div>` : null}
+      ${note ? html`<div class="media-note">${note}</div>` : null}
+      ${showText ? html`
+        <div class="voice-text">
+          ${msg.voiceText || '（没有文字）'}
+          ${msg.tone ? html`<div class="voice-tone">听起来${msg.tone}</div>` : null}
+        </div>` : null}
     </div>`;
 }
 

@@ -69,6 +69,13 @@ export const images = {
   // 同步取已缓存的 URL,没有则返回 null 并在后台加载
   peek(id) { return id ? urls.get(id) || null : null; },
 
+  // 原始 Blob。识图要把它读成 dataURL 发出去
+  async blob(id) {
+    if (!id) return null;
+    const row = await idb.get('images', id);
+    return row ? row.blob : null;
+  },
+
   async url(id) {
     if (!id) return null;
     if (urls.has(id)) return urls.get(id);

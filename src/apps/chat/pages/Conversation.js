@@ -120,7 +120,10 @@ export function Conversation({ chatId }) {
   const [held, setHeld] = useState(null);        // 长按选中的那条
   const [picked, setPicked] = useState(null);    // null=不在多选；数组=已选的 id
   const [quoting, setQuoting] = useState(null);  // 这条要被引用
+  const [recSec, setRecSec] = useState(-1);      // -1 = 没在录音
   const bodyRef = useRef(null);
+  const recRef = useRef(null);
+  const imgRef = useRef(null);
 
   const chat = db.chats.get(chatId);
   const char = db.characters.get((chat?.characterIds || [])[0]);
@@ -130,6 +133,16 @@ export function Conversation({ chatId }) {
   useEffect(() => {
     if (chat?.unread) db.chats.update(chatId, { unread: 0 });
   }, [chatId, chat?.unread]);
+
+  // 录着音的时候退出这一页，麦克风会一直开着，指示灯也一直亮
+  useEffect(() => () => { recRef.current?.cancel(); recRef.current = null; }, []);
+
+  // 录音时长。只在录着的时候起一个计时器，停了就撤掉
+  useEffect(() => {
+    if (recSec < 0) return undefined;
+    const t = setInterval(() => setRecSec(n => (n < 0 ? n : n + 1)), 1000);
+    return () => clearInterval(t);
+  }, [recSec < 0]);
 
   useEffect(() => {
     // 多选时别乱滚，正挑着消息呢
@@ -220,6 +233,83 @@ export function Conversation({ chatId }) {
     setQuoting(null);
   };
 
+  // 发图片。聊天接口只收文字，所以图片存下来之后另外送去识图，
+  // 识出来的描述写回 content，角色才知道图上有什么。识不了也照发。
+  const sendImage = async e => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setPanel(null);
+    const q = draftQuote();
+    try {
+      const imageId = await db.images.put(file);
+      setQuoting(null);
+      const seeing = ai.vision.isVisionReady();
+      const msg = db.messages.create({
+        chatId, role: 'user', authorId: 'me', kind: 'image',
+        imageId, content: '[图片]', status: 'done', media: 'done',
+        vision: seeing ? 'pending' : 'off', ...q,
+      });
+      db.chats.update(chatId, { lastMessageAt: Date.now() });
+      if (!seeing) return;
+      ai.vision.describeImage(imageId, `vision:${msg.id}`)
+        .then(text => db.messages.update(msg.id, {
+          imageDesc: text, vision: 'done', content: `[图片：${text}]`,
+        }))
+        .catch(err => db.messages.update(msg.id, {
+          vision: 'error', visionError: String(err.message || err),
+        }));
+    } catch (err) { toast('图片处理失败：' + (err.message || err), 'error'); }
+  };
+
+  const startRec = async () => {
+    if (!ai.asr.isAsrReady()) {
+      toast('尚未配置语音识别接口，请先在「设置 - 语音识别」中配置', 'error', 5000);
+      return;
+    }
+    setPanel(null);
+    try {
+      recRef.current = await phone.audio.record();
+      setRecSec(0);
+    } catch (err) {
+      toast('无法录音：' + (err.message || err), 'error', 5000);
+    }
+  };
+
+  const cancelRec = () => {
+    recRef.current?.cancel();
+    recRef.current = null;
+    setRecSec(-1);
+  };
+
+  // 原件按录下来的格式存着，送去识别前才临时转成 wav（见 system/audio.js）
+  const sendRec = async () => {
+    const h = recRef.current;
+    recRef.current = null;
+    setRecSec(-1);
+    if (!h) return;
+    const q = draftQuote();
+    try {
+      const { blob, seconds } = await h.stop();
+      const audioId = await db.files.put(blob, { name: `voice-${Date.now()}`, type: blob.type });
+      setQuoting(null);
+      const msg = db.messages.create({
+        chatId, role: 'user', authorId: 'me', kind: 'voice',
+        audioId, seconds, content: '[语音]', status: 'done', media: 'done',
+        asr: 'pending', ...q,
+      });
+      db.chats.update(chatId, { lastMessageAt: Date.now() });
+      ai.asr.listen({ blob, key: `asr:${msg.id}` })
+        .then(r => db.messages.update(msg.id, {
+          voiceText: r.text, tone: r.tone || '', asr: 'done',
+          content: `[语音：${r.text}]${r.tone ? `（听起来${r.tone}）` : ''}`,
+        }))
+        .catch(err => db.messages.update(msg.id, {
+          asr: 'error', mediaError: String(err.message || err),
+        }));
+    } catch (err) { toast('录音失败：' + (err.message || err), 'error', 5000); }
+  };
+
   const regenerate = async () => {
     const last = [...msgs].reverse().find(m => m.role === 'char' && m.turnId);
     if (!last) { generate(); return; }
@@ -300,15 +390,15 @@ export function Conversation({ chatId }) {
     : '已关闭。开启后角色会主动发起对话';
 
   const MENU_ITEMS = [
-    { id: 'photo', icon: 'image', label: '图片' },
-    { id: 'voice', icon: 'headphone', label: '语音' },
+    { id: 'photo', icon: 'image', label: '图片', onTap: () => imgRef.current?.click() },
+    { id: 'voice', icon: 'headphone', label: '语音', onTap: startRec },
     { id: 'redpack', icon: 'wallet', label: '红包' },
     { id: 'call', icon: 'bell', label: '来电' },
     { id: 'gift', icon: 'cup', label: '礼物' },
     { id: 'location', icon: 'map', label: '位置' },
     { id: 'file', icon: 'notes', label: '文件' },
     { id: 'more', icon: 'more', label: '更多' },
-  ].map(it => ({ ...it, onTap: () => toast(`「${it.label}」尚未实现`) }));
+  ].map(it => ({ ...it, onTap: it.onTap || (() => toast(`「${it.label}」尚未实现`)) }));
 
   const quotingRef = quoting ? quoteOf({ quoteId: quoting.id }, { char, chat }) : null;
 
@@ -333,7 +423,16 @@ export function Conversation({ chatId }) {
             <div class="conv-hint">发送第一条消息开始对话</div>` : null}
         </div>
 
-        ${selecting ? html`
+        ${recSec >= 0 ? html`
+          <div class="select-bar">
+            <button class="nav-text press" onClick=${cancelRec}>取消</button>
+            <span class="rec-live">
+              <span class="rec-dot"></span>
+              ${`${String(Math.floor(recSec / 60)).padStart(2, '0')}:${String(recSec % 60).padStart(2, '0')}`}
+            </span>
+            <button class="nav-text press" onClick=${sendRec}>发送</button>
+          </div>`
+        : selecting ? html`
           <div class="select-bar">
             <button class="nav-text press" onClick=${() => setPicked(null)}>取消</button>
             <span class="select-hint">
@@ -391,6 +490,9 @@ export function Conversation({ chatId }) {
                 : html`<${StickerPanel} onSend=${sendSticker}/>`}
             </div>` : null}`}
       </div>
+
+      <input type="file" accept="image/*" ref=${imgRef}
+        onChange=${sendImage} style="display:none"/>
 
       <${MsgMenu} msg=${held} char=${char} onClose=${() => setHeld(null)}
         onQuote=${m => { setQuoting(m); setPanel(null); }}

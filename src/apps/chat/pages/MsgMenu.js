@@ -5,15 +5,20 @@ import { Sheet, List, ListItem, Button, Icon, EmptyState,
 
 const { db, ai } = phone;
 
-const textOf = m => m.kind === 'image' ? (m.prompt || '')
+const textOf = m => m.kind === 'image' ? (m.prompt || m.imageDesc || '')
   : m.kind === 'voice' ? (m.voiceText || '')
   : (m.content || '');
 
-// 改的是「这条消息的正文」，但正文在哪个字段要看消息类型：
-// 图片改的是画面描述，语音改的是要说的话，改完那份媒体得重新生成。
+// 改的是「这条消息的正文」，但正文在哪个字段要看消息类型与是谁发的。
+//
+// 角色发的图片和语音是按描述生成出来的，改了描述就要重新生成一份。
+// 用户发的是自己选的图、自己录的音，媒体本身不动 —— 改的只是角色
+// 读到的那段文字（识图描述 / 语音转写）。
 async function editMessage(msg) {
-  const label = msg.kind === 'image' ? '修改图片描述'
-    : msg.kind === 'voice' ? '修改语音文本' : '编辑消息';
+  const mine = msg.role === 'user';
+  const label = msg.kind === 'image' ? (mine ? '修改角色读到的图片描述' : '修改图片描述')
+    : msg.kind === 'voice' ? (mine ? '修改语音转写' : '修改语音文本')
+    : '编辑消息';
   const v = await prompt({ title: label, value: textOf(msg), multiline: true });
   if (v == null) return;
   const t = v.trim();
@@ -21,11 +26,23 @@ async function editMessage(msg) {
   if (t === textOf(msg)) return;
 
   if (msg.kind === 'image') {
-    db.messages.update(msg.id, { prompt: t, content: `[图片：${t}]` });
-    ai.reply.regenMedia(msg.id);
+    if (mine) {
+      db.messages.update(msg.id, { imageDesc: t, vision: 'done', content: `[图片：${t}]` });
+    } else {
+      db.messages.update(msg.id, { prompt: t, content: `[图片：${t}]` });
+      ai.reply.regenMedia(msg.id);
+    }
   } else if (msg.kind === 'voice') {
-    db.messages.update(msg.id, { voiceText: t, content: `[语音：${t}]` });
-    ai.reply.regenMedia(msg.id);
+    if (mine) {
+      const tone = (msg.tone || '').trim();
+      db.messages.update(msg.id, {
+        voiceText: t, asr: 'done',
+        content: `[语音：${t}]${tone ? `（听起来${tone}）` : ''}`,
+      });
+    } else {
+      db.messages.update(msg.id, { voiceText: t, content: `[语音：${t}]` });
+      ai.reply.regenMedia(msg.id);
+    }
   } else {
     db.messages.update(msg.id, { content: t });
   }

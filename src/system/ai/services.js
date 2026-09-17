@@ -1,12 +1,16 @@
 import { settings } from '../db/index.js';
 import { uid } from '../store.js';
 
-// 服务配置。聊天与生图都是「预设列表 + 当前选中」，语音只有一份。
+// 服务配置。聊天与生图都是「预设列表 + 当前选中」，其余各只有一份。
 export const EMPTY_SERVICES = {
   chat:  { presets: [], activeId: null, fallbackId: null },
   image: { presets: [], activeId: null },
   voice: { enabled: false, baseUrl: '', groupId: '', apiKey: '', model: '' },
   embed: { baseUrl: '', apiKey: '', model: '', dims: 0 },
+  // 识图：把用户发的图片读成文字，角色才看得见
+  vision: { baseUrl: '', apiKey: '', model: '' },
+  // 语音识别：把用户发的语音读成文字。mode 决定只转文字还是连语气一起读
+  asr: { baseUrl: '', apiKey: '', model: '', mode: 'text' },
 };
 
 export function services() {
@@ -16,6 +20,8 @@ export function services() {
     image: { ...EMPTY_SERVICES.image, ...(s?.image || {}) },
     voice: { ...EMPTY_SERVICES.voice, ...(s?.voice || {}) },
     embed: { ...EMPTY_SERVICES.embed, ...(s?.embed || {}) },
+    vision: { ...EMPTY_SERVICES.vision, ...(s?.vision || {}) },
+    asr: { ...EMPTY_SERVICES.asr, ...(s?.asr || {}) },
   };
 }
 
@@ -109,9 +115,25 @@ export function embedReady() {
   return !!(e.apiKey && e.model);
 }
 
-// ---- 语音 ----
+// ---- 语音合成 ----
 export function voiceConfig() { return services().voice; }
 export function setVoice(patch) { write({ voice: { ...services().voice, ...patch } }); }
+
+// ---- 识图。OpenAI 兼容的 chat/completions，带一个 image_url 内容块 ----
+export function visionConfig() { return services().vision; }
+export function setVision(patch) { write({ vision: { ...services().vision, ...patch } }); }
+export function visionReady() {
+  const v = services().vision;
+  return !!(v.apiKey && v.model);
+}
+
+// ---- 语音识别 ----
+export function asrConfig() { return services().asr; }
+export function setAsr(patch) { write({ asr: { ...services().asr, ...patch } }); }
+export function asrReady() {
+  const a = services().asr;
+  return !!(a.apiKey && a.model);
+}
 
 // 旧版把接口配置平铺在 settings 顶层，首次进入时收敛成一条预设
 export function migrateLegacy() {

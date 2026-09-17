@@ -669,3 +669,27 @@ input[type="range"] {
 }
 .time-sub { margin-top: var(--sp-2); font-size: var(--fs-13); color: var(--text-2); }
 .time-note { margin-top: 3px; font-size: var(--fs-11); color: var(--text-3); }
+
+/* 气泡上的长按是本项目自己的手势，要挡掉系统那套选中与「拷贝」浮层，
+   否则两者会同时弹出来。整条消息要复制走菜单里的「复制」。 */
+.msg {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* 用户发的图片与语音 */
+.media-wrap { display: flex; flex-direction: column; gap: 4px; align-items: inherit; }
+.voice-tone { margin-top: 4px; color: var(--text-3); }
+
+/* 录音条。和多选栏共用 .select-bar 的位置与留白 */
+.rec-live {
+  display: inline-flex; align-items: center; gap: var(--sp-2);
+  font-size: var(--fs-15); color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+.rec-dot {
+  width: 8px; height: 8px; border-radius: var(--r-full);
+  background: var(--accent); animation: rec-blink 1s steps(1) infinite;
+}
+@keyframes rec-blink { 50% { opacity: .2; } }

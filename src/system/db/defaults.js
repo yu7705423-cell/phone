@@ -26,6 +26,8 @@ export const DEFAULT_SETTINGS = {
     image: { presets: [], activeId: null },
     voice: { enabled: false, baseUrl: '', groupId: '', apiKey: '', model: '' },
     embed: { baseUrl: '', apiKey: '', model: '', dims: 0 },
+    vision: { baseUrl: '', apiKey: '', model: '' },
+    asr: { baseUrl: '', apiKey: '', model: '', mode: 'text' },
   },
 
   // 旧版平铺字段，仅用于首次迁移，之后不再读写

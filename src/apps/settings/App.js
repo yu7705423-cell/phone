@@ -8,6 +8,8 @@ import { AppearancePage } from './AppearancePage.js';
 import { StoragePage } from './StoragePage.js';
 import { NotifyPage } from './NotifyPage.js';
 import { EmbedPage } from './EmbedPage.js';
+import { VisionPage } from './VisionPage.js';
+import { AsrPage } from './AsrPage.js';
 import { BUILD } from '../../version.js';
 import { forceUpdate } from './forceUpdate.js';
 
@@ -23,18 +25,26 @@ function Home() {
     ? `${active.name} · ${active.model || '未选模型'}${spare ? `，副用 ${spare.name}` : ''}`
     : '未配置，聊天不可用';
   const voice = svc.voiceConfig();
-  const voiceDesc = voice.enabled && voice.apiKey ? `已配置 · ${voice.model || '未选模型'}` : '未配置';
+  const voiceDesc = voice.enabled && voice.apiKey ? `已配置 · ${voice.model || '未选择模型'}` : '未配置';
+  const vision = svc.visionConfig();
+  const visionDesc = svc.visionReady()
+    ? `${vision.model} · 角色能看到你发的图片`
+    : '未配置。角色看不到你发的图片，只知道你发了一张图';
+  const asr = svc.asrConfig();
+  const asrDesc = svc.asrReady()
+    ? `${asr.model} · ${asr.mode === 'tone' ? '同时识别语气' : '仅转写文字'}`
+    : '未配置。配置后才能发送语音';
   const imgActive = svc.activeImage();
-  const imageDesc = imgActive ? `${imgActive.name} · ${imgActive.model || '未选模型'}` : '未配置';
+  const imageDesc = imgActive ? `${imgActive.name} · ${imgActive.model || '未选择模型'}` : '未配置';
 
   const emb = svc.embedConfig();
   const embDone = phone.ai.memvec.indexedCount();
   const embDesc = emb.apiKey && emb.model
     ? `${emb.model} · 已索引 ${embDone} / ${db.memories.count()} 条记忆`
-    : '未配置。配了之后记忆按意思检索，不再硬碰关键词';
+    : '未配置。配置后记忆按语义检索，不再依赖关键词匹配';
 
   const nc = phone.sound.config();
-  const soundName = nc.soundFileId ? '自己传的'
+  const soundName = nc.soundFileId ? '自定义音频'
     : (phone.sound.PRESETS.find(p => p.id === nc.sound) || {}).label || '清脆';
   const notifyDesc = `${nc.banner ? '横幅开着' : '横幅关着'} · 提示音 ${soundName}`;
 
@@ -49,10 +59,10 @@ function Home() {
   return html`
     <${Page} title="设置">
       <${List} title="服务">
-        <${ListItem} title="接口" subtitle=${chatDesc} arrow
+        <${ListItem} title="接口" subtitle=${chatDesc} arrow multiline
           left=${html`<${Icon} name="key" size=${19}/>`}
           onClick=${() => nav.push('/api')}/>
-        <${ListItem} title="语音" subtitle=${voiceDesc} arrow
+        <${ListItem} title="语音合成" subtitle=${voiceDesc} arrow
           left=${html`<${Icon} name="headphone" size=${19}/>`}
           onClick=${() => nav.push('/voice')}/>
         <${ListItem} title="生图" subtitle=${imageDesc} arrow
@@ -61,6 +71,15 @@ function Home() {
         <${ListItem} title="向量" subtitle=${embDesc} arrow multiline
           left=${html`<${Icon} name="brain" size=${19}/>`}
           onClick=${() => nav.push('/embed')}/>
+      <//>
+
+      <${List} title="识别你发送的内容">
+        <${ListItem} title="识图" subtitle=${visionDesc} arrow multiline
+          left=${html`<${Icon} name="eye" size=${19}/>`}
+          onClick=${() => nav.push('/vision')}/>
+        <${ListItem} title="语音识别" subtitle=${asrDesc} arrow multiline
+          left=${html`<${Icon} name="signal" size=${19}/>`}
+          onClick=${() => nav.push('/asr')}/>
       <//>
 
       <${List} title="外观">
@@ -95,6 +114,8 @@ export default function SettingsApp({ route }) {
   if (route === '/api') return html`<${ApiPage}/>`;
   if (route === '/notify') return html`<${NotifyPage}/>`;
   if (route === '/embed') return html`<${EmbedPage}/>`;
+  if (route === '/vision') return html`<${VisionPage}/>`;
+  if (route === '/asr') return html`<${AsrPage}/>`;
   if (route === '/voice') return html`<${VoicePage}/>`;
   if (route === '/image') return html`<${ImagePage}/>`;
   if (route === "/appearance") return html`<${AppearancePage}/>`;
