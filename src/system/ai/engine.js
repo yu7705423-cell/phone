@@ -188,6 +188,9 @@ export function buildChatSystem(chat, char, msgs, opts = {}) {
     });
   }
 
+  // 打电话。和转账一样，能力在角色卡上开关。
+  if (char.canCall !== false) out += '\n\n' + template('skeleton.ring');
+
   // 位置。角色报的地点要落在它自己待的那个地方 —— 时区设了就拿它当锚，
   // 没设就只能靠人设里写的，不替它瞎猜一个城市。
   if (char.canSendLocation !== false) {
@@ -286,7 +289,7 @@ export function buildHistory(chat, char, msgs, opts = {}) {
 
   const pics = opts.images || null;
   const view = byTurn ? kept : kept.slice(-s.historyLimit);
-  return view.map((m, i) => {
+  const view2 = view.map((m, i) => {
     const mine = m.role === 'char' && m.authorId === char.id;
     const text = timeLine(m, view[i - 1]) + withQuote(m);
     if (m.role === 'user') {
@@ -297,14 +300,58 @@ export function buildHistory(chat, char, msgs, opts = {}) {
     // 群里别人说的话,以旁白形式并入 user 侧,避免被当成自己说过的
     const who = characters.get(m.authorId)?.name || '某人';
     return { role: 'user', content: isGroup ? `${who}：${text}` : text };
-  }).reduce((acc, m) => {
-    // 合并相邻同角色消息,部分接口不接受连续同角色。
-    // 带图的那条不合并 —— 合进去图就跟文字对不上了。
+  });
+  return mergeAdjacent(view2);
+}
+
+// 合并相邻同角色消息,部分接口不接受连续同角色。
+// 带图的那条不合并 —— 合进去图就跟文字对不上了。
+export function mergeAdjacent(list) {
+  return list.reduce((acc, m) => {
     const last = acc[acc.length - 1];
     if (last && last.role === m.role && !last.image && !m.image) last.content += '\n' + m.content;
     else acc.push({ ...m });
     return acc;
   }, []);
+}
+
+// ---- 通话 ----
+//
+// 通话一轮就是一次请求，一次三分钟的通话是二十来轮。所以这里两件事跟聊天不同：
+//   1. **system 只拼一次**，在通话开始时算好，整通电话复用。世界书、记忆、
+//      人设在通话期间不会变，每轮重算一遍纯属白花时间（还要多跑一次向量检索）。
+//   2. **回复上限压到几百 token**。电话里说一两句就停，给再多也用不上，
+//      给多了反而会诱导它一口气讲完。
+const CALL_MAX = 400;
+
+export async function buildCallSystem(chat, char) {
+  const msgs = messagesOf(chat.id).filter(m => m.status !== 'error');
+  const { system } = buildChatSystem(chat, char, msgs, { queryVec: await queryVecFor(msgs) });
+  return system + '\n\n' + template('skeleton.call');
+}
+
+export const callKey = chatId => `call:${chatId}`;
+export const cancelCall = chatId => cancel(callKey(chatId));
+
+/**
+ * 通话中的一轮。lines 是这通电话到目前为止说过的话，
+ * opening 是「电话刚接通，你先开口」这类一次性的指示。
+ */
+export function streamCall({ chat, char, system, lines = [], opening = '', onDelta }) {
+  const msgs = messagesOf(chat.id).filter(m => m.status !== 'error');
+  const history = buildHistory(chat, char, msgs, {});
+  const talk = lines.map(l => ({
+    role: l.role === 'user' ? 'user' : 'assistant',
+    content: l.text,
+  }));
+  const tail = opening ? [{ role: 'user', content: opening }] : [];
+
+  return enqueue(callKey(chat.id), signal => withFallback(c => getProvider(c.provider)
+    .stream(c, {
+      system,
+      messages: mergeAdjacent([...history, ...talk, ...tail]),
+      maxTokens: CALL_MAX, signal, onDelta,
+    })), { replace: true, retries: 1 });
 }
 
 export function replyKey(chatId, charId) { return `reply:${chatId}:${charId}`; }

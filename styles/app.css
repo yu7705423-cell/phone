@@ -771,3 +771,64 @@ button.search-bar { width: 100%; border: none; }
   background: var(--group-fill); opacity: .8;
 }
 .msg.is-mine .bubble-location .loc-map { background: rgba(255, 255, 255, .16); }
+
+/* ---- 通话 ---- */
+.call-layer {
+  position: absolute; inset: 0; z-index: 4;
+  display: flex; flex-direction: column;
+  padding: calc(var(--safe-top) + var(--sp-8)) var(--sp-5)
+           calc(var(--safe-bottom) + var(--sp-5));
+  background: var(--bg);
+}
+.call-head { flex: none; display: flex; flex-direction: column; align-items: center; gap: var(--sp-2); }
+.call-name { font-size: var(--fs-20); font-weight: var(--fw-medium); margin-top: var(--sp-2); }
+.call-status { font-size: var(--fs-13); color: var(--text-3); font-variant-numeric: tabular-nums; }
+.call-error { font-size: var(--fs-12); color: var(--text-2); text-align: center; }
+
+/* 字幕。一句一句往上走，自己说的靠右 */
+.call-lines { flex: 1; min-height: 0; padding: var(--sp-6) 0; }
+.call-line { margin-bottom: var(--sp-4); }
+.call-line.is-mine { text-align: right; }
+.call-who { display: block; font-size: var(--fs-12); color: var(--text-3); margin-bottom: 2px; }
+.call-text { font-size: var(--fs-16); line-height: 1.65; }
+
+.call-heard {
+  flex: none; min-height: 22px; text-align: center;
+  font-size: var(--fs-13); color: var(--text-3); margin-bottom: var(--sp-3);
+}
+.call-input {
+  flex: none; display: flex; align-items: center; gap: var(--sp-2);
+  background: var(--group-fill); border-radius: var(--r-full);
+  padding: var(--sp-2) var(--sp-3); margin-bottom: var(--sp-5);
+}
+.call-input input {
+  flex: 1; min-width: 0; border: none; background: none; padding: 0;
+  font-size: var(--fs-15); color: var(--text);
+}
+.call-input input:focus { border: none; }
+.call-input button { flex: none; color: var(--text-2); display: flex; }
+.call-input button:disabled { color: var(--text-3); opacity: .5; }
+
+.call-bar {
+  flex: none; display: flex; align-items: center; justify-content: center;
+  gap: var(--sp-8);
+}
+.call-key {
+  width: 58px; height: 58px; border-radius: var(--r-full); border: none;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--group-fill); color: var(--text-2);
+}
+.call-key.is-on { background: var(--accent); color: var(--on-accent); }
+.call-key.is-hang { background: var(--accent); color: var(--on-accent); }
+.call-key.is-take { background: var(--accent); color: var(--on-accent); }
+.call-foot {
+  flex: none; text-align: center; margin-top: var(--sp-4);
+  font-size: var(--fs-12); color: var(--text-3);
+}
+
+/* 通话记录气泡与全文 */
+.bubble-call { display: flex; align-items: center; gap: var(--sp-2); }
+.bubble-call.is-miss { opacity: .62; }
+.log-line { margin-bottom: var(--sp-4); }
+.log-who { display: block; font-size: var(--fs-12); color: var(--text-3); margin-bottom: 2px; }
+.log-text { font-size: var(--fs-15); line-height: 1.65; }

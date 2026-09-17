@@ -70,6 +70,10 @@ export function CharacterEdit({ id }) {
           subtitle="角色可以转账给你，也可以收下或退回你转过去的款项。关闭后角色不再转账，你转过去的款项也将无人处理"
           right=${html`<${Switch} checked=${char.canTransfer !== false}
             onChange=${v => patch({ canTransfer: v })}/>`}/>
+        <${ListItem} title="通话" multiline
+          subtitle="角色可以接听你的来电，也可以主动打给你。是否接听取决于「主动发起对话」中设置的免打扰时段"
+          right=${html`<${Switch} checked=${char.canCall !== false}
+            onChange=${v => patch({ canCall: v })}/>`}/>
         <${ListItem} title="位置" multiline
           subtitle=${char.timezone
             ? `角色会发送所在地的地点。地点以所在时区「${clock.zoneLabel(char.timezone)}」为准`

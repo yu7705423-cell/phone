@@ -63,6 +63,7 @@ export const PATHS = {
   wallet:   '<path d="M3 7.5A2.5 2.5 0 015.5 5H18v3"/><rect x="3" y="7.5" width="18" height="12.5" rx="2.5"/><circle cx="17" cy="14" r="1.2" fill="currentColor" stroke="none"/>',
   cloud:    '<path d="M7 18a4.5 4.5 0 01-.5-9 6 6 0 0111.4 1.6A3.7 3.7 0 0117 18z"/>',
   headphone:'<path d="M4 16v-4a8 8 0 1116 0v4"/><rect x="2.5" y="14" width="4.5" height="7" rx="2"/><rect x="17" y="14" width="4.5" height="7" rx="2"/>',
+  mic:      '<rect x="9" y="2.5" width="6" height="11.5" rx="3"/><path d="M5.5 11.5a6.5 6.5 0 0013 0M12 18v3.5M8.5 21.5h7"/>',
   bookmark: '<path d="M6 3h12v18l-6-4.5L6 21z"/>',
   film:     '<rect x="2.5" y="4.5" width="19" height="15" rx="2.5"/><path d="M8 4.5v15M16 4.5v15M2.5 12h19M2.5 8.2h5.5M2.5 15.8h5.5M16 8.2h5.5M16 15.8h5.5"/>',
   moments:  '<path d="M19.6 9.2A7.7 7.7 0 1 1 14.6 4.3"/><path d="M16.9 6.6l2.8-2.8"/><circle cx="20.9" cy="7.1" r="1.1" fill="currentColor" stroke="none"/>',

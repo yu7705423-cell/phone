@@ -178,3 +178,81 @@ export function listenLocally(lang = 'zh-CN') {
     cancel() { try { rec.abort(); } catch { /* 没在跑 */ } },
   };
 }
+
+// ---- 浏览器自带的合成。通话里用它做保底 ----
+//
+// 机械是机械，但不花钱、没有等待，而且不需要任何配置。
+// 配了语音接口且角色有音色时走接口，那才是「这个角色的声音」。
+const TTS = typeof window !== 'undefined' && window.speechSynthesis;
+
+export function speakSupported() { return !!TTS; }
+
+export function stopSpeaking() { try { TTS && TTS.cancel(); } catch { /* 有的实现会抛 */ } }
+
+// 念一句，念完了 resolve。念不出来也 resolve —— 通话不能卡在这儿。
+export function speakLocally(text, { lang = 'zh-CN', rate = 1 } = {}) {
+  return new Promise(resolve => {
+    if (!TTS || !String(text || '').trim()) { resolve(false); return; }
+    const u = new SpeechSynthesisUtterance(String(text));
+    u.lang = lang;
+    u.rate = rate;
+    let done = false;
+    const end = ok => { if (!done) { done = true; resolve(ok); } };
+    u.onend = () => end(true);
+    u.onerror = () => end(false);
+    try { TTS.speak(u); } catch { end(false); }
+  });
+}
+
+// ---- 一直听着，静下来一会儿就算说完一句 ----
+//
+// 通话里不能让人按住说话 —— 真人打电话没有这个动作。所以识别常开，
+// 靠静音断句：识别结果停止增长 silenceMs，就把攒下的这段当成一句交出去。
+//
+// 用 continuous + interimResults 是因为 isFinal 的到达时机各浏览器差别很大，
+// 光等 isFinal 有时候要等好几秒。自己数静音更准。
+export function listenStream({ lang = 'zh-CN', silenceMs = 1300, onUtterance } = {}) {
+  if (!SR) throw new Error('这个浏览器不支持本机语音识别');
+  const rec = new SR();
+  rec.lang = lang;
+  rec.continuous = true;
+  rec.interimResults = true;
+
+  let buf = '';
+  let interim = '';
+  let timer = null;
+  let alive = true;
+
+  const flush = () => {
+    const text = (buf + interim).trim();
+    buf = ''; interim = '';
+    if (text && alive) onUtterance && onUtterance(text);
+  };
+  const arm = () => { clearTimeout(timer); timer = setTimeout(flush, silenceMs); };
+
+  rec.onresult = e => {
+    interim = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      const r = e.results[i];
+      if (r.isFinal) buf += r[0].transcript;
+      else interim += r[0].transcript;
+    }
+    arm();
+  };
+  // 识别引擎自己会在静默一段后停掉，通话还没结束就再拉起来
+  rec.onend = () => { if (alive) { try { rec.start(); } catch { /* 正在起 */ } } };
+  rec.onerror = () => { /* 交给 onend 重来 */ };
+
+  try { rec.start(); } catch { /* 已经在跑了 */ }
+
+  return {
+    // 现在听到一半的那一点，给界面显示用
+    partial: () => (buf + interim).trim(),
+    stop() {
+      alive = false;
+      clearTimeout(timer);
+      rec.onend = null;
+      try { rec.abort(); } catch { /* 没在跑 */ }
+    },
+  };
+}

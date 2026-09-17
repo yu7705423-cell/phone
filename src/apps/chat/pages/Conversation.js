@@ -8,9 +8,10 @@ import { StickerImg } from './StickerBits.js';
 import { MediaBubble } from './MediaBubble.js';
 import { MsgMenu } from './MsgMenu.js';
 import { TransferBubble, NoticeLine, TransferSheet, SettleSheet,
-         LocationBubble, LocationSheet } from './TransferBits.js';
+         LocationBubble, LocationSheet, CallBubble, CallLogSheet } from './TransferBits.js';
+import { CallScreen } from './CallScreen.js';
 
-const { db, nav, ai } = phone;
+const { db, nav, ai, call } = phone;
 
 // 一屏装不下这么多，但往上翻几下够用；不够再按按钮要下一段
 const PAGE = 200;
@@ -38,7 +39,7 @@ function QuoteRef({ quote, onClick }) {
 // 记忆化：流式回复时只有最后那条在变，别的几百条没必要跟着重画。
 // 下面传给它的函数属性都是稳定身份的，见 Conversation 里的 stable。
 const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, onSwipe, onHold,
-                  selecting, selected, onToggle, transOpen, onSettle }) {
+                  selecting, selected, onToggle, transOpen, onSettle, onOpenLog }) {
   const mine = msg.role === 'user';
   const avatar = useImage(mine ? phone.accounts.current()?.avatar : char?.avatar);
   const hold = useRef({ timer: null, fired: false });
@@ -98,6 +99,8 @@ const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, onSwipe,
           ? html`<${TransferBubble} msg=${msg} onSettle=${selecting ? null : onSettle}/>`
           : msg.kind === 'location'
           ? html`<${LocationBubble} msg=${msg}/>`
+          : msg.kind === 'call'
+          ? html`<${CallBubble} msg=${msg} onOpen=${selecting ? null : onOpenLog}/>`
           : msg.kind === 'sticker'
           ? html`<div class="bubble-sticker">
               ${sticker ? html`<${StickerImg} sticker=${sticker} size=${112}/>`
@@ -141,6 +144,7 @@ export function Conversation({ chatId, focusId = '' }) {
   useStore(db.characters.store);
   useStore(db.stickers.store);
   const settings = useStore(db.settings.store);
+  const calling = useStore(call.call);
 
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
@@ -153,6 +157,7 @@ export function Conversation({ chatId, focusId = '' }) {
   const [paying, setPaying] = useState(false);   // 转账面板开着
   const [settling, setSettling] = useState(null);// 正在处理的那一笔
   const [placing, setPlacing] = useState(false); // 发位置的面板开着
+  const [callLog, setCallLog] = useState(null);  // 正在看的那通电话
   // 只画最近这么多条。聊了两万条的会话一次性铺出来要一两秒，手机上十几秒，
   // 而且往上翻从来也不会翻到那么远。不够就按「查看更早的消息」再要一段。
   const [shown, setShown] = useState(PAGE);
@@ -170,6 +175,7 @@ export function Conversation({ chatId, focusId = '' }) {
     onSwipe: (m, d) => latest.current.onSwipe(m, d),
     onToggle: m => latest.current.togglePick(m),
     onSettle: m => latest.current.onSettle(m),
+    onOpenLog: m => latest.current.onOpenLog(m),
     noop: () => {},
   }), []);
   const pickedSet = useMemo(() => new Set(picked || []), [picked]);
@@ -255,6 +261,12 @@ export function Conversation({ chatId, focusId = '' }) {
 
   if (!chat || !char) {
     return html`<${Page} title="会话" onBack=${nav.pop}><${EmptyState} title="该会话已不存在"/><//>`;
+  }
+
+  // 通话界面盖住整个会话页。只盖这段对话的电话 ——
+  // 在别的会话里接到的电话不该把这一页遮住。
+  if (calling.phase !== 'idle' && calling.chatId === chatId) {
+    return html`<${CallScreen}/>`;
   }
 
   async function generate({ turnId: reuseTurn, swipes: prevSwipes } = {}) {
@@ -509,6 +521,11 @@ export function Conversation({ chatId, focusId = '' }) {
     generate();
   };
 
+  const startCall = () => {
+    try { call.dial(chatId); }
+    catch (err) { toast(String(err.message || err), 'error', 4000); }
+  };
+
   const loadEarlier = () => {
     keepRef.current = bodyRef.current?.scrollHeight || 0;
     setShown(n => Math.max(n, window_) + PAGE);
@@ -518,7 +535,7 @@ export function Conversation({ chatId, focusId = '' }) {
     cur.includes(msg.id) ? cur.filter(x => x !== msg.id) : [...cur, msg.id]);
 
   // 上面那几个每次渲染都是新函数，兜进 ref 里，对外的 stable 不变
-  latest.current = { onRetry, onSwipe, togglePick, onSettle: setSettling };
+  latest.current = { onRetry, onSwipe, togglePick, onSettle: setSettling, onOpenLog: setCallLog };
 
   const deletePicked = async () => {
     if (!picked.length) return;
@@ -558,7 +575,7 @@ export function Conversation({ chatId, focusId = '' }) {
     { id: 'photo', icon: 'image', label: '图片', onTap: () => imgRef.current?.click() },
     { id: 'voice', icon: 'headphone', label: '语音', onTap: startRec },
     { id: 'transfer', icon: 'wallet', label: '转账', onTap: () => setPaying(true) },
-    { id: 'call', icon: 'phone', label: '通话' },
+    { id: 'call', icon: 'phone', label: '通话', onTap: startCall },
     { id: 'gift', icon: 'gift', label: '礼物' },
     { id: 'location', icon: 'map', label: '位置', onTap: () => setPlacing(true) },
     { id: 'listen', icon: 'music', label: '一起听' },
@@ -587,7 +604,7 @@ export function Conversation({ chatId, focusId = '' }) {
               onRetry=${stable.onRetry} onSwipe=${stable.onSwipe} onHold=${setHeld}
               selecting=${selecting} selected=${selecting && pickedSet.has(m.id)}
               onToggle=${stable.onToggle} transOpen=${settings.translateOpen}
-              onSettle=${stable.onSettle}/>`)}
+              onSettle=${stable.onSettle} onOpenLog=${stable.onOpenLog}/>`)}
           ${!msgs.length && !char.firstMessage ? html`
             <div class="conv-hint">发送第一条消息开始对话</div>` : null}
         </div>
@@ -664,6 +681,7 @@ export function Conversation({ chatId, focusId = '' }) {
       <input type="file" accept="image/*" ref=${imgRef}
         onChange=${sendImage} style="display:none"/>
 
+      <${CallLogSheet} msg=${callLog} onClose=${() => setCallLog(null)}/>
       <${TransferSheet} open=${paying} chatId=${chatId} onClose=${() => setPaying(false)}/>
       <${LocationSheet} open=${placing} chatId=${chatId} onClose=${() => setPlacing(false)}/>
       <${SettleSheet} msg=${settling} onClose=${() => setSettling(null)}/>
