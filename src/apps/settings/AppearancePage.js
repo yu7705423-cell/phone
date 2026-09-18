@@ -208,7 +208,9 @@ export function AppearancePage() {
   const [cssOpen, setCssOpen] = useState(false);
   const [batchOpen, setBatchOpen] = useState(false);
   useStore(appsApi.store);
+  useStore(db.layout.store);
   const apps = appsApi.list();
+  const gone = appsApi.removed();
 
   return html`
     <${Page} title="主题" onBack=${nav.pop}>
@@ -290,6 +292,17 @@ export function AppearancePage() {
               onClick=${() => setPicking(a.id)}/>`;
         })}
       <//>
+
+      ${gone.length ? html`
+        <${List} title="已从主界面移除">
+          ${gone.map(id => {
+            const a = appsApi.get(id);
+            return a ? html`
+              <${ListItem} key=${id} title=${a.name} subtitle="点击放回主界面" arrow multiline
+                left=${html`<div class="app-tile app-tile-mini"><${Icon} name=${a.icon} size=${18}/></div>`}
+                onClick=${() => { appsApi.restore(id); toast(`已将${a.name}放回主界面`, 'ok'); }}/>` : null;
+          })}
+        <//>` : null}
 
       <${List} title="高级">
         <${ListItem} title="自定义 CSS"

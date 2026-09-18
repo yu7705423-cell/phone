@@ -13,6 +13,7 @@ import { GRID_COLS } from '../../system/db/defaults.js';
 import { rowsOf, setPage, movePicked, healAndSave, addPage, removePage, freeSlots } from './layout.js';
 import { editState, setEdit, setPicked, clearPicked } from './editState.js';
 import { AppTile } from './AppTile.js';
+import { FolderView, FolderTile } from './FolderView.js';
 import { toast } from '../../ui/overlay.js';
 
 function unreadFor(appId) {
@@ -22,8 +23,17 @@ function unreadFor(appId) {
     .reduce((n, c) => n + (c.unread || 0), 0);
 }
 
-function Cell({ cell, edit, onPick, picked, onEditWidget }) {
+function Cell({ cell, edit, onPick, picked, onEditWidget, onOpenFolder }) {
   const style = `grid-column:${cell.x + 1}/span ${cell.w};grid-row:${cell.y + 1}/span ${cell.h}`;
+
+  if (cell.kind === 'folder') {
+    return html`
+      <div class=${`cell cell-app${edit ? ' is-edit' : ''}${picked ? ' is-picked' : ''}`} style=${style}
+        onClick=${() => edit ? onPick(cell) : onOpenFolder(cell)}>
+        <${FolderTile} cell=${cell}/>
+        <span class="app-name ellipsis">${cell.name || '文件夹'}</span>
+      </div>`;
+  }
 
   if (cell.kind === 'widget') {
     const wg = getWidget(cell.ref);
@@ -58,6 +68,7 @@ export function HomeScreen() {
   const { edit, picked } = useStore(editState);
   const [editingWidget, setEditingWidget] = useState(null);
   const [editingCell, setEditingCell] = useState(null);
+  const [openFolder, setOpenFolder] = useState(null);
   const pressTimer = useRef(null);
   const touch = useRef(null);
   // 长按松手时浏览器还会补一次 click，会把刚进入的整理模式立刻弹出菜单。
@@ -169,7 +180,8 @@ export function HomeScreen() {
         ${page.cells.map(c => html`
           <${Cell} key=${c.id} cell=${c} edit=${edit}
             picked=${picked?.type === 'cell' && picked.id === c.id}
-            onPick=${onPick} onEditWidget=${setEditingWidget}/>`)}
+            onPick=${onPick} onEditWidget=${setEditingWidget}
+            onOpenFolder=${setOpenFolder}/>`)}
         ${edit ? slots.map(sl => html`
           <div key=${`${sl.x},${sl.y}`} class="cell cell-slot"
             style=${`grid-column:${sl.x + 1};grid-row:${sl.y + 1}`}
@@ -186,7 +198,8 @@ export function HomeScreen() {
 
       ${edit ? html`
         <div class="edit-bar">
-          <span class="edit-hint">${picked ? '点另一个同样大小的位置交换' : '点两个位置交换'}</span>
+          <span class="edit-hint">${picked
+            ? '点目标位置完成移动，翻页后再点也可以' : '点两个位置交换，或长按图标进入此模式'}</span>
           <div class="edit-acts">
             <button class="icon-btn press" onClick=${addPage} aria-label="新建一页">
               <${Icon} name="plus" size=${17}/>
@@ -200,9 +213,10 @@ export function HomeScreen() {
           </div>
         </div>` : null}
 
+      <${FolderView} cell=${openFolder} onClose=${() => setOpenFolder(null)}/>
       <${WidgetEditor} cell=${editingWidget} onClose=${() => setEditingWidget(null)}/>
       <${CellEditor} cell=${editingCell} pageIdx=${idx}
         onClose=${() => setEditingCell(null)}
-        onSwapFrom=${id => setPicked({ type: 'cell', id })}/>
+        onSwapFrom=${id => setPicked({ type: 'cell', id, page: idx })}/>
     </div>`;
 }

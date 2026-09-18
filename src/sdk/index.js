@@ -71,6 +71,7 @@ import { BLOCKS, DEFAULT_ORDER, resolveOrder } from '../system/ai/context/index.
 import { toast, confirm, prompt } from '../ui/overlay.js';
 import { appLook, listAppLooks } from '../system/look.js';
 import { registryStore } from '../system/registry.js';
+import { removedApps, restoreApp } from '../screens/home/layout.js';
 
 export const phone = {
   nav: {
@@ -93,6 +94,10 @@ export const phone = {
     list: listAppLooks,
     get: appLook,
     store: registryStore,
+    // 被用户从主界面移除的那些。设置里要能看见、能放回来，
+    // 所以从 sdk 过一道：app 不直接碰 screens/
+    removed: removedApps,
+    restore: restoreApp,
   },
 
   ai: {

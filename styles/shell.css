@@ -100,6 +100,45 @@
   text-align: center; box-shadow: 0 0 0 2px var(--bg);
 }
 
+/* 文件夹：一格里塞四个缩小的图标。做成 2x2 而不是叠成一摞，
+   因为一眼要看出里面装的是哪几个。多于四个的看不见，点开才有。 */
+.folder-tile {
+  position: relative; height: calc(var(--cell, 76px) * var(--tile-ratio));
+  width: auto; aspect-ratio: 1; max-width: 100%; flex: none;
+  border-radius: 24%; background: var(--tile-bg);
+  box-shadow: var(--tile-shadow);
+  display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr;
+  gap: 6%; padding: 11%;
+  transition: transform var(--dur-fast) var(--ease);
+}
+:root[data-wallpaper="on"] .folder-tile {
+  background: var(--capsule-bg); border: 1px solid var(--capsule-border);
+  backdrop-filter: blur(var(--glass-blur)); -webkit-backdrop-filter: blur(var(--glass-blur));
+  box-shadow: none;
+}
+:root[data-icon-shadow="off"] .folder-tile { box-shadow: none; }
+.cell-app:active .folder-tile { transform: scale(.93); }
+.home-grid.is-edit .folder-tile { animation: jiggle .5s ease-in-out infinite; }
+/* 里面那几个小图标不再自己画底和影子，否则一格里四层阴影糊成一团 */
+.folder-dot { display: block; min-width: 0; min-height: 0; }
+.folder-dot .app-tile {
+  height: 100%; width: 100%; aspect-ratio: auto;
+  border-radius: 28%; box-shadow: none; background: var(--bg);
+}
+.folder-dot .app-tile svg { width: 58%; height: 58%; }
+
+/* 打开的文件夹 */
+.folder-open {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: var(--sp-4); padding: var(--sp-2) var(--sp-1) var(--sp-4);
+}
+.folder-open .folder-app {
+  display: flex; flex-direction: column; align-items: center; gap: 5px;
+  background: none; border: 0; padding: 0; cursor: pointer; min-width: 0;
+}
+.folder-open .app-tile { height: auto; width: 100%; }
+.folder-open .app-name { color: var(--text-2); text-shadow: none; }
+
 .cell-slot {
   align-items: center; justify-content: center;
   border: 1px dashed var(--border-2); border-radius: var(--r-md);

@@ -87,40 +87,65 @@ export function placeAtXY(pageIdx, x, y, next) {
 }
 
 export function placeAt(pageIdx, cellId, next) {
-  const page = layout.get().pages[pageIdx];
-  const cell = page?.cells.find(c => c.id === cellId);
-  if (!cell) return { ok: false, reason: '位置不存在' };
   const lay = structuredClone(layout.get());
-  lay.pages[pageIdx].cells = lay.pages[pageIdx].cells.filter(c => c.id !== cellId);
+  const found = locate(lay, cellId);
+  if (!found) return { ok: false, reason: '位置不存在' };
+  const { cell } = found;
+  found.page.cells = found.page.cells.filter(c => c.id !== cellId);
   layout.replace(lay);
-  return placeAtXY(pageIdx, cell.x, cell.y, next);
+  return placeAtXY(found.pageIdx, cell.x, cell.y, next);
+}
+
+// 按 id 在**整本**布局里找一个格子。跨页挪动全靠它 —— 从前每个操作
+// 都只在「当前页」里找，于是先选中、再翻一页、再点目标，源头就找不着了，
+// 报一句「位置不存在」，看着像整页没了。
+export function locate(lay, cellId) {
+  for (let i = 0; i < lay.pages.length; i++) {
+    const cell = (lay.pages[i].cells || []).find(c => c.id === cellId);
+    if (cell) return { pageIdx: i, page: lay.pages[i], cell };
+  }
+  return null;
 }
 
 // 移到某个坐标。目标被占就交换，占不下就把对方挪走。
-export function moveTo(pageIdx, cellId, x, y) {
+// toPageIdx 是**目标页**，源头在哪一页由 locate 自己找。
+export function moveTo(toPageIdx, cellId, x, y) {
   const lay = structuredClone(layout.get());
-  const page = lay.pages[pageIdx];
-  const cell = page?.cells.find(c => c.id === cellId);
-  if (!cell) return { ok: false, reason: '位置不存在' };
+  const dest = lay.pages[toPageIdx];
+  if (!dest) return { ok: false, reason: '页面不存在' };
+  const found = locate(lay, cellId);
+  if (!found) return { ok: false, reason: '位置不存在' };
+  const { cell } = found;
+  const from = found.page;
+  const fromIdx = found.pageIdx;
 
   const px = Math.min(Math.max(0, x), GRID_COLS - cell.w);
-  const others = page.cells.filter(c => c.id !== cellId);
+  const others = dest.cells.filter(c => c.id !== cellId);
   const hit = others.filter(c =>
     c.x < px + cell.w && c.x + c.w > px && c.y < y + cell.h && c.y + c.h > y);
 
-  // 正好和一个同样大小的格子重合：直接对调，最符合直觉
+  // 正好和一个同样大小的格子重合：直接对调，最符合直觉。
+  // 跨页的时候对调的是「页 + 坐标」，两个格子各自搬到对方那一页去。
   if (hit.length === 1 && hit[0].w === cell.w && hit[0].h === cell.h) {
     const other = hit[0];
     const ox = other.x, oy = other.y;
     other.x = cell.x; other.y = cell.y;
     cell.x = ox; cell.y = oy;
+    if (fromIdx !== toPageIdx) {
+      from.cells = from.cells.filter(c => c.id !== cell.id);
+      dest.cells = dest.cells.filter(c => c.id !== other.id);
+      dest.cells.push(cell);
+      from.cells.push(other);
+    }
     layout.replace(lay);
     return { ok: true };
   }
 
-  page.cells = page.cells.filter(c => !hit.some(v => v.id === c.id));
+  from.cells = from.cells.filter(c => c.id !== cell.id);
+  dest.cells = dest.cells.filter(c => !hit.some(v => v.id === c.id));
   cell.x = px; cell.y = y;
-  hit.forEach(c => relocate(lay, pageIdx, c));
+  dest.cells.push(cell);
+  hit.forEach(c => relocate(lay, toPageIdx, c));
   layout.replace(lay);
   return { ok: true };
 }
@@ -133,7 +158,9 @@ export function movePicked(pageIdx, source, target) {
   if (!page) return { ok: false, reason: '页面不存在' };
   lay.dock = Array.from({ length: DOCK_SIZE }, (_, i) => (lay.dock || [])[i] || null);
 
-  const cellOf = id => page.cells.find(c => c.id === id);
+  // 整本布局里找，不是只在当前页里找：先选中、翻一页、再点目标，
+  // 这是最常见的跨页挪动，源头本来就不在这一页上。
+  const cellOf = id => locate(lay, id)?.cell || null;
 
   // Dock 只放应用
   if (target.type === 'dock') {
@@ -144,16 +171,18 @@ export function movePicked(pageIdx, source, target) {
       layout.replace(lay);
       return { ok: true };
     }
-    const cell = cellOf(source.id);
-    if (!cell) return { ok: false, reason: '来源不存在' };
+    const found = locate(lay, source.id);
+    if (!found) return { ok: false, reason: '来源不存在' };
+    const { cell } = found;
     if (cell.kind !== 'app') return { ok: false, reason: '底部那一排只能放应用' };
     if (cell.w !== 1 || cell.h !== 1) return { ok: false, reason: '只能放 1x1 的应用' };
 
     const displaced = lay.dock[target.i];
     lay.dock[target.i] = cell.ref;
-    page.cells = page.cells.filter(c => c.id !== cell.id);
+    // 空出来的那一格留在原来那一页上，不要跟着当前页跑
+    found.page.cells = found.page.cells.filter(c => c.id !== cell.id);
     if (displaced) {
-      page.cells.push({ id: uid('c'), kind: 'app', ref: displaced, x: cell.x, y: cell.y, w: 1, h: 1 });
+      found.page.cells.push({ id: uid('c'), kind: 'app', ref: displaced, x: cell.x, y: cell.y, w: 1, h: 1 });
     }
     layout.replace(lay);
     return { ok: true };
@@ -174,6 +203,7 @@ export function movePicked(pageIdx, source, target) {
     if (cell.kind !== 'app' || cell.w !== 1 || cell.h !== 1) {
       return { ok: false, reason: '底部那一排只能和 1x1 的应用互换' };
     }
+    // 目标一定在当前页上（是点出来的），所以就地改就行
     lay.dock[source.i] = cell.ref;
     cell.kind = 'app'; cell.ref = appId;
     layout.replace(lay);
@@ -193,15 +223,38 @@ export function clearDockSlot(i) {
   layout.replace(lay);
 }
 
+/**
+ * 移除一个格子。
+ *
+ * app 格子要顺手记进 removed —— 否则下一次 heal 看见「这个 app 没摆出来」，
+ * 又给它找个空位放回去，移除就成了刷新一下就复活。文件夹里装着的 app
+ * 一并记上，道理一样。
+ */
 export function clearCell(pageIdx, cellId) {
   const lay = structuredClone(layout.get());
-  const page = lay.pages[pageIdx];
-  if (!page) return false;
-  const before = page.cells.length;
-  page.cells = page.cells.filter(c => c.id !== cellId);
-  if (page.cells.length === before) return false;
+  const found = locate(lay, cellId);
+  if (!found) return false;
+  const { cell } = found;
+  found.page.cells = found.page.cells.filter(c => c.id !== cellId);
+  const gone = cell.kind === 'app' ? [cell.ref]
+    : cell.kind === 'folder' ? (cell.apps || []) : [];
+  if (gone.length) lay.removed = [...new Set([...(lay.removed || []), ...gone])];
   layout.replace(lay);
   return true;
+}
+
+// 放回来。把它从 removed 里划掉，heal 就会重新给它找位置。
+export function restoreApp(appId) {
+  const lay = structuredClone(layout.get());
+  lay.removed = (lay.removed || []).filter(id => id !== appId);
+  layout.replace(lay);
+  healAndSave();
+}
+
+// 移除过、现在不在主界面上的那些。设置里那一页要列它们
+export function removedApps() {
+  const lay = layout.get();
+  return (lay.removed || []).filter(hasApp);
 }
 
 // 自愈。引用失效的直接去掉，留下的空位本来就可点，不需要再造占位记录。
@@ -221,6 +274,17 @@ export function heal(raw) {
       if (c.kind === 'app') {
         if (!hasApp(c.ref) || seen.has(c.ref)) continue;
         seen.add(c.ref);
+      } else if (c.kind === 'folder') {
+        // 文件夹装的是 app id。失效的、已经在别处摆着的，都从里面剔掉；
+        // 剔空了这个文件夹就没有意义了，一并去掉。
+        c.apps = (c.apps || []).filter(id => {
+          if (!hasApp(id) || seen.has(id)) return false;
+          seen.add(id);
+          return true;
+        });
+        if (!c.apps.length) continue;
+        c.w = 1; c.h = 1;
+        if (!c.name) c.name = '文件夹';
       } else if (c.kind === 'widget') {
         if (!hasWidget(c.ref)) continue;
       } else {
@@ -245,9 +309,14 @@ export function heal(raw) {
   dock.forEach(id => id && seen.add(id));
   lay.dock = dock;
 
+  // 用户自己移除的那些不要再摆回来。摆着的比这张单子说了算 ——
+  // 移除完又自己放回去的，要从单子上划掉，否则下次 heal 还当它是被移除的。
+  lay.removed = [...new Set(lay.removed || [])].filter(id => hasApp(id) && !seen.has(id));
+  const removed = new Set(lay.removed);
+
   // 已注册但没摆出来的 app：找个空位放上
   for (const app of listApps()) {
-    if (app.showOnHome === false || seen.has(app.id)) continue;
+    if (app.showOnHome === false || seen.has(app.id) || removed.has(app.id)) continue;
     let done = false;
     for (let i = 0; i < lay.pages.length && !done; i++) {
       const spot = findSpot(lay.pages[i], 1, 1);
@@ -308,4 +377,91 @@ export function setCellConfig(cellId, config) {
     }
   }
   return null;
+}
+
+// ---- 文件夹 ----
+//
+// 文件夹就是一个格子，里面记着一串 app id（`cell.apps`），永远 1x1。
+// 不另起一张表：它没有任何脱离主界面单独存在的意义，
+// 跟着格子一起挪、一起删最省事。
+
+export function newFolder(pageIdx, x, y, apps = [], name = '文件夹') {
+  const list = [...new Set(apps.filter(hasApp))];
+  if (!list.length) return { ok: false, reason: '请至少选择一个应用' };
+  // 这些 app 现在要进文件夹，先把它们从别处摘下来
+  detach(list);
+  return placeAtXY(pageIdx, x, y, { kind: 'folder', name: String(name || '文件夹').slice(0, 12), apps: list });
+}
+
+/** 改文件夹：名字和里面装什么。装空了就把这个文件夹去掉。 */
+export function setFolder(cellId, { name, apps }) {
+  if (Array.isArray(apps)) {
+    const keep = [...new Set(apps.filter(hasApp))];
+    detach(keep, cellId);
+    const lay = structuredClone(layout.get());
+    const found = locate(lay, cellId);
+    if (!found || found.cell.kind !== 'folder') return { ok: false, reason: '这个文件夹不存在了' };
+    found.cell.apps = keep;
+    if (name !== undefined) found.cell.name = String(name || '文件夹').slice(0, 12);
+    if (!keep.length) found.page.cells = found.page.cells.filter(c => c.id !== cellId);
+    layout.replace(lay);
+    return { ok: true };
+  }
+  const lay = structuredClone(layout.get());
+  const found = locate(lay, cellId);
+  if (!found || found.cell.kind !== 'folder') return { ok: false, reason: '这个文件夹不存在了' };
+  found.cell.name = String(name || '文件夹').slice(0, 12);
+  layout.replace(lay);
+  return { ok: true };
+}
+
+/** 把这几个 app 从现在待的地方摘下来：网格、Dock、别的文件夹。 */
+function detach(appIds, keepCellId) {
+  const ids = new Set(appIds);
+  const lay = structuredClone(layout.get());
+  let dirty = false;
+  for (const page of lay.pages) {
+    const kept = [];
+    for (const c of page.cells) {
+      if (c.kind === 'app' && ids.has(c.ref)) { dirty = true; continue; }
+      if (c.kind === 'folder' && c.id !== keepCellId) {
+        const next = (c.apps || []).filter(id => !ids.has(id));
+        if (next.length !== (c.apps || []).length) {
+          dirty = true;
+          if (!next.length) continue;   // 掏空了就不留这个文件夹
+          c.apps = next;
+        }
+      }
+      kept.push(c);
+    }
+    page.cells = kept;
+  }
+  lay.dock = (lay.dock || []).map(id => {
+    if (id && ids.has(id)) { dirty = true; return null; }
+    return id;
+  });
+  lay.removed = (lay.removed || []).filter(id => !ids.has(id));
+  if (dirty || lay.removed.length !== (layout.get().removed || []).length) layout.replace(lay);
+}
+
+/** 从文件夹里拿一个 app 出来，摆回主界面。 */
+export function takeOut(cellId, appId) {
+  const lay = structuredClone(layout.get());
+  const found = locate(lay, cellId);
+  if (!found || found.cell.kind !== 'folder') return { ok: false, reason: '这个文件夹不存在了' };
+  const rest = (found.cell.apps || []).filter(id => id !== appId);
+  found.cell.apps = rest;
+  if (!rest.length) found.page.cells = found.page.cells.filter(c => c.id !== cellId);
+  layout.replace(lay);
+  // 摆回去的位置交给 heal 找：它本来就会给「没摆出来的 app」找空位
+  healAndSave();
+  return { ok: true };
+}
+
+/** 把一个已经在主界面上的 app 装进某个文件夹。 */
+export function putInFolder(cellId, appId) {
+  const lay = layout.get();
+  const found = locate(lay, cellId);
+  if (!found || found.cell.kind !== 'folder') return { ok: false, reason: '这个文件夹不存在了' };
+  return setFolder(cellId, { apps: [...(found.cell.apps || []), appId] });
 }
