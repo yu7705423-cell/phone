@@ -65,9 +65,10 @@ export function HomeTab() {
       <//>
 
       <${List} title="本机曲库">
-        <${ListItem} title=${`已收 ${phone.music.allSongs().length} 首`} multiline
-          subtitle="在搜索结果右侧点加号即可收入。该曲库供会话中的「一起听」选曲使用"
-          left=${html`<${Icon} name="database" size=${18}/>`}/>
+        <${ListItem} title=${`已收 ${phone.music.allSongs().length} 首`} multiline arrow
+          subtitle="上传本机音频、填写播放地址、编辑歌词。该曲库供会话中的「一起听」选曲使用"
+          left=${html`<${Icon} name="database" size=${18}/>`}
+          onClick=${() => nav.push('/library')}/>
       <//>
 
       <div class="settings-foot">

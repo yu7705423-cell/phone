@@ -28,6 +28,45 @@ export function addSong({ title, artist = '', url = '', audioId = null,
   });
 }
 
+/**
+ * 改一首已经在库里的。只改传进来的那几项。
+ *
+ * 换了音频文件就把旧的那份删掉 —— 文件躺在 IndexedDB 里，没人引用它也不会
+ * 自己消失。网易云来的那些只让改歌词：名字、歌手、地址都是那边的，
+ * 改了反而对不上。
+ */
+export function updateSong(id, patch = {}) {
+  const song = songs.get(id);
+  if (!song) throw new Error('这首歌已不在曲库中');
+  const next = {};
+
+  if (song.source === 'netease') {
+    if (patch.lyric !== undefined) next.lyric = String(patch.lyric || '');
+    return songs.update(id, next);
+  }
+
+  if (patch.title !== undefined) {
+    const t = String(patch.title).trim().slice(0, 60);
+    if (!t) throw new Error('请填写歌曲名称');
+    next.title = t;
+  }
+  if (patch.artist !== undefined) next.artist = String(patch.artist).trim().slice(0, 40);
+  if (patch.lyric !== undefined) next.lyric = String(patch.lyric || '');
+  if (patch.seconds !== undefined) next.seconds = Math.max(0, Math.round(patch.seconds) || 0);
+
+  if (patch.url !== undefined || patch.audioId !== undefined) {
+    const url = String(patch.url ?? song.url ?? '').trim();
+    const audioId = patch.audioId !== undefined ? patch.audioId : song.audioId;
+    if (!url && !audioId) throw new Error('请填写播放地址或上传音频文件');
+    if (patch.audioId !== undefined && song.audioId && song.audioId !== patch.audioId) {
+      files.remove(song.audioId);
+    }
+    next.url = url;
+    next.audioId = audioId;
+  }
+  return songs.update(id, next);
+}
+
 // 网易云搜到的一首落进曲库。**不存播放地址** —— 那个地址会过期，
 // 每次要放的时候现取（见 listen.srcOf）。
 export function fromNetease(track) {

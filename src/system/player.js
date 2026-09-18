@@ -1,5 +1,5 @@
 import { createStore } from './store.js';
-import { settings } from './db/index.js';
+import { settings, files } from './db/index.js';
 import * as netease from './netease.js';
 import * as listen from './listen.js';
 
@@ -9,9 +9,11 @@ import * as listen from './listen.js';
 // 记一笔时长；这一个是自己听自己的，不关任何角色的事。
 // 两边不同时响 —— 这边一开，先把那边停掉。
 //
-// 队列里放的是曲目对象（id / title / artist / cover / seconds），**不入库**：
-// 播放地址会过期，每次要放的时候现取（netease.songUrl）。想把某一首留下来，
-// 走曲库那个入口（music.fromNetease），那是另一件事。
+// 队列里放两种东西：
+//   **网易云搜出来的**  { id, title, artist, cover, seconds }，id 就是网易云的 id；
+//   **曲库里的**        songs 表里的一条，有 url 或 audioId，或者 source: 'netease'。
+// 前一种不入库 —— 播放地址会过期，每次要放的时候现取。想把某一首留下来，
+// 走曲库那个入口（music.fromNetease）。
 //
 // 放够一定时长给网易云打一次卡。「我的」那一页上的听歌排行与累计首数，
 // 读的就是这个数 —— 在这儿听的歌会真的记进账号，和在客户端里听是一回事。
@@ -31,6 +33,24 @@ let tick = null;
 let played = 0;       // 这一首实际响了多久，打卡用
 
 const scrobbleAfter = () => Math.max(0, settings.get().scrobbleAfter || 0);
+
+// 这一首在网易云那边的 id。曲库里自己传的那些没有，也就不打卡。
+function neteaseIdOf(track) {
+  if (!track) return '';
+  if (track.source === 'netease') return String(track.neteaseId || '');
+  if (track.source) return '';              // 'local'：自己传的
+  return String(track.id || '');            // 没有 source 的是网易云搜出来的那种
+}
+
+// 这一首从哪儿放。和「一起听」那边同一套规矩（listen.srcOf）：
+// 有地址用地址，有文件用文件，都没有才去网易云现取。
+async function srcOf(track) {
+  if (!track) return '';
+  if (track.url) return track.url;
+  if (track.audioId) return (await files.url(track.audioId)) || '';
+  const nid = neteaseIdOf(track);
+  return nid ? netease.songUrl(nid) : '';
+}
 
 export function current() {
   const s = player.get();
@@ -54,10 +74,11 @@ function clear() {
 
 // 打一次卡。不 await：网络慢不该让换歌跟着卡住。
 function scrobble(track, seconds) {
-  if (!track || !track.id || seconds <= 0) return;
+  const nid = neteaseIdOf(track);
+  if (!nid || seconds <= 0) return;
   const after = scrobbleAfter();
   if (after && seconds < Math.min(after, track.seconds || after)) return;
-  netease.scrobble(track.id, seconds).catch(() => {});
+  netease.scrobble(nid, seconds).catch(() => {});
 }
 
 async function load(autoplay) {
@@ -69,8 +90,9 @@ async function load(autoplay) {
   played = 0;
 
   let src = '';
-  try { src = await netease.songUrl(track.id); }
+  try { src = await srcOf(track); }
   catch (err) { player.set({ loading: false, playing: false, error: String(err.message || err) }); return; }
+  if (!src) { player.set({ loading: false, playing: false, error: '这首歌没有可播放的音频' }); return; }
 
   // 取地址的工夫里可能已经切走了，那这一份就作废
   if (current()?.id !== track.id) return;

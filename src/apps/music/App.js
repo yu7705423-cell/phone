@@ -4,6 +4,7 @@ import { HomeTab } from './HomeTab.js';
 import { SearchTab } from './SearchTab.js';
 import { MineTab } from './MineTab.js';
 import { PlaylistPage } from './PlaylistPage.js';
+import { LibraryPage } from './LibraryPage.js';
 import { NowBar } from './parts.js';
 
 // 音乐。数据全部来自用户自己登录的那个网易云账号，见 system/netease.js。
@@ -34,6 +35,7 @@ function Tabs() {
 }
 
 export default function MusicApp({ route }) {
+  if (route === '/library') return html`<${LibraryPage}/>`;
   const list = route?.match(/^\/list\/(.+)$/);
   if (list) return html`<${PlaylistPage} id=${list[1]}/>`;
   return html`<${Tabs}/>`;

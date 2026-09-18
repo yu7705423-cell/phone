@@ -1,133 +1,9 @@
-import { html, useState, useRef } from '../../../lib.js';
-import { phone, useStore, useFile } from '../../../sdk/index.js';
-import { Page, List, ListItem, Field, Input, Textarea, Button, Icon,
+import { html, useState } from '../../../lib.js';
+import { phone, useStore } from '../../../sdk/index.js';
+import { Page, List, ListItem, Button, Icon,
          Sheet, EmptyState, toast, confirm, prompt } from '../../../ui/index.js';
 
-const { db, nav, music, listen, netease } = phone;
-
-// 加一首。歌必须真的有东西能响 —— 要么一个地址，要么一个文件。
-// 光有歌名的「虚拟歌」不做：一起听要真的有东西在放，计时才有意义。
-function AddSheet({ open, onClose }) {
-  const [title, setTitle] = useState('');
-  const [artist, setArtist] = useState('');
-  const [url, setUrl] = useState('');
-  const [lyric, setLyric] = useState('');
-  const [audioId, setAudioId] = useState(null);
-  const [name, setName] = useState('');
-  const fileRef = useRef(null);
-  const lrcRef = useRef(null);
-
-  const close = () => {
-    setTitle(''); setArtist(''); setUrl(''); setLyric(''); setAudioId(null); setName('');
-    onClose();
-  };
-
-  const pickAudio = async e => {
-    const f = e.target.files?.[0];
-    e.target.value = '';
-    if (!f) return;
-    try {
-      const id = await db.files.put(f, { name: f.name, type: f.type || 'audio/mpeg' });
-      setAudioId(id); setName(f.name); setUrl('');
-      if (!title.trim()) setTitle(f.name.replace(/\.[^.]+$/, ''));
-    } catch (err) { toast('音频存不下：' + (err.message || err), 'error'); }
-  };
-
-  const pickLrc = async e => {
-    const f = e.target.files?.[0];
-    e.target.value = '';
-    if (!f) return;
-    setLyric(await f.text());
-  };
-
-  const submit = () => {
-    try { music.addSong({ title, artist, url, audioId, lyric }); close(); }
-    catch (err) { toast(String(err.message || err), 'error'); }
-  };
-
-  return html`
-    <${Sheet} open=${open} onClose=${close} title="添加歌曲" height="86%">
-      <${Field} label="歌曲名称">
-        <${Input} value=${title} placeholder="歌名" maxlength=${60} onInput=${setTitle}/>
-      <//>
-      <${Field} label="歌手" desc="可以不填。">
-        <${Input} value=${artist} placeholder="歌手" maxlength=${40} onInput=${setArtist}/>
-      <//>
-
-      <${Field} label="播放地址"
-        desc="直接指向音频文件的地址。地址与本地文件二选一，填了地址就不必上传文件。">
-        <${Input} value=${url} placeholder="https://..."
-          onInput=${v => { setUrl(v); if (v) { setAudioId(null); setName(''); } }}/>
-      <//>
-
-      <${Field} label="本地音频"
-        desc=${audioId ? `已选择：${name}` : '上传后保存在本机，不会上传到任何服务器。'}>
-        <div class="wg-edit-cover">
-          <${Button} size="sm" variant="ghost" icon="upload"
-            onClick=${() => fileRef.current?.click()}>${audioId ? '更换文件' : '选择文件'}<//>
-          ${audioId ? html`
-            <${Button} size="sm" variant="ghost" icon="trash"
-              onClick=${() => { db.files.remove(audioId); setAudioId(null); setName(''); }}>移除<//>` : null}
-        </div>
-        <input type="file" accept="audio/*" ref=${fileRef} onChange=${pickAudio} style="display:none"/>
-      <//>
-
-      <${Field} label="歌词"
-        desc="LRC 格式，带时间轴的会跟着播放逐句显示。可以不填。">
-        <${Textarea} rows=${4} value=${lyric} placeholder="[00:12.00]第一句"
-          onInput=${setLyric}/>
-        <div class="pad-t">
-          <${Button} size="sm" variant="ghost" icon="upload"
-            onClick=${() => lrcRef.current?.click()}>导入 LRC 文件<//>
-        </div>
-        <input type="file" accept=".lrc,.txt,text/plain" ref=${lrcRef}
-          onChange=${pickLrc} style="display:none"/>
-      <//>
-
-      <div class="pad-t">
-        <${Button} full disabled=${!title.trim() || (!url.trim() && !audioId)}
-          onClick=${submit}>添加<//>
-      </div>
-    <//>`;
-}
-
-// 从网易云搜一首加进曲库。搜到的只记 id，播放地址每次现取 —— 那个地址会过期。
-function SearchSheet({ open, onClose }) {
-  const [q, setQ] = useState('');
-  const [hits, setHits] = useState([]);
-  const [busy, setBusy] = useState(false);
-
-  const go = async () => {
-    const key = q.trim();
-    if (!key) return;
-    setBusy(true);
-    try { setHits(await netease.search(key, 25)); }
-    catch (err) { toast(String(err.message || err), 'error', 5000); }
-    finally { setBusy(false); }
-  };
-
-  return html`
-    <${Sheet} open=${open} onClose=${onClose} title="从网易云添加" height="84%">
-      <div class="pad-x">
-        <div class="search-bar">
-          <${Icon} name="search" size=${16}/>
-          <input value=${q} placeholder="搜索歌名或歌手"
-            onInput=${e => setQ(e.target.value)}
-            onKeyDown=${e => { if (e.key === 'Enter') go(); }}/>
-          ${q ? html`<button class="press" aria-label="搜索" onClick=${go}>
-            <${Icon} name="chevronRight" size=${15}/></button>` : null}
-        </div>
-      </div>
-      ${busy ? html`<div class="settings-foot">正在搜索</div>` : null}
-      <${List} inset=${false}>
-        ${hits.map(t => html`
-          <${ListItem} key=${t.id} title=${t.title} subtitle=${t.artist}
-            onClick=${() => { music.fromNetease(t); toast('已加入曲库'); }}/>`)}
-      <//>
-      ${!busy && !hits.length ? html`
-        <div class="settings-foot">搜索后点击条目即可加入曲库。</div>` : null}
-    <//>`;
-}
+const { db, nav, music, listen } = phone;
 
 function SongRow({ song, right, onTap }) {
   return html`
@@ -142,9 +18,7 @@ export function ListenPage({ chatId }) {
   useStore(db.playlists.store);
   useStore(db.chats.store);
   const s = useStore(listen.listen);
-  const [adding, setAdding] = useState(false);
   const [picking, setPicking] = useState(null);   // 往哪个歌单里加歌
-  const [searching, setSearching] = useState(false);
 
   const chat = db.chats.get(chatId);
   const char = db.characters.get((chat?.characterIds || [])[0]);
@@ -153,6 +27,10 @@ export function ListenPage({ chatId }) {
   const hers = char ? music.allLists(char.id) : [];
   const total = listen.totals(chatId);
   const live = listen.inChat(chatId);
+
+  // 曲库归音乐 app 管：加歌、传音频、改歌词都在那边，这里只管挑来一起听。
+  // 一个开关只能有一个入口，见 CLAUDE.md 第 5 条。
+  const openLib = () => phone.intent.open('music', { route: '/library' });
 
   const startList = id => {
     try { listen.start({ chatId, listId: id }); nav.pop(); }
@@ -174,20 +52,9 @@ export function ListenPage({ chatId }) {
     music.removeList(p.id);
   };
 
-  const dropSong = async song => {
-    if (!await confirm({
-      title: '从曲库移除', message: `${song.title}。歌单中的这首歌会一并移除。`, danger: true,
-    })) return;
-    music.removeSong(song.id);
-  };
-
   return html`
     <${Page} title="一起听" onBack=${nav.pop}
-      right=${html`<span class="row-acts">
-        ${netease.ready() ? html`<button class="nav-text press"
-          onClick=${() => setSearching(true)}>网易云</button>` : null}
-        <button class="nav-text press" onClick=${() => setAdding(true)}>添加</button>
-      </span>`}>
+      right=${html`<button class="nav-text press" onClick=${openLib}>曲库</button>`}>
 
       <${List} title="一起听了多久">
         <${ListItem} title="累积" multiline
@@ -225,22 +92,19 @@ export function ListenPage({ chatId }) {
       ${lib.length ? html`
         <${List} title=${`曲库 · ${lib.length} 首`}>
           ${lib.map(song => html`
-            <${SongRow} key=${song.id} song=${song}
-              right=${html`<button class="nav-text press"
-                onClick=${e => { e.stopPropagation(); dropSong(song); }}>移除</button>`}
-              onTap=${() => startSong(song.id)}/>`)}
+            <${SongRow} key=${song.id} song=${song} onTap=${() => startSong(song.id)}/>`)}
+          <${ListItem} title="管理曲库" arrow multiline
+            subtitle="在音乐中上传音频、填写播放地址、编辑歌词"
+            left=${html`<${Icon} name="database" size=${18}/>`}
+            onClick=${openLib}/>
         <//>`
       : html`<${EmptyState} icon="music" title="曲库是空的"
-          desc=${netease.ready()
-          ? '可从网易云搜索添加，也可自行填写播放地址或上传音频文件。'
-          : '添加歌曲后即可开始一起听。每首歌需要填写播放地址或上传音频文件。'}/>`}
+          desc="曲库在音乐中管理：可上传本机音频、填写播放地址，或收入网易云的曲目。"
+          action=${html`<${Button} size="sm" icon="database" onClick=${openLib}>前往曲库<//>`}/>`}
 
       <div class="settings-foot">
         点击歌单或单曲即可开始一起听。播放期间可在会话顶部控制。
       </div>
-
-      <${AddSheet} open=${adding} onClose=${() => setAdding(false)}/>
-      <${SearchSheet} open=${searching} onClose=${() => setSearching(false)}/>
 
       <${Sheet} open=${!!picking} onClose=${() => setPicking(null)} title="选择要加入的歌曲" height="70%">
         <${List} inset=${false}>
