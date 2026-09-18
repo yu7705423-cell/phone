@@ -57,6 +57,10 @@ export const PATHS = {
 
   // 装饰用
   music:    '<circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/><path d="M9 18V5l12-2v13"/><path d="M9 9l12-2"/>',
+  play:     '<path d="M7 4.8v14.4l12-7.2z"/>',
+  pause:    '<path d="M9 5v14M15 5v14"/>',
+  skipNext: '<path d="M6 5l10 7-10 7z"/><path d="M19 5v14"/>',
+  skipPrev: '<path d="M18 5L8 12l10 7z"/><path d="M5 5v14"/>',
   calendar: '<rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M3 10h18M8 3v4M16 3v4"/>',
   camera:   '<path d="M3 8.5A2.5 2.5 0 015.5 6h1.7l1.2-2h7.2l1.2 2h1.7A2.5 2.5 0 0121 8.5v9A2.5 2.5 0 0118.5 20h-13A2.5 2.5 0 013 17.5z"/><circle cx="12" cy="13" r="3.6"/>',
   mail:     '<rect x="2.5" y="5" width="19" height="14" rx="2.5"/><path d="M3 7l9 6 9-6"/>',

@@ -7,9 +7,10 @@ import { manifest as lorebook } from './lorebook/manifest.js';
 import { manifest as memory } from './memory/manifest.js';
 import { manifest as space } from './space/manifest.js';
 import { manifest as daily } from './daily/manifest.js';
+import { manifest as music } from './music/manifest.js';
 import { manifest as settingsApp } from './settings/manifest.js';
 import { stubManifests } from './stub/manifests.js';
 
 export function registerApps() {
-  [chat, contact, lorebook, memory, space, daily, settingsApp, ...stubManifests].forEach(registerApp);
+  [chat, contact, lorebook, memory, space, daily, music, settingsApp, ...stubManifests].forEach(registerApp);
 }

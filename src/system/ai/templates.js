@@ -2,6 +2,8 @@ import { settings } from '../db/index.js';
 
 // prompt 默认模板。代码里只留默认值,运行时一律从 settings.promptTemplates 读取。
 // 见 CLAUDE.md 第 11 条。占位符用 {{name}}。
+//
+// 提示词的编写与修订，感谢 我厌 老师的帮助。
 
 export const DEFAULT_TEMPLATES = {
 

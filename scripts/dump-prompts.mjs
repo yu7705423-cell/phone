@@ -111,6 +111,8 @@ console.log('正文中的 `{{xxx}}` 是运行时填入的占位符。');
 console.log();
 console.log('规则：注入 prompt 的文字一律书面语、中性、祈使，见 CLAUDE.md 第 14 条。');
 console.log();
+console.log('提示词的编写与修订，感谢 我厌 老师的帮助。');
+console.log();
 
 const all = templates();
 const pick = pre => all.filter(t => t.id.startsWith(pre));

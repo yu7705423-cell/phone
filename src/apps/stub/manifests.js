@@ -1,7 +1,6 @@
 // 占位应用清单。加一行就多一个可装修的图标。
 const STUBS = [
   { id: 'stub-photos',  name: '相册', icon: 'camera' },
-  { id: 'stub-music',   name: '音乐', icon: 'music' },
   { id: 'stub-calendar', name: '日历', icon: 'calendar' },
   { id: 'stub-weather', name: '天气', icon: 'cloud' },
   { id: 'stub-clock',   name: '时钟', icon: 'clock' },

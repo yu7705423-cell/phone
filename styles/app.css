@@ -1154,3 +1154,97 @@ button.search-bar { width: 100%; border: none; }
   /* 不用 vh：视口单位只许出现在外壳那三层（CLAUDE.md 第 1 条） */
   max-height: 420px; overflow: auto;
 }
+
+/* 音乐：三个页签 + 底部那条 */
+/* 撑满一屏，底部那条才贴得住（sticky 只在内容够长时才吸底） */
+.mu-page { min-height: 100%; }
+.mu-wait { display: flex; justify-content: center; padding: var(--sp-8) 0; }
+
+.mu-sec {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: var(--sp-5) var(--sp-4) var(--sp-2);
+  font-size: var(--fs-12); color: var(--text-3);
+}
+
+.mu-cover { display: block; object-fit: cover; background: var(--group-fill); flex: none; }
+.mu-cover-empty {
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-3); font-size: var(--fs-17); font-weight: var(--fw-medium);
+}
+
+/* 最近播放：横着推 */
+.mu-strip {
+  display: flex; gap: var(--sp-3); overflow-x: auto;
+  padding: 0 var(--sp-4) var(--sp-2);
+  scrollbar-width: none;
+}
+.mu-strip::-webkit-scrollbar { display: none; }
+.mu-card { width: 104px; flex: none; text-align: left; }
+.mu-card:active { opacity: .72; }
+.mu-card-name { margin-top: var(--sp-2); font-size: var(--fs-13); font-weight: var(--fw-medium); }
+.mu-card-sub { font-size: var(--fs-11); color: var(--text-3); }
+
+/* 一行一首 */
+.mu-list { padding: 0 var(--sp-2); }
+.mu-row {
+  display: flex; align-items: center; gap: var(--sp-3);
+  padding: var(--sp-2) var(--sp-3); border-radius: var(--r-md);
+}
+.mu-row.is-on .mu-title { color: var(--accent); }
+.mu-idx {
+  width: 26px; flex: none; text-align: center;
+  font-size: var(--fs-13); color: var(--text-3); font-variant-numeric: tabular-nums;
+}
+.mu-main { flex: 1; min-width: 0; }
+.mu-title { font-size: var(--fs-14); }
+.mu-sub { margin-top: 1px; font-size: var(--fs-12); color: var(--text-3); }
+.mu-keep {
+  flex: none; width: 32px; height: 32px; border-radius: var(--r-full);
+  display: flex; align-items: center; justify-content: center; color: var(--text-3);
+}
+.mu-count {
+  flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 3px;
+  font-size: var(--fs-11); color: var(--text-3); font-variant-numeric: tabular-nums;
+}
+.mu-count i { display: block; height: 3px; border-radius: var(--r-full); background: var(--accent-weak); }
+
+/* 我的 */
+.mu-me { padding: var(--sp-6) var(--sp-4) var(--sp-4); text-align: center; }
+.mu-me-face { display: flex; justify-content: center; }
+.mu-me-name { margin-top: var(--sp-3); font-size: var(--fs-17); font-weight: var(--fw-semi); }
+.mu-me-sign { margin-top: 2px; font-size: var(--fs-12); color: var(--text-3); }
+.mu-me-meta { margin-top: var(--sp-2); font-size: var(--fs-11); color: var(--text-3); }
+.mu-stats {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  padding: 0 var(--sp-4) var(--sp-2); text-align: center;
+}
+.mu-stat b { display: block; font-size: var(--fs-17); font-weight: var(--fw-semi); }
+.mu-stat span { font-size: var(--fs-11); color: var(--text-3); }
+.mu-total {
+  padding: var(--sp-3) var(--sp-4) 0;
+  font-size: var(--fs-13); color: var(--text-2);
+}
+.mu-total-note { margin-top: 2px; font-size: var(--fs-11); color: var(--text-3); }
+
+/* 歌单页头 */
+.mu-head { display: flex; gap: var(--sp-4); align-items: center; padding: var(--sp-4); }
+.mu-head-n { font-size: var(--fs-13); color: var(--text-3); margin-bottom: var(--sp-2); }
+
+/* 底部那条 */
+.mu-bar {
+  position: sticky; bottom: 0; z-index: 2;
+  background: var(--surface); border-top: 1px solid var(--border);
+}
+.mu-bar-line { height: 2px; background: var(--border); position: relative; }
+/* 条子只有两像素，手指点不准。伪元素把上下各撑出一截当热区，不影响外观 */
+.mu-bar-line::after { content: ""; position: absolute; inset: -9px 0; }
+.mu-bar-line i { display: block; height: 100%; background: var(--accent); }
+.mu-bar-body {
+  display: flex; align-items: center; gap: var(--sp-3);
+  padding: var(--sp-2) var(--sp-3);
+}
+.mu-ctl {
+  flex: none; width: 36px; height: 36px; border-radius: var(--r-full);
+  display: flex; align-items: center; justify-content: center; color: var(--text);
+}
+.mu-ctl:active { opacity: .6; }

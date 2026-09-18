@@ -99,16 +99,103 @@ export function accounts(charId) {
   return list;
 }
 
+// 这个号的 uid。登录时存过就用存的，没存过现问一次。
+export async function uidOf(charId = '') {
+  const saved = charId ? characters.get(charId)?.neteaseUid : neteaseConfig().uid;
+  if (saved) return String(saved);
+  const cookie = cookieOf(charId);
+  if (!cookie) return '';
+  return (await accountOf(cookie)).uid;
+}
+
+// ---- 个人主页那一页要的东西 ----
+//
+// 这些数字都是**网易云那边算好的**，这里只读不算：听歌总数是 listenSongs，
+// 排行是 /user/record 的 playCount。自己再拿播放记录去累加会和客户端里
+// 显示的对不上，而对得上正是这一页存在的理由。
+
+export async function profile(charId = '') {
+  const cookie = cookieOf(charId);
+  const uid = await uidOf(charId);
+  if (!uid) throw new Error('还没有登录音乐账号');
+  const r = await call('/user/detail', { uid }, cookie);
+  const p = r.profile || {};
+  return {
+    uid: String(p.userId || uid),
+    nickname: p.nickname || '',
+    avatar: p.avatarUrl || '',
+    cover: p.backgroundUrl || '',
+    signature: p.signature || '',
+    level: Number(r.level || 0) || 0,
+    listenSongs: Number(r.listenSongs || 0) || 0,
+    createDays: Number(r.createDays || 0) || 0,
+    follows: Number(p.follows || 0) || 0,
+    followeds: Number(p.followeds || 0) || 0,
+  };
+}
+
+// type 1 = 最近一周，0 = 所有时间。两边的结构一样，只是字段名不同。
+export async function record(charId = '', { week = true, limit = 0 } = {}) {
+  const cookie = cookieOf(charId);
+  const uid = await uidOf(charId);
+  if (!uid) throw new Error('还没有登录音乐账号');
+  const r = await call('/user/record', { uid, type: week ? 1 : 0 }, cookie);
+  const rows = (week ? r.weekData : r.allData) || r.weekData || r.allData || [];
+  const list = rows.map(row => {
+    const song = row.song || {};
+    return {
+      ...songOf(song),
+      count: Number(row.playCount || 0) || 0,
+      score: Number(row.score || 0) || 0,
+      seconds: Math.round(Number(song.dt || song.duration || 0) / 1000) || 0,
+      album: song.al?.name || song.album?.name || '',
+      cover: song.al?.picUrl || '',
+    };
+  }).filter(x => x.id && x.title);
+  return limit > 0 ? list.slice(0, limit) : list;
+}
+
+// 这个号的歌单。创建的排在前面，收藏的排在后面，网易云自己也是这个顺序。
+export async function playlistsOf(charId = '') {
+  const cookie = cookieOf(charId);
+  const uid = await uidOf(charId);
+  if (!uid) throw new Error('还没有登录音乐账号');
+  const r = await call('/user/playlist', { uid, limit: 200 }, cookie);
+  return (r.playlist || []).map(p => ({
+    id: String(p.id),
+    name: p.name || '',
+    cover: p.coverImgUrl || '',
+    count: Number(p.trackCount || 0) || 0,
+    mine: String(p.userId || '') === String(uid),
+    played: Number(p.playCount || 0) || 0,
+  }));
+}
+
+// 歌单里的歌。/playlist/track/all 拿得到全部，老一点的部署退回 /playlist/detail。
+export async function playlistTracks(id, limit = 0) {
+  const cookie = cookieOf();
+  try {
+    const r = await call('/playlist/track/all', { id, limit: limit || 1000 }, cookie);
+    const list = (r.songs || []).map(trackOf).filter(x => x.id && x.title);
+    if (list.length) return list;
+  } catch { /* 走下一条 */ }
+  const r = await call('/playlist/detail', { id }, cookie);
+  return ((r.playlist?.tracks) || []).map(trackOf).filter(x => x.id && x.title);
+}
+
+const trackOf = s => ({
+  id: String(s.id || ''),
+  title: s.name || '',
+  artist: (s.ar || s.artists || []).map(a => a.name).filter(Boolean).join('、'),
+  album: s.al?.name || s.album?.name || '',
+  cover: s.al?.picUrl || s.album?.picUrl || '',
+  seconds: Math.round(Number(s.dt || s.duration || 0) / 1000) || 0,
+});
+
 // ---- 曲库 ----
 export async function search(keywords, limit = 20) {
   const r = await call('/search', { keywords, limit }, cookieOf());
-  return (r.result?.songs || []).map(s => ({
-    id: String(s.id),
-    title: s.name || '',
-    artist: (s.artists || s.ar || []).map(a => a.name).filter(Boolean).join('、'),
-    album: s.album?.name || '',
-    seconds: Math.round((s.duration || s.dt || 0) / 1000),
-  }));
+  return (r.result?.songs || []).map(trackOf).filter(x => x.id && x.title);
 }
 
 // 播放地址是**会过期的**，所以不入库，每次要放的时候现取。
@@ -145,7 +232,7 @@ const songOf = s => ({
 
 export async function recent(charId, limit = 5) {
   const cookie = cookieOf(charId);
-  if (!cookie) throw new Error('这个角色还没有登录音乐账号');
+  if (!cookie) throw new Error(charId ? '这个角色还没有登录音乐账号' : '还没有登录音乐账号');
   const n = Math.max(1, Math.round(limit) || 5);
 
   // 带时间戳的那条路
@@ -159,7 +246,7 @@ export async function recent(charId, limit = 5) {
   } catch { /* 这份部署没有这个接口，走下一条 */ }
 
   // 退回排行榜。没有时间戳，所以只能说「最近常听」，不能说「刚刚在听」
-  const uid = characters.get(charId)?.neteaseUid || (await accountOf(cookie)).uid;
+  const uid = await uidOf(charId);
   if (!uid) throw new Error('取不到这个账号的 uid');
   const r = await call('/user/record', { uid, type: 1 }, cookie);
   const rows = r.weekData || r.allData || [];

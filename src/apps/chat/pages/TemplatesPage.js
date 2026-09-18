@@ -121,5 +121,9 @@ export function TemplatesPage() {
               onClick=${() => open(id)}/>`;
         })}
       <//>
+
+      <div class="settings-foot">
+        提示词的编写与修订，感谢 我厌 老师的帮助。
+      </div>
     <//>`;
 }

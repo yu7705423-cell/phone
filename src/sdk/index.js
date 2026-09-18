@@ -59,6 +59,7 @@ import * as eventBatch from '../system/ai/tasks/event-batch.js';
 import * as musicApi from '../system/music.js';
 import * as listenApi from '../system/listen.js';
 import * as neteaseApi from '../system/netease.js';
+import * as playerApi from '../system/player.js';
 import * as callApi from '../system/call.js';
 import * as cameraApi from '../system/camera.js';
 import * as keepAliveApi from '../system/keepalive.js';
@@ -180,6 +181,7 @@ export const phone = {
   music: musicApi,
   listen: listenApi,
   netease: neteaseApi,
+  player: playerApi,
   call: callApi,
   camera: cameraApi,
   keepAlive: keepAliveApi,
