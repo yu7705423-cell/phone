@@ -65,7 +65,8 @@ export function StoragePage() {
       const got = await backup.restore(file, {
         onProgress: pct => setWork({ text: '正在恢复', pct }),
       });
-      toast(`已恢复 ${got.rows} 条记录${got.media ? `，${got.media} 个文件` : ''}`, 'ok', 5000);
+      toast(`已恢复 ${got.rows} 条记录${got.media ? `，${got.media} 个文件` : ''}`
+        + `${got.migrated ? `，并升级了 ${got.migrated} 个版本的数据结构` : ''}`, 'ok', 5000);
     } catch (err) {
       toast('导入失败：' + (err.message || err), 'error', 5000);
     } finally { setBusy(false); setWork(null); }

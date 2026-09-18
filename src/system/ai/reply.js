@@ -745,11 +745,14 @@ export async function renderTurn({ chat, char, raw, turnId, swipes, swipeIndex, 
     if (!msg) continue;
     byPart.set(i, msg.id);
     created.push(msg);
-    chats.update(chat.id, { lastMessageAt: Date.now() });
     onEach && onEach(msg, i, parts.length);
     if (wantNotify) notifyMessage(chat, char, msg);
     if (!instant && i < parts.length - 1) await new Promise(r => setTimeout(r, pause(part)));
   }
+  // 一轮写一次，不是一条写一次。messages.create 本来就已经通知过一遍界面了，
+  // 每条再 update 一次 chats 就是白多一轮重渲染 —— 一轮三到五条，白多四次。
+  // 中途被取消也照写：已经落下的那几条是真的落了。
+  if (created.length) chats.update(chat.id, { lastMessageAt: Date.now() });
   await applyTranslate(job, byPart);
   return created;
 }

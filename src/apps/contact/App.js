@@ -1,5 +1,6 @@
 import { html, useRef, useState } from '../../lib.js';
 import { phone, useStore, useImage } from '../../sdk/index.js';
+import { AVATAR_MAX } from '../../system/db/images.js';
 import { ProfilePage } from './ProfilePage.js';
 import { NetPage } from './NetPage.js';
 import { NpcPage } from './NpcPage.js';
@@ -8,7 +9,6 @@ import { Page, List, ListItem, Field, Input, Textarea, Avatar, Button,
          Icon, IconButton, Sheet, EmptyState, toast, confirm, prompt } from '../../ui/index.js';
 
 const { db, nav, images, accounts } = phone;
-const AVATAR_MAX = 256;
 
 // 「这个人是谁」都在这儿：我的人设，和每个角色的人设。
 // 聊天里的角色卡只留「她在对话里怎么表现」那部分（语音、发图、主动找我、世界书）。
