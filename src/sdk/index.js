@@ -46,6 +46,8 @@ import * as avatarApi from '../system/avatar.js';
 import * as takeoutApi from '../system/takeout.js';
 import * as geoApi from '../system/geo.js';
 import * as panelApi from '../system/panel.js';
+import * as paceApi from '../system/pace.js';
+import * as autoReplyApi from '../system/autoreply.js';
 import * as innerTask from '../system/ai/tasks/inner.js';
 import * as foodApi from '../system/food.js';
 import * as dayTask from '../system/ai/tasks/day.js';
@@ -162,6 +164,8 @@ export const phone = {
   takeout: takeoutApi,
   geo: geoApi,
   panel: panelApi,
+  pace: paceApi,
+  autoReply: autoReplyApi,
   food: foodApi,
   draw: drawApi,
   music: musicApi,

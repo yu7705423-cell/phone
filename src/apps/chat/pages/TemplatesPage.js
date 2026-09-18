@@ -43,6 +43,7 @@ const LABELS = {
   'skeleton.agenda': '骨架 · 今天的安排',
   'task.char-alt': '任务 · 角色创建小号',
   'task.proactive': '任务 · 主动发起对话',
+  'task.emo': '任务 · 深夜主动发起',
   'task.vision-describe': '任务 · 识图描述',
   'task.face-describe': '任务 · 读取角色外貌',
   'task.asr-tone': '任务 · 语音转写与语气',

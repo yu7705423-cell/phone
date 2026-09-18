@@ -1021,3 +1021,11 @@ button.search-bar { width: 100%; border: none; }
 .meal-item { font-size: var(--fs-15); font-weight: var(--fw-medium); }
 .meal-price { font-size: var(--fs-12); opacity: .7; margin-top: 2px; }
 .bubble-meal.is-done { opacity: .6; }
+
+/* 会话顶上那一行状态：自动回复开着，或者正在等她回 */
+.pace-bar {
+  flex: none; width: 100%; text-align: center;
+  padding: var(--sp-2) var(--sp-4); margin-bottom: var(--sp-2);
+  font-size: var(--fs-12); color: var(--text-3);
+  background: var(--group-fill);
+}

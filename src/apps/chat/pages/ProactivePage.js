@@ -112,6 +112,37 @@ export function ProactivePage({ charId }) {
             left=${html`<${Icon} name="clock" size=${18}/>`}/>
         <//>
 
+        <${List} title="深夜消息">
+          <${ListItem} title="夜里睡不着的那一条" multiline
+            subtitle=${cfg.emo
+              ? `${cfg.emoFrom}:00 到 ${cfg.emoTo}:00 之间发送，${cfg.emoDays > 0
+                ? `距上次至少间隔 ${cfg.emoDays} 天` : '不限间隔，每晚都可能发送'}。不受上方免打扰时段限制`
+              : '开启后，角色会在设定的深夜时段发送一条情绪化的消息，与上方的常规主动消息分开计算。关闭则只发送常规主动消息'}
+            right=${html`<${Switch} checked=${cfg.emo}
+              onChange=${v => db.characters.update(charId, { emo: v })}/>`}/>
+        <//>
+        ${cfg.emo ? html`
+          <div class="pad-x quiet-row">
+            <${Field} label="从（点）">
+              <${Input} type="number" value=${cfg.emoFrom}
+                onInput=${v => db.characters.update(charId,
+                  { emoFrom: Math.min(23, Math.max(0, parseInt(v, 10) || 0)) })}/>
+            <//>
+            <${Field} label="到（点）">
+              <${Input} type="number" value=${cfg.emoTo}
+                onInput=${v => db.characters.update(charId,
+                  { emoTo: Math.min(23, Math.max(0, parseInt(v, 10) || 0)) })}/>
+            <//>
+          </div>
+          <div class="pad-x">
+            <${Field} label="最小间隔（天）"
+              desc="距上次深夜消息至少间隔的天数。每次发送会额外消耗一次接口调用。填 0 表示不限间隔，符合时段即可发送。">
+              <${Input} type="number" value=${cfg.emoDays}
+                onInput=${v => db.characters.update(charId,
+                  { emoDays: Math.max(0, parseInt(v, 10) || 0) })}/>
+            <//>
+          </div>` : null}
+
         ${char.parentId ? null : html`
           <${List} title="角色小号">
             <${ListItem} title="允许角色自行创建小号" multiline

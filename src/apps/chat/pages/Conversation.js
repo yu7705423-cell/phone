@@ -17,7 +17,7 @@ import { TransferBubble, NoticeLine, TransferSheet, SettleSheet,
 
 // panel 这个名字在本文件里已经被「当前开着哪个面板」占了（见下面的 useState），
 // 所以模块换个名字进来 —— 同名会被局部变量盖掉，读出来是 null。
-const { db, nav, ai, call, extras, panel: panelCfg } = phone;
+const { db, nav, ai, call, extras, pace, autoReply, panel: panelCfg } = phone;
 
 // 一屏装不下这么多，但往上翻几下够用；不够再按按钮要下一段。
 // 见 CLAUDE.md 第 13 条：这是默认值不是上限，设置里填 0 就一次画全。
@@ -270,6 +270,31 @@ export function Conversation({ chatId, focusId = '' }) {
   // 换一段对话就把窗口收回去，不然从长会话退出来再进短的，窗口还开着
   useEffect(() => { setShown(pageSize()); }, [chatId]);
 
+  // 「过一会儿才回」那一档：到点了就生成。
+  // 定时器随页面走，但到点的时刻存在会话上，所以关掉再打开照样补得上 ——
+  // 早该回的立刻回，没到的接着等。
+  const pacePending = chat ? pace.pendingOf(chat) : null;
+  useEffect(() => {
+    if (!pacePending || busy) return undefined;
+    const left = Math.max(0, pacePending.dueAt - Date.now());
+    const t = setTimeout(() => {
+      // 等这一会儿里人可能已经改了设置或者又发了一条，到点再确认一次
+      const now = db.chats.get(chatId);
+      if (!now || !pace.pendingOf(now)) return;
+      pace.clear(chatId);
+      generate();
+    }, left);
+    return () => clearTimeout(t);
+  }, [pacePending?.dueAt, busy, chatId]);
+
+  // 倒计时那一行每秒刷一下。没在等就不起这个定时器
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    if (!pacePending) return undefined;
+    const t = setInterval(() => setTick(n => n + 1), 1000);
+    return () => clearInterval(t);
+  }, [pacePending?.dueAt]);
+
   const landed = useRef(false);
   useEffect(() => { landed.current = false; }, [chatId, focusId]);
 
@@ -342,6 +367,8 @@ export function Conversation({ chatId, focusId = '' }) {
       // 「单独生成」那一档在整轮说完之后另起一次调用。不 await：
       // 心声是背面那一层，晚一两秒出现不影响已经发出去的话。
       ai.inner.attach(chatId, made).catch(() => {});
+      // 我不在，替我回一句固定的。两道闸（条数、时限）在 autoreply 里
+      if (autoReply.shouldReply(chatId, 'mine')) autoReply.fire(chatId, 'mine');
 
       if (ai.memory.shouldAutoExtract(chatId, settings.autoSummarizeInterval)) {
         ai.memory.extract(chatId)
@@ -379,7 +406,19 @@ export function Conversation({ chatId, focusId = '' }) {
     db.messages.create({ chatId, role: 'user', authorId: 'me', kind: 'text',
       content: text, status: 'done', ...q });
     db.chats.update(chatId, { lastMessageAt: Date.now() });
+    afterSend(text);
   };
+
+  // 发完之后由谁接。三种可能，互斥：
+  //   她开着自动回复  回一句固定的，不调接口，也不再排正常的回复
+  //   节奏是「发完就回」立刻生成
+  //   节奏是「过一会儿」 记一个到点时刻，下面那个 effect 负责等
+  function afterSend(text) {
+    if (autoReply.shouldReply(chatId, 'hers')) { autoReply.fire(chatId, 'hers'); return; }
+    const mode = pace.modeOf(db.chats.get(chatId));
+    if (mode === pace.NOW) generate();
+    else if (mode === pace.PACED) pace.schedule(chatId, text);
+  }
 
   const sendSticker = s => {
     const q = draftQuote();
@@ -656,6 +695,16 @@ export function Conversation({ chatId, focusId = '' }) {
         : html`<${IconButton} name="more" onClick=${() => setMenu(true)} label="更多"/>`}>
       <div class="conv">
         <${ListenBar} chatId=${chatId}/>
+        ${(() => {
+          const banner = autoReply.bannerOf(chat);
+          const left = pace.leftOf(chat);
+          const line = [banner, left === null ? '' : `已送达 · ${pace.leftText(left)}`]
+            .filter(Boolean).join(' · ');
+          return line ? html`
+            <button class="pace-bar press" onClick=${() => nav.push(`/pace/${chatId}`)}>
+              ${line}
+            </button>` : null;
+        })()}
         <div class="conv-body scroll" ref=${bodyRef}>
           ${char.firstMessage && !msgs.length ? html`
             <${Bubble} msg=${greeting} char=${char} chat=${chat} frozen
@@ -797,6 +846,15 @@ export function Conversation({ chatId, focusId = '' }) {
               : '关着。开启后角色每说一条会同时给出译文'}
             left=${html`<${Icon} name="translate" size=${18}/>`}
             onClick=${() => { setMenu(false); nav.push(`/translate/${chatId}`); }}/>
+          <${ListItem} title="节奏与自动回复" arrow multiline
+            subtitle=${(() => {
+              const mode = pace.modeOf(chat);
+              const m = mode === pace.NOW ? '发完就回'
+                : mode === pace.PACED ? '过一会儿才回' : '按按钮才回';
+              return `${m}${autoReply.bannerOf(chat) ? ' · ' + autoReply.bannerOf(chat) : ''}`;
+            })()}
+            left=${html`<${Icon} name="clock" size=${18}/>`}
+            onClick=${() => { setMenu(false); nav.push(`/pace/${chatId}`); }}/>
           <${ListItem} title="共享位置" arrow multiline
             subtitle=${(() => {
               const sum = phone.geo.summary(chatId);

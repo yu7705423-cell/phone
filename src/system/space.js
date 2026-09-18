@@ -218,12 +218,37 @@ export function removePact(id) { return messages.remove(id); }
 export function letters(chatId) { return recordsOf(chatId, 'letter'); }
 export function drafts(chatId) { return items(chatId, DRAFT); }
 
-export function saveDraft({ chatId, id, title, body }) {
+export function saveDraft({ chatId, id, title, body, sendAt = 0 }) {
   const t = trim(title, 30);
   const b = trim(body, 2000);
   if (!b) throw new Error('请填写信的内容');
-  if (id) return spaceItems.update(id, { title: t, body: b });
-  return spaceItems.create({ chatId, type: DRAFT, title: t, body: b });
+  // sendAt 是定时投递的时刻。0 表示不定时，一直留在信箱里等你自己寄。
+  const at = Math.max(0, Number(sendAt) || 0);
+  if (id) return spaceItems.update(id, { title: t, body: b, sendAt: at });
+  return spaceItems.create({ chatId, type: DRAFT, title: t, body: b, sendAt: at });
+}
+
+/**
+ * 到点该寄出去的那几封。
+ *
+ * 页面关着的时候没有定时器，所以不靠定时器 —— 到点的时刻记在信上，
+ * 开着的时候由全局那个 tick 扫一遍，关着再打开也补得上。
+ * 投递时间用的是**当初定的那个时刻**，不是发现它的时刻。
+ */
+export function deliverDue(now = Date.now()) {
+  const out = [];
+  for (const row of spaceItems.all()) {
+    if (row.type !== DRAFT || !row.sendAt || row.sendAt > now) continue;
+    if (!chats.get(row.chatId)) { spaceItems.remove(row.id); continue; }
+    const msg = sendLetter({
+      chatId: row.chatId, role: 'user', authorId: 'me',
+      title: row.title, body: row.body,
+      extra: { createdAt: row.sendAt },
+    });
+    spaceItems.remove(row.id);
+    out.push(msg);
+  }
+  return out;
 }
 
 export function removeDraft(id) { return spaceItems.remove(id); }

@@ -11,6 +11,7 @@ import { Conversation } from './pages/Conversation.js';
 import { ContextPage } from './pages/ContextPage.js';
 import { TimePage } from './pages/TimePage.js';
 import { ExtrasPage } from './pages/ExtrasPage.js';
+import { PacePage } from './pages/PacePage.js';
 import { TranslatePage } from './pages/TranslatePage.js';
 import { TemplatesPage } from './pages/TemplatesPage.js';
 import { StickerManager } from './pages/StickerManager.js';
@@ -75,6 +76,8 @@ export default function ChatApp({ route }) {
   if (route === '/context') return html`<${ContextPage}/>`;
   if (route === '/time') return html`<${TimePage}/>`;
 
+  const pc = route?.match(/^\/pace\/(.+)$/);
+  if (pc) return html`<${PacePage} chatId=${pc[1]}/>`;
   const ex = route?.match(/^\/extras\/(.+)$/);
   if (ex) return html`<${ExtrasPage} chatId=${ex[1]}/>`;
 
