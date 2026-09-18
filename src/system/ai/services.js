@@ -14,6 +14,10 @@ export const EMPTY_SERVICES = {
   vision: { mode: 'off', baseUrl: '', apiKey: '', model: '' },
   // 语音识别：把用户发的语音读成文字。mode 决定只转文字还是连语气一起读
   asr: { baseUrl: '', apiKey: '', model: '', mode: 'text' },
+  // 记忆整理那几件（提取、压底色、导入、压缩历史）单独用哪套接口。
+  //   spare  跟着别的后台活儿一起走副用（默认）
+  //   api    下面这套单独的
+  memory: { mode: 'spare', provider: 'openai', baseUrl: '', apiKey: '', model: '' },
   // 翻译。mode 决定译文从哪儿来：
   //   inline  跟着聊天回复一起给出，不额外调用接口（没配的时候就是这一档）
   //   api     单独调这套接口。只送原文与翻译规则，人设、记忆、对话历史一概不送
@@ -36,6 +40,7 @@ export function services() {
     embed: { ...EMPTY_SERVICES.embed, ...(s?.embed || {}) },
     vision: { ...EMPTY_SERVICES.vision, ...(s?.vision || {}) },
     asr: { ...EMPTY_SERVICES.asr, ...(s?.asr || {}) },
+    memory: { ...EMPTY_SERVICES.memory, ...(s?.memory || {}) },
     translate: { ...EMPTY_SERVICES.translate, ...(s?.translate || {}) },
     search: { ...EMPTY_SERVICES.search, ...(s?.search || {}) },
     netease: { ...EMPTY_SERVICES.netease, ...(s?.netease || {}) },
@@ -168,6 +173,20 @@ export function neteaseConfig() { return services().netease; }
 export function setNetease(patch) { write({ netease: { ...services().netease, ...patch } }); }
 export function neteaseReady() { return !!services().netease.baseUrl; }
 export function neteaseLoggedIn() { const n = services().netease; return !!(n.baseUrl && n.cookie); }
+
+// ---- 记忆整理。单独配一套，不配就跟着副用走 ----
+export function memoryConfig() { return services().memory; }
+export function setMemory(patch) { write({ memory: { ...services().memory, ...patch } }); }
+
+export function memoryFilled() {
+  const m = services().memory;
+  return !!(m.apiKey && m.model);
+}
+
+// 选了单独的接口却没填全，退回副用 —— 记忆整理停摆比慢一点糟得多
+export function memoryMode() {
+  return services().memory.mode === 'api' && memoryFilled() ? 'api' : 'spare';
+}
 
 // ---- 翻译。OpenAI 兼容的 chat/completions ----
 export function translateConfig() { return services().translate; }

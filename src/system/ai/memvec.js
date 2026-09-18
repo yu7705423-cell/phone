@@ -60,7 +60,7 @@ const queued = new Set();
 let timer = null;
 
 export function touch(id) {
-  if (!embedReady() || !(settings.get().memoryVector !== false)) return;
+  if (!embedReady() || settings.get().memoryVector !== true) return;
   queued.add(id);
   clearTimeout(timer);
   timer = setTimeout(flush, 1200);

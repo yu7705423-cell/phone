@@ -246,14 +246,16 @@ export function ContextPage() {
       <${List} title="怎么找记忆">
         <${ListItem} title="按意思找" multiline
           subtitle=${vecReady
-            ? `已索引 ${indexed} / ${total} 条。关闭后退回关键词匹配`
+            ? s.memoryVector === true
+              ? `已索引 ${indexed} / ${total} 条。每轮额外取一次查询向量，关闭后退回关键词匹配`
+              : `已配置接口，当前关闭，使用关键词匹配。开启后每轮额外调用一次向量接口`
             : '需先在「设置 - 向量」中配置接口。未配置时始终使用关键词匹配'}
           right=${vecReady
-            ? html`<${Switch} checked=${s.memoryVector !== false}
+            ? html`<${Switch} checked=${s.memoryVector === true}
                 onChange=${v => db.settings.set({ memoryVector: v })}/>`
             : html`<span class="li-hint">未配置</span>`}/>
       <//>
-      ${vecReady && s.memoryVector !== false ? html`
+      ${vecReady && s.memoryVector === true ? html`
         <div class="pad-x">
           <${Field} label="最多取几条"
             desc="S 级记忆始终注入，不计入此数。其余记忆按相似度排序后取前若干条。

@@ -8,7 +8,7 @@ import { fillTemplate, template } from './templates.js';
 import { capabilityBlock } from './capabilities.js';
 import { embedQuery, embedReady } from './embed.js';
 import { getProvider } from './providers/index.js';
-import { activeChat, fallbackChat, visionMode } from './services.js';
+import { activeChat, fallbackChat, visionMode, memoryConfig, memoryMode } from './services.js';
 import { images } from '../db/images.js';
 import * as avatarLib from '../avatar.js';
 import { toDataUrl } from '../audio.js';
@@ -64,55 +64,68 @@ export function fallbackConfig() { return usable(asConfig(fallbackChat())); }
 
 export function isConfigured() { return !!config(); }
 
-// 后台活儿：用户不会盯着屏幕等结果的那些。默认丢给副用接口，
-// 主用留给「你正等着看」的东西（聊天回复、主动消息、朋友圈动态）。
-// 副用一般更便宜也更慢，这些活儿慢一点无所谓。
-export const BACKGROUND_TASKS = new Set([
+// 哪件事走哪套接口。见 CLAUDE.md 第 15 条。
+//
+// **只有你正盯着屏幕等的那两件走主用，其余一律归副用。**
+// 整理记忆、排日程、生成 NPC、写朋友圈这些，慢一点没人会发现，
+// 不该和聊天抢同一个（通常更贵的）接口。
+//
+// 副用没配就退回主用。那是「用哪一套」，不是多打一次 —— 不必给开关。
+const MAIN_TASKS = new Set(['chat.reply', 'chat.call']);
+
+// 记忆那几件还可以再单独配一套，见「设置 - 记忆接口」。
+// 它们是量最大也最不着急的一批，值得单独挑一个便宜模型。
+const MEMORY_TASKS = new Set([
   'memory.extract',    // 自动总结记忆
   'memory.bond',       // 把 S 级记忆压成关系底色
-  'chat.summarize',    // 历史压缩
   'memory.import',     // 粘一大段文字拆成记忆
-  'card.import',       // 导入角色卡
-  'card.npc',          // 批量生成关联 NPC
-  'char.alt',          // 角色自己琢磨开小号
-  'event.batch',       // 批量生成随机事件
-  'recipe.batch',      // 批量生成食谱
-  'day.plan',          // 排角色当天的日程
-  'inner.voice',       // 单独生成心声
+  'chat.summarize',    // 历史压缩
 ]);
 
-export function backgroundUsesSpare() {
-  return settings.get().backgroundSpare !== false && !!fallbackConfig();
+const memoryPreset = () => (memoryMode() === 'api'
+  ? usable(asConfig({ id: 'memory', name: '记忆接口', ...memoryConfig() }))
+  : null);
+
+/** 这个任务该用哪套。挑不出来就是一套都没配全。 */
+export function presetFor(taskId) {
+  if (MAIN_TASKS.has(taskId)) return config() || fallbackConfig();
+  if (MEMORY_TASKS.has(taskId)) {
+    const m = memoryPreset();
+    if (m) return m;
+  }
+  return fallbackConfig() || config();
 }
 
-// 先试 a 再试 b。取消不算失败，不触发兜底。
-async function tryBoth(run, first, second, label) {
-  const a = first || second;
+// 挑剩下的那一套，给「失败了换一个再试」用。和 a 是同一套就当没有。
+function otherThan(a) {
+  const list = [config(), fallbackConfig()].filter(Boolean);
+  return list.find(c => c && c.id !== a.id) || null;
+}
+
+/**
+ * 跑一次。
+ *
+ * **失败之后换另一套再试是第二次调用，所以默认关着**（第 15 条）。
+ * 想开在「设置 - 用量与上限」里。取消不算失败，任何时候都不触发。
+ */
+async function runWith(taskId, run) {
+  const a = presetFor(taskId);
   if (!a) throw new Error('还没有配置接口，或者配的那个没填全（缺密钥或模型）');
-  const b = first ? second : null;
   try {
     return await run(a);
   } catch (err) {
-    if (!b || isAbort(err)) {
+    const b = settings.get().chatFallback === true && !isAbort(err) ? otherThan(a) : null;
+    if (!b) {
       // 把是哪个预设挂的写进报错，不然一句「请求失败」根本没法查
-      err.message = `${a.name || label}：${err.message}`;
+      err.message = `${a.name || '接口'}：${err.message}`;
       throw err;
     }
-    console.warn(`[ai] ${label}失败，改用另一个接口`, err.message);
+    console.warn('[ai] 接口失败，改用另一套', err.message);
     return run(b);
   }
 }
 
-// 主用失败时自动换副用再试一次
-const withFallback = run => tryBoth(run, config(), fallbackConfig(), '主用接口');
-
-// 后台活儿：反过来，副用优先，副用挂了再退回主用，别让记忆整理挡住聊天
-const withSpareFirst = run => backgroundUsesSpare()
-  ? tryBoth(run, fallbackConfig(), config(), '副用接口')
-  : withFallback(run);
-
-// 任务按 id 决定走哪条路
-const runnerFor = taskId => (BACKGROUND_TASKS.has(taskId) ? withSpareFirst : withFallback);
+const runnerFor = taskId => run => runWith(taskId, run);
 
 function budgets(total) {
   return { lorebook: Math.round(total * 0.4), memory: Math.round(total * 0.35) };
@@ -129,7 +142,7 @@ function scanTextOf(msgs, n) {
 // 失败不抛：拿不到就退回关键词检索，聊天不能因为向量接口挂了就发不出去。
 export async function queryVecFor(msgs) {
   const s = settings.get();
-  if (!s.memoryEnabled || s.memoryVector === false || !embedReady()) return null;
+  if (!s.memoryEnabled || s.memoryVector !== true || !embedReady()) return null;
   const text = scanTextOf(msgs, s.scanWindow).trim();
   if (!text) return null;
   try {
@@ -411,7 +424,7 @@ export function streamCall({ chat, char, system, lines = [], opening = '', image
     else all.push({ role: 'user', content: '(this is the view from my side)', image });
   }
 
-  return enqueue(callKey(chat.id), signal => withFallback(c => send('chat.call', c,
+  return enqueue(callKey(chat.id), signal => runWith('chat.call', c => send('chat.call', c,
     { system, messages: all, maxTokens: callMax() || c.maxTokens, signal, onDelta }, 'stream')),
     { replace: true, retries: 1 });
 }
@@ -459,7 +472,7 @@ export function streamReply({ chat, char, onDelta }) {
     // 剥掉之后前面几秒气泡是空的，看着像卡住。一次返回则是等齐了整段才出现，
     // 中间只有「正在输入」。两种都有人要，所以给开关。
     const oneShot = settings.get().streamMode === 'once';
-    const text = await withFallback(c => send('chat.reply', c,
+    const text = await runWith('chat.reply', c => send('chat.reply', c,
       { system, messages: history, maxTokens: c.maxTokens, signal, onDelta: oneShot ? undefined : onDelta },
       oneShot ? 'complete' : 'stream'));
     // 不 await：描述是给以后几轮用的，这一轮模型已经看过原图了，

@@ -1,8 +1,8 @@
 import { html } from '../../lib.js';
 import { phone, useStore } from '../../sdk/index.js';
-import { Page, List, ListItem, Field, NumberInput, Switch } from '../../ui/index.js';
+import { Page, List, ListItem, Field, NumberInput, Switch, Icon } from '../../ui/index.js';
 
-const { db, nav } = phone;
+const { db, nav, ai } = phone;
 
 // 用量与上限。见 CLAUDE.md 第 13 条：
 //   一次能做多少，一律不封顶，这里填的是默认值，0 表示不限；
@@ -13,6 +13,8 @@ const { db, nav } = phone;
 export function LimitsPage() {
   const s = useStore(db.settings.store);
   const set = patch => db.settings.set(patch);
+  // 现在开着哪几项会多打接口。清单只在 ai/cost.js 列一处
+  const extra = ai.cost.active();
 
   return html`
     <${Page} title="用量与上限" onBack=${nav.pop}>
@@ -21,13 +23,35 @@ export function LimitsPage() {
         标注了「每次请求」的项目直接影响接口费用。
       </div>
 
+      <${List} title="一次回复调用几次接口">
+        <${ListItem} title=${extra.length ? `基础 1 次，另有 ${extra.length} 项已开启` : '1 次'}
+          multiline
+          left=${html`<${Icon} name=${extra.length ? 'filter' : 'check'} size=${18}/>`}
+          subtitle=${extra.length
+            ? '以下项目会在某些条件下追加调用。逐项说明见下方各开关。'
+            : '一次回复只调用一次接口。开启下列任一项后，某些回合会追加调用。'}/>
+        ${extra.map(x => html`
+          <${ListItem} key=${x.id} title=${x.label} subtitle=${x.whenText} multiline/>`)}
+      <//>
+
       <${List} title="额外的接口调用">
+        <${ListItem} title="自动重试" multiline
+          subtitle=${`接口返回 429 或 5xx 时自动重发。每重试一次即多一次计费。`
+            + `填 0 表示不重试，最多 ${ai.cost.RETRY_CAP} 次。主动取消不计为失败，不会重试。`}
+          right=${html`<${NumberInput} value=${Number(s.retryMax) || 0} min=${0}
+            max=${ai.cost.RETRY_CAP} onChange=${v => set({ retryMax: v })}/>`}/>
+        <${ListItem} title="接口失败时改用另一套" multiline
+          subtitle=${s.chatFallback === true
+            ? '主用接口报错时改用副用接口重发一次，失败的那次同样计费。'
+            : '已关闭。接口报错时直接报错，不改用另一套重发。开启后失败的回合会调用两次。'}
+          right=${html`<${Switch} checked=${s.chatFallback === true}
+            onChange=${v => set({ chatFallback: v })}/>`}/>
         <${ListItem} title="自动生成关系底色" multiline
-          subtitle=${s.bondAuto === false
+          subtitle=${s.bondAuto !== true
             ? '已关闭。关系底色不会自动更新，可在会话菜单中手动生成或手写。'
             : '标记为 S 级的记忆有增删改时，额外调用一次接口，将其压缩为几句关系现状。'
               + '未发生变动时不调用。关闭后仍可手动生成。'}
-          right=${html`<${Switch} checked=${s.bondAuto !== false}
+          right=${html`<${Switch} checked=${s.bondAuto === true}
             onChange=${v => set({ bondAuto: v })}/>`}/>
         <${ListItem} title="导入角色卡时生成核心设定" multiline
           subtitle=${s.coreAuto === false

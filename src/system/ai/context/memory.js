@@ -111,7 +111,7 @@ export function recall(ctx) {
   const { settings, char, scanText, budgets, queryVec, persona } = ctx;
   if (!settings.memoryEnabled) return [];
   const personaId = persona?.id || null;
-  const useVec = settings.memoryVector !== false && embedReady() && queryVec?.length;
+  const useVec = settings.memoryVector === true && embedReady() && queryVec?.length;
   const { items } = useVec
     ? selectByVector(char?.id, scanText, budgets.memory, queryVec, {
       personaId,

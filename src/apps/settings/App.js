@@ -15,6 +15,7 @@ import { MusicPage } from './MusicPage.js';
 import { LimitsPage } from './LimitsPage.js';
 import { SearchApiPage } from './SearchApiPage.js';
 import { TranslateApiPage } from './TranslateApiPage.js';
+import { MemoryApiPage } from './MemoryApiPage.js';
 import { BUILD } from '../../version.js';
 
 const { db, nav } = phone;
@@ -177,6 +178,7 @@ export default function SettingsApp({ route }) {
   if (route === '/limits') return html`<${LimitsPage}/>`;
   if (route === '/search') return html`<${SearchApiPage}/>`;
   if (route === '/translate') return html`<${TranslateApiPage}/>`;
+  if (route === '/memoryapi') return html`<${MemoryApiPage}/>`;
   if (route === '/voice') return html`<${VoicePage}/>`;
   if (route === '/image') return html`<${ImagePage}/>`;
   if (route === "/appearance") return html`<${AppearancePage}/>`;

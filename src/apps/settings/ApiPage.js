@@ -97,6 +97,10 @@ function Editor({ id, onClose }) {
 
 export function ApiPage() {
   const s = useStore(db.settings.store);
+  const mem = svc.memoryConfig();
+  const memDesc = svc.memoryMode() === 'api'
+    ? `单独的接口 · ${mem.model}`
+    : mem.mode === 'api' ? '选了单独的接口，但还没填全' : '跟随副用接口';
   const [editing, setEditing] = useState(null);
   const chat = svc.services().chat;
   const presets = chat.presets;
@@ -154,23 +158,24 @@ export function ApiPage() {
                 onChange=${v => svc.setFallbackChat(v ? p.id : null)}/>`}/>`)}
         <//>
         <div class="settings-foot">
-          主用接口报错时自动改用副用重试一次。主动取消不计为失败，不会触发。<br/>
-          如不需要副用，将以上开关全部关闭即可。
+          对话回复与通话之外的全部任务都走副用接口，副用未配置时退回主用。
+          该切换不产生额外调用。<br/>
+          走主用：对话回复、通话。<br/>
+          走副用：整理记忆、历史压缩、排当日日程、生成随机事件与食谱、
+          导入角色卡、批量生成 NPC、主动消息、朋友圈动态与评论、心声、识图描述。<br/>
+          主用接口报错时改用另一套重试，属于额外调用，默认关闭，
+          可在「用量与上限」中开启。
         </div>
 
-        ${chat.fallbackId ? html`
-          <${List} title="后台任务的接口">
-            <${ListItem} title="优先使用副用接口" multiline
-              subtitle="整理记忆、导入角色卡、生成 NPC 等无需即时等待的任务优先走副用接口，
-                副用不可用时退回主用。主用接口保留给对话回复与主动消息。"
-              right=${html`<${Switch} checked=${s.backgroundSpare !== false}
-                onChange=${v => db.settings.set({ backgroundSpare: v })}/>`}/>
-          <//>
-          <div class="settings-foot">
-            走副用：自动总结记忆、历史压缩、从文本导入记忆、导入角色卡、
-            批量生成 NPC、角色创建小号。<br/>
-            走主用：对话回复、主动消息、朋友圈动态与评论。
-          </div>` : null}`
+        <${List} title="记忆整理的接口">
+          <${ListItem} title="记忆接口" subtitle=${memDesc} arrow multiline
+            onClick=${() => nav.push('/memoryapi')}/>
+        <//>
+        <div class="settings-foot">
+          自动总结记忆、压缩关系底色、从文本导入记忆、历史压缩这四项可以再单独
+          指定一套接口。它们量最大也最不着急，适合选用更便宜的模型。
+          未单独配置时跟随副用接口。
+        </div>`
       : html`<${EmptyState} icon="key" title="尚未配置接口"
           desc="可保存多个接口随时切换，并指定一个副用接口，在主用报错时自动接替。"/>`}
 

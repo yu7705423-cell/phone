@@ -41,8 +41,10 @@ export const DEFAULT_SETTINGS = {
   temperature: 0.9,
   effort: 'low',
 
-  // 后台活儿（整理记忆、导入、生成 NPC…）优先走副用接口，见 ai/engine.js
-  backgroundSpare: true,
+  // 一次回复只允许一次接口调用。会让它变成两次以上的，一律默认关着。
+  // 见 CLAUDE.md 第 15 条，清单在 ai/cost.js
+  retryMax: 0,                    // 429 / 5xx 自动重试几次。上限 3，0 为不重试
+  chatFallback: false,            // 主用接口失败时改用另一套再试一次
 
   // 翻译。语言挂在会话上（chat.translateTo），这里只管怎么显示
   translateOpen: 'tap',           // tap | always
@@ -56,7 +58,7 @@ export const DEFAULT_SETTINGS = {
   watchGap: 90,                   // 一起看时，她两次开口至少隔这么多秒。0 为只在你说话时才回
   watchLines: 8,                  // 每次给她看最近几句台词
   watchAwayEnd: 15,               // 离开播放页这么多分钟后自动收场。0 为一直留着
-  bondAuto: true,                 // S 级记忆有变动时自动重压关系底色
+  bondAuto: false,                // S 级记忆有变动时自动重压关系底色。开了每轮可能多一次调用
   coreAuto: true,                 // 导入角色卡时顺带生成核心设定
   memoryDepth: 1,                 // 本轮相关记忆插在倒数第几条之前，0 为留在设定区
   promptExamples: true,           // 骨架里的示例，按 token 计费，可关
@@ -106,7 +108,7 @@ export const DEFAULT_SETTINGS = {
 
   // 记忆
   memoryEnabled: true,
-  memoryVector: true,             // 配了向量接口就按语义检索，见 system/ai/memvec.js
+  memoryVector: false,            // 按语义检索。每轮多取一次查询向量，所以默认关着（第 15 条）
   memoryTopK: 12,                 // 语义检索取前几条
   memoryThreshold: 0.22,          // 相似度低于这个就不要了
   autoSummarizeInterval: 0,       // 0 = 关闭

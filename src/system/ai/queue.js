@@ -1,5 +1,12 @@
+import { retryMax } from './cost.js';
+
 // 所有模型请求都从这里出去。并发限制、去重、取消、重试。
 // 组件里直接 fetch 是禁止的,见 CLAUDE.md 第 10 条。
+//
+// **重试要花钱，所以由用户说了算，默认一次都不重试。**
+// 调用方给的 retries 只是「这件事最多值得重试几次」，真正试几次取它与
+// 用户设的上限里较小的那个。上限写死 3 —— 再多也救不回来，
+// 只是把同一个错误的账单乘以四。见 CLAUDE.md 第 15 条与 ai/cost.js。
 
 const waiting = [];
 const active = new Map();   // key -> { controller, promise }
@@ -43,6 +50,8 @@ function start(job) {
 }
 
 export function enqueue(key, fn, { retries = 1, replace = false } = {}) {
+  const want = Math.max(0, Math.round(Number(retries) || 0));
+  retries = Math.min(want, retryMax());
   if (active.has(key)) {
     if (!replace) return active.get(key).promise;
     active.get(key).controller.abort();

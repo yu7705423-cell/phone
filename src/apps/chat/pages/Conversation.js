@@ -910,6 +910,15 @@ export function Conversation({ chatId, focusId = '' }) {
         <//>
 
         <${List} title="上下文">
+          <${ListItem} title="每轮的接口调用" arrow multiline
+            subtitle=${(() => {
+              const n = ai.cost.perTurn(chatId);
+              return n > 1
+                ? `这段对话每轮固定调用 ${n} 次接口。点击查看是哪几项，并可逐项关闭。`
+                : '这段对话每轮调用 1 次接口。';
+            })()}
+            left=${html`<${Icon} name="filter" size=${18}/>`}
+            onClick=${() => { setMenu(false); phone.intent.open('settings', { route: '/limits' }); }}/>
           <${ListItem} title="上下文与记忆" subtitle="注入顺序、扫描窗口、历史范围、自动总结" arrow multiline
             left=${html`<${Icon} name="layers" size=${18}/>`}
             onClick=${() => { setMenu(false); nav.push('/context'); }}/>
