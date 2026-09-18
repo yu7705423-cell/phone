@@ -3607,6 +3607,24 @@ phone.autoReply.shouldReply(chatId, side) / fire(chatId, side) / bannerOf(chat)
 插话最讨嫌，空窗才是开口的时机。这一判断不花一分钱，也不问模型。
 间隔由「设置 - 用量与上限」里那一项定，填 0 就是只在你说话时才回。
 
+**字幕从哪儿来。** 三条路，按代价排：
+
+1. 外挂 SRT / ASS / VTT，导入即可，不花什么。
+2. MP4 自带的字幕轨：`system/mp4subs.js` **自己拆 ISO 盒子**（moov → trak →
+   stsd/stts/stsc/stsz/stco），只读字幕那几个样本，全程 `Blob.slice`，
+   不把整个文件读进内存。不用 textTracks —— 内封轨的 cue 是跟着解码进度来的，
+   想拿全片就得从头放到尾，而且 Chrome 不暴露 MP4 里的 tx3g 轨。
+3. MKV 那一类浏览器根本放不了（`canPlayType('video/x-matroska')` 给空串），
+   所以 `system/ffmpeg.js` 用 vendor 里的 ffmpeg.wasm **换壳**：`-c copy`
+   把音视频原样搬进 MP4，字幕转成 mov_text，换完第 2 条那套就读得到了。
+   三十二兆的核心**只在用户点了才加载**，平时一个字节都不读。
+   上限七百兆：MEMFS 在内存里，wasm32 的地址空间就那么大，
+   超了当场说不行，不要跑到一半崩掉。
+
+字幕对不上是常事，所以有整体偏移（`video.offsetOf`），**只在读出来的时候加**，
+不改原文。片库里能填，一起看那一屏上也能当场调 —— 对不对得上只有正在看的
+时候才发现。
+
 **播放控制是真的。** `[暂停]` `[继续]` `[倒回：12:30]` 三行会作用到
 页面上那个 `<video>` 上（`watch.attach` 把元素交给 system 层）。
 「等下，刚那句我没听清」然后画面真的倒回去 —— 这个瞬间的存在感，

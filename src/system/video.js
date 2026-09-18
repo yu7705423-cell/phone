@@ -1,6 +1,7 @@
 import { videos, files } from './db/index.js';
 import * as subtitle from './subtitle.js';
 import * as mp4subs from './mp4subs.js';
+import * as ffmpeg from './ffmpeg.js';
 
 // 片库。和曲库（music.js）同一套：片子要么是一个地址，要么是一个存在本机的
 // 文件，不做「只有片名」的虚拟片 —— 一起看要真的有东西在放，进度才有意义。
@@ -142,6 +143,23 @@ export async function subtitleFromFile(blob) {
     format: best.format,
   };
 }
+
+/**
+ * 浏览器放不了的壳（MKV 那一类），用 ffmpeg 换成 MP4，顺手把字幕带出来。
+ *
+ * **换壳不重编码**：音视频原样搬过去，一两分钟的事，画质一帧不损。
+ * 换完之后字幕已经在 MP4 里了，交给 mp4subs 读就是，不必再抽一遍。
+ *
+ * 给回 { blob, srt, subs }。写不写进片库由调用方决定。
+ */
+export async function convertForPlayback(blob, { onProgress } = {}) {
+  const mp4 = await ffmpeg.toMp4(blob, { onProgress });
+  const got = await subtitleFromFile(mp4);
+  return { blob: mp4, srt: got ? got.srt : '', subs: got ? got.lines : 0 };
+}
+
+/** 这个文件用不用得着 ffmpeg。放得了的壳就不必惊动它。 */
+export const needsConvert = file => !ffmpeg.playable(file?.type, file?.name);
 
 /** 片库里这一部有没有可用的字幕。界面上要据此提示。 */
 export const hasSubtitle = video => linesOf(video).length > 0;

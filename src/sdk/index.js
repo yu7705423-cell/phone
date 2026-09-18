@@ -63,6 +63,7 @@ import * as playerApi from '../system/player.js';
 import * as videoApi from '../system/video.js';
 import * as watchApi from '../system/watch.js';
 import * as subtitleApi from '../system/subtitle.js';
+import * as ffmpegApi from '../system/ffmpeg.js';
 import * as watchOutline from '../system/ai/tasks/watch-outline.js';
 import * as callApi from '../system/call.js';
 import * as cameraApi from '../system/camera.js';
@@ -190,6 +191,7 @@ export const phone = {
   video: videoApi,
   watch: watchApi,
   subtitle: subtitleApi,
+  ffmpeg: ffmpegApi,
   call: callApi,
   camera: cameraApi,
   keepAlive: keepAliveApi,
