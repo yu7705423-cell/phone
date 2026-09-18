@@ -19,7 +19,8 @@ export const EMPTY_SERVICES = {
   search: { provider: 'openai', baseUrl: '', apiKey: '', model: '' },
   // 网易云。baseUrl 指向自己部署的那个 NeteaseCloudMusicApi，
   // cookie 是登录后拿到的凭据 —— 它等于账号权限，只存在这台设备的浏览器里。
-  netease: { baseUrl: '', cookie: '', nickname: '', uid: '', sync: false },
+  // recentGap：发消息时顺便拉一次角色听歌记录的最小间隔，分钟。0 为只手动拉
+  netease: { baseUrl: '', cookie: '', nickname: '', uid: '', sync: false, recentGap: 5 },
 };
 
 export function services() {

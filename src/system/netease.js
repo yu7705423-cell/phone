@@ -125,6 +125,71 @@ export async function lyric(id) {
   return r.lrc?.lyric || '';
 }
 
+// ---- 她在听什么 ----
+//
+// 电脑上用角色那个号登着真正的网易云客户端，放的每一首都会记进那个账号。
+// 这里把它读回来，写进上下文。于是「你在听什么」这句话的答案是真的。
+//
+// 上面那句「角色那边没有第二个客户端」写得太早了：**用户自己就是那个客户端**。
+//
+// 两条路，按能拿到的信息从多到少试：
+//   /record/recent/song   最近播放，带时间戳，能说出「刚刚在听」
+//   /user/record          本周听歌排行，没有时间戳，只能说「最近常听」
+// 两条都没有就是这份部署不支持，界面上直说，不假装有。
+
+const songOf = s => ({
+  id: String(s.id || s.songId || ''),
+  title: s.name || s.title || '',
+  artist: (s.ar || s.artists || []).map(a => a.name).filter(Boolean).join('、'),
+});
+
+export async function recent(charId, limit = 5) {
+  const cookie = cookieOf(charId);
+  if (!cookie) throw new Error('这个角色还没有登录音乐账号');
+  const n = Math.max(1, Math.round(limit) || 5);
+
+  // 带时间戳的那条路
+  try {
+    const r = await call('/record/recent/song', { limit: n }, cookie);
+    const list = (r.data?.list || []).map(row => ({
+      ...songOf(row.data || row.song || row),
+      at: Number(row.playTime || row.time || 0) || 0,
+    })).filter(x => x.id && x.title);
+    if (list.length) return { kind: 'recent', songs: list.slice(0, n), at: Date.now() };
+  } catch { /* 这份部署没有这个接口，走下一条 */ }
+
+  // 退回排行榜。没有时间戳，所以只能说「最近常听」，不能说「刚刚在听」
+  const uid = characters.get(charId)?.neteaseUid || (await accountOf(cookie)).uid;
+  if (!uid) throw new Error('取不到这个账号的 uid');
+  const r = await call('/user/record', { uid, type: 1 }, cookie);
+  const rows = r.weekData || r.allData || [];
+  const songs = rows.map(row => songOf(row.song || {})).filter(x => x.id && x.title);
+  if (!songs.length) throw new Error('这个账号最近没有听歌记录');
+  return { kind: 'week', songs: songs.slice(0, n), at: Date.now() };
+}
+
+/** 拉一次并记在角色卡上。上下文那边读的是记下来的这一份，不现拉。 */
+export async function pullRecent(charId, limit = 5) {
+  const got = await recent(charId, limit);
+  characters.update(charId, { nowPlaying: got });
+  return got;
+}
+
+/**
+ * 发消息时顺便看一眼。
+ *
+ * 不起定时器：不聊天的时候没必要一直压着那个接口。间隔由用户自己填，
+ * 填 0 就是只在手动点的时候才拉（见「用量与上限」）。
+ * 失败不抛：拉不到就用上一次的，再不行就不注入这一段。
+ */
+export async function pullIfDue(charId) {
+  const gap = Math.max(0, Math.round(Number(neteaseConfig().recentGap) ?? 5) || 0);
+  if (!gap || !charId || !cookieOf(charId)) return null;
+  const last = characters.get(charId)?.nowPlaying?.at || 0;
+  if (Date.now() - last < gap * 60000) return null;
+  try { return await pullRecent(charId); } catch { return null; }
+}
+
 // ---- 让两个号的数据都真的动 ----
 //
 // 打卡。网易云自己的客户端放完一首就打一次，听歌记录和年度报告读的就是它。

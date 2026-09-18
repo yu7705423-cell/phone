@@ -48,6 +48,7 @@ export const DEFAULT_SETTINGS = {
   translateOpen: 'tap',           // tap | always
 
   // 回复风格。自然表达协议，见 ai/templates.js 的 skeleton.style
+  musicFresh: 120,                // 播放记录超过这么多分钟就不再注入，0 为不限
   bondAuto: true,                 // S 级记忆有变动时自动重压关系底色
   coreAuto: true,                 // 导入角色卡时顺带生成核心设定
   memoryDepth: 1,                 // 本轮相关记忆插在倒数第几条之前，0 为留在设定区

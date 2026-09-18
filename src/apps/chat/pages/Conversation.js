@@ -621,6 +621,19 @@ export function Conversation({ chatId, focusId = '' }) {
   // 上面那几个每次渲染都是新函数，兜进 ref 里，对外的 stable 不变
   // 「点开看」这一件事四种气泡共用一个入口，按 kind 分流。各给一个 prop 的话，
   // 气泡的记忆化就得多认四个函数身份，流式回复时每来一段都要重画一屏。
+  // 手动拉一次她在听什么。自动那条路按设置的间隔走，这里不看间隔，
+  // 点了就拉 —— 点它的人就是想现在知道。
+  const pullMusic = async () => {
+    setMenu(false);
+    try {
+      const got = await phone.netease.pullRecent(char.id);
+      const first = got.songs[0];
+      toast(`${got.kind === 'recent' ? '刚刚在听' : '最近常听'}：${first.title}`, 'ok', 4000);
+    } catch (e) {
+      toast('读取失败：' + (e.message || e), 'error', 5000);
+    }
+  };
+
   const openLog = m => (m.kind === 'listen' ? setListenLog(m)
     : m.kind === 'letter' ? setLetter(m)
     : m.kind === 'pact' ? setPact(m)
@@ -876,6 +889,17 @@ export function Conversation({ chatId, focusId = '' }) {
           <${ListItem} title="Prompt 模板" subtitle="骨架与各任务的提示词" arrow
             left=${html`<${Icon} name="sparkle" size=${18}/>`}
             onClick=${() => { setMenu(false); nav.push('/templates'); }}/>
+          ${phone.netease.cookieOf(char.id) ? html`
+            <${ListItem} title="看看她在听什么" arrow multiline
+              subtitle=${(() => {
+                const np = char.nowPlaying;
+                if (!np?.songs?.length) return '读取该角色音乐账号的播放记录，写入本轮上下文';
+                const first = np.songs[0];
+                return `${np.kind === 'recent' ? '刚刚在听' : '最近常听'}：`
+                  + `${first.title}${first.artist ? ' — ' + first.artist : ''}`;
+              })()}
+              left=${html`<${Icon} name="music" size=${18}/>`}
+              onClick=${pullMusic}/>` : null}
           <${ListItem} title="关系底色" arrow multiline
             subtitle=${(() => {
               const t = ai.bond.textOf(char, chat.personaId);
