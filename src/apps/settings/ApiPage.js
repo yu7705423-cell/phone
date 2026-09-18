@@ -49,18 +49,18 @@ function Editor({ id, onClose }) {
           onChange=${v => set({ provider: v, model: '' })}/>
       <//>
 
-      <${Field} label="API Key"
-        desc="仅保存在本设备的浏览器中。纯前端直连意味着能打开此页面的人均可读取该密钥。">
-        <${Input} type="password" value=${preset.apiKey} placeholder="sk-..."
-          onInput=${v => set({ apiKey: v })}/>
-      <//>
-
       <${Field} label="接口地址"
         desc=${preset.provider === 'anthropic'
           ? '留空则使用官方地址。浏览器直连时会附带 anthropic-dangerous-direct-browser-access 请求头。'
           : '中转站地址填写至 /v1 为止，例如 https://api.example.com/v1'}>
         <${Input} value=${preset.baseUrl} onInput=${v => set({ baseUrl: v })}
           placeholder=${preset.provider === 'anthropic' ? 'https://api.anthropic.com' : 'https://api.openai.com/v1'}/>
+      <//>
+
+      <${Field} label="API Key"
+        desc="仅保存在本设备的浏览器中。纯前端直连意味着能打开此页面的人均可读取该密钥。">
+        <${Input} type="password" value=${preset.apiKey} placeholder="sk-..."
+          onInput=${v => set({ apiKey: v })}/>
       <//>
 
       <${Field} label="模型" desc="可从接口获取列表后选择，也可直接填写。">
@@ -112,8 +112,15 @@ export function ApiPage() {
 
   return html`
     <${Page} title="接口" onBack=${nav.pop}>
+      <div class="pad-x pad-t">
+        <div class="btn-row">
+          <${Button} variant="ghost" icon="plus" onClick=${() => add('anthropic')}>新建 Anthropic<//>
+          <${Button} variant="ghost" icon="plus" onClick=${() => add('openai')}>新建兼容接口<//>
+        </div>
+      </div>
+
       ${presets.length ? html`
-        <${List} title="已保存的接口">
+        <${List} title=${`已保存的接口 ${presets.length}`} cap>
           ${presets.map(p => {
             const isMain = p.id === chat.activeId;
             const isSpare = p.id === chat.fallbackId;
@@ -128,7 +135,7 @@ export function ApiPage() {
           })}
         <//>
 
-        <${List} title="主用" >
+        <${List} title="主用" cap>
           ${presets.map(p => html`
             <${ListItem} key=${p.id} title=${p.name}
               subtitle=${incomplete(p) ? '配置不完整，无法使用' : ''} multiline=${incomplete(p)}
@@ -138,7 +145,7 @@ export function ApiPage() {
         ${chat.activeId ? null : html`
           <div class="settings-foot">未指定主用接口，对话无法发送。</div>`}
 
-        <${List} title="副用" >
+        <${List} title="副用" cap>
           ${presets.map(p => html`
             <${ListItem} key=${p.id} title=${p.name}
               subtitle=${p.id === chat.activeId ? '可与主用为同一接口' : incomplete(p) ? '配置不完整，无法使用' : ''}
@@ -166,13 +173,6 @@ export function ApiPage() {
           </div>` : null}`
       : html`<${EmptyState} icon="key" title="尚未配置接口"
           desc="可保存多个接口随时切换，并指定一个副用接口，在主用报错时自动接替。"/>`}
-
-      <div class="pad">
-        <div class="btn-row">
-          <${Button} variant="ghost" icon="plus" onClick=${() => add('anthropic')}>Anthropic<//>
-          <${Button} variant="ghost" icon="plus" onClick=${() => add('openai')}>兼容接口<//>
-        </div>
-      </div>
 
       ${editing ? html`<${Editor} id=${editing} onClose=${() => setEditing(null)}/>` : null}
     <//>`;

@@ -130,6 +130,12 @@
   border-bottom: 1px solid var(--border);
 }
 .list-item:last-child { border-bottom: none; }
+/* 区域内滚动。条数不定的列表在这里截断并自己滚，页面本身的滚动不受影响。
+   高度取的是「四行半」——露半行出来，一眼就知道下面还有 */
+.list-cap {
+  max-height: 248px; overflow-y: auto;
+  -webkit-overflow-scrolling: touch; overscroll-behavior: contain;
+}
 .list-item.is-danger .li-title { color: var(--danger); }
 .li-left  { flex: none; display: flex; color: var(--text-2); }
 .li-body  { flex: 1; min-width: 0; }
@@ -215,10 +221,25 @@
    不加的话 iOS 会在长按时弹出系统自己的选中与「拷贝」浮层，
    和本项目的长按菜单同时出现，两边抢同一个手势。
    要复制就在自己的菜单里给一个「复制」。 */
-.no-callout {
+/* 整个外壳默认不可选。
+ *
+ * 只给挂了长按的那几处加 .no-callout 是不够的：提示行、日期行、按钮旁边的
+ * 空白，长按一样弹系统的选中与「拷贝」浮层，和本项目自己的长按菜单撞在一起。
+ * 这里是手机，不是网页，本来就没有「选中一段文字」这回事。
+ *
+ * 要复制就在自己的菜单里给一个「复制」——消息菜单里本来就有（第 12 条）。
+ * 真正要能选的只有输入框，下面单独放开。
+ */
+.root, .no-callout {
   -webkit-touch-callout: none;
   -webkit-user-select: none;
   user-select: none;
+}
+/* 输入框必须能选：不放开的话，光标、拖选、系统的「粘贴」全都不正常 */
+input, textarea, [contenteditable="true"], .selectable {
+  -webkit-touch-callout: default;
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 /* 扫码登录 */

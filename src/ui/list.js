@@ -1,10 +1,13 @@
 import { html } from '../lib.js';
 import { Icon } from '../icons/Icon.js';
 
-export const List = ({ children, title, inset = true }) => html`
+// cap: 列表自己在区域内滚动，不往下无限蔓延。
+// 条数不定的列表（接口预设、角色列表）一多，整页就被它撑成一条长走廊，
+// 底下的东西全被推到看不见的地方。
+export const List = ({ children, title, inset = true, cap = false }) => html`
   <div class="list-wrap">
     ${title ? html`<div class="list-title">${title}</div>` : null}
-    <div class=${`list${inset ? ' list-inset' : ''}`}>${children}</div>
+    <div class=${`list${inset ? ' list-inset' : ''}${cap ? ' list-cap' : ''}`}>${children}</div>
   </div>`;
 
 export const ListItem = ({ title, subtitle, left, right, onClick, arrow, danger, multiline,

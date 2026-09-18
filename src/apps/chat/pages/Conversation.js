@@ -150,10 +150,7 @@ const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, onSwipe,
                 ${trans && i === parts.length - 1 && showTrans ? html`
                   <div class="bubble-trans">${trans}</div>` : null}
               </div>`)
-          : html`
-            <div class="bubble bubble-empty">
-              <span class="typing-dots"><i></i><i></i><i></i></span>
-            </div>`}
+          : html`<div class="bubble bubble-typing">正在输入</div>`}
 
         ${msg.inner && openInner
           ? html`<${InnerVoice} text=${msg.inner} style=${innerStyle}/>` : null}
