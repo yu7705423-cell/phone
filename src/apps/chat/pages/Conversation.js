@@ -9,12 +9,15 @@ import { MediaBubble } from './MediaBubble.js';
 import { MsgMenu } from './MsgMenu.js';
 import { PactBubble, LetterBubble, LetterSheet, PactSheet } from './SpaceBits.js';
 import { DiceBubble, InnerVoice, DiceSheet } from './ExtrasBits.js';
+import { TakeoutBubble, TakeoutSheet, MealSettleSheet, ShareSheet, MoreSheet } from './MealBits.js';
 import { TransferBubble, NoticeLine, TransferSheet, SettleSheet,
          LocationBubble, LocationSheet, CallBubble, CallLogSheet,
          GiftBubble, GiftSheet, UnwrapSheet,
          ListenBubble, ListenLogSheet, ListenBar } from './TransferBits.js';
 
-const { db, nav, ai, call, extras } = phone;
+// panel 这个名字在本文件里已经被「当前开着哪个面板」占了（见下面的 useState），
+// 所以模块换个名字进来 —— 同名会被局部变量盖掉，读出来是 null。
+const { db, nav, ai, call, extras, panel: panelCfg } = phone;
 
 // 一屏装不下这么多，但往上翻几下够用；不够再按按钮要下一段。
 // 见 CLAUDE.md 第 13 条：这是默认值不是上限，设置里填 0 就一次画全。
@@ -126,6 +129,8 @@ const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, onSwipe,
           ? html`<${LetterBubble} msg=${msg} onOpen=${selecting ? null : onOpenLog}/>`
           : msg.kind === 'dice'
           ? html`<${DiceBubble} msg=${msg}/>`
+          : msg.kind === 'takeout'
+          ? html`<${TakeoutBubble} msg=${msg} onSettle=${selecting ? null : onSettle}/>`
           : msg.kind === 'sticker'
           ? html`<div class="bubble-sticker">
               ${sticker ? html`<${StickerImg} sticker=${sticker} size=${112}/>`
@@ -191,6 +196,10 @@ export function Conversation({ chatId, focusId = '' }) {
   const [letter, setLetter] = useState(null);    // 正在读的那封信
   const [pact, setPact] = useState(null);        // 正在标完成的那条约定
   const [dicing, setDicing] = useState(false);   // 骰子面板开着
+  const [ordering, setOrdering] = useState(false);  // 点外卖面板开着
+  const [sharing, setSharing] = useState(false);    // 共享位置面板开着
+  const [more, setMore] = useState(false);          // 面板的「更多」开着
+  const [meal, setMeal] = useState(null);           // 正在处理的那一单
   // 只画最近这么多条。聊了两万条的会话一次性铺出来要一两秒，手机上十几秒，
   // 而且往上翻从来也不会翻到那么远。不够就按「查看更早的消息」再要一段。
   const [shown, setShown] = useState(pageSize);
@@ -574,7 +583,10 @@ export function Conversation({ chatId, focusId = '' }) {
     : m.kind === 'letter' ? setLetter(m)
     : m.kind === 'pact' ? setPact(m)
     : setCallLog(m));
-  latest.current = { onRetry, onSwipe, togglePick, onSettle: setSettling,
+  // 「处理对方发来的那一件」两种气泡共用一个入口，按 kind 分流。
+  // 各给一个 prop 的话，气泡的记忆化就得多认一个函数身份。
+  const settleAny = m => (m.kind === 'takeout' ? setMeal(m) : setSettling(m));
+  latest.current = { onRetry, onSwipe, togglePick, onSettle: settleAny,
     onOpenLog: openLog, onUnwrap: setUnwrap,
     onPat: () => extras.pat({ chatId, role: 'user' }) };
 
@@ -612,17 +624,26 @@ export function Conversation({ chatId, focusId = '' }) {
         : Math.round(pro.proactiveMinutes / 60) + ' 小时'}`
     : '已关闭。开启后角色会主动发起对话';
 
-  const MENU_ITEMS = [
-    { id: 'photo', icon: 'image', label: '图片', onTap: () => imgRef.current?.click() },
-    { id: 'voice', icon: 'headphone', label: '语音', onTap: startRec },
-    { id: 'transfer', icon: 'wallet', label: '转账', onTap: () => setPaying(true) },
-    { id: 'call', icon: 'phone', label: '通话', onTap: () => startCall(false) },
-    { id: 'video', icon: 'film', label: '视频通话', onTap: () => startCall(true) },
-    { id: 'gift', icon: 'gift', label: '礼物', onTap: () => setGifting(true) },
-    { id: 'location', icon: 'map', label: '位置', onTap: () => setPlacing(true) },
-    { id: 'listen', icon: 'music', label: '一起听', onTap: () => nav.push(`/listen/${chatId}`) },
-    { id: 'dice', icon: 'grid', label: '骰子', onTap: () => setDicing(true) },
-  ].map(it => ({ ...it, onTap: it.onTap || (() => toast(`「${it.label}」尚未实现`)) }));
+  // 每一格干什么。哪些留在面板上、什么顺序，由 system/panel.js 里用户
+  // 自己排的那一份决定，这里只负责「按下之后发生什么」。
+  const TAP = {
+    photo: () => imgRef.current?.click(),
+    voice: startRec,
+    transfer: () => setPaying(true),
+    call: () => startCall(false),
+    video: () => startCall(true),
+    gift: () => setGifting(true),
+    location: () => setPlacing(true),
+    listen: () => nav.push(`/listen/${chatId}`),
+    takeout: () => setOrdering(true),
+    share: () => setSharing(true),
+    dice: () => setDicing(true),
+  };
+  const runTap = id => (TAP[id] || (() => toast('这一项尚未实现')))();
+  const PANEL_ITEMS = [
+    ...panelCfg.onPanel().map(id => ({ ...panelCfg.itemOf(id), onTap: () => runTap(id) })),
+    { id: '_more', icon: 'more', label: '更多', onTap: () => setMore(true) },
+  ];
 
   const quotingRef = quoting ? quoteOf({ quoteId: quoting.id }, { char, chat }) : null;
   const canRegen = !!(held && held.role === 'char' && held.turnId && held.turnId === lastTurnId);
@@ -713,7 +734,7 @@ export function Conversation({ chatId, focusId = '' }) {
             <div class="composer-panel">
               ${panel === 'menu'
                 ? html`<div class="panel-grid">
-                    ${MENU_ITEMS.map(it => html`
+                    ${PANEL_ITEMS.map(it => html`
                       <button key=${it.id} class="panel-item press"
                         onClick=${() => { setPanel(null); it.onTap && it.onTap(); }}>
                         <div class="panel-icon"><${Icon} name=${it.icon} size=${20}/></div>
@@ -734,6 +755,10 @@ export function Conversation({ chatId, focusId = '' }) {
       <${LetterSheet} msg=${letter} onClose=${() => setLetter(null)}/>
       <${PactSheet} msg=${pact} onClose=${() => setPact(null)}/>
       <${DiceSheet} open=${dicing} chatId=${chatId} onClose=${() => setDicing(false)}/>
+      <${TakeoutSheet} open=${ordering} chatId=${chatId} onClose=${() => setOrdering(false)}/>
+      <${ShareSheet} open=${sharing} chatId=${chatId} onClose=${() => setSharing(false)}/>
+      <${MealSettleSheet} msg=${meal} onClose=${() => setMeal(null)}/>
+      <${MoreSheet} open=${more} onClose=${() => setMore(false)} onTap=${runTap}/>
       <${TransferSheet} open=${paying} chatId=${chatId} onClose=${() => setPaying(false)}/>
       <${LocationSheet} open=${placing} chatId=${chatId} onClose=${() => setPlacing(false)}/>
       <${SettleSheet} msg=${settling} onClose=${() => setSettling(null)}/>
@@ -772,6 +797,15 @@ export function Conversation({ chatId, focusId = '' }) {
               : '关着。开启后角色每说一条会同时给出译文'}
             left=${html`<${Icon} name="translate" size=${18}/>`}
             onClick=${() => { setMenu(false); nav.push(`/translate/${chatId}`); }}/>
+          <${ListItem} title="共享位置" arrow multiline
+            subtitle=${(() => {
+              const sum = phone.geo.summary(chatId);
+              return sum ? `${sum.me.place || '未命名'} 到 ${sum.char.place || '未命名'}`
+                + (sum.text ? ` · ${sum.text}` : ' · 缺少坐标，算不出距离')
+                : '关着。开启后角色知道你们相距多远，距离由本地计算';
+            })()}
+            left=${html`<${Icon} name="compass" size=${18}/>`}
+            onClick=${() => { setMenu(false); setSharing(true); }}/>
           <${ListItem} title="互动" arrow multiline
             subtitle=${`心声${extras.innerMode(chat) === extras.INNER_OFF ? '关着'
               : extras.innerMode(chat) === extras.INNER_INLINE ? '随回复一起生成' : '每轮单独生成'}`

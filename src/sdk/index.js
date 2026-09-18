@@ -43,6 +43,9 @@ import * as eventsApi from '../system/events.js';
 import * as dayApi from '../system/day.js';
 import * as extrasApi from '../system/extras.js';
 import * as avatarApi from '../system/avatar.js';
+import * as takeoutApi from '../system/takeout.js';
+import * as geoApi from '../system/geo.js';
+import * as panelApi from '../system/panel.js';
 import * as innerTask from '../system/ai/tasks/inner.js';
 import * as foodApi from '../system/food.js';
 import * as dayTask from '../system/ai/tasks/day.js';
@@ -156,6 +159,9 @@ export const phone = {
   day: dayApi,
   extras: extrasApi,
   avatarLink: avatarApi,
+  takeout: takeoutApi,
+  geo: geoApi,
+  panel: panelApi,
   food: foodApi,
   draw: drawApi,
   music: musicApi,

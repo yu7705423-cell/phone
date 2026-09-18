@@ -24,6 +24,7 @@ const LABELS = {
   'task.inner': '任务 · 心声（单独生成）',
   'skeleton.pat': '骨架 · 拍一拍',
   'skeleton.dice': '骨架 · 骰子',
+  'skeleton.takeout': '骨架 · 点外卖',
   'skeleton.avatar': '骨架 · 换头像',
   'skeleton.letter': '骨架 · 写信',
   'skeleton.ring': '骨架 · 打电话',

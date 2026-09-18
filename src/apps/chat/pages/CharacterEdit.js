@@ -130,6 +130,10 @@ export function CharacterEdit({ id }) {
             + `关闭后角色不再有自己的一天，随机事件与吃饭记录也不再产生`}
           right=${html`<${Switch} checked=${!!char.dayOn}
             onChange=${v => patch({ dayOn: v })}/>`}/>
+        <${ListItem} title="点外卖" multiline
+          subtitle="角色可以给自己点、请你吃，也可以让你代付。你点给它的那一单，它可以收下或谢绝"
+          right=${html`<${Switch} checked=${char.canTakeout !== false}
+            onChange=${v => patch({ canTakeout: v })}/>`}/>
         <${ListItem} title="拍一拍" multiline
           subtitle="角色可以主动拍你。你双击角色头像也可以拍它，无论此项开关"
           right=${html`<${Switch} checked=${char.canPat !== false}

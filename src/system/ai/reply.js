@@ -17,12 +17,13 @@ import * as space from '../space.js';
 import * as dayStore from '../day.js';
 import * as extras from '../extras.js';
 import * as avatar from '../avatar.js';
+import * as takeout from '../takeout.js';
 
 // 角色回复里可以带这几种标记，由模型自己决定什么时候用。
 // 中英文冒号都认，方括号也认全角。
 // 「约定完成」必须排在「约定」前面 —— 交替是从左往右试的，反过来写
 // 「约定完成：早点睡」会先被「约定」吃掉，剩下「完成：早点睡」当成内容。
-const MARK = /[[【]\s*(图片|照片|image|pic|语音|voice|audio|表情|sticker|emoji|转账|transfer|位置|定位|location|礼物|gift|点歌|建歌单|约定完成|约定|pact|信|letter|事项完成|事项取消|心声|换头像)\s*[:：]\s*([^\]】]+)[\]】]/gi;
+const MARK = /[[【]\s*(图片|照片|image|pic|语音|voice|audio|表情|sticker|emoji|转账|transfer|位置|定位|location|礼物|gift|点歌|建歌单|约定完成|约定|pact|信|letter|事项完成|事项取消|心声|换头像|外卖|请客|代付)\s*[:：]\s*([^\]】]+)[\]】]/gi;
 
 const IMAGE_KINDS = new Set(['图片', '照片', 'image', 'pic']);
 const STICKER_KINDS = new Set(['表情', 'sticker', 'emoji']);
@@ -37,6 +38,8 @@ const ITEM_DONE_KINDS = new Set(['事项完成']);
 const ITEM_DROP_KINDS = new Set(['事项取消']);
 const INNER_KINDS = new Set(['心声']);
 const WEAR_KINDS = new Set(['换头像']);
+// 三种点法各一个词。谁吃、谁付都写在词里，正文只剩「吃什么 多少钱」
+const TAKEOUT_KINDS = new Map([['外卖', takeout.SELF], ['请客', takeout.TREAT], ['代付', takeout.ASK]]);
 const LIST_KINDS = new Set(['建歌单']);
 
 // 转账那一条里，金额在前，后面随手写的是留言
@@ -45,6 +48,14 @@ const AMOUNT = /^\s*(?:[¥￥$]\s*)?(\d+(?:\.\d{1,2})?)\s*(?:元|块)?\s*(.*)$/;
 // 收下或退回对方转过来的那一笔。必须带方括号 —— 不带的话，
 // 「退回」两个字单独成行的正常句子也会被当成指令。
 const SETTLE_LINE = /^[[【(（]\s*(收款|收下|接收|退回|退还)\s*[\]】)）]$/;
+
+// 处理对方点的那一单。和收款、拆礼物各用一套词：一段对话里转账、礼物、
+// 外卖可能同时挂着，共用一个词就分不清在处理哪一个。
+//
+// 特别注意**不能用「收下」** —— 那个词归转账。共用的话，外卖那一单会被
+// 当成转账去处理，而那边根本没有待处理的转账，于是什么都没发生，还不报错。
+const TAKE_LINE = /^[[【(（]\s*(?:要了|吃了|签收)\s*[\]】)）]$/;
+const NOPE_LINE = /^[[【(（]\s*(?:不要|不用了|不吃)\s*[\]】)）]$/;
 
 // 拆礼物。和收款分开两套 —— 「退回」退的是钱，「拒收」拒的是礼物，
 // 一段对话里两样可能同时挂着，共用一个词就分不清在处理哪一个。
@@ -150,6 +161,10 @@ export function splitReply(raw) {
       // 拉一起听。和电话一样是一件事不是一条消息，不占气泡。
       if (LISTEN_LINE.test(t)) { push({ type: 'listen' }); return; }
 
+      // 对方点的那一单，收下或者不要。不占气泡，落的是一行提示。
+      if (TAKE_LINE.test(t)) { push({ type: 'meal', take: true }); return; }
+      if (NOPE_LINE.test(t)) { push({ type: 'meal', take: false }); return; }
+
       // 拍一拍落一行提示，骰子落一条自己的消息，两样都不占气泡。
       if (PAT_LINE.test(t)) { push({ type: 'pat' }); return; }
       if (DICE_LINE.test(t)) { push({ type: 'dice' }); return; }
@@ -186,6 +201,10 @@ export function splitReply(raw) {
         push({ type: 'pick', name: body });
       } else if (LIST_KINDS.has(kind)) {
         push({ type: 'newlist', name: body });
+      } else if (TAKEOUT_KINDS.has(kind)) {
+        const o = takeout.parse(body);
+        // 吃什么读不出来就整条丢掉。一单没有内容的外卖比少发一条更怪
+        if (o && o.item) push({ type: 'takeout', kind: TAKEOUT_KINDS.get(kind), ...o });
       } else if (INNER_KINDS.has(kind)) {
         const prev = parts[parts.length - 1];
         if (prev) prev.inner = body;
@@ -356,6 +375,17 @@ export function materialize(part, base, char) {
     const target = gift.pendingFrom(base.chatId, base.role === 'user' ? 'char' : 'user');
     return target ? gift.settle(target.id, part.open, row) : null;
   }
+  if (part.type === 'takeout') {
+    return takeout.order({
+      chatId: base.chatId, role: base.role, authorId: base.authorId,
+      kind: part.kind, item: part.item, amount: part.amount, extra: row,
+    });
+  }
+  if (part.type === 'meal') {
+    // 处理的是对方那一单。对方是谁看这一轮是谁在说话。
+    const target = takeout.pendingFrom(base.chatId, base.role === 'user' ? 'char' : 'user');
+    return target ? takeout.settle(target.id, part.take, row) : null;
+  }
   if (part.type === 'pat') {
     return extras.pat({ chatId: base.chatId, role: base.role });
   }
@@ -479,6 +509,7 @@ export function dropMessage(id) {
   // 那笔钱、那件礼物回到待处理。重新生成角色那一轮时整轮清空，走的也是这里。
   if (m.kind === 'notice' && m.settledId) {
     if (m.settledKind === 'pact') space.unsettlePact(id);
+    else if (m.settledKind === 'takeout') takeout.unsettle(id);
     else (m.settledKind === 'gift' ? gift : transfer).unsettle(id);
   }
   return messages.remove(id);

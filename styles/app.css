@@ -1014,3 +1014,10 @@ button.search-bar { width: 100%; border: none; }
   object-fit: cover; background: var(--surface-2);
 }
 .msg-star { flex: none; color: var(--accent); }
+
+/* ---- 点外卖 ---- */
+.bubble-meal { min-width: 168px; max-width: 244px; padding: var(--sp-3) var(--sp-4) 0; }
+.bubble-meal .tr-top { display: flex; align-items: center; gap: var(--sp-3); min-width: 0; }
+.meal-item { font-size: var(--fs-15); font-weight: var(--fw-medium); }
+.meal-price { font-size: var(--fs-12); opacity: .7; margin-top: 2px; }
+.bubble-meal.is-done { opacity: .6; }

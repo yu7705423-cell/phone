@@ -18,6 +18,8 @@ const Row = memo(function Row({ chat, onHold }) {
     : last.kind === 'transfer' ? `[转账] ${phone.transfer.display(last.amount, last.currency)}`
     : last.kind === 'location' ? `[位置] ${last.place || ''}`
     : last.kind === 'gift' ? `[礼物] ${last.cover || ''}`
+    : last.kind === 'takeout' ? `[外卖] ${last.item || ''}`
+    : last.kind === 'dice' ? `[骰子] ${last.value}`
     : last.kind === 'listen' ? `[一起听] ${phone.listen.fmt(last.seconds)}`
     : last.kind === 'call' ? `[${phone.call.label(last.direction, last.outcome, last.seconds, last.callKind === 'video')}]`
     : last.kind === 'notice' ? String(last.content || '').replace(/^\[|\]$/g, '')

@@ -11,6 +11,7 @@ import { PACT_OPEN } from '../space.js';
 import * as dayStore from '../day.js';
 import * as extras from '../extras.js';
 import * as avatarLib from '../avatar.js';
+import { PENDING as MEAL_PENDING } from '../takeout.js';
 import { allSongs } from '../music.js';
 
 // 能力目录。
@@ -152,6 +153,16 @@ export const CAPS = [
     on: ({ char }) => !!dayStore.brief(char.id),
     always: true,
     detail: () => template('skeleton.agenda'),
+  },
+  {
+    id: 'takeout',
+    on: ({ char }) => char.canTakeout !== false,
+    // 挂着一单没处理的就必须是热的：它得知道「收下」「不要」怎么写
+    hot: ({ msgs }) => usedRecently(msgs, /^takeout$|[[【](外卖|请客|代付)/)
+      || hasPending(msgs, 'takeout', 'takeout', MEAL_PENDING),
+    line: () => '点外卖：[外卖：吃的什么 金额] 给自己，[请客：…] 给对方，'
+      + '[代付：…] 让对方付；对方点来的写 [要了] 或 [不要]',
+    detail: () => template('skeleton.takeout'),
   },
   {
     id: 'pat',
