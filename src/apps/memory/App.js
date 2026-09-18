@@ -40,7 +40,7 @@ function MemoryList() {
     ...(loose ? [{ v: 'none', label: `没绑定角色 ${loose}` }] : []),
   ];
   const stats = RANKS.map(r => ({ r, n: db.memories.where(m => m.rank === r).length }));
-  const injected = db.memories.where(m => m.rank === 'S' || m.rank === 'A').length;
+  const injected = db.memories.where(m => m.rank === 'A' || m.rank === 'B').length;
 
   const add = () => {
     const charId = who !== 'all' && who !== 'none' ? who : (chars[0]?.id || null);
@@ -64,7 +64,8 @@ function MemoryList() {
             <div key=${s.r} class="stat-chip"><b>${s.n}</b><span>${s.r} 级</span></div>`)}
         </div>
         <div class="hint-box">
-          S 与 A 级每次均注入（当前 ${injected} 条）；B 级需在最近消息中命中关键词；C 级仅存档。
+          S 级压缩进「关系底色」常驻，不再逐条注入；A 与 B 级按相关度召回（当前 ${injected} 条可被召回），
+          其中 B 级须命中关键词；C 级仅存档。
         </div>
       </div>
 
@@ -118,7 +119,9 @@ function EditPage({ id }) {
         <//>
 
         <${Field} label="重要级别"
-          desc="S 与 A 级每次均注入；B 级需命中关键词；C 级仅存档，不注入。">
+          desc=${'S 级用于关系的重大转折，会被压缩进「关系底色」常驻，不再逐条注入；'
+            + 'A 级为长期稳定的事实，命中相关话题时召回；'
+            + 'B 级为具体细节，须填写关键词才会被召回；C 级仅存档，不注入。'}>
           <${Segmented} value=${m.rank} items=${RANK_ITEMS} onChange=${v => patch({ rank: v })}/>
         <//>
 

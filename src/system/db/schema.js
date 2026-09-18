@@ -23,7 +23,7 @@ export const KV = {
 
 // 业务层数据迁移。与 IndexedDB 的版本升级分开:
 // 这里处理的是记录内部结构的变化,而不是仓库的增删。
-export const DATA_VERSION = 4;
+export const DATA_VERSION = 5;
 
 export const MIGRATIONS = {
   // 1: 初始结构,无需迁移
@@ -94,6 +94,18 @@ export const MIGRATIONS = {
         }),
       });
     });
+  },
+
+  // 5: 记忆拆成两层，注入顺序里多了「关系底色」。
+  //    和迁移 4 同一个道理：resolveOrder 只把新区块补在末尾，
+  //    不改这一下的话，底色会排在角色卡后面，而它讲的是「你们是什么关系」，
+  //    应当先于人设出现。
+  5({ settings }) {
+    const order = settings.get().injectOrder;
+    if (!Array.isArray(order) || !order.includes('character')) return;
+    const rest = order.filter(id => id !== 'bond');
+    rest.splice(rest.indexOf('character'), 0, 'bond');
+    settings.set({ injectOrder: rest });
   },
 };
 

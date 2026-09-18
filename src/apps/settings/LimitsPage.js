@@ -1,6 +1,6 @@
 import { html } from '../../lib.js';
 import { phone, useStore } from '../../sdk/index.js';
-import { Page, Field, NumberInput } from '../../ui/index.js';
+import { Page, List, ListItem, Field, NumberInput, Switch } from '../../ui/index.js';
 
 const { db, nav } = phone;
 
@@ -21,8 +21,34 @@ export function LimitsPage() {
         标注了「每次请求」的项目直接影响接口费用。
       </div>
 
+      <${List} title="额外的接口调用">
+        <${ListItem} title="自动生成关系底色" multiline
+          subtitle=${s.bondAuto === false
+            ? '已关闭。关系底色不会自动更新，可在会话菜单中手动生成或手写。'
+            : '标记为 S 级的记忆有增删改时，额外调用一次接口，将其压缩为几句关系现状。'
+              + '未发生变动时不调用。关闭后仍可手动生成。'}
+          right=${html`<${Switch} checked=${s.bondAuto !== false}
+            onChange=${v => set({ bondAuto: v })}/>`}/>
+        <${ListItem} title="导入角色卡时生成核心设定" multiline
+          subtitle=${s.coreAuto === false
+            ? '已关闭。核心设定需在编辑资料中自行填写。'
+            : '导入角色卡时额外调用一次接口，将人设压缩为三到五行，注入在 prompt 末尾。'
+              + '关闭后该字段留空，可自行填写。'}
+          right=${html`<${Switch} checked=${s.coreAuto !== false}
+            onChange=${v => set({ coreAuto: v })}/>`}/>
+      <//>
+
       <div class="list-title">发给模型的内容</div>
       <div class="pad-x pad-b">
+        <${Field} label="本轮相关记忆的注入深度"
+          desc="召回的记忆插入对话历史中倒数第几条消息之前。
+            数值越小越接近当前对话，模型越不容易忽略。
+            填 0 表示不插入对话，改为放在设定区最前部，
+            此时后续所有内容的接口缓存会在每轮失效，费用与延迟都会上升。">
+          <${NumberInput} value=${s.memoryDepth} unit="条" placeholder="放在设定区"
+            onChange=${v => set({ memoryDepth: v })}/>
+        <//>
+
         <${Field} label="通话每轮回复上限"
           desc="通话中模型每轮回复的 token 上限，每次请求都会用到。
             数值偏小时角色在电话里说一两句就停，接近日常通话的节奏；

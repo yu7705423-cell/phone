@@ -12,6 +12,7 @@ import { ContextPage } from './pages/ContextPage.js';
 import { TimePage } from './pages/TimePage.js';
 import { ExtrasPage } from './pages/ExtrasPage.js';
 import { PacePage } from './pages/PacePage.js';
+import { BondPage } from './pages/BondPage.js';
 import { TranslatePage } from './pages/TranslatePage.js';
 import { TemplatesPage } from './pages/TemplatesPage.js';
 import { StickerManager } from './pages/StickerManager.js';
@@ -78,6 +79,8 @@ export default function ChatApp({ route }) {
 
   const pc = route?.match(/^\/pace\/(.+)$/);
   if (pc) return html`<${PacePage} chatId=${pc[1]}/>`;
+  const bd = route?.match(/^\/bond\/(.+)$/);
+  if (bd) return html`<${BondPage} chatId=${bd[1]}/>`;
   const ex = route?.match(/^\/extras\/(.+)$/);
   if (ex) return html`<${ExtrasPage} chatId=${ex[1]}/>`;
 

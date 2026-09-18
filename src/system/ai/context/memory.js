@@ -2,6 +2,7 @@ import { memories } from '../../db/index.js';
 import { takeTopWithin } from '../tokens.js';
 import { dot, embedReady } from '../embed.js';
 import { rootIdOf } from '../../accounts.js';
+import * as bond from '../../bond.js';
 
 export const CATEGORIES = {
   fact: '事实', emotion: '情绪', pending: '待办',
@@ -41,9 +42,12 @@ export function selectByVector(charId, scanText, budget, queryVec, opts = {}) {
   const floor = typeof opts.threshold === 'number' ? opts.threshold : 0.22;
   const text = String(scanText || '').toLowerCase();
 
-  const all = listFor(charId, personaId);
-  const pinned = all.filter(m => m.rank === 'S');
-  const rest = all.filter(m => m.rank !== 'S');
+  // S 级不再逐条召回 —— 它们已经压进关系底色常驻了（见 bond.js）。
+  // 从前 S 级是每轮钉死全量注入的，于是随口问一句今天吃什么，
+  // 满眼也都是那几件大事。
+  const all = listFor(charId, personaId).filter(m => m.rank !== 'S');
+  const pinned = [];
+  const rest = all;
 
   const scored = rest.map(m => {
     const kws = (m.keywords || []).filter(Boolean);
@@ -63,16 +67,17 @@ export function selectByVector(charId, scanText, budget, queryVec, opts = {}) {
 }
 
 // S/A 全注入; B 在扫描窗口里命中关键词才进; C 只存档不注入
+// 没有向量接口时的退路。同样不收 S 级
 export function select(charId, scanText, budget, personaId) {
   const text = String(scanText || '').toLowerCase();
   const pool = listFor(charId, personaId).filter(m => {
-    if (m.rank === 'S' || m.rank === 'A') return true;
+    if (m.rank === 'A') return true;
     if (m.rank !== 'B') return false;
     const kws = (m.keywords || []).filter(Boolean);
     return kws.length > 0 && kws.some(k => text.includes(String(k).toLowerCase()));
   });
 
-  const weight = { S: 0, A: 1, B: 2 };
+  const weight = { A: 1, B: 2 };
   pool.sort((a, b) =>
     (weight[a.rank] ?? 3) - (weight[b.rank] ?? 3)
     || (b.updatedAt || 0) - (a.updatedAt || 0));
@@ -80,12 +85,30 @@ export function select(charId, scanText, budget, personaId) {
   return takeTopWithin(pool, budget, m => m.content || '');
 }
 
-export function build(ctx) {
-  const { settings, char, chat, scanText, budgets, queryVec, persona } = ctx;
+// 召回那一段的定位是**候选**，不是必须用上的事实。
+//
+// 从前的抬头写着「请自然地运用这些信息」—— 那是在命令模型用上它们，
+// 于是每一条召回噪音都被硬塞进回复。检索精度再调也治不好这个：
+// 检索本来就不可能完美，能改的是检索结果的定位。
+const HEAD = `[相关记忆]
+以下是你的相关记忆，按相关度从高到低排列，供参考。
+你可以自然地引入话题，像刚好回忆起那样。
+若没有与当前情景相符的记忆，则跳过此条规则。`;
+
+// 写给模型看的标签用人话。原先是 [S/事实] —— S 对模型没有任何含义，
+// 它不知道 S 比 A 重要在哪儿、该怎么用。
+const LABEL = m => CATEGORIES[m.category] || m.category || '记忆';
+
+export const lineOf = m => `【${LABEL(m)}】${m.content}`;
+
+/**
+ * 这一轮召回哪几条。S 级不再逐条进来 —— 它们已经压进关系底色了（见 bond.js）。
+ * 排序就是相关度从高到低，最相关的在最上面。
+ */
+export function recall(ctx) {
+  const { settings, char, scanText, budgets, queryVec, persona } = ctx;
+  if (!settings.memoryEnabled) return [];
   const personaId = persona?.id || null;
-  if (!settings.memoryEnabled) return '';
-  // 拿得到查询向量就走语义检索，否则退回关键词那一套。
-  // 接口没配、还没补向量、这一轮取向量失败，都会落到后面这条路上。
   const useVec = settings.memoryVector !== false && embedReady() && queryVec?.length;
   const { items } = useVec
     ? selectByVector(char?.id, scanText, budgets.memory, queryVec, {
@@ -94,10 +117,43 @@ export function build(ctx) {
       threshold: typeof settings.memoryThreshold === 'number' ? settings.memoryThreshold : 0.22,
     })
     : select(char?.id, scanText, budgets.memory, personaId);
-  if (!items.length) return '';
-  const lines = items.map(m =>
-    `[${m.rank}/${CATEGORIES[m.category] || m.category}] ${m.content}`);
-  return '\n\n[对话记忆 — 基于历史对话的客观分析结果，请自然地运用这些信息]\n' + lines.join('\n');
+  return items;
 }
 
-export const meta = { id: 'memory', label: '对话记忆', desc: '配了向量就按语义检索，否则 S/A 全注入、B 按关键词命中' };
+export const recallText = items =>
+  (items && items.length ? `${HEAD}\n${items.map(lineOf).join('\n')}` : '');
+
+// 深度。0 表示留在设定区，N ≥ 1 表示插进对话历史倒数第 N 条之前。
+// 默认 1：召回是每轮都变的，放在最前面会让后面所有稳定内容的 prompt
+// 缓存每轮作废；而且离当前对话越近，模型越不容易忽略它。
+export const depthOf = s => {
+  const n = Math.round(Number(s?.memoryDepth) ?? 1);
+  return Number.isFinite(n) && n >= 0 ? n : 1;
+};
+
+// 设定区里的那一份。深度大于 0 时这里不出东西，改由 buildHistory 插进对话。
+export function build(ctx) {
+  if (depthOf(ctx.settings) > 0) return '';
+  const items = ctx.recall || recall(ctx);
+  const text = recallText(items);
+  return text ? '\n\n' + text : '';
+}
+
+export const meta = {
+  id: 'memory', label: '本轮相关记忆',
+  desc: '按相关度召回的条目。默认插在对话末尾附近，不在设定区',
+};
+
+// ---- 关系底色 ----
+//
+// 常驻的那一层。它不随每一轮变化，所以留在设定区，位置由注入顺序决定。
+
+export function buildBond(ctx) {
+  const text = bond.textOf(ctx.char, ctx.persona?.id);
+  return text ? `\n\n[你们之间的关系]\n${text}` : '';
+}
+
+export const metaBond = {
+  id: 'bond', label: '关系底色',
+  desc: '由关系转折级记忆压成的几句现状，常驻',
+};

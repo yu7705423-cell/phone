@@ -26,7 +26,7 @@ export function ImportPage() {
     } finally { setBusy(false); }
   };
 
-  const save = () => {
+  const save = async () => {
     const c = db.characters.create({
       name: got.name, age: got.age, gender: got.gender, birthday: got.birthday,
       signature: got.signature, persona: got.persona, scenario: got.scenario,
@@ -35,6 +35,13 @@ export function ImportPage() {
     });
     toast(`已创建 ${c.name}`, 'ok');
     nav.replace(`/profile/${c.id}`);
+    // 核心设定另跑一次，不挡着建角色。失败也不提示：
+    // 角色已经建好了，这一段随时可以在编辑资料里自己写或者重新生成。
+    if (db.settings.get().coreAuto !== false && got.persona) {
+      card.makeCore(got.persona)
+        .then(core => { if (core) db.characters.update(c.id, { core }); })
+        .catch(err => console.warn('[card] 核心设定没生成:', err.message || err));
+    }
   };
 
   const rows = got ? [
@@ -47,7 +54,8 @@ export function ImportPage() {
     <${Page} title="导入角色卡" onBack=${nav.pop}>
       ${got ? html`
         <div class="hint-box">
-          读出来是这样。没写的字段会留空，不会瞎编。确认了就建角色。
+          以下为解析结果。未填写的字段保持为空，不会补充内容。
+          确认后创建角色，并自动生成一份核心设定，可在编辑资料中修改。
         </div>
         <${List}>
           ${rows.map(([k, v]) => html`

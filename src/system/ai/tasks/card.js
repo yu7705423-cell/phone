@@ -1,5 +1,5 @@
 import { characters } from '../../db/index.js';
-import { template, runJSONTask } from '../engine.js';
+import { template, runJSONTask, runTextTask } from '../engine.js';
 import { fillTemplate } from '../templates.js';
 import { readText } from '../../doctext.js';
 
@@ -25,6 +25,25 @@ export async function parseCard(file) {
     exampleDialogue: str(r.exampleDialogue),
     raw,
   };
+}
+
+/**
+ * 把人设压成核心设定。
+ *
+ * 人设正文动辄上千字，末尾再塞一遍不现实，所以压成三到五行，
+ * 只留会直接影响说话方式与行为选择的那几点（见 4.90 的收束三件套）。
+ *
+ * 多花一次接口调用，所以给开关，并且失败不抛 ——
+ * 导入本身已经成了，不该因为这一步没成就整个失败。
+ */
+export async function makeCore(persona) {
+  const text = str(persona);
+  if (!text) return '';
+  const system = fillTemplate(template('task.core'), { persona: text.slice(0, 6000) });
+  const out = await runTextTask('card.core', {
+    system, user: '请按要求输出。', key: `card-core:${Date.now()}`, maxTokens: 400,
+  });
+  return str(out).slice(0, 400);
 }
 
 // ---- 关系 ----

@@ -3,6 +3,7 @@ import * as accounts from '../accounts.js';
 import * as clock from '../time.js';
 import { assemble } from './context/index.js';
 import { activate as activateLore, split as splitLore, textOf as loreText } from './context/lorebook.js';
+import { recall as recallMemory, recallText, depthOf as memoryDepth } from './context/memory.js';
 import { fillTemplate, template } from './templates.js';
 import { capabilityBlock } from './capabilities.js';
 import { embedQuery, embedReady } from './embed.js';
@@ -68,6 +69,7 @@ export function isConfigured() { return !!config(); }
 // 副用一般更便宜也更慢，这些活儿慢一点无所谓。
 export const BACKGROUND_TASKS = new Set([
   'memory.extract',    // 自动总结记忆
+  'memory.bond',       // 把 S 级记忆压成关系底色
   'chat.summarize',    // 历史压缩
   'memory.import',     // 粘一大段文字拆成记忆
   'card.import',       // 导入角色卡
@@ -165,6 +167,7 @@ export function buildChatSystem(chat, char, msgs, opts = {}) {
     budgets: budgets(s.contextBudget),
     queryVec: opts.queryVec || null,
     lore: opts.lore || null,
+    recall: opts.recall || null,
   };
 
   const names = { charName: char.name || '对方', userName: me.name || '对方' };
@@ -293,10 +296,15 @@ export function insertLore(list, depths) {
   const out = list.slice();
   // 从深到浅插：先插深的，浅的那一条的「倒数第 N 条」才还是原来那一条
   for (const depth of [...depths.keys()].sort((a, b) => b - a)) {
-    const text = loreText(depths.get(depth));
-    if (!text) continue;
+    const group = depths.get(depth);
+    // raw 的那几条自带抬头（本轮相关记忆就是），不要再包一层 [世界设定]
+    const lore = group.filter(e => !e.raw);
+    const raw = group.filter(e => e.raw).map(e => e.content).join('\n\n');
+    const body = [lore.length ? `[世界设定]\n${loreText(lore)}` : '', raw]
+      .filter(Boolean).join('\n\n');
+    if (!body) continue;
     const at = Math.max(0, out.length - depth);
-    out.splice(at, 0, { role: 'system', content: `[世界设定]\n${text}` });
+    out.splice(at, 0, { role: 'system', content: body });
   }
   return out;
 }
@@ -332,7 +340,16 @@ export function buildHistory(chat, char, msgs, opts = {}) {
   // 刚插进去的位置又挪了。
   const lore = opts.lore
     || (char ? activateLore(char, scanTextOf(msgs, s.scanWindow), budgets(s.contextBudget).lorebook).items : []);
-  return insertLore(mergeAdjacent(view2), splitLore(lore).depths);
+  const depths = splitLore(lore).depths;
+
+  // 本轮相关记忆也按深度插。它每轮都在变，放进 system 会让后面所有
+  // 稳定内容的 prompt 缓存作废；而且离当前对话越近越不容易被忽略。
+  const md = memoryDepth(s);
+  if (md > 0 && opts.recall?.length) {
+    const text = recallText(opts.recall);
+    if (text) depths.set(md, [...(depths.get(md) || []), { content: text, raw: true }]);
+  }
+  return insertLore(mergeAdjacent(view2), depths);
 }
 
 // 合并相邻同角色消息,部分接口不接受连续同角色。
@@ -405,15 +422,30 @@ export function streamReply({ chat, char, onDelta }) {
     // 那一段要等到下一条消息才出现。开关默认关着，关着就是一句 return。
     // 动态 import：day 那个任务要用本模块，静态引会成环。
     await import('./tasks/day.js').then(m => m.ensureToday(char.id)).catch(() => {});
+    // 关系底色：S 级记忆有增删改时重压一遍。不 await —— 这一轮用旧的那份，
+    // 下一轮就是新的。压一次要花一次接口调用，所以只在签名变了时才跑，
+    // 而且整项可以关掉（见「用量与上限」）。
+    if (settings.get().bondAuto !== false) {
+      import('../bond.js')
+        .then(m => m.refresh(char.id, chat.personaId))
+        .catch(err => console.warn('[bond] 没压成:', err.message || err));
+    }
     const pics = await imagesFor(msgs);
     // 一轮只激活一次世界书：设定区和对话里各要一份。各算各的会把带概率的
     // 条目掷两次骰子，于是「设定区里有、对话里没有」这种鬼事就出现了。
     const s0 = settings.get();
     const lore = activateLore(char, scanTextOf(msgs, s0.scanWindow),
       budgets(s0.contextBudget).lorebook).items;
-    const history = buildHistory(chat, char, msgs, { images: pics, lore });
     const queryVec = await queryVecFor(msgs);
-    const { system } = buildChatSystem(chat, char, msgs, { queryVec, lore });
+    // 召回也是一轮只算一次：设定区与对话里用的必须是同一份，
+    // 而且向量检索本身要花一次接口调用。
+    const me = accounts.get(chat?.personaId) || accounts.current();
+    const recall = recallMemory({
+      settings: s0, char, scanText: scanTextOf(msgs, s0.scanWindow),
+      budgets: budgets(s0.contextBudget), queryVec, persona: me,
+    });
+    const history = buildHistory(chat, char, msgs, { images: pics, lore, recall });
+    const { system } = buildChatSystem(chat, char, msgs, { queryVec, lore, recall });
     const text = await withFallback(c => send('chat.reply', c,
       { system, messages: history, maxTokens: c.maxTokens, signal, onDelta }, 'stream'));
     // 不 await：描述是给以后几轮用的，这一轮模型已经看过原图了，

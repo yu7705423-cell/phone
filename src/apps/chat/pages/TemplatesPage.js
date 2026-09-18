@@ -6,6 +6,8 @@ const { db, nav, ai } = phone;
 
 const LABELS = {
   'skeleton.opening': '骨架 · 身份开场',
+  'task.bond': '任务 · 压缩关系底色',
+  'task.core': '任务 · 压缩核心设定',
   'skeleton.gender': '骨架 · 性别锚点',
   'skeleton.world': '骨架 · 世界规则抬头',
   'skeleton.rules': '骨架 · 消息规则',

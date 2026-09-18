@@ -14,7 +14,8 @@ const BASE = process.env.SMOKE_BASE || 'http://127.0.0.1:8000';
 const ROUTES = {
   chat: ['/', '/moments', '/stickers', '/context', '/time', '/templates',
     '/chat/:chat', '/translate/:chat', '/search', '/search/:chat', '/listen/:chat',
-     '/profile/:char', '/edit/:char', '/proactive/:char', '/extras/:chat', '/pace/:chat'],
+     '/profile/:char', '/edit/:char', '/proactive/:char', '/extras/:chat', '/pace/:chat',
+     '/bond/:chat'],
   contact: ['/', '/import', '/me', '/me/:persona', '/char/:char',
     '/edit/:char', '/profile/:char', '/net/:char', '/npc/:char'],
   memory: ['/', '/import', '/edit/:mem'],

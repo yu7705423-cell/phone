@@ -876,6 +876,15 @@ export function Conversation({ chatId, focusId = '' }) {
           <${ListItem} title="Prompt 模板" subtitle="骨架与各任务的提示词" arrow
             left=${html`<${Icon} name="sparkle" size=${18}/>`}
             onClick=${() => { setMenu(false); nav.push('/templates'); }}/>
+          <${ListItem} title="关系底色" arrow multiline
+            subtitle=${(() => {
+              const t = ai.bond.textOf(char, chat.personaId);
+              const n = ai.bond.sourceOf(char.id, chat.personaId).length;
+              return t ? `${t.split('\n')[0].slice(0, 20)}… · 由 ${n} 条关系转折级记忆压成`
+                : `尚未生成 · 当前有 ${n} 条关系转折级记忆`;
+            })()}
+            left=${html`<${Icon} name="heart" size=${18}/>`}
+            onClick=${() => { setMenu(false); nav.push(`/bond/${chatId}`); }}/>
           <${ListItem} title="立即总结记忆" arrow multiline
             subtitle=${`尚有 ${pending} 条未总结 · ${settings.autoSummarizeInterval > 0
               ? `自动总结每 ${settings.autoSummarizeInterval} 轮一次`
