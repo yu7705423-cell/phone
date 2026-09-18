@@ -37,6 +37,7 @@ import * as asrApi from '../system/ai/asr.js';
 import * as translateApi from '../system/ai/translate.js';
 import * as costApi from '../system/ai/cost.js';
 import * as ledgerApi from '../system/ledger.js';
+import * as requestApi from '../system/request.js';
 import * as audioApi from '../system/audio.js';
 import * as searchApi from '../system/search.js';
 import * as transferApi from '../system/transfer.js';
@@ -177,6 +178,7 @@ export const phone = {
   transfer: transferApi,
   currency: currencyApi,
   ledger: ledgerApi,
+  request: requestApi,
   place: placeApi,
   gift: giftApi,
   space: spaceApi,

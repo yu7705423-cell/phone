@@ -20,6 +20,7 @@ export const ITEMS = [
   { id: 'listen', icon: 'music', label: '一起听' },
   { id: 'watch', icon: 'film', label: '一起看' },
   { id: 'takeout', icon: 'cup', label: '点外卖' },
+  { id: 'request', icon: 'users', label: '申请' },
   { id: 'share', icon: 'compass', label: '共享位置' },
   { id: 'dice', icon: 'grid', label: '骰子' },
 ];
@@ -28,7 +29,7 @@ const ALL = ITEMS.map(x => x.id);
 export const itemOf = id => ITEMS.find(x => x.id === id) || null;
 
 // 默认收进「更多」的：不常用，或者一次配好就不怎么动的那几个
-const DEFAULT_MORE = ['video', 'share', 'dice'];
+const DEFAULT_MORE = ['video', 'share', 'dice', 'request'];
 
 /**
  * 读出一份干净的顺序。丢掉不认识的 id，补上配置里缺失的 ——

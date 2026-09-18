@@ -1,8 +1,9 @@
 import { html, useState } from '../../../lib.js';
 import { phone, useStore } from '../../../sdk/index.js';
-import { Sheet, Field, Input, Button, Icon, List, ListItem, Switch, toast } from '../../../ui/index.js';
+import { Sheet, Field, Input, Button, Icon, List, ListItem, Switch, Segmented, toast } from '../../../ui/index.js';
 
-const { db, transfer, currency, place, call, gift, listen, music, watch, subtitle } = phone;
+const { db, transfer, currency, place, call, gift, listen, music, watch, subtitle,
+  request, ledger } = phone;
 
 // 转账气泡。发出去的那一张不能自己点 —— 收不收是对方的事。
 export function TransferBubble({ msg, onSettle }) {
@@ -344,5 +345,124 @@ export function SettleSheet({ msg, onClose }) {
           left=${html`<${Icon} name="reply" size=${18}/>`} onClick=${() => act(false)}/>
       <//>
       <div class="settings-foot">处理结果会告知对方。</div>
+    <//>`;
+}
+
+// ---- 共同账户与亲属卡 ----
+//
+// 三件事共用一张气泡：开通共同账户、动用共同账户、发亲属卡。
+// 它们是同一个形状（A 提出，B 通过或驳回），所以界面上也是同一张。
+
+export function RequestBubble({ msg, onVote }) {
+  const mine = msg.role === 'user';
+  const pending = msg.request === request.PENDING;
+  const actionable = pending && !mine && onVote;
+  const k = msg.requestKind;
+  const title = k === request.JOINT ? '开通共同账户'
+    : k === request.CARD ? `亲属卡　额度 ${request.display(msg.amount, msg.currency)}`
+    : `动用共同账户　${request.display(msg.amount, msg.currency)}`;
+  return html`
+    <div class=${`bubble bubble-transfer${pending ? '' : ' is-done'}`}
+      onClick=${actionable ? () => onVote(msg) : null}>
+      <div class="tr-top">
+        <${Icon} name=${k === request.CARD ? 'gift' : 'users'} size=${20}/>
+        <div class="tr-body">
+          <div class="tr-amount bl-req-title">${title}</div>
+          ${msg.note && k === request.SPEND
+            ? html`<div class="tr-note ellipsis">${msg.note}</div>` : null}
+        </div>
+      </div>
+      <div class="tr-foot">
+        ${request.stateLabel(msg.request)}${actionable ? ' · 点击处理' : ''}
+      </div>
+    </div>`;
+}
+
+export function VoteSheet({ msg, onClose }) {
+  if (!msg) return null;
+  const char = db.characters.get(msg.authorId);
+  const k = msg.requestKind;
+  const what = k === request.JOINT ? '开通共同账户'
+    : k === request.CARD ? `开出一张额度 ${request.format(msg.amount, msg.currency)} 的亲属卡`
+    : `动用共同账户 ${request.format(msg.amount, msg.currency)}`;
+  const act = ok => { request.settle(msg.id, ok); onClose(); };
+  return html`
+    <${Sheet} open=${!!msg} onClose=${onClose} title=${`${char?.name || '对方'}申请${what}`}>
+      ${msg.note && k === request.SPEND
+        ? html`<div class="settings-foot">用途：${msg.note}</div>` : null}
+      <${List} inset=${false}>
+        <${ListItem} title="通过" arrow
+          left=${html`<${Icon} name="check" size=${18}/>`} onClick=${() => act(true)}/>
+        <${ListItem} title="驳回" arrow
+          left=${html`<${Icon} name="close" size=${18}/>`} onClick=${() => act(false)}/>
+      <//>
+      <div class="settings-foot">
+        ${k === request.JOINT
+          ? '通过后会在关联的账本中建立共同账户，双方均可存入，动用需另行申请。'
+          : k === request.CARD
+            ? '通过后，你消费时将在额度内从对方余额扣除。额度用尽后恢复从本人余额扣除。'
+            : '通过后，该金额从共同账户扣除。'}
+      </div>
+    <//>`;
+}
+
+/** 发起申请。三种共用一张，选哪一种决定要不要填金额。 */
+export function RequestSheet({ open, chatId, onClose }) {
+  const [kind, setKind] = useState(request.SPEND);
+  const [amount, setAmount] = useState('');
+  const [note, setNote] = useState('');
+  const book = ledger.bookOfChat(chatId);
+  const joint = book && ledger.hasJoint(book.id);
+
+  const close = () => { setAmount(''); setNote(''); onClose(); };
+  const submit = () => {
+    try {
+      request.send({ chatId, role: 'user', authorId: 'me', kind, amount, note });
+      close();
+    } catch (err) { toast(String(err.message || err), 'error'); }
+  };
+
+  const kinds = [
+    ...(joint ? [] : [{ value: request.JOINT, label: '开通共同账户' }]),
+    ...(joint ? [{ value: request.SPEND, label: '动用共同账户' }] : []),
+    { value: request.CARD, label: '亲属卡' },
+  ];
+  const cur = kinds.some(x => x.value === kind) ? kind : kinds[0].value;
+  const needAmount = cur !== request.JOINT;
+  const ok = !needAmount || request.money(amount) > 0;
+
+  return html`
+    <${Sheet} open=${open} onClose=${close} title="申请">
+      ${!book ? html`
+        <div class="settings-foot">
+          这段对话还没有关联账本。在「记账」中新建账本并关联该对话后，
+          通过的申请才会计入余额。当前仍可发出申请，但不会影响任何账目。
+        </div>` : null}
+
+      <div class="pad-b">
+        <${Segmented} value=${cur} items=${kinds} onChange=${setKind}/>
+      </div>
+
+      ${needAmount ? html`
+        <${Field} label=${cur === request.CARD ? '额度' : '金额'}>
+          <${Input} value=${amount} type="number" inputmode="decimal"
+            placeholder="0" onInput=${setAmount}/>
+        <//>` : null}
+
+      ${cur === request.SPEND ? html`
+        <${Field} label="用途" desc="可以不写。">
+          <${Input} value=${note} placeholder="用途" maxlength=${40} onInput=${setNote}/>
+        <//>` : null}
+
+      <div class="pad-t">
+        <${Button} full disabled=${!ok} onClick=${submit}>发出申请<//>
+      </div>
+      <div class="settings-foot">
+        ${cur === request.JOINT
+          ? '对方通过后，账本中会建立共同账户，双方均可存入。动用其中的钱需要另行申请。'
+          : cur === request.CARD
+            ? '对方通过后，对方消费时将在额度内从你的余额扣除。额度用尽后恢复从对方余额扣除。'
+            : '对方通过后，该金额从共同账户扣除。'}
+      </div>
     <//>`;
 }

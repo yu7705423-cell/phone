@@ -13,6 +13,8 @@ import * as dayStore from '../day.js';
 import * as extras from '../extras.js';
 import * as avatarLib from '../avatar.js';
 import * as watchStore from '../watch.js';
+import * as ledger from '../ledger.js';
+import { PENDING as REQ_PENDING } from '../request.js';
 import { PENDING as MEAL_PENDING } from '../takeout.js';
 import { allSongs } from '../music.js';
 
@@ -137,6 +139,18 @@ export const CAPS = [
     detail: ({ char }) => fillTemplate(template('skeleton.location'), {
       city: char.timezone ? ` (you are in ${clock.zoneLabel(char.timezone)})` : '',
     }),
+  },
+  {
+    // 这段对话没绑账本就一个字都不提：共同账户、亲属卡都无处可落
+    id: 'joint',
+    on: ({ chat }) => !!chat && !!ledger.bookOfChat(chat.id),
+    // 有一条申请挂着就必须是热的：它得知道怎么批、怎么驳
+    hot: ({ msgs }) => usedRecently(msgs, /^request$|[[【](申请|亲属卡|开通共同账户)/)
+      || hasPending(msgs, 'request', 'request', REQ_PENDING),
+    line: () => 'Joint account and family card: write a line on its own,'
+      + ' [开通共同账户], [申请：what it is for, amount], or [亲属卡：额度 2000];'
+      + ' respond to a request with [批准] or [驳回]',
+    detail: () => template('skeleton.joint'),
   },
   {
     id: 'pact',

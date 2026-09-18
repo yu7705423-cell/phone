@@ -15,7 +15,7 @@ import { TransferBubble, NoticeLine, TransferSheet, SettleSheet,
          LocationBubble, LocationSheet, CallBubble, CallLogSheet,
          GiftBubble, GiftSheet, UnwrapSheet,
          ListenBubble, ListenLogSheet, ListenBar, WatchBubble,
-         WatchBar } from './TransferBits.js';
+         WatchBar, RequestBubble, RequestSheet, VoteSheet } from './TransferBits.js';
 
 // panel 这个名字在本文件里已经被「当前开着哪个面板」占了（见下面的 useState），
 // 所以模块换个名字进来 —— 同名会被局部变量盖掉，读出来是 null。
@@ -116,6 +116,8 @@ const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, onSwipe,
 
         ${msg.kind === 'transfer'
           ? html`<${TransferBubble} msg=${msg} onSettle=${selecting ? null : onSettle}/>`
+          : msg.kind === 'request'
+          ? html`<${RequestBubble} msg=${msg} onVote=${selecting ? null : onSettle}/>`
           : msg.kind === 'gift'
           ? html`<${GiftBubble} msg=${msg} onOpen=${selecting ? null : onUnwrap}/>`
           : msg.kind === 'location'
@@ -210,6 +212,8 @@ export function Conversation({ chatId, focusId = '' }) {
   const [recSec, setRecSec] = useState(-1);      // -1 = 没在录音
   const [paying, setPaying] = useState(false);   // 转账面板开着
   const [settling, setSettling] = useState(null);// 正在处理的那一笔
+  const [asking, setAsking] = useState(false);   // 申请面板开着
+  const [voting, setVoting] = useState(null);    // 正在表态的那一条申请
   const [placing, setPlacing] = useState(false); // 发位置的面板开着
   const [callLog, setCallLog] = useState(null);  // 正在看的那通电话
   const [gifting, setGifting] = useState(false); // 送礼物面板开着
@@ -681,7 +685,8 @@ export function Conversation({ chatId, focusId = '' }) {
     : setCallLog(m));
   // 「处理对方发来的那一件」两种气泡共用一个入口，按 kind 分流。
   // 各给一个 prop 的话，气泡的记忆化就得多认一个函数身份。
-  const settleAny = m => (m.kind === 'takeout' ? setMeal(m) : setSettling(m));
+  const settleAny = m => (m.kind === 'takeout' ? setMeal(m)
+    : m.kind === 'request' ? setVoting(m) : setSettling(m));
   latest.current = { onRetry, onSwipe, togglePick, onSettle: settleAny,
     onOpenLog: openLog, onUnwrap: setUnwrap,
     onPat: () => extras.pat({ chatId, role: 'user' }) };
@@ -733,6 +738,7 @@ export function Conversation({ chatId, focusId = '' }) {
     listen: () => nav.push(`/listen/${chatId}`),
     watch: () => nav.push(`/watch/${chatId}`),
     takeout: () => setOrdering(true),
+    request: () => setAsking(true),
     share: () => setSharing(true),
     dice: () => setDicing(true),
   };
@@ -885,6 +891,8 @@ export function Conversation({ chatId, focusId = '' }) {
       <${TransferSheet} open=${paying} chatId=${chatId} onClose=${() => setPaying(false)}/>
       <${LocationSheet} open=${placing} chatId=${chatId} onClose=${() => setPlacing(false)}/>
       <${SettleSheet} msg=${settling} onClose=${() => setSettling(null)}/>
+      <${RequestSheet} open=${asking} chatId=${chatId} onClose=${() => setAsking(false)}/>
+      <${VoteSheet} msg=${voting} onClose=${() => setVoting(null)}/>
 
       <${MsgMenu} msg=${held} char=${char} onClose=${() => setHeld(null)}
         onRegenerate=${canRegen ? () => regenerate(held.turnId) : null}

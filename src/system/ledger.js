@@ -3,6 +3,7 @@ import * as accounts from './accounts.js';
 import * as currency from './currency.js';
 import * as transferSvc from './transfer.js';
 import * as takeoutSvc from './takeout.js';
+import * as requestSvc from './request.js';
 
 // 记账。
 //
@@ -161,6 +162,66 @@ export const bookOfChat = chatId =>
 export const injectOn = book => book && book.inject !== false;
 export const strictOn = book => book && book.strict !== false;
 
+/** 保证这本账上有一个共同账户。申请通过之后调它。 */
+export function ensureJoint(bookId) {
+  const had = accountsOf(bookId).find(a => a.owner === JOINT);
+  if (had) return had;
+  return addAccount(bookId, { name: '共同账户', owner: JOINT });
+}
+export const hasJoint = bookId => !!accountsOf(bookId).find(a => a.owner === JOINT);
+
+// ---- 亲属卡 ----
+//
+// 一张卡 = 「你花钱的时候花的是我的余额」。发卡的是 from，拿卡的是 to。
+//
+// **用掉多少不入库**，和余额一样是折出来的（见 chatEntries 里那段扫描）。
+// 存一个 used 字段的话，某一轮被重新生成、那笔消费消失之后，
+// 额度不会跟着还回来 —— 又是一个安静错下去的数。
+
+export const cardsOf = bookId => (get(bookId)?.cards || []);
+export const cardTo = (bookId, owner) =>
+  cardsOf(bookId).find(c => c.to === owner && c.active !== false) || null;
+
+export function addCard(bookId, { from, to, limit }) {
+  const book = get(bookId);
+  if (!book) throw new Error('账本不存在');
+  const card = {
+    id: `cd${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
+    from: OWNERS.includes(from) ? from : ME,
+    to: OWNERS.includes(to) ? to : CHAR,
+    limit: currency.round(Math.abs(Number(limit) || 0), book.currency),
+    active: true,
+    at: Date.now(),
+  };
+  // 同一个方向只留一张：再发一张就是换额度，两张并存没人算得清
+  const rest = cardsOf(bookId).filter(c => !(c.from === card.from && c.to === card.to));
+  books.update(bookId, { cards: [...rest, card] });
+  return card;
+}
+
+export function setCard(bookId, cardId, patch) {
+  const next = cardsOf(bookId).map(c => (c.id === cardId ? {
+    ...c,
+    ...(patch.limit !== undefined
+      ? { limit: currency.round(Math.abs(Number(patch.limit) || 0), get(bookId)?.currency) } : {}),
+    ...(patch.active !== undefined ? { active: !!patch.active } : {}),
+  } : c));
+  books.update(bookId, { cards: next });
+  return cardsOf(bookId).find(c => c.id === cardId) || null;
+}
+
+export const removeCard = (bookId, cardId) =>
+  books.update(bookId, { cards: cardsOf(bookId).filter(c => c.id !== cardId) });
+
+/** 这张卡已经被刷掉多少。扫一遍会话现算。 */
+export function cardUsed(bookId, cardId) {
+  let n = 0;
+  for (const e of chatEntries(bookId)) if (e.cardId === cardId) n += -e.amount;
+  return currency.round(n, get(bookId)?.currency);
+}
+export const cardLeft = (bookId, card) =>
+  currency.round(Math.max(0, (card?.limit || 0) - cardUsed(bookId, card?.id)), get(bookId)?.currency);
+
 // ---- 流水 ----
 //
 // amount 带符号：正数进账，负数出账。折余额时直接相加，不必再看一个 type 字段。
@@ -200,6 +261,11 @@ function moveOf(m) {
     const payer = m.takeoutKind === takeoutSvc.TREAT ? who : other;
     return [{ owner: payer, amount: OUT * v }];
   }
+  // 动用共同账户：批准了才算，钱从共同账户出
+  if (m.kind === 'request' && m.requestKind === requestSvc.SPEND) {
+    if (m.request !== requestSvc.APPROVED) return [];
+    return [{ owner: JOINT, amount: OUT * (Number(m.amount) || 0), noCard: true }];
+  }
   return [];
 }
 
@@ -216,19 +282,46 @@ export function chatEntries(bookId) {
   const book = get(bookId);
   const chatId = book?.chatId;
   if (!chatId) return [];
-  const key = `${bookId}:${chatId}:${messages.indexVersion(chatId)}:${(book.accounts || []).length}`;
+  const key = `${bookId}:${chatId}:${messages.indexVersion(chatId)}:`
+    + `${(book.accounts || []).length}:${JSON.stringify(book.cards || [])}`;
   if (cache.key === key) return cache.rows;
 
+  // **按时间顺序扫，边扫边算亲属卡还剩多少额度。**
+  // 第 N 笔走不走得了卡，取决于前 N-1 笔刷掉了多少，所以这一遍不能乱序，
+  // 也不能各算各的。额度同样不入库，和余额一样是折出来的。
+  const cards = cardsOf(bookId).filter(c => c.active !== false);
+  const used = new Map();
   const rows = [];
-  for (const m of messagesOf(chatId)) {
+  const byTime = messagesOf(chatId).slice().sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+
+  for (const m of byTime) {
     for (const mv of moveOf(m)) {
-      const acc = defaultFor(bookId, mv.owner);
+      let owner = mv.owner;
+      let cardId = '';
+      // 出账才走卡，进账不走。共同账户那一笔不走卡（noCard）。
+      if (mv.amount < 0 && !mv.noCard) {
+        const card = cards.find(c => c.to === owner);
+        if (card) {
+          const left = (card.limit || 0) - (used.get(card.id) || 0);
+          // 额度够就整笔记在发卡方账上；不够就走不了，照旧记在自己账上。
+          // 拆成两半记看着更精确，实际上没人算得清哪半走了卡。
+          if (left >= -mv.amount) {
+            used.set(card.id, (used.get(card.id) || 0) + -mv.amount);
+            owner = card.from;
+            cardId = card.id;
+          }
+        }
+      }
+      const acc = defaultFor(bookId, owner);
       if (!acc) continue;
       rows.push({
         id: `msg:${m.id}:${mv.owner}`,
         bookId, accountId: acc.id, amount: currency.round(mv.amount, book.currency),
-        category: 'transfer', note: m.kind === 'takeout' ? (m.item || '外卖') : (m.note || ''),
+        category: 'transfer',
+        note: m.kind === 'takeout' ? (m.item || '外卖')
+          : m.kind === 'request' ? (m.note || '共同账户') : (m.note || ''),
         at: m.createdAt || 0, src: 'message', ref: m.id, pending: false,
+        by: mv.owner, cardId,
       });
     }
   }
@@ -364,9 +457,12 @@ export function ownerLabel(bookId, owner) {
 export function affordable(chatId, owner, amount) {
   const book = bookOfChat(chatId);
   if (!book || !strictOn(book)) return true;
-  const acc = defaultFor(book.id, owner);
-  if (!acc) return true;
   const v = Math.abs(Number(amount) || 0);
+  // 手里有额度够用的亲属卡，付的就是发卡方的钱，看他够不够
+  const card = cardTo(book.id, owner);
+  const payer = card && cardLeft(book.id, card) >= v ? card.from : owner;
+  const acc = defaultFor(book.id, payer);
+  if (!acc) return true;
   return balanceOf(book.id, acc.id) >= v;
 }
 
@@ -389,5 +485,15 @@ export function context(chatId) {
     joint: joint ? fmt(balanceOf(book.id, joint.id)) : '',
     month: fmt(st.expense),
     strict: strictOn(book),
+    hasJoint: hasJoint(book.id),
+    // 角色手里那张（别人发给它的）与它发出去的那张
+    cardHeld: (() => {
+      const c = cardTo(book.id, CHAR);
+      return c ? { limit: fmt(c.limit), left: fmt(cardLeft(book.id, c)), from: who.me } : null;
+    })(),
+    cardGiven: (() => {
+      const c = cardTo(book.id, ME);
+      return c ? { limit: fmt(c.limit), left: fmt(cardLeft(book.id, c)), to: who.me } : null;
+    })(),
   };
 }

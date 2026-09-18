@@ -1,6 +1,6 @@
 import { html, useState } from '../../lib.js';
 import { phone, useStore } from '../../sdk/index.js';
-import { Page, List, ListItem, Field, Input, Button, Segmented, Icon,
+import { Page, List, ListItem, Field, Input, Button, Segmented, Switch, Icon,
   Sheet, toast, confirm } from '../../ui/index.js';
 import { Money, OwnerDot } from './parts.js';
 
@@ -13,6 +13,7 @@ export function AccountsPage() {
   useStore(db.entries.store);
   useStore(db.settings.store);
   const [editing, setEditing] = useState(null);
+  const [card, setCard] = useState(null);
   const bookId = ledger.currentId();
   const book = ledger.get(bookId);
   if (!book) return html`<${Page} title="账户" onBack=${nav.pop}/>`;
@@ -54,6 +55,23 @@ export function AccountsPage() {
           <//>`;
       })}
 
+      <${List} title="亲属卡">
+        ${ledger.cardsOf(bookId).map(c => html`
+          <${ListItem} key=${c.id} multiline
+            title=${`${ledger.ownerLabel(bookId, c.from)} 发给 ${ledger.ownerLabel(bookId, c.to)}`}
+            subtitle=${c.active === false
+              ? '已停用。持卡一方消费时从本人余额扣除'
+              : `额度 ${ledger.money(bookId, c.limit)} · 已用 ${ledger.money(bookId, ledger.cardUsed(bookId, c.id))}`
+                + ` · 剩余 ${ledger.money(bookId, ledger.cardLeft(bookId, c))}`}
+            left=${html`<${Icon} name="gift" size=${18}/>`}
+            right=${html`<${Switch} checked=${c.active !== false}
+              onChange=${v => ledger.setCard(bookId, c.id, { active: v })}/>`}
+            onClick=${() => setCard(c)}/>`)}
+        ${!ledger.cardsOf(bookId).length
+          ? html`<${ListItem} title="还没有亲属卡" subtitle="在对话中发出申请，对方通过后生效" multiline/>`
+          : null}
+      <//>
+
       <${List} title="合计">
         <${ListItem} title="全部账户"
           right=${html`<${Money} bookId=${bookId} amount=${ledger.totalOf(bookId)}/>`}/>
@@ -61,13 +79,18 @@ export function AccountsPage() {
 
       <div class="settings-foot">
         余额由该账户下的全部流水累加得出，不单独存储。删除某一笔流水，余额会随之变化。
-        ${who.char ? '共同账户的动用规则与亲属卡将在后续版本中提供。' : ''}
+        ${who.char
+        ? '共同账户与亲属卡在对话中发出申请，对方通过后生效。'
+          + '持卡一方消费时在额度内从发卡方余额扣除，额度不足时恢复从本人余额扣除。'
+        : ''}
       </div>
 
       ${editing ? html`
         <${AccountEditor} bookId=${bookId} acc=${editing} who=${who}
           onDrop=${() => { drop(editing); setEditing(null); }}
           onClose=${() => setEditing(null)}/>` : null}
+      ${card ? html`
+        <${CardEditor} bookId=${bookId} card=${card} onClose=${() => setCard(null)}/>` : null}
     <//>`;
 }
 
@@ -114,6 +137,48 @@ function AccountEditor({ bookId, acc, who, onClose, onDrop }) {
           <div class="pad-t">
             <${Button} full variant="danger" onClick=${onDrop}>删除这个账户<//>
           </div>` : null}
+      </div>
+    <//>`;
+}
+
+function CardEditor({ bookId, card, onClose }) {
+  const [limit, setLimit] = useState(String(card.limit || ''));
+  const used = ledger.cardUsed(bookId, card.id);
+
+  const save = () => {
+    ledger.setCard(bookId, card.id, { limit });
+    toast('已保存', 'ok');
+    onClose();
+  };
+  const drop = async () => {
+    if (!await confirm({
+      title: '删除这张亲属卡', danger: true,
+      message: '删除后，此前走这张卡的消费会改为从持卡一方的余额扣除，两边余额都会随之变化。',
+    })) return;
+    ledger.removeCard(bookId, card.id);
+    toast('已删除');
+    onClose();
+  };
+
+  return html`
+    <${Sheet} open title="亲属卡" onClose=${onClose}>
+      <${List} inset=${false}>
+        <${ListItem} title="发卡方" subtitle=${ledger.ownerLabel(bookId, card.from)} multiline/>
+        <${ListItem} title="持卡方" subtitle=${ledger.ownerLabel(bookId, card.to)} multiline/>
+        <${ListItem} title="已用" subtitle=${ledger.money(bookId, used)} multiline/>
+      <//>
+      <div class="pad">
+        <${Field} label="额度"
+          desc="持卡一方消费时，在剩余额度内从发卡方余额扣除。额度不足时该笔恢复从本人余额扣除。
+            已用金额由流水累加得出，不单独存储。">
+          <${Input} type="number" inputmode="decimal" value=${limit} onInput=${setLimit}/>
+        <//>
+      </div>
+      <div class="pad">
+        <${Button} full onClick=${save}>保存<//>
+        <div class="pad-t">
+          <${Button} full variant="danger" onClick=${drop}>删除这张卡<//>
+        </div>
       </div>
     <//>`;
 }

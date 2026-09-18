@@ -20,12 +20,13 @@ import * as avatar from '../avatar.js';
 import * as takeout from '../takeout.js';
 import * as translate from './translate.js';
 import * as ledger from '../ledger.js';
+import * as request from '../request.js';
 
 // 角色回复里可以带这几种标记，由模型自己决定什么时候用。
 // 中英文冒号都认，方括号也认全角。
 // 「约定完成」必须排在「约定」前面 —— 交替是从左往右试的，反过来写
 // 「约定完成：早点睡」会先被「约定」吃掉，剩下「完成：早点睡」当成内容。
-const MARK = /[[【]\s*(图片|照片|image|pic|语音|voice|audio|表情|sticker|emoji|转账|transfer|位置|定位|location|礼物|gift|点歌|建歌单|约定完成|约定|pact|信|letter|事项完成|事项取消|心声|换头像|外卖|请客|代付)\s*[:：]\s*([^\]】]+)[\]】]/gi;
+const MARK = /[[【]\s*(图片|照片|image|pic|语音|voice|audio|表情|sticker|emoji|转账|transfer|位置|定位|location|礼物|gift|点歌|建歌单|约定完成|约定|pact|信|letter|事项完成|事项取消|心声|换头像|外卖|请客|代付|申请|亲属卡)\s*[:：]\s*([^\]】]+)[\]】]/gi;
 
 const IMAGE_KINDS = new Set(['图片', '照片', 'image', 'pic']);
 const STICKER_KINDS = new Set(['表情', 'sticker', 'emoji']);
@@ -43,6 +44,8 @@ const WEAR_KINDS = new Set(['换头像']);
 // 三种点法各一个词。谁吃、谁付都写在词里，正文只剩「吃什么 多少钱」
 const TAKEOUT_KINDS = new Map([['外卖', takeout.SELF], ['请客', takeout.TREAT], ['代付', takeout.ASK]]);
 const LIST_KINDS = new Set(['建歌单']);
+const ASK_KINDS = new Set(['申请']);
+const CARD_KINDS = new Set(['亲属卡']);
 
 // 转账那一条里，金额在前，后面随手写的是留言
 const AMOUNT = /^\s*(?:[¥￥$]\s*)?(\d+(?:\.\d{1,2})?)\s*(?:元|块)?\s*(.*)$/;
@@ -75,6 +78,10 @@ const REWIND_LINE = /^[[【(（]\s*(?:倒回|回到|快进)\s*[:：]\s*([\d:：.
 
 // 拍一拍、掷骰子。都是「一件事」不是「一条消息」，所以不带冒号，整行就是它。
 const PAT_LINE = /^[[【(（]\s*(?:拍一拍|拍拍|戳一戳)\s*[\]】)）]$/;
+// 共同账户与亲属卡那一套。开通只有一个词，批驳各一个词。
+const JOINT_LINE = /^[[【(（]\s*(?:开通共同账户|开共同账户)\s*[\]】)）]$/;
+const OKAY_LINE = /^[[【(（]\s*(?:批准|同意|通过)\s*[\]】)）]$/;
+const DENY_LINE = /^[[【(（]\s*(?:驳回|拒绝|不同意)\s*[\]】)）]$/;
 const DICE_LINE = /^[[【(（]\s*(?:骰子|掷骰子|扔骰子|dice)\s*[\]】)）]$/i;
 
 // 打个电话过来。同样必须带方括号。写「视频去电」就是视频通话。
@@ -261,6 +268,11 @@ export function splitReply(raw) {
       if (TAKE_LINE.test(t)) { push({ type: 'meal', take: true }); return; }
       if (NOPE_LINE.test(t)) { push({ type: 'meal', take: false }); return; }
 
+      // 共同账户与亲属卡：开通、批准、驳回各一行，都不占气泡
+      if (JOINT_LINE.test(t)) { push({ type: 'request', kind: request.JOINT }); return; }
+      if (OKAY_LINE.test(t)) { push({ type: 'vote', ok: true }); return; }
+      if (DENY_LINE.test(t)) { push({ type: 'vote', ok: false }); return; }
+
       // 拍一拍落一行提示，骰子落一条自己的消息，两样都不占气泡。
       if (PAT_LINE.test(t)) { push({ type: 'pat' }); return; }
       if (DICE_LINE.test(t)) { push({ type: 'dice' }); return; }
@@ -301,6 +313,15 @@ export function splitReply(raw) {
         const o = takeout.parse(body);
         // 吃什么读不出来就整条丢掉。一单没有内容的外卖比少发一条更怪
         if (o && o.item) push({ type: 'takeout', kind: TAKEOUT_KINDS.get(kind), ...o });
+      } else if (ASK_KINDS.has(kind)) {
+        // 「买机票 2000」：和外卖同一种拆法，最后一个数是金额
+        const o = takeout.parse(body);
+        if (o && o.amount > 0) {
+          push({ type: 'request', kind: request.SPEND, amount: o.amount, note: o.item });
+        }
+      } else if (CARD_KINDS.has(kind)) {
+        const o = takeout.parse(body);
+        if (o && o.amount > 0) push({ type: 'request', kind: request.CARD, amount: o.amount });
       } else if (INNER_KINDS.has(kind)) {
         const prev = parts[parts.length - 1];
         if (prev) prev.inner = body;
@@ -539,6 +560,28 @@ export function materialize(part, base, char) {
     const target = takeout.pendingFrom(base.chatId, base.role === 'user' ? 'char' : 'user');
     return target ? takeout.settle(target.id, part.take, row) : null;
   }
+  if (part.type === 'request') {
+    // 动用共同账户：账上没那么多就不必提了，落一行说明
+    if (part.kind === request.SPEND) {
+      const book = ledger.bookOfChat(base.chatId);
+      const joint = book && ledger.defaultFor(book.id, ledger.JOINT);
+      if (book && ledger.strictOn(book) && joint
+        && ledger.balanceOf(book.id, joint.id) < Math.abs(part.amount)) {
+        return messages.create({
+          ...base, kind: 'notice', status: 'done',
+          content: `[共同账户余额不足，${request.format(part.amount)} 的申请没有发出]`,
+        });
+      }
+    }
+    return request.send({
+      chatId: base.chatId, role: base.role, authorId: base.authorId,
+      kind: part.kind, amount: part.amount, note: part.note, extra: row,
+    });
+  }
+  if (part.type === 'vote') {
+    const target = request.pendingFrom(base.chatId, base.role === 'user' ? 'char' : 'user');
+    return target ? request.settle(target.id, part.ok, row) : null;
+  }
   if (part.type === 'pat') {
     return extras.pat({ chatId: base.chatId, role: base.role });
   }
@@ -704,6 +747,7 @@ export function dropMessage(id) {
   if (m.kind === 'notice' && m.settledId) {
     if (m.settledKind === 'pact') space.unsettlePact(id);
     else if (m.settledKind === 'takeout') takeout.unsettle(id);
+    else if (m.settledKind === 'request') request.unsettle(id);
     else (m.settledKind === 'gift' ? gift : transfer).unsettle(id);
   }
   return messages.remove(id);

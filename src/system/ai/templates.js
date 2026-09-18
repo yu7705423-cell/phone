@@ -258,6 +258,24 @@ Do not write the background, do not write the lighting, and do not judge
 whether they are attractive.
 Write one continuous paragraph, not a list.`,
 
+  // 共同账户与亲属卡。三件事共用一套「提出 - 表态」，写法也共用一段。
+  'skeleton.joint':
+`[共同账户与亲属卡]
+To open a joint account, write a line on its own, [开通共同账户].
+To draw on the joint account, write a line on its own,
+[申请：what it is for, amount], for example [申请：买机票 2000].
+To give the other party a family card, write a line on its own,
+[亲属卡：额度 2000]. While the card is active, what they spend is deducted
+from your balance, up to that limit.
+
+A request from the other party requires a response: write a line reading
+[批准] to approve it, or a line reading [驳回] to reject it.
+Handle each request once. Do not handle ones already marked as approved or
+rejected.
+
+The joint account requires an approved request for each withdrawal.
+Its balance is given above under [你的钱].`,
+
   'skeleton.pact':
 `[约定]
 When the two of you settle on something to do later, write a line on its own,
