@@ -17,7 +17,8 @@ export function HomeTab() {
   const logged = !!cfg.cookie;
 
   const recent = useRemote(
-    () => (logged ? netease.recent('', 12).then(r => r.songs) : Promise.resolve([])), [logged]);
+    () => (logged ? netease.recent('', 12, { covers: true }).then(r => r.songs) : Promise.resolve([])),
+    [logged]);
   const lists = useRemote(
     () => (logged ? netease.playlistsOf('') : Promise.resolve([])), [logged]);
 

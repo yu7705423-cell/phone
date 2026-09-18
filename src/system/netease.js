@@ -44,6 +44,35 @@ async function call(path, params = {}, cookie = '') {
   return body || {};
 }
 
+// 封面、头像一律走这里取。
+//
+// 网易云回来的图址有不少是 http 的。页面自己跑在 https 上时，浏览器会把这些
+// 图当混合内容直接拦掉 —— 请求根本发不出去，看起来就是「图没了」。
+// 它那个 CDN 本来就支持 https，换个协议即可，不必代理。
+const picOf = url => String(url || '').replace(/^http:\/\//i, 'https://');
+
+/**
+ * 把缺封面的那几首补上。
+ *
+ * 有些接口回来的歌只有 id、歌名和歌手，没有专辑图 —— 老的 /search 就是这样。
+ * 这些 id 拿去 /song/detail 问一次就都有了，**一次问一批**，不是一首问一次。
+ *
+ * 补不上不抛错：少一张图是摆个占位的字，整页失败是什么都看不见。
+ */
+async function fillCovers(list, cookie = '') {
+  const miss = list.filter(t => !t.cover && t.id);
+  if (!miss.length) return list;
+  try {
+    const r = await call('/song/detail', { ids: miss.map(t => t.id).join(',') }, cookie);
+    const pic = new Map((r.songs || []).map(s =>
+      [String(s.id), picOf(s.al?.picUrl || s.album?.picUrl || '')]));
+    miss.forEach(t => { t.cover = pic.get(t.id) || ''; });
+  } catch (err) {
+    console.warn('[netease] 封面没补上:', err.message || err);
+  }
+  return list;
+}
+
 export function ready() { return neteaseReady(); }
 
 // ---- 登录。只做扫码：手机号那条路要用户把密码交出来，不做。 ----
@@ -63,7 +92,7 @@ export async function qrCheck(key) {
 export async function accountOf(cookie) {
   const r = await call('/user/account', {}, cookie);
   const p = r.profile || {};
-  return { uid: p.userId ? String(p.userId) : '', nickname: p.nickname || '', avatar: p.avatarUrl || '' };
+  return { uid: p.userId ? String(p.userId) : '', nickname: p.nickname || '', avatar: picOf(p.avatarUrl) };
 }
 
 // 登录成功之后把凭据落到该落的地方：不给 charId 就是用户自己的号
@@ -123,8 +152,8 @@ export async function profile(charId = '') {
   return {
     uid: String(p.userId || uid),
     nickname: p.nickname || '',
-    avatar: p.avatarUrl || '',
-    cover: p.backgroundUrl || '',
+    avatar: picOf(p.avatarUrl),
+    cover: picOf(p.backgroundUrl),
     signature: p.signature || '',
     level: Number(r.level || 0) || 0,
     listenSongs: Number(r.listenSongs || 0) || 0,
@@ -149,9 +178,9 @@ export async function record(charId = '', { week = true, limit = 0 } = {}) {
       score: Number(row.score || 0) || 0,
       seconds: Math.round(Number(song.dt || song.duration || 0) / 1000) || 0,
       album: song.al?.name || song.album?.name || '',
-      cover: song.al?.picUrl || '',
     };
   }).filter(x => x.id && x.title);
+  await fillCovers(list, cookie);
   return limit > 0 ? list.slice(0, limit) : list;
 }
 
@@ -164,7 +193,7 @@ export async function playlistsOf(charId = '') {
   return (r.playlist || []).map(p => ({
     id: String(p.id),
     name: p.name || '',
-    cover: p.coverImgUrl || '',
+    cover: picOf(p.coverImgUrl),
     count: Number(p.trackCount || 0) || 0,
     mine: String(p.userId || '') === String(uid),
     played: Number(p.playCount || 0) || 0,
@@ -188,14 +217,33 @@ const trackOf = s => ({
   title: s.name || '',
   artist: (s.ar || s.artists || []).map(a => a.name).filter(Boolean).join('、'),
   album: s.al?.name || s.album?.name || '',
-  cover: s.al?.picUrl || s.album?.picUrl || '',
+  cover: picOf(s.al?.picUrl || s.album?.picUrl),
   seconds: Math.round(Number(s.dt || s.duration || 0) / 1000) || 0,
 });
 
 // ---- 曲库 ----
+/**
+ * 搜索。
+ *
+ * **走 /cloudsearch，不走 /search。** 两个接口搜的是同一批歌，但回来的结构
+ * 是两代：/search 那一代每首只带 id、歌名、歌手和一个没有图址的 album，
+ * 于是搜出来的结果一张封面都没有。/cloudsearch 回来的是新结构，带 al.picUrl。
+ *
+ * 老一点的部署没有 /cloudsearch，退回 /search，缺的封面再用 /song/detail 补齐。
+ */
 export async function search(keywords, limit = 20) {
-  const r = await call('/search', { keywords, limit }, cookieOf());
-  return (r.result?.songs || []).map(trackOf).filter(x => x.id && x.title);
+  const cookie = cookieOf();
+  let rows = [];
+  try {
+    const r = await call('/cloudsearch', { keywords, limit }, cookie);
+    rows = r.result?.songs || [];
+  } catch { /* 这份部署没有这个接口，走下一条 */ }
+  if (!rows.length) {
+    const r = await call('/search', { keywords, limit }, cookie);
+    rows = r.result?.songs || [];
+  }
+  const list = rows.map(trackOf).filter(x => x.id && x.title);
+  return fillCovers(list, cookie);
 }
 
 // 播放地址是**会过期的**，所以不入库，每次要放的时候现取。
@@ -228,9 +276,15 @@ const songOf = s => ({
   id: String(s.id || s.songId || ''),
   title: s.name || s.title || '',
   artist: (s.ar || s.artists || []).map(a => a.name).filter(Boolean).join('、'),
+  // 这一项以前漏了，于是首页「最近播放」那一排从来没有过封面。
+  // 两条路回来的结构不同：新的在 al，旧的在 album，都认。
+  cover: picOf(s.al?.picUrl || s.album?.picUrl),
 });
 
-export async function recent(charId, limit = 5) {
+// covers：要不要把缺封面的那几首补齐。**默认不补** —— 这个函数的主要调用方是
+// 注入上下文那条路（pullRecent），那边只用得着歌名和歌手，为它多问一次图址
+// 是白花的一趟。首页要显示封面，自己传 true。
+export async function recent(charId, limit = 5, { covers = false } = {}) {
   const cookie = cookieOf(charId);
   if (!cookie) throw new Error(charId ? '这个角色还没有登录音乐账号' : '还没有登录音乐账号');
   const n = Math.max(1, Math.round(limit) || 5);
@@ -242,7 +296,11 @@ export async function recent(charId, limit = 5) {
       ...songOf(row.data || row.song || row),
       at: Number(row.playTime || row.time || 0) || 0,
     })).filter(x => x.id && x.title);
-    if (list.length) return { kind: 'recent', songs: list.slice(0, n), at: Date.now() };
+    if (list.length) {
+      const songs = list.slice(0, n);
+      if (covers) await fillCovers(songs, cookie);
+      return { kind: 'recent', songs, at: Date.now() };
+    }
   } catch { /* 这份部署没有这个接口，走下一条 */ }
 
   // 退回排行榜。没有时间戳，所以只能说「最近常听」，不能说「刚刚在听」
@@ -252,7 +310,9 @@ export async function recent(charId, limit = 5) {
   const rows = r.weekData || r.allData || [];
   const songs = rows.map(row => songOf(row.song || {})).filter(x => x.id && x.title);
   if (!songs.length) throw new Error('这个账号最近没有听歌记录');
-  return { kind: 'week', songs: songs.slice(0, n), at: Date.now() };
+  const out = songs.slice(0, n);
+  if (covers) await fillCovers(out, cookie);
+  return { kind: 'week', songs: out, at: Date.now() };
 }
 
 /** 拉一次并记在角色卡上。上下文那边读的是记下来的这一份，不现拉。 */
