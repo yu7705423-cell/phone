@@ -5,6 +5,7 @@ import { Page, Avatar, Icon, IconButton, FullSheet, List, ListItem,
 import { splitBubbles, quoteOf } from '../helpers.js';
 import { StickerPanel, StickerSuggest } from './StickerPanel.js';
 import { StickerImg } from './StickerBits.js';
+import { groupImages, ImageStack, StackFold } from './ImageStack.js';
 import { MediaBubble } from './MediaBubble.js';
 import { MsgMenu } from './MsgMenu.js';
 import { PactBubble, LetterBubble, LetterSheet, PactSheet } from './SpaceBits.js';
@@ -47,7 +48,7 @@ function QuoteRef({ quote, onClick }) {
 // 下面传给它的函数属性都是稳定身份的，见 Conversation 里的 stable。
 const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, onSwipe, onHold,
                   selecting, selected, onToggle, transOpen, onSettle, onOpenLog, onUnwrap,
-                  onPat, innerStyle }) {
+                  onPat, innerStyle, fold, foldCount }) {
   const mine = msg.role === 'user';
   const avatar = useImage(mine ? phone.accounts.current()?.avatar : char?.avatar);
   const hold = useRef({ timer: null, fired: false });
@@ -167,9 +168,28 @@ const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, onSwipe,
             <button class="swipe-btn press" onClick=${() => onSwipe(msg, 1)}>
               <${Icon} name="chevronRight" size=${13}/></button>
           </div>` : null}
+
+        ${fold ? html`<${StackFold} count=${foldCount} onFold=${fold}/>` : null}
       </div>
     </div>`;
 });
+
+// 摞起来的那一叠。它不是一条消息，所以不走 Bubble 那一套（没有重试、没有候选、
+// 没有译文），只借头像和左右对齐。长按任意一张进选择模式，那时整叠会摊开。
+function StackRow({ msgs, char, onExpand }) {
+  const mine = msgs[0].role === 'user';
+  const avatar = useImage(mine ? phone.accounts.current()?.avatar : char?.avatar);
+  return html`
+    <div class=${`msg no-callout${mine ? ' is-mine' : ''}`}>
+      <div class="msg-face no-callout">
+        <${Avatar} src=${avatar} name=${mine ? phone.accounts.current()?.name : char?.name}
+          size=${36} radius=${18}/>
+      </div>
+      <div class="msg-col">
+        <${ImageStack} msgs=${msgs} onExpand=${onExpand}/>
+      </div>
+    </div>`;
+}
 
 export function Conversation({ chatId, focusId = '' }) {
   useStore(db.chats.store);
@@ -244,6 +264,21 @@ export function Conversation({ chatId, focusId = '' }) {
   const from = Math.max(0, msgs.length - window_);
   const view = from ? msgs.slice(from) : msgs;
   const earlier = from;
+
+  // 连着发的几张图摞成一叠。选择模式下不摞 —— 摞着就没法单独挑其中一张。
+  const [openStack, setOpenStack] = useState(() => new Set());
+  const rows = useMemo(() => {
+    if (selecting) return view.map(m => ({ stack: false, id: m.id, msg: m }));
+    return groupImages(view).flatMap(row => {
+      if (!row.stack || !openStack.has(row.id)) return [row];
+      // 展开就是平常那样，一张一个气泡。最后一张下面挂「收起」
+      return row.msgs.map((m, k) => ({
+        stack: false, id: m.id, msg: m,
+        foldOf: k === row.msgs.length - 1 ? row.id : null,
+        foldCount: k === row.msgs.length - 1 ? row.msgs.length : 0,
+      }));
+    });
+  }, [view, selecting, openStack]);
   // 最后一轮角色回复。只有它能重新生成，见下面 regenerate 的注释
   let lastTurnId = null;
   for (let i = msgs.length - 1; i >= 0; i--) {
@@ -729,14 +764,21 @@ export function Conversation({ chatId, focusId = '' }) {
           ${earlier ? html`
             <button class="conv-earlier press" onClick=${loadEarlier}>
               查看更早的消息（还有 ${earlier} 条）</button>` : null}
-          ${view.map(m => html`
-            <${Bubble} key=${m.id} msg=${m} char=${char} chat=${chat}
+          ${rows.map(row => (row.stack ? html`
+            <${StackRow} key=${row.id} msgs=${row.msgs} char=${char}
+              onExpand=${() => setOpenStack(s => new Set(s).add(row.id))}/>`
+          : html`
+            <${Bubble} key=${row.id} msg=${row.msg} char=${char} chat=${chat}
               onRetry=${stable.onRetry} onSwipe=${stable.onSwipe} onHold=${setHeld}
-              selecting=${selecting} selected=${selecting && pickedSet.has(m.id)}
+              selecting=${selecting} selected=${selecting && pickedSet.has(row.id)}
               onToggle=${stable.onToggle} transOpen=${settings.translateOpen}
               onSettle=${stable.onSettle} onOpenLog=${stable.onOpenLog}
               onUnwrap=${stable.onUnwrap} onPat=${stable.onPat}
-              innerStyle=${innerStyle}/>`)}
+              innerStyle=${innerStyle}
+              fold=${row.foldOf ? () => setOpenStack(s => {
+                const n = new Set(s); n.delete(row.foldOf); return n;
+              }) : null}
+              foldCount=${row.foldCount}/>`))}
           ${!msgs.length && !char.firstMessage ? html`
             <div class="conv-hint">发送第一条消息开始对话</div>` : null}
         </div>

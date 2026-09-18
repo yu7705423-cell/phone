@@ -597,6 +597,73 @@ input[type="range"] {
   box-shadow: var(--shadow-1);
 }
 
+/* 一次发好几张图：摞成一叠。背后那两张**要漏出图**，所以得摊得开一点 ——
+   压得太紧就只剩一道彩色的边，看不出下面还有照片。
+   点这一叠换最上面那张，不必展开就能挨个看。 */
+.img-stack { display: flex; align-items: center; gap: var(--sp-3); }
+.msg.is-mine .img-stack { flex-direction: row-reverse; }
+
+.stack-cards {
+  position: relative; flex: none; max-width: 150px;
+  cursor: pointer;
+  /* 背后那两张往外探，这边留出它们的地方，免得被气泡列裁掉 */
+  margin: 4px 26px 20px 0;
+}
+.msg.is-mine .stack-cards { margin: 4px 0 20px 26px; }
+
+.stack-card {
+  border-radius: var(--r-md);
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+.stack-card:not(.is-back) {
+  position: relative; z-index: 2; overflow: hidden;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, .10), 0 1px 2px rgba(0, 0, 0, .06);
+  transition: transform var(--dur-fast) var(--ease);
+}
+.stack-cards:active .stack-card:not(.is-back) { transform: scale(.97); }
+.stack-card img { width: 100%; height: auto; display: block; }
+
+/* --i 是从上往下数第几张。绕底边转一点，像一摞随手放下的照片。
+   偏移给足：下面那张要露出小半个角，不是一条边 */
+.stack-card.is-back {
+  position: absolute; inset: 0; z-index: 1;
+  overflow: hidden;
+  transform-origin: 50% 100%;
+  transform: translate(calc(var(--i) * 13px), calc(var(--i) * 9px))
+             rotate(calc(var(--i) * 3.5deg));
+  box-shadow: 0 3px 9px rgba(0, 0, 0, .07);
+}
+.msg.is-mine .stack-card.is-back {
+  transform: translate(calc(var(--i) * -13px), calc(var(--i) * 9px))
+             rotate(calc(var(--i) * -3.5deg));
+}
+.stack-card.is-back img { height: 100%; object-fit: cover; }
+
+/* 第几张。压在右下角，告诉你这一叠还能点 */
+.stack-n {
+  position: absolute; z-index: 3; right: 7px; bottom: 7px;
+  padding: 2px 7px; border-radius: var(--r-full);
+  background: rgba(0, 0, 0, .46); color: #fff;
+  font-size: var(--fs-11); line-height: 1.5;
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+}
+
+.stack-more, .stack-fold {
+  flex: none; display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px var(--sp-4);
+  border: 0; border-radius: var(--r-full);
+  background: var(--surface-2); color: var(--text-2);
+  font-size: var(--fs-12); cursor: pointer;
+}
+.stack-fold {
+  align-self: flex-start; margin-top: 2px;
+  padding: 6px var(--sp-3);
+  color: var(--text-3);
+}
+.msg.is-mine .stack-fold { align-self: flex-end; }
+.stack-fold svg { color: var(--text-3); }
+
 .voice-wrap { display: flex; flex-direction: column; gap: 4px; align-items: inherit; }
 .bubble-voice {
   display: flex; align-items: center; gap: var(--sp-2);
