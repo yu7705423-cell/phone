@@ -15,3 +15,19 @@ export function useImage(id) {
   }, [id]);
   return url;
 }
+
+// 缩略图那一份。列表、九宫格、气泡里的图一律用它 ——
+// 那些地方最宽也就两百来像素，解一张 1280 的原图纯属白烧。
+// 没有缩略图（图本来就小，或者还没做出来）时退回原图，调用方不分情况。
+export function useThumb(id) {
+  const [url, setUrl] = useState(() => images.peekThumb(id));
+  useEffect(() => {
+    let alive = true;
+    if (!id) { setUrl(null); return; }
+    const cached = images.peekThumb(id);
+    if (cached) { setUrl(cached); return; }
+    images.thumbUrl(id).then(u => { if (alive) setUrl(u); });
+    return () => { alive = false; };
+  }, [id]);
+  return url;
+}

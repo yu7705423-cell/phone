@@ -1,6 +1,7 @@
 import { settings } from './db/index.js';
 import { on as busOn, EVENTS } from './bus.js';
 import { open as openIntent } from './intents.js';
+import { shownBody } from './notify.js';
 
 // 系统通知与 Web Push 的客户端这一半。
 // 说明：真要在「app 完全关着」的时候把手机叫醒，必须有一台服务器替你发推送，
@@ -147,7 +148,7 @@ export function installBridge() {
   busOn(EVENTS.notify, item => {
     if (!shouldUseSystem()) return;
     show({
-      title: item.title, body: item.body, tag: item.id,
+      title: item.title, body: shownBody(item), tag: item.id,
       route: item.payload?.route, appId: item.appId,
     }).catch(err => console.warn('[push] 系统通知没弹出来:', err.message || err));
   });

@@ -3,7 +3,7 @@ import { Icon } from '../../icons/Icon.js';
 import { registerWidget } from '../../system/registry.js';
 import { chats, moments, memories, characters, lastMessageOf, persona } from '../../system/db/index.js';
 import { openApp } from '../../system/nav.js';
-import { useImage } from '../../system/db/useImage.js';
+import { useImage, useThumb } from '../../system/db/useImage.js';
 import { useFile } from '../../system/db/useFile.js';
 
 function relTime(ts) {
@@ -33,7 +33,7 @@ export const PLAYER_DEFAULT = {
 };
 
 function Cover({ id }) {
-  const url = useImage(id);
+  const url = useThumb(id);
   return html`
     <div class="pl-cover" style=${url ? `background-image:url(${url})` : ''}>
       ${url ? null : html`<${Icon} name="image" size=${22}/>`}
@@ -90,6 +90,8 @@ registerWidget({
   },
 });
 
+// 这个挂件可以占满一整行，缩略图撑到那么宽会糊，所以用原图。
+// 别处那些小图（歌单封面、头像、气泡、九宫格）都走 useThumb
 function PhotoBody({ id, caption }) {
   const url = useImage(id);
   return html`
@@ -200,7 +202,7 @@ const WEEK_ZH = ['日', '一', '二', '三', '四', '五', '六'];
 
 function LoveBody({ cell }) {
   const c = { ...LOVE_DEFAULT, ...(cell?.config || {}) };
-  const avatar = useImage(c.cover);
+  const avatar = useThumb(c.cover);
   const zh = c.lang === 'zh';
   // 2 格宽的时候一行塞不下 Sun Mon Tue，星期只留首字母
   const compact = (cell?.w || 4) <= 2;

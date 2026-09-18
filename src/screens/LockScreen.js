@@ -1,7 +1,7 @@
 import { html, useState, useEffect, useRef } from '../lib.js';
 import { Icon } from '../icons/Icon.js';
 import { useStore } from '../system/store.js';
-import { notifications, openNotification, dismiss } from '../system/notify.js';
+import { notifications, openNotification, dismiss, shownBody } from '../system/notify.js';
 import { unlock } from '../system/nav.js';
 import { useImage } from '../system/db/useImage.js';
 import { layout } from '../system/db/index.js';
@@ -43,7 +43,7 @@ export function LockScreen() {
             <${Icon} name=${n.icon || 'bell'} size=${16}/>
             <div class="lock-note-body">
               <div class="lock-note-title ellipsis">${n.title}</div>
-              ${n.body ? html`<div class="lock-note-text ellipsis">${n.body}</div>` : null}
+              ${shownBody(n) ? html`<div class="lock-note-text ellipsis">${shownBody(n)}</div>` : null}
             </div>
             <button class="lock-note-x" onClick=${e => { e.stopPropagation(); dismiss(n.id); }}
               aria-label="忽略"><${Icon} name="close" size=${14}/></button>

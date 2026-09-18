@@ -12,7 +12,7 @@ import * as bus from '../system/bus.js';
 import { db } from '../system/db/index.js';
 import { images } from '../system/db/images.js';
 import { useStore, uid } from '../system/store.js';
-import { useImage } from '../system/db/useImage.js';
+import { useImage, useThumb } from '../system/db/useImage.js';
 import * as engine from '../system/ai/engine.js';
 import * as queue from '../system/ai/queue.js';
 import * as memoryCtx from '../system/ai/context/memory.js';
@@ -226,4 +226,4 @@ export const phone = {
   uid,
 };
 
-export { useStore, useImage, useFile, phone as default };
+export { useStore, useImage, useThumb, useFile, phone as default };

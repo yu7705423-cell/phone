@@ -2,7 +2,7 @@ import { html, useState, useEffect, useRef } from '../lib.js';
 import { Icon } from '../icons/Icon.js';
 import { Avatar } from '../ui/basic.js';
 import { on, EVENTS } from '../system/bus.js';
-import { openNotification } from '../system/notify.js';
+import { openNotification, shownBody } from '../system/notify.js';
 import { useImage } from '../system/db/useImage.js';
 import { ring, config as soundConfig } from '../system/sound.js';
 import { appLook } from '../system/look.js';
@@ -73,7 +73,7 @@ function Banner({ item, onDone }) {
         <div class="banner-title ellipsis">
           ${item.title}${item.count > 1 ? html`<span class="banner-count">${item.count} 条</span>` : null}
         </div>
-        ${item.body ? html`<div class="banner-body">${item.body}</div>` : null}
+        ${shownBody(item) ? html`<div class="banner-body">${shownBody(item)}</div>` : null}
       </div>
     </div>`;
 }

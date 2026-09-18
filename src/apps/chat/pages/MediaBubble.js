@@ -1,5 +1,5 @@
 import { html, useState, useRef, useEffect } from '../../../lib.js';
-import { phone, useImage, useFile } from '../../../sdk/index.js';
+import { phone, useThumb, useFile } from '../../../sdk/index.js';
 import { Icon, Spinner, toast } from '../../../ui/index.js';
 
 const { db } = phone;
@@ -7,7 +7,8 @@ const { db } = phone;
 // 图片消息。角色发的是模型按描述生成的，用户发的是从相册选的 —— 后者已经在
 // 本地了，要等的是「识图」把它读成文字，角色才看得见。
 function ImageBubble({ msg }) {
-  const url = useImage(msg.imageId);
+  // 气泡最宽 200 逻辑像素，用缩略图。原图留给识图与保存
+  const url = useThumb(msg.imageId);
   const mine = msg.role === 'user';
 
   if (!mine && msg.media === 'pending') {

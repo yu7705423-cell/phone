@@ -1,5 +1,5 @@
 import { html, useState } from '../../../lib.js';
-import { phone, useImage } from '../../../sdk/index.js';
+import { phone, useThumb } from '../../../sdk/index.js';
 import { Icon } from '../../../ui/index.js';
 
 // 一次发好几张图的时候，摞成一叠。
@@ -40,7 +40,7 @@ export function groupImages(list) {
 // 最上面那张在流里，整叠多宽多高由它说了算 —— 横图竖图各是各的样子，
 // 不套固定的框，套了就得裁。背后那两张绝对定位铺满它。
 function Card({ msg, back }) {
-  const url = useImage(msg.imageId);
+  const url = useThumb(msg.imageId);
   return html`
     <div class=${`stack-card${back ? ' is-back' : ''}`} style=${back ? `--i:${back}` : ''}>
       ${url ? html`<img src=${url} alt="" loading="lazy"/>` : null}

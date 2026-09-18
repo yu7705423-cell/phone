@@ -1,5 +1,5 @@
 import { html, useState, useRef } from '../../../lib.js';
-import { phone, useStore, useImage } from '../../../sdk/index.js';
+import { phone, useStore, useImage, useThumb } from '../../../sdk/index.js';
 import { Avatar, Button, Icon, EmptyState, Sheet, List, ListItem,
          Textarea, toast, confirm } from '../../../ui/index.js';
 import { relTime } from '../helpers.js';
@@ -8,7 +8,8 @@ import { PHOTO_MAX } from '../../../system/db/images.js';
 const { db, nav, ai } = phone;
 
 function Photo({ id }) {
-  const url = useImage(id);
+  // 九宫格一格才 120 逻辑像素宽，用缩略图
+  const url = useThumb(id);
   return html`<div class="mo-photo" style=${url ? `background-image:url(${url})` : ''}></div>`;
 }
 

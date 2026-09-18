@@ -19,7 +19,7 @@ export const DEFAULT_SETTINGS = {
   keepAlive: false,
 
   // 通知。横幅与提示音，见 system/sound.js
-  notify: { banner: true, sound: 'ding', soundFileId: null, volume: 0.7, system: false },
+  notify: { banner: true, preview: true, sound: 'ding', soundFileId: null, volume: 0.7, system: false },
 
   // Web Push。真要在 app 关着时叫醒手机必须有服务器，见 system/push.js
   push: { vapidPublicKey: '', reportUrl: '', endpoint: '' },

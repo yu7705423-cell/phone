@@ -127,6 +127,12 @@ export function NotifyPage() {
           subtitle="新消息到达时从顶部下滑显示，点击进入会话，上滑收起。"
           right=${html`<${Switch} checked=${cfg.banner}
             onChange=${v => set({ banner: v })}/>`}/>
+        <${ListItem} title="显示消息内容" multiline
+          subtitle=${`在横幅、锁屏列表与系统通知上显示消息正文。`
+            + `关闭后一律显示「收到一条新消息」，发送者名称仍会显示。`
+            + `此项只影响通知的呈现，不影响消息本身。`}
+          right=${html`<${Switch} checked=${cfg.preview !== false}
+            onChange=${v => set({ preview: v })}/>`}/>
       <//>
 
       <${List} title="系统通知">

@@ -1,5 +1,6 @@
 import { createStore, uid } from './store.js';
 import { emit, EVENTS } from './bus.js';
+import { settings } from './db/index.js';
 
 // 一条消息一条通知，一轮就是三到五条，攒的上限相应放宽
 const MAX = 50;
@@ -12,6 +13,17 @@ export function notify({ title, body, icon = 'bell', appId, payload, avatar }) {
   // 横幅和提示音都挂在这个事件上，notify 本身不管怎么呈现
   emit(EVENTS.notify, item);
   return item.id;
+}
+
+// 通知上显示的那一行正文。
+//
+// 关掉「显示消息内容」之后一律写这一句。**在显示这一层挡，不在存的那一层** ——
+// 原文照旧留在通知里，开关一开一关立刻生效，不必等下一条消息。
+// 横幅、锁屏列表、系统通知三处都走这里，少一处就漏一处。
+const HIDDEN = '收到一条新消息';
+export function shownBody(item) {
+  if ((settings.get().notify || {}).preview === false) return HIDDEN;
+  return item?.body || '';
 }
 
 export function markRead(id) {

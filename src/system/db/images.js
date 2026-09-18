@@ -2,13 +2,22 @@ import { idb, write } from './idb.js';
 import { uid } from '../store.js';
 
 // 图片一律以 Blob 存 IndexedDB,不存 base64。见 ARCHITECTURE 3.7
-const urls = new Map();   // id -> objectURL
-const sizes = new Map();  // id -> bytes
+const urls = new Map();       // id -> objectURL（原图）
+const thumbUrls = new Map();  // id -> objectURL（缩略图）
+const sizes = new Map();      // id -> bytes
 
 export const AVATAR_MAX = 256;
 export const PHOTO_MAX = 1280;
 export const ICON_MAX = 256;
 const QUALITY = 0.82;
+
+// 缩略图。**列表里画的一律是这一张，原图只在需要原图的地方用。**
+//
+// 存进来的照片长边 1280，而气泡里那张最宽只有 200 逻辑像素、朋友圈九宫格
+// 一格才 120。浏览器却要把 1280×1280 整个解码成位图才画得出来 ——
+// 一张 6.5MB 内存，一屏十几张就是几十兆，滚动时反复解码，机器就是这么烫的。
+// 640 在三倍屏上画 200 宽还有富余，像素数只有原来的四分之一。
+export const THUMB_MAX = 640;
 
 export async function compress(file, maxEdge = PHOTO_MAX) {
   const bmp = await createImageBitmap(file);
@@ -42,6 +51,30 @@ export async function compressFit(file, size = ICON_MAX) {
   return { blob, w: size, h: size };
 }
 
+// 够小的就不另存一张：缩略图和原图一样大，白占一份空间。
+const wantThumb = (w, h) => Math.max(w || 0, h || 0) > THUMB_MAX;
+
+// 老图没有缩略图，第一次要用的时候现做一张存回去。
+// 同一张图一屏里有好几处要，所以把这件事按 id 去重，不然做十几遍。
+const making = new Map();
+function makeThumb(row) {
+  if (making.has(row.id)) return making.get(row.id);
+  const job = (async () => {
+    if (!wantThumb(row.w, row.h)) {
+      // 本来就小。记下来，省得每次打开这一页都再问一遍
+      await write('images', () => idb.put('images', { ...row, thumb: null, noThumb: true }));
+      return null;
+    }
+    const { blob, w, h } = await compress(row.blob, THUMB_MAX);
+    const next = { ...row, thumb: blob, tw: w, th: h, bytes: row.blob.size + blob.size };
+    sizes.set(row.id, next.bytes);
+    await write('images', () => idb.put('images', next));
+    return blob;
+  })().catch(() => null).finally(() => making.delete(row.id));
+  making.set(row.id, job);
+  return job;
+}
+
 export const images = {
   async load() {
     const rows = await idb.all('images');
@@ -60,6 +93,15 @@ export const images = {
   async put(file, maxEdge = PHOTO_MAX) {
     const { blob, w, h } = await compress(file, maxEdge);
     const row = { id: uid('img'), blob, w, h, bytes: blob.size, createdAt: Date.now() };
+    // 缩略图当场做好。等到第一次显示再做，那一下正是列表在滚的时候
+    if (wantThumb(w, h)) {
+      const t = await compress(blob, THUMB_MAX);
+      row.thumb = t.blob; row.tw = t.w; row.th = t.h;
+      row.bytes = blob.size + t.blob.size;
+      thumbUrls.set(row.id, URL.createObjectURL(t.blob));
+    } else {
+      row.noThumb = true;
+    }
     sizes.set(row.id, row.bytes);
     await write('images', () => idb.put('images', row));
     urls.set(row.id, URL.createObjectURL(blob));
@@ -82,11 +124,31 @@ export const images = {
     await write('images', () => idb.put('images', row));
     const old = urls.get(id);
     if (old) { URL.revokeObjectURL(old); urls.delete(id); }
+    // 缩略图不进备份（它是从原图算出来的），第一次用到时再现做
+    const oldThumb = thumbUrls.get(id);
+    if (oldThumb) { URL.revokeObjectURL(oldThumb); thumbUrls.delete(id); }
     return id;
   },
 
   // 同步取已缓存的 URL,没有则返回 null 并在后台加载
   peek(id) { return id ? urls.get(id) || null : null; },
+
+  // 缩略图那一份。没有缩略图（图本来就小）就退回原图，调用方不必分情况
+  peekThumb(id) { return id ? thumbUrls.get(id) || urls.get(id) || null : null; },
+
+  async thumbUrl(id) {
+    if (!id) return null;
+    if (thumbUrls.has(id)) return thumbUrls.get(id);
+    const row = await idb.get('images', id);
+    if (!row) return null;
+    if (row.noThumb) return this.url(id);
+    const blob = row.thumb || await makeThumb(row);
+    if (!blob) return this.url(id);
+    if (thumbUrls.has(id)) return thumbUrls.get(id);
+    const u = URL.createObjectURL(blob);
+    thumbUrls.set(id, u);
+    return u;
+  },
 
   // 原始 Blob。识图要把它读成 dataURL 发出去
   async blob(id) {
@@ -108,6 +170,8 @@ export const images = {
   remove(id) {
     const u = urls.get(id);
     if (u) { URL.revokeObjectURL(u); urls.delete(id); }
+    const t = thumbUrls.get(id);
+    if (t) { URL.revokeObjectURL(t); thumbUrls.delete(id); }
     sizes.delete(id);
     return write('images', () => idb.del('images', id));
   },
@@ -121,5 +185,7 @@ export const images = {
   revokeAll() {
     urls.forEach(u => URL.revokeObjectURL(u));
     urls.clear();
+    thumbUrls.forEach(u => URL.revokeObjectURL(u));
+    thumbUrls.clear();
   },
 };
