@@ -138,6 +138,20 @@ export async function queryVecFor(msgs) {
   }
 }
 
+/**
+ * 性别那一段。只写填了的一方，没填就不写 —— 不替用户猜，
+ * 猜错比不写更糟。两边都没填就整段不出现。
+ */
+function genderBlock(char, me, names) {
+  const lines = [];
+  const cg = String(char?.gender || '').trim();
+  const ug = String(me?.gender || '').trim();
+  if (cg) lines.push(`${names.charName}：${cg}`);
+  if (ug) lines.push(`${names.userName}：${ug}`);
+  if (!lines.length) return '';
+  return fillTemplate(template('skeleton.gender'), { lines: lines.join('\n') });
+}
+
 export function buildChatSystem(chat, char, msgs, opts = {}) {
   const s = settings.get();
   // 这段对话属于哪个身份。老会话没有 personaId，落到当前账号上
@@ -153,10 +167,13 @@ export function buildChatSystem(chat, char, msgs, opts = {}) {
     lore: opts.lore || null,
   };
 
-  let out = fillTemplate(template('skeleton.opening'), {
-    charName: char.name || '对方',
-    userName: me.name || '对方',
-  });
+  const names = { charName: char.name || '对方', userName: me.name || '对方' };
+  let out = fillTemplate(template('skeleton.opening'), names);
+
+  // 性别锚点。这是唯一一处绝对不能弄错的事实，所以首尾各放一次 ——
+  // 长上下文里只说一遍的东西会被忽略掉，两头都说才钉得住。
+  const gender = genderBlock(char, me, names);
+  if (gender) out += '\n\n' + gender;
 
   const { text, failed } = assemble(s.injectOrder, ctx);
   out += text;
@@ -169,13 +186,21 @@ export function buildChatSystem(chat, char, msgs, opts = {}) {
     });
   }
 
-  out += '\n\n' + template('skeleton.closing');
-  // 自然表达协议。接在回复风格后面，管的是同一件事：这一条回复该怎么写。
-  // 一千多 token，所以给了开关，见「上下文与记忆」。
-  if (s.styleProtocol !== false) out += '\n\n' + template('skeleton.style');
+  out += '\n\n' + template('skeleton.rules');
+  // 示例。三家提示词工程材料里都把它列为对格式一致性作用最大的一项。
+  // 它按 token 计费而不额外调接口，所以给开关，默认开着。
+  if (s.promptExamples !== false) out += '\n\n' + fillTemplate(template('skeleton.examples'), names);
 
   // 各项能力。平时只列一张单子，这一轮真沾边了才给整段细则，见 capabilities.js
   out += capabilityBlock(ctx);
+
+  // 收束三件套，全部贴着输出放：取舍顺序、核心设定、性别。
+  // 靠后的位置模型读得最重，而这三件正是不能被前面任何一段压过去的。
+  out += '\n\n' + template('skeleton.priority');
+  const core = String(char.core || '').trim();
+  if (core) out += '\n\n' + fillTemplate(template('skeleton.core'), { core });
+  if (gender) out += '\n\n' + gender;
+  if (s.promptThink !== false) out += '\n\n' + template('skeleton.think');
 
   // 「对方换了头像」只该说一次。这一轮说完就记下是哪一张，下一轮它就不新了。
   if (chat.id && me?.avatar) avatarLib.markSeen(chat.id, me.avatar);

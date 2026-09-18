@@ -48,7 +48,8 @@ export const DEFAULT_SETTINGS = {
   translateOpen: 'tap',           // tap | always
 
   // 回复风格。自然表达协议，见 ai/templates.js 的 skeleton.style
-  styleProtocol: true,
+  promptExamples: true,           // 骨架里的示例，按 token 计费，可关
+  promptThink: true,              // 输出前的自检，模型先写 thinking 再说话
 
   // 上下文
   injectOrder: ['character', 'lorebook', 'user', 'time', 'memory'],
@@ -111,6 +112,9 @@ export const DEFAULT_PERSONA = {
   avatar: null,
   cover: null,
   signature: '',
+  // 性别单独一个字段，不塞在人设描述里：它要在 prompt 首尾各锚定一次，
+  // 混在一大段自述里模型认不准，而认错性别是最不能接受的一种错
+  gender: '',
   description: '',
 };
 

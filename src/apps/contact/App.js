@@ -205,6 +205,11 @@ function MePage({ id }) {
         <${Field} label="个性签名" desc="显示在主页上。">
           <${Input} value=${me.signature || ''} onInput=${v => set({ signature: v })}/>
         <//>
+        <${Field} label="性别"
+          desc="该项会单独写入 prompt，用于确定角色提及你时使用的人称。留空则不写入。">
+          <${Input} value=${me.gender || ''} placeholder="例如：女"
+            onInput=${v => set({ gender: v })}/>
+        <//>
         <${Field} label="人设描述"
           desc="该内容将作为「对方是谁」注入 prompt。请写明你希望角色如何认识你。">
           <${Textarea} rows=${8} value=${me.description || ''}
@@ -295,6 +300,12 @@ function EditPage({ id }) {
         <${Field} label="对话示例" desc="提供几句角色的典型发言。示例比形容词更有效。">
           <${Textarea} rows=${6} value=${char.exampleDialogue || ''}
             onInput=${v => patch({ exampleDialogue: v })}/>
+        <//>
+        <${Field} label="核心设定"
+          desc="人设中最不能偏离的几点，三到五行。该内容会在 prompt 末尾再注入一次，用于收束回复。导入角色卡时自动生成，可随时改写。留空则不注入。">
+          <${Textarea} rows=${5} value=${char.core || ''}
+            placeholder="例如：说话简短，不解释。不主动表达关心。被追问时回避。"
+            onInput=${v => patch({ core: v })}/>
         <//>
       </div>
 

@@ -113,6 +113,31 @@ function stripStamps(raw) {
   return { text: kept.join('\n'), stamp: stamps[0] || '' };
 }
 
+// ---- 自检 ----
+//
+// 模型在 <thinking> 里逐条检查完再说话（见 skeleton.think）。
+// 那一段是给它自己看的，不进对话，也不进上下文。
+//
+// 闭合标签漏写时，从开标签到结尾整段都当成自检内容丢掉。
+// 代价是这一轮可能整个变空，报「模型返回了空内容」；
+// 但另一种做法是把整张检查清单原样发给用户，那更糟。
+const THINK = /<\s*(thinking|think)\s*>([\s\S]*?)<\s*\/\s*\1\s*>/gi;
+const THINK_OPEN = /<\s*(?:thinking|think)\s*>([\s\S]*)$/i;
+
+export function stripThink(raw) {
+  const found = [];
+  let text = String(raw || '').replace(THINK, (_, tag, body) => {
+    found.push(String(body).trim());
+    return '';
+  });
+  const open = text.match(THINK_OPEN);
+  if (open) {
+    found.push(String(open[1]).trim());
+    text = text.slice(0, open.index);
+  }
+  return { text: text.trim(), think: found.filter(Boolean).join('\n\n') };
+}
+
 // 引用块只留一小段，长了在气泡上顶掉正文
 export function snippet(text, max = 40) {
   const t = String(text || '').replace(/\s+/g, ' ').trim();
@@ -121,7 +146,10 @@ export function snippet(text, max = 40) {
 
 // 把一整段回复拆成按顺序排列的若干条。空行分段，标记单独成条。
 export function splitReply(raw) {
-  const { text, stamp } = stripStamps(String(raw || '').trim());
+  // 先摘自检，再摘时间戳：自检里也可能出现方括号时间，
+  // 反过来会把检查内容里的东西当成这一轮的时刻
+  const { text: spoken } = stripThink(raw);
+  const { text, stamp } = stripStamps(spoken.trim());
   if (!text.trim()) return [];
 
   const parts = [];
@@ -478,6 +506,7 @@ export function notifyTurn(chat, char, created) {
 export async function renderTurn({ chat, char, raw, turnId, swipes, swipeIndex, onEach, signal, instant }) {
   const parts = splitReply(raw);
   if (!parts.length) throw new Error('模型返回了空内容');
+  const { think } = stripThink(raw);
 
   const created = [];
   for (let i = 0; i < parts.length; i++) {
@@ -486,8 +515,8 @@ export async function renderTurn({ chat, char, raw, turnId, swipes, swipeIndex, 
     const msg = materialize(part, {
       chatId: chat.id, role: 'char', authorId: char.id,
       turnId, status: 'done',
-      // 整轮的原文与候选只挂在第一条上，切换候选时整轮重放
-      ...(i === 0 ? { raw, swipes: swipes || [raw], swipeIndex: swipeIndex ?? 0 } : {}),
+      // 整轮的原文、候选与自检只挂在第一条上，切换候选时整轮重放
+      ...(i === 0 ? { raw, think, swipes: swipes || [raw], swipeIndex: swipeIndex ?? 0 } : {}),
     }, char);
 
     if (!msg) continue;

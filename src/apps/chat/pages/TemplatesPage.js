@@ -6,8 +6,13 @@ const { db, nav, ai } = phone;
 
 const LABELS = {
   'skeleton.opening': '骨架 · 身份开场',
-  'skeleton.closing': '骨架 · 回复风格收尾',
-  'skeleton.style': '骨架 · 自然表达协议',
+  'skeleton.gender': '骨架 · 性别锚点',
+  'skeleton.world': '骨架 · 世界规则抬头',
+  'skeleton.rules': '骨架 · 消息规则',
+  'skeleton.examples': '骨架 · 示例',
+  'skeleton.priority': '骨架 · 冲突时的取舍',
+  'skeleton.core': '骨架 · 核心设定',
+  'skeleton.think': '骨架 · 输出前的自检',
   'skeleton.sticker': '骨架 · 可用表情',
   'skeleton.quote': '骨架 · 引用某一句',
   'skeleton.time': '骨架 · 先写出时间',

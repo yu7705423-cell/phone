@@ -348,7 +348,10 @@ export function Conversation({ chatId, focusId = '' }) {
     try {
       const text = await ai.streamReply({
         chat, char,
-        onDelta: (_, full) => db.messages.update(typing.id, { content: full }, { persist: false }),
+        // 自检那一段也是流式吐出来的。不剥掉的话，整张检查清单会先在
+        // 「正在输入」那条气泡里滚一遍，等收尾才消失。
+        onDelta: (_, full) => db.messages.update(typing.id,
+          { content: ai.reply.stripThink(full).text }, { persist: false }),
       });
       const clean = String(text || '').trim();
       if (!clean) throw new Error('模型返回了空内容');

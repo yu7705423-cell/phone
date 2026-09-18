@@ -43,7 +43,8 @@ export function ContextPage() {
   const loreLine = entries.length
     ? `共 ${entries.length} 个启用中的条目，其中 ${deep} 个插入对话历史，其余留在设定区`
     : '尚无启用中的条目';
-  const styleCost = ai.estimateTokens(ai.template('skeleton.style'));
+  const exampleCost = ai.estimateTokens(ai.template('skeleton.examples'));
+  const thinkCost = ai.estimateTokens(ai.template('skeleton.think'));
 
   // 轮数是自己填的。输入过程中会经过「空」和「0」这些中间状态，
   // 直接写进设置会把自动总结顺手关掉，所以编辑期间先放在 draft 里，
@@ -103,17 +104,23 @@ export function ContextPage() {
       </div>
 
       <${List} title="回复风格">
-        <${ListItem} title="自然表达协议" multiline
-          subtitle=${`一份写在提示词里的行文约束：句式去重、句长打散、禁止固定回应模板、`
-            + `允许情绪错位与漏听、留白不升华。每轮注入，约 ${styleCost} token。`
-            + `${s.styleProtocol === false ? '当前已关闭。' : ''}正文可在「Prompt 模板」中修改。`}
-          right=${html`<${Switch} checked=${s.styleProtocol !== false}
-            onChange=${v => db.settings.set({ styleProtocol: v })}/>`}/>
+        <${ListItem} title="示例" multiline
+          subtitle=${`骨架中的两段示例，演示分条方式与回应方式，约 ${exampleCost} token。`
+            + `${s.promptExamples === false ? '当前已关闭，仅保留文字规则。' : ''}`
+            + '正文可在「Prompt 模板」中修改。'}
+          right=${html`<${Switch} checked=${s.promptExamples !== false}
+            onChange=${v => db.settings.set({ promptExamples: v })}/>`}/>
+        <${ListItem} title="输出前的自检" multiline
+          subtitle=${`角色在正式回复前，先在 thinking 标签内逐条检查本轮要点，约 ${thinkCost} token`
+            + '，并会增加一部分输出长度。检查内容不会显示在对话中。'
+            + `${s.promptThink === false ? '当前已关闭。' : ''}`}
+          right=${html`<${Switch} checked=${s.promptThink !== false}
+            onChange=${v => db.settings.set({ promptThink: v })}/>`}/>
       <//>
       <div class="settings-foot">
-        分工：「回复风格收尾」管消息怎么分条，本协议管句子怎么写。
-        关闭后，句式、情绪与信息取舍方面的约束不再注入，收尾那段仍然生效。
-        两段都可以在「Prompt 模板」中分别改写。
+        「消息规则」始终注入，不可关闭，它规定了消息如何分条与如何回应。
+        以上两项是它的补充：示例用于稳定格式，自检用于每轮执行检查。
+        三段均可在「Prompt 模板」中分别改写。
       </div>
 
       <${List} title="功能说明">
