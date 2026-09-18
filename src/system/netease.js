@@ -153,22 +153,28 @@ const CHECKS = [
     id: 'qrcheck', label: '轮询扫码状态',
     desc: '第三步。每三秒问一次，扫完确认后由它返回 803 与 cookie',
     path: '/login/qr/check?key=probe',
+    // **这一项探的是假 key**，所以 4xx 不算坏消息：接口在，只是嫌参数不对。
+    // 真正的坏消息是 404（根本没这个接口）和连不上。
     judge: r => {
       if (r.status === 0) return [false, r.err];
-      // 拿一个不存在的 key 去问，回一个带 code 的结构就说明这个接口活着
-      return typeof r.body?.code === 'number'
-        ? [true, `活着，返回 ${r.body.code}`] : [false, `返回 ${r.status}`];
+      if (r.status === 404) return [false, '没有这个接口'];
+      if (typeof r.body?.code === 'number') return [true, `活着，返回 ${r.body.code}`];
+      if (r.status >= 400 && r.status < 500) return [true, `活着，用假 key 问它回了 ${r.status}`];
+      return [false, `返回 ${r.status}`];
     },
   },
   {
     id: 'cookie', label: '按次传 cookie',
     desc: '本项目把两个账号的 cookie 逐次传进去，实例必须支持这种传法',
     path: '/user/account?cookie=probe%3D1',
+    // 同上，探的是假 cookie。回一个结构化的「没登录」说明它认这个参数；
+    // 4xx 也说明它读到了并且不认这串假的 —— 都算这个接口在。
+    // 回 HTML 错误页或者 5xx 才是真没处理。
     judge: r => {
       if (r.status === 0) return [false, r.err];
-      // 拿一个假 cookie 去问，回一个结构化的「没登录」就说明它认这个参数；
-      // 回 500 或者 HTML 错误页说明它根本没处理
+      if (r.status === 404) return [false, '没有这个接口'];
       if (r.body && typeof r.body === 'object') return [true, '认这个参数'];
+      if (r.status >= 400 && r.status < 500) return [true, `读到了，用假 cookie 问它回了 ${r.status}`];
       return [false, `返回 ${r.status}，不像是认`];
     },
   },
@@ -178,8 +184,10 @@ const CHECKS = [
     path: '/song/url/v1?id=347230&level=standard',
     judge: r => {
       if (r.status === 0) return [false, r.err];
+      if (r.status === 404) return [false, '没有这个接口'];
       const row = (r.body?.data || [])[0];
-      return row && row.url ? [true, '拿得到'] : [false, '拿不到，可能需要登录或受版权限制'];
+      if (row && row.url) return [true, '拿得到'];
+      return [false, `拿不到（返回 ${r.status}），可能需要登录或受版权限制`];
     },
   },
 ];

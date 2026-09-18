@@ -1,3 +1,14 @@
 // 接口地址收口。六个模块原先各抄一份「去掉末尾斜杠」，现在只留这一份。
 // 留空就用各自的默认端点 —— 默认值由调用方给，这里不替它们记。
-export const baseOf = (u, fallback = '') => String(u || '').replace(/\/+$/, '') || fallback;
+//
+// **空白必须先去掉。** 从聊天窗口或地址栏复制一个地址，末尾很容易带上
+// 一个空格或换行。原先只去末尾的斜杠，于是：
+//
+//   " https://x/ "   拼出来是  https://x/%20/login/qr/key   接口返回 400
+//   "https://x/\n"   拼出来是  https://x//login/qr/key      双斜杠，多半也是 400
+//   "https://x "     new URL 直接抛 Invalid URL
+//
+// 三种都表现为「这个地址用不了」，而地址本身是对的 —— 最难查的一类。
+// 中间的空白也一并去掉：URL 里本来就不该有，留着只会拼出 %20。
+export const baseOf = (u, fallback = '') =>
+  String(u || '').replace(/\s+/g, '').replace(/\/+$/, '') || fallback;
