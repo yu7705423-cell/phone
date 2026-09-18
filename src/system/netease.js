@@ -75,6 +75,103 @@ async function fillCovers(list, cookie = '') {
 
 export function ready() { return neteaseReady(); }
 
+// ---- 这个地址能不能用 ----
+//
+// 接口自己部署一份最稳，但也可以填别人开的公共实例 —— 那条路不花钱、
+// 不用维护，代价是随时可能没了。两条路对本项目是同一件事：
+// baseUrl 只是一个地址。
+//
+// **能不能用，只有在你自己的浏览器里问才算数。** CORS 是按来源判的：
+// 同一个实例，别人用得了不代表你用得了。所以这件事做成一个探测器，
+// 不做成一张我抄来的名单 —— 名单今天对，明天就不对了。
+//
+// 每一项单独跑、单独报，不用一个「通过 / 不通过」把话说死：
+// 多数实例是部分可用的（能搜歌，登不了），那也够用。
+
+const probeOne = async (url, ms = 8000) => {
+  const ctl = new AbortController();
+  const t = setTimeout(() => ctl.abort(), ms);
+  const at = Date.now();
+  try {
+    const res = await fetch(url, { method: 'GET', signal: ctl.signal });
+    let body = null;
+    try { body = await res.json(); } catch { /* 有些错误页不是 JSON */ }
+    return { ok: res.ok, status: res.status, body, ms: Date.now() - at };
+  } catch (err) {
+    // CORS 被拦、地址不通、超时，在浏览器里都是一个 TypeError，分不开
+    return { ok: false, status: 0, err: String(err.name === 'AbortError' ? '超时' : '请求发不出去'), ms: Date.now() - at };
+  } finally { clearTimeout(t); }
+};
+
+const CHECKS = [
+  {
+    id: 'reach', label: '连得上',
+    desc: '地址通，而且允许这个页面跨域读取。两者缺一个，浏览器里都用不了',
+    path: '/search?keywords=%E6%B5%8B%E8%AF%95&limit=1',
+    judge: r => (r.status === 0 ? [false, r.err] : r.ok ? [true, `${r.ms} 毫秒`] : [false, `返回 ${r.status}`]),
+  },
+  {
+    id: 'search', label: '搜歌',
+    desc: '不登录也能用的那部分。只要这一项通，曲库与一起听就能用',
+    path: '/cloudsearch?keywords=%E6%99%B4%E5%A4%A9&limit=1',
+    judge: r => {
+      if (r.status === 0) return [false, r.err];
+      if (r.status === 404) return [false, '没有这个接口，将退回旧版搜索'];
+      const n = r.body?.result?.songs?.length || 0;
+      return n ? [true, `搜到了，带封面`] : [false, `返回 ${r.status}，没有结果`];
+    },
+  },
+  {
+    id: 'qr', label: '扫码登录',
+    desc: '登录之后才有个人主页、听歌排行、歌单同步',
+    path: '/login/qr/key',
+    judge: r => (r.status === 0 ? [false, r.err]
+      : r.body?.data?.unikey ? [true, '拿得到二维码'] : [false, `返回 ${r.status}`]),
+  },
+  {
+    id: 'cookie', label: '按次传 cookie',
+    desc: '本项目把两个账号的 cookie 逐次传进去，实例必须支持这种传法',
+    path: '/user/account?cookie=probe%3D1',
+    judge: r => {
+      if (r.status === 0) return [false, r.err];
+      // 拿一个假 cookie 去问，回一个结构化的「没登录」就说明它认这个参数；
+      // 回 500 或者 HTML 错误页说明它根本没处理
+      if (r.body && typeof r.body === 'object') return [true, '认这个参数'];
+      return [false, `返回 ${r.status}，不像是认`];
+    },
+  },
+  {
+    id: 'url', label: '取播放地址',
+    desc: '取不到就只能看，不能放。多数公共实例这一项是不通的',
+    path: '/song/url/v1?id=347230&level=standard',
+    judge: r => {
+      if (r.status === 0) return [false, r.err];
+      const row = (r.body?.data || [])[0];
+      return row && row.url ? [true, '拿得到'] : [false, '拿不到，可能需要登录或受版权限制'];
+    },
+  },
+];
+
+/**
+ * 逐项探一遍。onStep 每测完一项回调一次，界面可以一行一行地显示出来。
+ * 不抛错：某一项挂了就是那一项的结果，别的照测。
+ */
+export async function probe(baseUrl, onStep) {
+  const b = baseOf(baseUrl);
+  if (!b) throw new Error('请先填写地址');
+  const out = [];
+  for (const c of CHECKS) {
+    const r = await probeOne(b + c.path);
+    const [pass, note] = c.judge(r);
+    const row = { id: c.id, label: c.label, desc: c.desc, pass, note, ms: r.ms };
+    out.push(row);
+    if (onStep) onStep(row, out);
+    // 第一项就连不上，后面几项只会重复同一个错误，不必再等
+    if (c.id === 'reach' && !pass) break;
+  }
+  return out;
+}
+
 // ---- 登录。只做扫码：手机号那条路要用户把密码交出来，不做。 ----
 export async function qrStart() {
   const key = (await call('/login/qr/key')).data?.unikey;

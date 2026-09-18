@@ -1,6 +1,7 @@
-import { html } from '../../lib.js';
+import { html, useState } from '../../lib.js';
 import { phone, useStore } from '../../sdk/index.js';
-import { Page, List, ListItem, Field, Input, NumberInput, Switch, QrLogin, confirm } from '../../ui/index.js';
+import { Page, List, ListItem, Field, Input, NumberInput, Switch, Icon, Spinner,
+  QrLogin, confirm, toast } from '../../ui/index.js';
 
 const { db, nav, netease } = phone;
 const svc = phone.ai.services;
@@ -8,6 +9,21 @@ const svc = phone.ai.services;
 export function MusicPage() {
   const s = useStore(db.settings.store);
   const cfg = svc.neteaseConfig();
+  const [rows, setRows] = useState(null);
+  const [testing, setTesting] = useState(false);
+
+  // 这个地址能不能用，只有在你自己的浏览器里问才算数 —— CORS 按来源判，
+  // 同一个实例别人用得了不代表你用得了。所以给一个探测器，不给一张名单。
+  const probe = async () => {
+    setTesting(true);
+    setRows([]);
+    try {
+      await netease.probe(cfg.baseUrl, (_, all) => setRows([...all]));
+    } catch (err) {
+      toast(String(err.message || err), 'error', 4000);
+      setRows(null);
+    } finally { setTesting(false); }
+  };
 
   const quit = async () => {
     if (!await confirm({ title: '退出登录', message: cfg.nickname || '当前账号', danger: true })) return;
@@ -18,12 +34,34 @@ export function MusicPage() {
     <${Page} title="音乐服务" onBack=${nav.pop}>
       <div class="pad">
         <${Field} label="接口地址"
-          desc=${`需要自行部署 NeteaseCloudMusicApi 并填写其地址，填写至端口为止。`
-            + `浏览器里跑不起这个服务，而且多人共用一个出口地址会被限流，所以只能各自部署。`}>
+          desc=${`指向一个 NeteaseCloudMusicApi 服务，填写至端口为止。`
+            + `可以自行部署，也可以填写他人公开的实例 —— 后者不需要维护，`
+            + `但随时可能停止服务或限流。填写后请先测试。`}>
           <${Input} value=${cfg.baseUrl} placeholder="https://music.example.com"
-            onInput=${v => svc.setNetease({ baseUrl: v })}/>
+            onInput=${v => { svc.setNetease({ baseUrl: v }); setRows(null); }}/>
         <//>
       </div>
+
+      ${cfg.baseUrl ? html`
+        <${List} title="这个地址能不能用">
+          <${ListItem} title=${testing ? '测试中' : '测试这个地址'} multiline
+            subtitle="逐项检查连通、跨域、搜歌、扫码登录、cookie 传递与播放地址。仅从本机发起请求。"
+            left=${testing ? html`<${Spinner} size=${16}/>` : html`<${Icon} name="compass" size=${18}/>`}
+            arrow onClick=${() => !testing && probe()}/>
+          ${(rows || []).map(r => html`
+            <${ListItem} key=${r.id} title=${r.label} multiline
+              subtitle=${`${r.note}。${r.desc}`}
+              left=${html`<${Icon} name=${r.pass ? 'check' : 'close'} size=${18}/>`}/>`)}
+        <//>
+        ${rows && !testing && rows.length ? html`
+          <div class="settings-foot">
+            ${!rows[0].pass
+              ? '这个地址在本机用不了：服务不通，或它不允许本页面跨域读取。请更换地址，或自行部署一份。'
+              : rows.every(r => r.pass)
+                ? '各项均可用。'
+                : '部分项目不可用。未通过的功能会自动退回或显示为不可用，其余功能照常。'}
+            <br/>公共实例由他人运行，其可用性不受本项目控制。
+          </div>` : null}` : null}
 
       ${cfg.baseUrl ? html`
         <${List} title="我的账号">
@@ -33,6 +71,12 @@ export function MusicPage() {
           : html`<div class="pad"><${QrLogin} service=${netease}
               hint="请使用网易云音乐扫描二维码"/></div>`}
         <//>
+        <div class="settings-foot">
+          登录后得到的 cookie 等同于账号权限，会随每次请求发送给上面填写的接口地址。
+          填写的是他人运行的公共实例时，该实例可以读取你的歌单与播放记录，
+          也可以以你的名义进行操作。<br/>
+          搜索、播放、一起听均不需要登录。登录仅用于个人主页、听歌排行与歌单同步。
+        </div>
 
         <${List} title="一起听">
           <${ListItem} title="同步到网易云歌单" multiline
