@@ -1,5 +1,5 @@
 import { html, useState, useEffect, useRef } from '../lib.js';
-import { Button } from './basic.js';
+import { Button, Field, Textarea } from './basic.js';
 import { toast } from './overlay.js';
 
 // 扫码登录。**不认识任何具体服务** —— 要用的三个动作由调用方传进来：
@@ -69,4 +69,42 @@ export function QrLogin({ service, owner = '', onDone, hint = '请使用对应�
       <${Button} size="sm" variant="ghost" icon="refresh" onClick=${start}>
         ${img ? '重新获取' : '获取二维码'}<//>
     </div>`;
+}
+
+
+/**
+ * 手工粘贴 cookie。扫码那条路走不通时的另一个入口。
+ *
+ * 网易云按请求来源的 IP 做风控，公共实例跑在机房里，扫码的三个接口会被
+ * 整条拦掉（code -462）。这种时候把浏览器里已登录的 MUSIC_U 拿过来，
+ * 请求就从匿名变成了登录，那套尺度松得多。
+ *
+ * 和扫码共用同一个 service 约定，多用一个动作：
+ *   service.saveCookie(cookie, owner)   存起来，账号信息问不到也存
+ */
+export function CookiePaste({ service, owner = '', onDone,
+  hint = '在浏览器中登录网易云音乐后，从开发者工具的存储中复制 MUSIC_U 的值' }) {
+  const [text, setText] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const save = async () => {
+    setBusy(true);
+    try {
+      const who = await service.saveCookie(text, owner);
+      setText('');
+      toast(who?.nickname ? `已保存：${who.nickname}` : '已保存。未能读取账号信息', 'ok');
+      onDone && onDone(who);
+    } catch (err) {
+      toast(String(err.message || err), 'error', 4000);
+    } finally { setBusy(false); }
+  };
+
+  return html`
+    <${Field} label="或者直接填写 cookie" desc=${hint}>
+      <${Textarea} rows=${3} value=${text} placeholder="MUSIC_U=..."
+        onInput=${v => setText(v)}/>
+    <//>
+    <${Button} size="sm" variant="ghost" icon="check"
+      onClick=${() => !busy && text.trim() && save()}>
+      ${busy ? '保存中' : '保存'}<//>`;
 }

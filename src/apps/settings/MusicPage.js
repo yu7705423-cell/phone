@@ -1,10 +1,37 @@
 import { html, useState } from '../../lib.js';
 import { phone, useStore } from '../../sdk/index.js';
 import { Page, List, ListItem, Field, Input, NumberInput, Switch, Icon, Spinner,
-  QrLogin, confirm, toast } from '../../ui/index.js';
+  QrLogin, CookiePaste, confirm, toast } from '../../ui/index.js';
 
 const { db, nav, netease } = phone;
 const svc = phone.ai.services;
+
+// 探测结果那一段总结。分开写是因为这里的分支比一行三元式装得下的多：
+// 同样是「有几项没过」，原因是连不上、是被网易云的风控挡住，还是只剩扫码
+// 那两项过不去而 cookie 已经补上了，给用户的下一步完全不同。
+const QR_ROWS = ['qrkey', 'qrimg'];
+
+function verdict(rows, cfg) {
+  if (!rows[0].pass) {
+    return '这个地址在本机用不了：服务不通，或它不允许本页面跨域读取。请更换地址，或自行部署一份。';
+  }
+  const bad = rows.filter(r => !r.pass);
+  if (!bad.length) return '各项均可用。';
+
+  // 只剩扫码过不去，而 cookie 已经填了：扫码本来就不用再走
+  if (cfg.cookie && bad.every(r => QR_ROWS.includes(r.id))) {
+    return '扫码登录不可用，其余项目均正常。已保存的 cookie 可以继续使用，无需扫码。';
+  }
+  if (bad.some(r => r.risk)) {
+    return cfg.cookie
+      ? '地址与跨域均正常，未通过的项目是网易云拒绝了这个实例的出口 IP。'
+        + '已保存的 cookie 未能解除该限制，请改用另一个公开实例。'
+      : '地址与跨域均正常，未通过的项目是网易云拒绝了这个实例的出口 IP。'
+        + '可在上方填写一个中国大陆 IP 作为来源地址，'
+        + '或在下方填写已登录账号的 cookie，然后重新测试。';
+  }
+  return '部分项目不可用。未通过的功能会自动退回或显示为不可用，其余功能照常。';
+}
 
 export function MusicPage() {
   const s = useStore(db.settings.store);
@@ -64,17 +91,7 @@ export function MusicPage() {
         <//>
         ${rows && !testing && rows.length ? html`
           <div class="settings-foot">
-            ${!rows[0].pass
-              ? '这个地址在本机用不了：服务不通，或它不允许本页面跨域读取。请更换地址，或自行部署一份。'
-              : rows.some(r => r.risk)
-                ? (cfg.realIP
-                  ? '地址与跨域均正常，但网易云拒绝了这个实例的出口 IP，填写的 realIP 未能生效。'
-                    + '请更换 realIP，或改用另一个公开实例。'
-                  : '地址与跨域均正常，未通过的项目是网易云拒绝了这个实例的出口 IP。'
-                    + '请在上方填写一个中国大陆 IP 作为来源地址，然后重新测试。')
-                : rows.every(r => r.pass)
-                  ? '各项均可用。'
-                  : '部分项目不可用。未通过的功能会自动退回或显示为不可用，其余功能照常。'}
+            ${verdict(rows, cfg)}
             <br/>公共实例由他人运行，其可用性不受本项目控制。
           </div>` : null}` : null}
 
@@ -83,14 +100,19 @@ export function MusicPage() {
           ${cfg.cookie ? html`
             <${ListItem} title=${cfg.nickname || '已登录'} subtitle=${`UID ${cfg.uid}`}
               right=${html`<button class="nav-text press" onClick=${quit}>退出</button>`}/>`
-          : html`<div class="pad"><${QrLogin} service=${netease}
-              hint="请使用网易云音乐扫描二维码"/></div>`}
+          : html`<div class="pad">
+              <${QrLogin} service=${netease} hint="请使用网易云音乐扫描二维码"/>
+              <${CookiePaste} service=${netease}/>
+            </div>`}
         <//>
         <div class="settings-foot">
           登录后得到的 cookie 等同于账号权限，会随每次请求发送给上面填写的接口地址。
           填写的是他人运行的公共实例时，该实例可以读取你的歌单与播放记录，
           也可以以你的名义进行操作。<br/>
-          搜索、播放、一起听均不需要登录。登录仅用于个人主页、听歌排行与歌单同步。
+          搜索、播放、一起听均不需要登录。登录仅用于个人主页、听歌排行与歌单同步。<br/>
+          网易云对机房地址的匿名请求常返回「请完成验证操作」（code -462），
+          扫码的三个接口也在其中。此时可从已登录网易云的浏览器中取出 MUSIC_U 填入，
+          登录后的请求通常不受该限制。已保存的 cookie 会一并用于上方的地址测试。
         </div>
 
         <${List} title="一起听">

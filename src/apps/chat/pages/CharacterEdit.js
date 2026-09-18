@@ -1,7 +1,7 @@
 import { html, useState, useRef } from '../../../lib.js';
 import { phone, useStore, useImage } from '../../../sdk/index.js';
 import { Page, Field, Input, Textarea, Avatar, List, ListItem,
-         Switch, Segmented, Icon, Button, QrLogin, toast } from '../../../ui/index.js';
+         Switch, Segmented, Icon, Button, QrLogin, CookiePaste, toast } from '../../../ui/index.js';
 import { ZonePicker } from './ZonePicker.js';
 import { AvatarPool } from './AvatarPool.js';
 
@@ -207,8 +207,14 @@ export function CharacterEdit({ id }) {
               subtitle="登录另一个网易云账号作为这个角色的账号。一起听时两个账号都会记录这次听歌。"/>`}
         <//>
         ${char.neteaseCookie ? null : html`
-          <div class="pad"><${QrLogin} service=${phone.netease} owner=${id}
-            hint="请使用网易云音乐扫描二维码，登录要给这个角色用的那个账号"/></div>`}` : null}
+          <div class="pad">
+            <${QrLogin} service=${phone.netease} owner=${id}
+              hint="请使用网易云音乐扫描二维码，登录要给这个角色用的那个账号"/>
+            <${CookiePaste} service=${phone.netease} owner=${id}
+              hint=${`在浏览器中登录要给这个角色用的那个网易云账号，`
+                + `从开发者工具的存储中复制 MUSIC_U 的值。`
+                + `扫码被网易云拦下时（code -462）可用这种方式。`}/>
+          </div>`}` : null}
 
       ${clock.enabled() ? html`
         <${List} title="角色所在时区">

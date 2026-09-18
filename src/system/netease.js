@@ -96,6 +96,11 @@ export function ready() { return neteaseReady(); }
 const withIP = (url, ip) =>
   (ip ? `${url}${url.includes('?') ? '&' : '?'}realIP=${encodeURIComponent(ip)}` : url);
 
+// 同理，已经存了 cookie 就带着测。网易云对匿名请求和登录请求是两套尺度：
+// 匿名被风控拦下的接口，带上 cookie 常常就通了。
+const withCookie = (url, ck) =>
+  (ck ? `${url}${url.includes('?') ? '&' : '?'}cookie=${encodeURIComponent(ck)}` : url);
+
 const probeOne = async (url, ms = 12000) => {
   const ctl = new AbortController();
   const t = setTimeout(() => ctl.abort(), ms);
@@ -156,6 +161,7 @@ const CHECKS = [
     id: 'reach', label: '连得上',
     desc: '地址通，而且允许这个页面跨域读取。两者缺一个，浏览器里都用不了',
     path: '/search?keywords=%E6%B5%8B%E8%AF%95&limit=1',
+    auth: true,
     // 第一下给足时间：托管在 Hugging Face Spaces 一类平台上的实例闲置后
     // 会睡过去，第一个请求要等它整个起来，几十秒是常事。
     // 按八秒判超时，会把一个好实例判成死的。
@@ -174,6 +180,7 @@ const CHECKS = [
     id: 'search', label: '搜歌',
     desc: '不登录也能用的那部分。只要这一项通，曲库与一起听就能用',
     path: '/cloudsearch?keywords=%E6%99%B4%E5%A4%A9&limit=1',
+    auth: true,
     judge: r => {
       if (r.status === 0) return [false, r.err];
       if (r.status === 404) return [false, '没有这个接口，将退回旧版搜索'];
@@ -246,6 +253,7 @@ const CHECKS = [
     id: 'url', label: '取播放地址',
     desc: '取不到就只能看，不能放。多数公共实例这一项是不通的',
     path: '/song/url/v1?id=347230&level=standard',
+    auth: true,
     judge: r => {
       if (r.status === 0) return [false, r.err];
       if (r.status === 404) return [false, '没有这个接口'];
@@ -264,9 +272,11 @@ const CHECKS = [
 export async function probe(baseUrl, onStep, realIP = neteaseConfig().realIP) {
   const b = baseOf(baseUrl);
   if (!b) throw new Error('请先填写地址');
+  const ck = cookieOf();
   const out = [];
   for (const c of CHECKS) {
-    const r = c.run ? await c.run(b, realIP) : await probeOne(withIP(b + c.path, realIP), c.ms);
+    const url = withIP(withCookie(b + (c.path || ''), c.auth ? ck : ''), realIP);
+    const r = c.run ? await c.run(b, realIP) : await probeOne(url, c.ms);
     const [pass, note] = c.judge(r);
     const row = { id: c.id, label: c.label, desc: c.desc, pass, note, ms: r.ms,
       risk: !!riskNote(r) };
@@ -301,6 +311,29 @@ export async function accountOf(cookie) {
 // 登录成功之后把凭据落到该落的地方：不给 charId 就是用户自己的号
 export async function saveLogin(cookie, charId = '') {
   const who = await accountOf(cookie);
+  if (charId) {
+    characters.update(charId, {
+      neteaseCookie: cookie, neteaseNick: who.nickname, neteaseUid: who.uid,
+    });
+  } else {
+    setNetease({ cookie, nickname: who.nickname, uid: who.uid });
+  }
+  return who;
+}
+
+/**
+ * 手工粘贴 cookie 存进来。
+ *
+ * 和 saveLogin 的区别只有一条：**账号信息问不到也照存**。
+ * 网易云对机房 IP 有风控，扫码那三步会被整条拦掉（code -462），
+ * 这时唯一还走得通的路就是把浏览器里已登录的 MUSIC_U 拿过来。
+ * 那种状况下 /user/account 多半也问不到，不能因此拒绝保存。
+ */
+export async function saveCookie(raw, charId = '') {
+  const cookie = String(raw || '').replace(/\s+/g, ' ').trim();
+  if (!cookie) throw new Error('请先填写 cookie');
+  let who = { uid: '', nickname: '', avatar: '' };
+  try { who = await accountOf(cookie); } catch { /* 问不到也照存，见上 */ }
   if (charId) {
     characters.update(charId, {
       neteaseCookie: cookie, neteaseNick: who.nickname, neteaseUid: who.uid,
