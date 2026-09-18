@@ -19,6 +19,7 @@ import * as extras from '../extras.js';
 import * as avatar from '../avatar.js';
 import * as takeout from '../takeout.js';
 import * as translate from './translate.js';
+import * as ledger from '../ledger.js';
 
 // 角色回复里可以带这几种标记，由模型自己决定什么时候用。
 // 中英文冒号都认，方括号也认全角。
@@ -399,6 +400,29 @@ function pause(part) {
   return Math.min(1800, 320 + n * 28);
 }
 
+/**
+ * 钱不够就不让这一笔发生。
+ *
+ * 第一道关在 prompt（注入余额，见 ai/context/bill.js），这是第二道：
+ * **模型说了不算，账上有没有才算。** 没绑账本、或者那本账关了严格模式，
+ * 这里一律放行。
+ *
+ * 拦下来不是安静地吞掉 —— 落一行提示，角色下一轮看得见，
+ * 知道自己这笔没付成。悄悄不发生比发生更难查。
+ */
+function broke(base, amount, what) {
+  const owner = base.role === 'user' ? ledger.ME : ledger.CHAR;
+  if (ledger.affordable(base.chatId, owner, amount)) return null;
+  const book = ledger.bookOfChat(base.chatId);
+  const acc = book && ledger.defaultFor(book.id, owner);
+  const left = acc ? ledger.money(book.id, ledger.balanceOf(book.id, acc.id)) : '';
+  return messages.create({
+    ...base, kind: 'notice',
+    content: `[余额不足，${what} 没有付成。当前余额 ${left}]`,
+    status: 'done',
+  });
+}
+
 // 一个 part 落成一条消息。图片语音顺带把生成任务排上。
 // 单拎出来是因为「修格式」也要用同一条路，不然两边各写一遍迟早走岔。
 export function materialize(part, base, char) {
@@ -423,6 +447,8 @@ export function materialize(part, base, char) {
     });
   }
   if (part.type === 'transfer') {
+    const short = broke(base, part.amount, `转账 ${transfer.format(part.amount)}`);
+    if (short) return short;
     return transfer.send({
       chatId: base.chatId, role: base.role, authorId: base.authorId,
       amount: part.amount, note: part.note, extra: row,
@@ -498,6 +524,11 @@ export function materialize(part, base, char) {
     return target ? gift.settle(target.id, part.open, row) : null;
   }
   if (part.type === 'takeout') {
+    // 代付是让对方出钱，付不付得起由对方那边决定，不在这儿拦
+    if (part.kind !== takeout.ASK) {
+      const short = broke(base, part.amount, `${part.item} ${takeout.format(part.amount)}`);
+      if (short) return short;
+    }
     return takeout.order({
       chatId: base.chatId, role: base.role, authorId: base.authorId,
       kind: part.kind, item: part.item, amount: part.amount, extra: row,

@@ -1,6 +1,8 @@
-import { books, entries, chats, characters, settings } from './db/index.js';
+import { books, entries, chats, characters, settings, messagesOf, messages } from './db/index.js';
 import * as accounts from './accounts.js';
 import * as currency from './currency.js';
+import * as transferSvc from './transfer.js';
+import * as takeoutSvc from './takeout.js';
 
 // 记账。
 //
@@ -77,6 +79,8 @@ export function update(id, patch) {
   if (patch.kind !== undefined && KINDS.includes(patch.kind)) next.kind = patch.kind;
   if (patch.chatId !== undefined) next.chatId = patch.chatId || '';
   if (patch.currency !== undefined) next.currency = patch.currency;
+  if (patch.inject !== undefined) next.inject = !!patch.inject;
+  if (patch.strict !== undefined) next.strict = !!patch.strict;
   return books.update(id, next);
 }
 
@@ -142,15 +146,102 @@ export function removeAccount(id, accId) {
   return true;
 }
 
+/** 这一类归属的默认账户。转账、外卖这些落到哪儿，就看它。 */
+export function defaultFor(bookId, owner) {
+  const list = accountsOf(bookId).filter(a => a.owner === owner && !a.secret);
+  return list[0] || accountsOf(bookId).find(a => a.owner === owner) || null;
+}
+
+/** 这段会话绑的是哪一本账。没绑就是没有。 */
+export const bookOfChat = chatId =>
+  (chatId ? all().find(b => b.chatId === chatId) : null) || null;
+
+// 注入 prompt 与余额不足的拦截，默认都开着。绑一本账到某段会话，
+// 本来就是为了让钱在那段对话里算数 —— 那两件正是「算数」的全部内容。
+export const injectOn = book => book && book.inject !== false;
+export const strictOn = book => book && book.strict !== false;
+
 // ---- 流水 ----
 //
 // amount 带符号：正数进账，负数出账。折余额时直接相加，不必再看一个 type 字段。
 
 export const entriesOf = id => entries.byIndex(id);
 
+// ---- 会话里那几种消息，本身就是一笔钱的流动 ----
+//
+// **不另存一份流水。** 和情侣空间那边同一个道理（见 space.js）：礼物墙就是
+// 会话里 kind 为 gift 的消息。这里也一样，转账、请客、代付现算出来。
+//
+// 好处是它天生跟着消息一起删、跟着重新生成一起撤、天生和聊天记录对得上。
+// 存一份的话，角色那一轮被重新生成时要有人负责把对应的流水也撤掉 ——
+// 那是一个永远会忘的活，而且忘了不报错。
+//
+// 只认已经落定的：待收款的转账、还没表态的请客，钱都没动。
+
+const OUT = -1, IN = 1;
+
+// 一条消息折成几笔。[{ owner, amount }]，amount 带符号。
+function moveOf(m) {
+  if (m.kind === 'transfer') {
+    if (m.transfer !== transferSvc.TAKEN) return [];
+    const from = m.role === 'user' ? ME : CHAR;
+    const to = from === ME ? CHAR : ME;
+    return [{ owner: from, amount: OUT * m.amount }, { owner: to, amount: IN * m.amount }];
+  }
+  if (m.kind === 'takeout') {
+    const v = Number(m.amount) || 0;
+    if (!v) return [];
+    const who = m.role === 'user' ? ME : CHAR;
+    const other = who === ME ? CHAR : ME;
+    // 自己点自己吃自己付：一落库就算数，不必表态
+    if (m.takeoutKind === takeoutSvc.SELF) return [{ owner: who, amount: OUT * v }];
+    if (m.takeout !== takeoutSvc.TAKEN) return [];
+    // 请客：点的人付。代付：对方付。
+    const payer = m.takeoutKind === takeoutSvc.TREAT ? who : other;
+    return [{ owner: payer, amount: OUT * v }];
+  }
+  return [];
+}
+
+let cache = { key: '', rows: [] };
+
+/**
+ * 这本账从会话里读出来的那几笔。返回的形状和 entries 一样，
+ * 余额、统计两边都能直接拿去折。
+ *
+ * 按会话的索引版本缓存：消息没变就不重扫。一段聊了几万条的会话，
+ * 每次画一行余额都全表扫一遍是不行的。
+ */
+export function chatEntries(bookId) {
+  const book = get(bookId);
+  const chatId = book?.chatId;
+  if (!chatId) return [];
+  const key = `${bookId}:${chatId}:${messages.indexVersion(chatId)}:${(book.accounts || []).length}`;
+  if (cache.key === key) return cache.rows;
+
+  const rows = [];
+  for (const m of messagesOf(chatId)) {
+    for (const mv of moveOf(m)) {
+      const acc = defaultFor(bookId, mv.owner);
+      if (!acc) continue;
+      rows.push({
+        id: `msg:${m.id}:${mv.owner}`,
+        bookId, accountId: acc.id, amount: currency.round(mv.amount, book.currency),
+        category: 'transfer', note: m.kind === 'takeout' ? (m.item || '外卖') : (m.note || ''),
+        at: m.createdAt || 0, src: 'message', ref: m.id, pending: false,
+      });
+    }
+  }
+  cache = { key, rows };
+  return rows;
+}
+
+/** 手记的加上会话里现算的，按时间排好。界面与统计都读这一份。 */
+export const allEntries = id => [...entriesOf(id), ...chatEntries(id)];
+
 /** 按时间倒序的那一份，界面上从新到旧读。 */
 export const recent = (id, limit = 0) => {
-  const list = entriesOf(id).slice().sort((a, b) => (b.at || 0) - (a.at || 0));
+  const list = allEntries(id).sort((a, b) => (b.at || 0) - (a.at || 0));
   return limit > 0 ? list.slice(0, limit) : list;
 };
 
@@ -197,7 +288,7 @@ const counted = e => !e.pending;
 
 export function balanceOf(bookId, accId) {
   let n = 0;
-  for (const e of entriesOf(bookId)) if (counted(e) && e.accountId === accId) n += e.amount;
+  for (const e of allEntries(bookId)) if (counted(e) && e.accountId === accId) n += e.amount;
   return currency.round(n, get(bookId)?.currency);
 }
 
@@ -206,7 +297,7 @@ export function totalOf(bookId, owner) {
   const list = accountsOf(bookId).filter(a => !owner || a.owner === owner);
   const ids = new Set(list.map(a => a.id));
   let n = 0;
-  for (const e of entriesOf(bookId)) if (counted(e) && ids.has(e.accountId)) n += e.amount;
+  for (const e of allEntries(bookId)) if (counted(e) && ids.has(e.accountId)) n += e.amount;
   return currency.round(n, get(bookId)?.currency);
 }
 
@@ -222,7 +313,7 @@ export const thisMonth = () => monthKey(Date.now());
 export function stats(bookId, month = thisMonth()) {
   let income = 0, expense = 0;
   const byCategory = new Map();
-  for (const e of entriesOf(bookId)) {
+  for (const e of allEntries(bookId)) {
     if (!counted(e) || monthKey(e.at) !== month) continue;
     if (e.amount > 0) income += e.amount;
     else {
@@ -260,4 +351,43 @@ export function ownerLabel(bookId, owner) {
   if (owner === CHAR) return who.char || '角色';
   if (owner === JOINT) return '共同';
   return who.me;
+}
+
+// ---- 钱不能无中生有 ----
+//
+// 两道关。**第一道在 prompt**：余额是个算得出来的确定数字，注入进去
+// （见 ai/context/bill.js），和距离、点数一样 —— 数字不是模型的活。
+//
+// 第二道在这里：真要付的时候再算一次。模型说了不算，账上有没有才算。
+
+/** 这一方付得起这笔钱吗。没绑账本、或者没开严格模式，一律付得起。 */
+export function affordable(chatId, owner, amount) {
+  const book = bookOfChat(chatId);
+  if (!book || !strictOn(book)) return true;
+  const acc = defaultFor(book.id, owner);
+  if (!acc) return true;
+  const v = Math.abs(Number(amount) || 0);
+  return balanceOf(book.id, acc.id) >= v;
+}
+
+/** 注入用的那一份。context/bill.js 读它。 */
+export function context(chatId) {
+  const book = bookOfChat(chatId);
+  if (!book || !injectOn(book)) return null;
+  const who = whoOf(book.id);
+  const mine = defaultFor(book.id, ME);
+  const hers = defaultFor(book.id, CHAR);
+  const joint = defaultFor(book.id, JOINT);
+  const st = stats(book.id);
+  const fmt = n => currency.format(n, book.currency);
+  return {
+    name: book.name,
+    self: hers ? fmt(balanceOf(book.id, hers.id)) : '',
+    selfName: hers?.name || '',
+    other: mine ? fmt(balanceOf(book.id, mine.id)) : '',
+    otherName: who.me,
+    joint: joint ? fmt(balanceOf(book.id, joint.id)) : '',
+    month: fmt(st.expense),
+    strict: strictOn(book),
+  };
 }

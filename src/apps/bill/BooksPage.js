@@ -1,6 +1,6 @@
 import { html, useState } from '../../lib.js';
 import { phone, useStore } from '../../sdk/index.js';
-import { Page, List, ListItem, Field, Input, Button, Segmented, Icon,
+import { Page, List, ListItem, Field, Input, Button, Segmented, Switch, Icon,
   Sheet, toast, confirm } from '../../ui/index.js';
 
 const { db, nav, ledger } = phone;
@@ -114,8 +114,25 @@ function BookEditor({ book, onClose }) {
         })}
       <//>
       <div class="settings-foot">
-        关联对话后，该角色的账户与共同账户会显示其名称，聊天中提到的收支也会归入这一本。
+        关联对话后，该角色的账户与共同账户会显示其名称，该对话中的转账、请客与代付
+        会直接计入余额，不另存流水。
       </div>
+
+      ${book.id && chatId ? html`
+        <${List} title="这本账在对话里怎么起作用">
+          <${ListItem} title="把余额告诉角色" multiline
+            subtitle=${ledger.injectOn(book)
+              ? '每轮在上下文中写入角色余额、对方余额、共同账户与本月支出，并注明数值由系统计算，不得改写。不额外调用接口，仅占用少量 token。'
+              : '已关闭。角色不知道账上有多少钱，提到金额时会自行编造。'}
+            right=${html`<${Switch} checked=${ledger.injectOn(book)}
+              onChange=${v => ledger.update(book.id, { inject: v })}/>`}/>
+          <${ListItem} title="余额不足时不予支付" multiline
+            subtitle=${ledger.strictOn(book)
+              ? '转账、请客的金额超过该方余额时，该笔不予记录，并在对话中留下一行说明，角色下一轮可以看到。'
+              : '已关闭。金额超过余额时照常记录，余额会变为负数。'}
+            right=${html`<${Switch} checked=${ledger.strictOn(book)}
+              onChange=${v => ledger.update(book.id, { strict: v })}/>`}/>
+        <//>` : null}
 
       <div class="pad">
         <${Button} full onClick=${save}>保存<//>
