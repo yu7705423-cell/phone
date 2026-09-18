@@ -1,8 +1,8 @@
-import { html, useState, useRef } from '../../lib.js';
+import { html, useState, useRef, useEffect } from '../../lib.js';
 import { phone, useStore } from '../../sdk/index.js';
-import { Page, List, ListItem, Button, Icon, toast, confirm } from '../../ui/index.js';
+import { Page, List, ListItem, Button, Icon, Sheet, toast, confirm } from '../../ui/index.js';
 
-const { db, nav } = phone;
+const { db, nav, backup } = phone;
 
 export const fmtBytes = b => b < 1024 ? `${b} B`
   : b < 1048576 ? `${(b / 1024).toFixed(1)} KB`
@@ -29,7 +29,12 @@ export function StoragePage() {
   useStore(db.characters.store);
   useStore(db.moments.store);
   const [busy, setBusy] = useState(false);
+  const [work, setWork] = useState(null);
+  const [picking, setPicking] = useState(false);
+  const [room, setRoom] = useState(null);      // 浏览器还剩多少地方
   const fileRef = useRef(null);
+
+  useEffect(() => { backup.quota().then(setRoom); }, []);
 
   const counts = {
     角色卡: db.characters.count(),
@@ -40,34 +45,26 @@ export function StoragePage() {
     动态: db.moments.count(),
   };
 
-  const exportAll = () => {
-    const data = {
-      _format: 'mini-phone-backup',
-      _version: 1,
-      exportedAt: new Date().toISOString(),
-      characters: db.characters.all(),
-      lorebooks: db.lorebooks.all(),
-      memories: db.memories.all(),
-      chats: db.chats.all(),
-      messages: db.messages.all(),
-      moments: db.moments.all(),
-      spaceItems: db.spaceItems.all(),
-      events: db.events.all(),
-      days: db.days.all(),
-      recipes: db.recipes.all(),
-      meals: db.meals.all(),
-      persona: db.persona.get(),
-      personas: db.personas.all(),
-      settings: { ...db.settings.get(), apiKey: '' },
-      layout: db.layout.get(),
-    };
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `小手机备份-${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-    toast('备份已导出。图片不包含在内');
+  // 导出。两档：整份（含图片、音频、视频，打成 ZIP）和只要 JSON。
+  // 账先摆出来 —— 五百兆的片库打包要等，事先不知道会以为卡死了。
+  const exportAll = async media => {
+    setPicking(false);
+    setBusy(true);
+    setWork({ text: media ? '正在打包' : '正在导出', pct: 0 });
+    try {
+      const blob = await backup.build({
+        media,
+        onProgress: pct => setWork({ text: media ? '正在打包' : '正在导出', pct }),
+      });
+      const day = new Date().toISOString().slice(0, 10);
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = media ? `小手机备份-${day}.zip` : `小手机备份-${day}.json`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+      toast(`已导出 ${backup.sizeText(blob.size)}`, 'ok', 4000);
+    } catch (err) { toast('导出失败：' + (err.message || err), 'error', 5000); }
+    finally { setBusy(false); setWork(null); }
   };
 
   const importAll = async e => {
@@ -76,24 +73,19 @@ export function StoragePage() {
     if (!file) return;
     if (!await confirm({
       title: '导入备份', danger: true,
-      message: '当前的角色卡、世界书、记忆与会话将被备份内容覆盖。',
+      message: '当前的角色卡、世界书、记忆、会话与曲库片库将被备份内容覆盖。'
+        + '备份中包含的图片与文件会按原编号放回。接口配置与密钥不受影响。',
     })) return;
     setBusy(true);
+    setWork({ text: '正在读取', pct: 0 });
     try {
-      const data = JSON.parse(await file.text());
-      if (data._format !== 'mini-phone-backup') throw new Error('不是小手机的备份文件');
-      const cols = ['characters', 'lorebooks', 'memories', 'chats', 'messages', 'moments', 'spaceItems', 'events', 'days', 'recipes', 'meals'];
-      for (const name of cols) {
-        await db[name].clear();
-        (data[name] || []).forEach(r => db[name].put(r));
-      }
-      if (data.persona) db.persona.replace({ ...db.persona.get(), ...data.persona });
-      if (Array.isArray(data.personas)) data.personas.forEach(p => db.personas.put ? db.personas.put(p) : db.personas.create(p));
-      if (data.settings) db.settings.replace({ ...db.settings.get(), ...data.settings, apiKey: db.settings.get().apiKey });
-      toast('导入完成');
+      const got = await backup.restore(file, {
+        onProgress: pct => setWork({ text: '正在恢复', pct }),
+      });
+      toast(`已恢复 ${got.rows} 条记录${got.media ? `，${got.media} 个文件` : ''}`, 'ok', 5000);
     } catch (err) {
-      toast('导入失败：' + err.message, 'error', 4000);
-    } finally { setBusy(false); }
+      toast('导入失败：' + (err.message || err), 'error', 5000);
+    } finally { setBusy(false); setWork(null); }
   };
 
   const cleanOrphans = async () => {
@@ -123,10 +115,27 @@ export function StoragePage() {
 
   return html`
     <${Page} title="存储与备份" onBack=${nav.pop}>
+      ${room ? html`
+        <${List} title="浏览器给的空间">
+          <${ListItem} title=${`已用 ${backup.sizeText(room.usage)}`} multiline
+            subtitle=${`共 ${backup.sizeText(room.quota)}，占 ${Math.round(room.ratio * 100)}%`
+              + (room.ratio > 0.8
+                ? '。空间不足时写入会失败，消息与图片可能存不下，建议导出备份后清理'
+                : '')}
+            left=${html`<${Icon} name="database" size=${18}/>`}
+            right=${html`<span>${Math.round(room.ratio * 100)}%</span>`}/>
+          <div class="pad-x pad-b">
+            <div class="vd-work-line"><i style=${`width:${Math.min(100, room.ratio * 100)}%`}></i></div>
+          </div>
+        <//>` : null}
+
       <${List} title="占用">
         <${ListItem} title="图片" subtitle=${`${db.images.count()} 张`}
           left=${html`<${Icon} name="image" size=${18}/>`}
           right=${html`<span>${fmtBytes(db.images.totalBytes())}</span>`}/>
+        <${ListItem} title="音频与视频" subtitle=${`${phone.files.count()} 个文件`}
+          left=${html`<${Icon} name="film" size=${18}/>`}
+          right=${html`<span>${backup.sizeText(phone.files.totalBytes())}</span>`}/>
         ${Object.entries(counts).map(([k, v]) => html`
           <${ListItem} key=${k} title=${k} right=${html`<span>${v}</span>`}/>`)}
       <//>
@@ -137,13 +146,44 @@ export function StoragePage() {
       <//>
 
       <${List} title="备份">
-        <${ListItem} title="导出备份" subtitle="JSON 文件，不含图片与 API 密钥" arrow
-          left=${html`<${Icon} name="download" size=${18}/>`} onClick=${exportAll}/>
-        <${ListItem} title="导入备份" subtitle="将覆盖当前数据" arrow
+        <${ListItem} title="导出备份" multiline arrow
+          subtitle="可选择是否包含图片、音频与视频。接口密钥不会写入备份"
+          left=${html`<${Icon} name="download" size=${18}/>`}
+          onClick=${() => setPicking(true)}/>
+        <${ListItem} title="导入备份" subtitle="ZIP 或 JSON。将覆盖当前数据" arrow
           left=${html`<${Icon} name="upload" size=${18}/>`}
           onClick=${() => fileRef.current?.click()}/>
       <//>
-      <input type="file" accept="application/json" ref=${fileRef} onChange=${importAll} style="display:none"/>
+      ${work ? html`
+        <div class="pad-x pad-b">
+          <div class="vd-work">
+            <div class="vd-work-line"><i style=${`width:${Math.round((work.pct || 0) * 100)}%`}></i></div>
+            <span>${work.text}${work.pct ? ` ${Math.round(work.pct * 100)}%` : ''}</span>
+          </div>
+        </div>` : null}
+      <div class="settings-foot">
+        所有数据都保存在这台设备的浏览器中。清除站点数据、更换设备或系统回收存储后
+        无法找回，请定期导出。
+      </div>
+      <input type="file" accept=".zip,.json,application/zip,application/json"
+        ref=${fileRef} onChange=${importAll} style="display:none"/>
+
+      <${Sheet} open=${picking} onClose=${() => setPicking(false)} title="导出备份">
+        <${List} inset=${false}>
+          <${ListItem} title="完整备份" multiline arrow
+            subtitle=${`包含图片、音频与视频，约 ${backup.sizeText(
+              db.images.totalBytes() + phone.files.totalBytes())}。打包需要一些时间`}
+            left=${html`<${Icon} name="database" size=${18}/>`}
+            onClick=${() => exportAll(true)}/>
+          <${ListItem} title="仅数据" multiline arrow
+            subtitle="角色卡、世界书、记忆、会话与设置。体积小，但头像与照片不在其中"
+            left=${html`<${Icon} name="notes" size=${18}/>`}
+            onClick=${() => exportAll(false)}/>
+        <//>
+        <div class="settings-foot">
+          完整备份为 ZIP，其中的图片与文件按原编号存放，恢复后引用不会错位。
+        </div>
+      <//>
 
       <div class="pad">
         <${Button} full variant="danger" disabled=${busy} onClick=${wipe}>清空全部数据<//>

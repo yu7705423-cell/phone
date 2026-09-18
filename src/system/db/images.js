@@ -66,6 +66,25 @@ export const images = {
     return row.id;
   },
 
+  /**
+   * 按**原来的 id** 放一张回去。只有恢复备份会用到。
+   *
+   * 不走 put：那边会重新压一遍并发一个新 id，而消息、角色卡里存的是旧 id，
+   * 换了就全对不上。这里原样写回去，压缩在当初导出之前就已经做过了。
+   */
+  async putRaw(id, blob, meta = {}) {
+    if (!id || !blob) return null;
+    const row = {
+      id, blob, w: meta.w || 0, h: meta.h || 0,
+      bytes: blob.size, createdAt: meta.createdAt || Date.now(),
+    };
+    sizes.set(id, row.bytes);
+    await write('images', () => idb.put('images', row));
+    const old = urls.get(id);
+    if (old) { URL.revokeObjectURL(old); urls.delete(id); }
+    return id;
+  },
+
   // 同步取已缓存的 URL,没有则返回 null 并在后台加载
   peek(id) { return id ? urls.get(id) || null : null; },
 

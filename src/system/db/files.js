@@ -4,6 +4,7 @@ import { uid } from '../store.js';
 // 任意二进制附件（目前是语音）。图片走 images，那边会压缩，音频不能压。
 const urls = new Map();
 const meta = new Map();
+const meta_set = row => meta.set(row.id, { type: row.type, bytes: row.bytes, name: row.name });
 
 export const files = {
   async load() {
@@ -21,6 +22,21 @@ export const files = {
     await write('files', () => idb.put('files', row));
     urls.set(row.id, URL.createObjectURL(blob));
     return row.id;
+  },
+
+  /** 按原来的 id 放回去。只有恢复备份会用到，理由同 images.putRaw。 */
+  async putRaw(id, blob, meta = {}) {
+    if (!id || !blob) return null;
+    const row = {
+      id, blob, name: meta.name || '',
+      type: meta.type || blob.type || 'application/octet-stream',
+      bytes: blob.size, createdAt: meta.createdAt || Date.now(),
+    };
+    meta_set(row);
+    await write('files', () => idb.put('files', row));
+    const old = urls.get(id);
+    if (old) { URL.revokeObjectURL(old); urls.delete(id); }
+    return id;
   },
 
   peek(id) { return id ? urls.get(id) || null : null; },
