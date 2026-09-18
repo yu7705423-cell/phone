@@ -19,6 +19,7 @@ const COLLECTIONS = [
   'characters', 'lorebooks', 'memories', 'chats', 'messages', 'moments',
   'stickers', 'looks', 'personas', 'songs', 'playlists', 'videos',
   'spaceItems', 'events', 'days', 'recipes', 'meals',
+  'books', 'entries',
 ];
 
 const FORMAT = 'mini-phone-backup';

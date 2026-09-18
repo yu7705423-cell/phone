@@ -304,8 +304,10 @@ export function Conversation({ chatId, focusId = '' }) {
     return () => clearInterval(t);
   }, [recSec < 0]);
 
-  // 换一段对话就把窗口收回去，不然从长会话退出来再进短的，窗口还开着
-  useEffect(() => { setShown(pageSize()); }, [chatId]);
+  // 换一段对话、或者改了「一屏画多少条」，都把窗口收回去。
+  // 从前只看 chatId：在设置里把条数调小，要退出这段对话再进来才生效，
+  // 而人调它正是因为当前这段卡。
+  useEffect(() => { setShown(pageSize()); }, [chatId, settings.chatPage]);
 
   // 「过一会儿才回」那一档：到点了就生成。
   // 定时器随页面走，但到点的时刻存在会话上，所以关掉再打开照样补得上 ——

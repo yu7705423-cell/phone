@@ -36,6 +36,7 @@ import * as visionApi from '../system/ai/vision.js';
 import * as asrApi from '../system/ai/asr.js';
 import * as translateApi from '../system/ai/translate.js';
 import * as costApi from '../system/ai/cost.js';
+import * as ledgerApi from '../system/ledger.js';
 import * as audioApi from '../system/audio.js';
 import * as searchApi from '../system/search.js';
 import * as transferApi from '../system/transfer.js';
@@ -175,6 +176,7 @@ export const phone = {
   search: searchApi,
   transfer: transferApi,
   currency: currencyApi,
+  ledger: ledgerApi,
   place: placeApi,
   gift: giftApi,
   space: spaceApi,

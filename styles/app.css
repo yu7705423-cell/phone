@@ -1314,3 +1314,45 @@ button.search-bar { width: 100%; border: none; }
   border-radius: var(--r-full); background: var(--surface-2);
   font-size: var(--fs-14); color: var(--text);
 }
+
+/* ---- 记账 ----
+   全套黑白，进账出账只靠正负号和字重分，不引入颜色相（第 4 条）。 */
+.bl-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-lg); padding: var(--sp-4);
+}
+.bl-card-head { font-size: var(--fs-13); color: var(--text-3); margin-bottom: var(--sp-3); }
+.bl-card-row { display: flex; gap: var(--sp-6); }
+.bl-card-row > div { display: flex; flex-direction: column; gap: var(--sp-1); }
+.bl-lab { font-size: var(--fs-12); color: var(--text-3); }
+.bl-card-foot {
+  margin-top: var(--sp-3); padding-top: var(--sp-3);
+  border-top: 1px solid var(--border);
+  font-size: var(--fs-12); color: var(--text-3);
+}
+
+.bl-money { font-variant-numeric: tabular-nums; color: var(--text); }
+.bl-money.bl-lg { font-size: var(--fs-24); }
+/* 进账写得轻一些：一列账单里，扎眼的应该是花出去的那些 */
+.bl-money.bl-in { color: var(--text-2); font-weight: 400; }
+
+.bl-list { padding-bottom: var(--safe-bottom); }
+.bl-day {
+  display: flex; justify-content: space-between; align-items: baseline;
+  padding: var(--sp-5) var(--sp-4) var(--sp-2);
+  font-size: var(--fs-12); color: var(--text-3);
+}
+.bl-day-sum { font-variant-numeric: tabular-nums; }
+.bl-row {
+  display: flex; align-items: center; gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--surface); border-bottom: 1px solid var(--border);
+}
+.bl-cat {
+  flex: none; width: 44px; height: 44px; border-radius: var(--r-md);
+  display: grid; place-items: center;
+  background: var(--surface-2); color: var(--text-2); font-size: var(--fs-12);
+}
+.bl-main { flex: 1; min-width: 0; }
+.bl-title { font-size: var(--fs-15); color: var(--text); }
+.bl-sub { font-size: var(--fs-12); color: var(--text-3); margin-top: 2px; }

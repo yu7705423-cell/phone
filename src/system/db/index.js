@@ -27,8 +27,11 @@ export const days       = makeCollection('days', 'day', { indexBy: 'charId' });
 // 食谱库按地区分，地区留空的是通用的。吃饭记录按角色分，抽的时候要回头看。
 export const recipes    = makeCollection('recipes', 'rc', { indexBy: 'region' });
 export const meals      = makeCollection('meals', 'ml', { indexBy: 'charId' });
+// 记账。账本很少，账户内嵌在账本里；流水很多，按账本建索引。
+export const books      = makeCollection('books', 'bk');
+export const entries    = makeCollection('entries', 'en', { indexBy: 'bookId' });
 
-const COLLECTIONS = { characters, lorebooks, memories, chats, messages, moments, stickers, looks, personas, songs, playlists, videos, spaceItems, events, days, recipes, meals };
+const COLLECTIONS = { characters, lorebooks, memories, chats, messages, moments, stickers, looks, personas, songs, playlists, videos, spaceItems, events, days, recipes, meals, books, entries };
 
 // ---- kv: settings / persona / layout ----
 function makeKV(key, fallback, { deep = false } = {}) {
@@ -112,6 +115,7 @@ window.addEventListener('pagehide', () => { images.revokeAll(); files.revokeAll(
 export const db = {
   characters, lorebooks, memories, chats, messages, moments, stickers, looks, personas,
   songs, playlists, videos, spaceItems, events, days, recipes, meals,
+  books, entries,
   images, files, settings, persona, layout,
   messagesOf, lastMessageOf, ready,
 };

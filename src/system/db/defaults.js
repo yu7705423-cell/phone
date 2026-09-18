@@ -86,6 +86,7 @@ export const DEFAULT_SETTINGS = {
   stickerHot: 60,                 // 最近用过表情时列几个。0 = 全列
   proactiveMaxUnread: 3,          // 堆了几条没看就不再主动发。0 = 一直发
   chatPage: 200,                  // 会话一次画多少条。0 = 全画
+  billBook: '',                   // 记账当前看的是哪一本，见 system/ledger.js
   searchLimit: 200,               // 搜索最多给多少条结果。0 = 全给
   scrobbleAfter: 30,              // 一首歌放够几秒才给网易云打卡。0 = 一放就打
   eventDedupeList: 0,             // 批量生成时把已有的多少条发给模型去重。0 = 全给
