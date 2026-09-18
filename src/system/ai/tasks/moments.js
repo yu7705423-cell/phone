@@ -11,7 +11,7 @@ function charContext(char) {
     .filter(m => m.rank === 'S' || m.rank === 'A')
     .slice(0, 12)
     .map(m => `- ${m.content}`).join('\n');
-  return [char.persona, mems ? `最近记得的事：\n${mems}` : ''].filter(Boolean).join('\n\n');
+  return [char.persona, mems ? `What you remember lately:\n${mems}` : ''].filter(Boolean).join('\n\n');
 }
 
 export async function createMoment(charId) {
@@ -19,7 +19,7 @@ export async function createMoment(charId) {
   if (!char) throw new Error('角色不存在');
   const system = fillTemplate(template('task.moment-create'), {
     charName: char.name,
-  }) + `\n\n## 你的设定\n${charContext(char)}`;
+  }) + `\n\n## Your own settings\n${charContext(char)}`;
 
   const r = await runJSONTask('moment.create', { system, key: `moment-create:${charId}`, maxTokens: 500 });
   if (!r?.text) throw new Error('模型没有返回动态内容');
@@ -60,7 +60,7 @@ export async function commentMoment(momentId, charId) {
 
   const system = fillTemplate(template('task.moment-comment'), {
     charName: char.name, authorName: author || '对方', momentText: mo.text,
-  }) + `\n\n## 你的设定\n${charContext(char)}`;
+  }) + `\n\n## Your own settings\n${charContext(char)}`;
 
   const r = await runJSONTask('moment.comment', { system, key: `moment-comment:${momentId}:${charId}`, maxTokens: 300 });
   if (!r?.text) throw new Error('模型没有返回评论');
@@ -75,7 +75,7 @@ export async function replyComment(momentId, charId, commentText) {
   const system = fillTemplate(template('task.moment-reply'), {
     charName: char.name, userName: persona.get().name,
     momentText: mo.text, commentText,
-  }) + `\n\n## 你的设定\n${charContext(char)}`;
+  }) + `\n\n## Your own settings\n${charContext(char)}`;
 
   const r = await runJSONTask('moment.reply', { system, key: `moment-reply:${momentId}`, maxTokens: 300 });
   if (!r?.text) throw new Error('模型没有返回回复');

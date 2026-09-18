@@ -91,13 +91,15 @@ export function select(charId, scanText, budget, personaId) {
 // 于是每一条召回噪音都被硬塞进回复。检索精度再调也治不好这个：
 // 检索本来就不可能完美，能改的是检索结果的定位。
 const HEAD = `[相关记忆]
-以下是你的相关记忆，按相关度从高到低排列，供参考。
-你可以自然地引入话题，像刚好回忆起那样。
-若没有与当前情景相符的记忆，则跳过此条规则。`;
+The following are your relevant memories, ordered by relevance, for reference.
+You may bring one into the conversation naturally, as something that happens to
+come back to you.
+When none of them fits the present situation, disregard this section.`;
 
-// 写给模型看的标签用人话。原先是 [S/事实] —— S 对模型没有任何含义，
-// 它不知道 S 比 A 重要在哪儿、该怎么用。
-const LABEL = m => CATEGORIES[m.category] || m.category || '记忆';
+// 写给模型看的标签用类别 id。原先是 [S/事实] —— S 对模型没有任何含义，
+// 它不知道 S 比 A 重要在哪儿、该怎么用。类别 id 与 task.memory-* 里列的那六个
+// 名字是同一套，两边对得上。
+const LABEL = m => (CATEGORIES[m.category] ? m.category : (m.category || 'memory'));
 
 export const lineOf = m => `【${LABEL(m)}】${m.content}`;
 

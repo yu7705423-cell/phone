@@ -31,12 +31,12 @@ function constraintsOf(charId, date) {
   if (!chat) return '';
   const lines = [];
   space.upcoming(chat.id).forEach(x => {
-    if (x.left === 0) lines.push(`- 今天是${x.item.title}，这一天的安排必须围绕它`);
-    else if (x.left > 0 && x.left <= 3) lines.push(`- 再过 ${x.left} 天是${x.item.title}，可以开始准备`);
+    if (x.left === 0) lines.push(`- Today is ${x.item.title}; the day must be planned around it`);
+    else if (x.left > 0 && x.left <= 3) lines.push(`- ${x.item.title} is ${x.left} days away; preparation may begin`);
   });
   space.pacts(chat.id)
     .filter(m => m.pact === space.PACT_OPEN)
-    .forEach(m => lines.push(`- 还欠着一个约定：${m.title}`));
+    .forEach(m => lines.push(`- An unfulfilled promise is outstanding: ${m.title}`));
   return lines.join('\n');
 }
 
@@ -51,12 +51,12 @@ export async function generatePlan(charId) {
 
   const system = fillTemplate(template('task.day-plan'), {
     charName: char.name || '该角色',
-    charPersona: char.persona || '（没写人设）',
+    charPersona: char.persona || '(no character card was written)',
     date,
     weekday: dayStore.weekdayOf(char),
     zone: clock.zoneLabel(clock.charZone(char)),
-    slots: dayStore.SLOTS.map(s => `${s.id} = ${s.label}（${s.from} 点到 ${s.to} 点）`).join('\n'),
-    constraints: cons ? `## 今天有这些绕不开的事\n${cons}` : '',
+    slots: dayStore.SLOTS.map(s => `${s.id} = ${s.label} (${s.from}:00 to ${s.to}:00)`).join('\n'),
+    constraints: cons ? `## Fixed commitments today\n${cons}` : '',
   });
 
   const out = await runJSONTask('day.plan', {

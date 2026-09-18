@@ -128,12 +128,12 @@ export function reschedule(charId) {
 }
 
 function gapText(ms) {
-  if (!ms || ms < 0) return '很久';
+  if (!ms || ms < 0) return 'a long time';
   const m = Math.round(ms / 60000);
-  if (m < 60) return `${Math.max(1, m)} 分钟`;
+  if (m < 60) return `${Math.max(1, m)} minutes`;
   const h = Math.round(m / 60);
-  if (h < 24) return `${h} 小时`;
-  return `${Math.round(h / 24)} 天`;
+  if (h < 24) return `${h} hours`;
+  return `${Math.round(h / 24)} days`;
 }
 
 // 这个角色现在能不能被发：有单人会话、没在生成、未读没堆满
@@ -168,7 +168,7 @@ export async function sendProactive(chatId, charId, { mood = false } = {}) {
 
   const raw = await runTextTask('chat.proactive', {
     system: system + '\n\n' + instruction,
-    user: '（没有新消息。现在由你主动开口。）',
+    user: '(No new messages. You are the one opening this time.)',
     key: `${mood ? 'emo' : 'proactive'}:${chat.id}:${char.id}`,
     maxTokens: 800,
   });

@@ -193,7 +193,7 @@ export function brief(charId, at = clock.now()) {
   const summary = SLOTS.map(s => {
     const list = items.filter(it => it.slot === s.id && it.state !== DROP);
     if (!list.length) return '';
-    return `${s.label}：${list.map(it => it.text + (it.state === DONE ? '（已完成）' : '')).join('；')}`;
+    return `${s.label}: ${list.map(it => it.text + (it.state === DONE ? '（已完成）' : '')).join('；')}`;
   }).filter(Boolean);
 
   const nowItems = items.filter(it => it.slot === cur.id && it.state === PLAN);

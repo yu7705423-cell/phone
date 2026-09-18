@@ -18,11 +18,11 @@ export const meta = {
 // 注入到 prompt 里的每一句都按 CLAUDE.md 第 14 条写：书面语、中性、祈使。
 // 这几句只陈述角色当前的状态，不带评价，也不替角色决定怎么表现。
 const luckLine = n => {
-  if (n >= 1.2) return '近期状态良好，情绪较为平稳。';
-  if (n >= 0.4) return '近期状态尚可。';
+  if (n >= 1.2) return 'You have been in good form lately, and fairly even-tempered.';
+  if (n >= 0.4) return 'You have been in reasonable form lately.';
   if (n > -0.4) return '';
-  if (n > -1.2) return '近期状态欠佳，耐心较平时短。';
-  return '近期状态持续不佳，较平时容易烦躁。';
+  if (n > -1.2) return 'You have been in poor form lately, with less patience than usual.';
+  return 'You have been in poor form for a while, and are more easily irritated than usual.';
 };
 
 export function build({ char }) {
@@ -30,17 +30,19 @@ export function build({ char }) {
   const b = day.brief(char.id);
   if (!b) return '';
 
-  const lines = [`今天是 ${b.date}，你所在时区当前为${b.slot.label}。`];
+  const lines = [`Today is ${b.date}. In your time zone it is currently ${b.slot.label}.`];
   if (b.summary.length) lines.push(...b.summary);
 
   const now = [];
-  if (b.nowItems.length) now.push(`当前时段的安排：${b.nowItems.join('；')}。`);
+  if (b.nowItems.length) now.push(`Planned for the current slot: ${b.nowItems.join('；')}。`);
   if (b.meal) now.push(b.meal + '。');
   if (b.event) {
     const tone = events.toneOf(b.event.tone);
-    now.push(`今天另外发生了一件事：${b.event.text}。`);
+    now.push(`One other thing happened today: ${b.event.text}。`);
     if (tone && tone.id !== 'plain') {
-      now.push(`该事件使你感到${tone.id === 'good' ? '愉快' : '不快'}。`);
+      now.push(tone.id === 'good'
+        ? 'It left you pleased.'
+        : 'It left you out of sorts.');
     }
   }
   if (now.length) lines.push('', ...now);
@@ -49,9 +51,12 @@ export function build({ char }) {
   if (luck) lines.push(luck);
 
   lines.push('',
-    '以上为你本人的安排，不是待办清单。聊到相关内容时再提及，不要在开始时复述全部安排。',
-    '安排可以更改，也可以临时取消，但不要当作从未安排过。',
-    '尚未到来的时段，你只知道打算做什么，不知道完成情况。');
+    'The above are your own plans, not a task list. Mention an item only when the'
+    + ' conversation touches it; do not recite the whole schedule at the start.',
+    'Plans may change, and may be cancelled on short notice, but do not treat them'
+    + ' as though they were never made.',
+    'For slots that have not yet arrived, you know what you intend to do, not how'
+    + ' it turned out.');
 
   return `\n\n[你今天]\n${lines.join('\n')}`;
 }

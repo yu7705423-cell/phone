@@ -26,13 +26,13 @@ export async function extract(chatId) {
   const existing = listFor(charId, chat.personaId);
 
   const dialogue = pending.map(m => {
-    const who = m.role === 'user' ? '用户' : (characters.get(m.authorId)?.name || '角色');
+    const who = m.role === 'user' ? 'User' : (characters.get(m.authorId)?.name || 'Character');
     return `${who}：${m.content}`;
   }).join('\n');
 
   const existingText = existing.length
-    ? existing.map(m => `(id:${m.id}) [${m.rank}/${CATEGORIES[m.category] || m.category}] ${m.content}`).join('\n')
-    : '（暂无已有记忆）';
+    ? existing.map(m => `(id:${m.id}) [${m.rank}/${m.category}] ${m.content}`).join('\n')
+    : '(no existing memories)';
 
   const system = fillTemplate(template('task.memory-extract'), {
     existing: existingText,

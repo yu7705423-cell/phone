@@ -49,7 +49,7 @@ function contextOf(char, personaId) {
   const mems = listFor(char.id, personaId)
     .filter(m => m.rank === 'S' || m.rank === 'A')
     .slice(0, 12).map(m => `- ${m.content}`).join('\n');
-  return [char.persona, mems ? `你记得的事：\n${mems}` : ''].filter(Boolean).join('\n\n');
+  return [char.persona, mems ? `What you remember:\n${mems}` : ''].filter(Boolean).join('\n\n');
 }
 
 // 真的去开一个。返回新角色和它的会话
@@ -60,7 +60,7 @@ export async function openAlt(charId, personaId = accounts.currentId()) {
 
   const system = fillTemplate(template('task.char-alt'), {
     charName: char.name, userName: me?.name || '对方',
-  }) + `\n\n## 你的设定\n${contextOf(char, personaId)}`;
+  }) + `\n\n## Your own settings\n${contextOf(char, personaId)}`;
 
   const r = await runJSONTask('char.alt', {
     system, key: `char-alt:${charId}:${Date.now()}`, maxTokens: 900,

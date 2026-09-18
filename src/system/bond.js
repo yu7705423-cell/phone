@@ -97,7 +97,7 @@ export async function refresh(charId, personaId, { force = false } = {}) {
     system: tpl.fillTemplate(engine.template('task.bond'), {
       events: rows.map(m => `- ${m.content}`).join('\n'),
     }),
-    user: '请按要求输出。',
+    user: 'Produce the output as instructed.',
     key: `bond:${charId}:${keyFor(personaId)}`,
     maxTokens: 400,
   }) || '').trim();

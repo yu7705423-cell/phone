@@ -224,7 +224,7 @@ function withQuote(m) {
   const src = m.quoteId ? messages.get(m.quoteId) : null;
   const q = String((src ? src.content : m.quoteText) || '').replace(/\s+/g, ' ').trim();
   if (!q) return m.content;
-  return `（回应前面那句「${q.length > 40 ? q.slice(0, 40) + '…' : q}」）${m.content}`;
+  return `(in reply to 「${q.length > 40 ? q.slice(0, 40) + '…' : q}」) ${m.content}`;
 }
 
 // 时间感知开着的时候，历史本身要是一条时间线。
@@ -408,7 +408,7 @@ export function streamCall({ chat, char, system, lines = [], opening = '', image
     let i = all.length - 1;
     while (i >= 0 && all[i].role !== 'user') i--;
     if (i >= 0) all[i] = { ...all[i], image };
-    else all.push({ role: 'user', content: '（这是我这边的画面）', image });
+    else all.push({ role: 'user', content: '(this is the view from my side)', image });
   }
 
   return enqueue(callKey(chat.id), signal => withFallback(c => send('chat.call', c,
@@ -477,7 +477,7 @@ async function describeCarried(pics) {
     try {
       const text = (await runTextTask('chat.vision-describe', {
         system: template('task.vision-describe'),
-        user: '请描述这张图片。',
+        user: 'Describe this image as instructed.',
         image: pic,
         key: `vision-carry:${msgId}`,
         maxTokens: 500,
@@ -498,7 +498,7 @@ export async function runJSONTask(taskId, { system, user, key, maxTokens = 1400 
   const raw = await enqueue(key || `task:${taskId}:${Date.now()}`, signal =>
     run(c => send(taskId, c, {
       system,
-      messages: [{ role: 'user', content: user || '请按要求输出 JSON。' }],
+      messages: [{ role: 'user', content: user || 'Produce the JSON as instructed.' }],
       maxTokens, signal,
     })), { retries: 1 });
 
@@ -514,7 +514,7 @@ export async function runJSONTask(taskId, { system, user, key, maxTokens = 1400 
 // image 是 { dataUrl, mediaType }，各 provider 自己转成内容块。
 export async function runTextTask(taskId, { system, user, key, image, maxTokens = 900 }) {
   const run = runnerFor(taskId);
-  const msg = { role: 'user', content: user || '请按要求输出。' };
+  const msg = { role: 'user', content: user || 'Produce the output as instructed.' };
   if (image) msg.image = image;
   return enqueue(key || `task:${taskId}:${Date.now()}`, signal =>
     run(c => send(taskId, c, { system, messages: [msg], maxTokens, signal })), { retries: 1 });
@@ -527,7 +527,7 @@ export async function runJSONWithPreset(preset, { system, user, key, maxTokens =
   if (!usable(c)) throw new Error('这套接口还没填全');
   const raw = await enqueue(key || `preset:${Date.now()}`, signal =>
     send('preset.json', c, {
-      system, messages: [{ role: 'user', content: user || '请按要求输出 JSON。' }],
+      system, messages: [{ role: 'user', content: user || 'Produce the JSON as instructed.' }],
       maxTokens, signal,
     }), { retries: 1 });
   const parsed = parseJSON(raw);

@@ -19,14 +19,17 @@ export function build({ chat }) {
   if (!s) return '';
 
   const lines = [];
-  const mine = s.me.place || '未命名的地点';
-  const hers = s.char.place || '未命名的地点';
-  lines.push(`对方在${mine}，你在${hers}。`);
+  const mine = s.me.place || 'an unnamed place';
+  const hers = s.char.place || 'an unnamed place';
+  lines.push(`The other party is at ${mine}; you are at ${hers}.`);
   if (s.text) {
-    lines.push(`两地直线距离 ${s.text}。`);
-    lines.push('该距离由系统计算得出。提及距离时照此书写，不要改写为其他数值，也不要自行估算。');
+    lines.push(`The straight-line distance between the two is ${s.text}.`);
+    lines.push('This distance was computed by the system. Write it exactly as given'
+      + ' when the distance comes up. Do not substitute another figure, and do not'
+      + ' estimate one yourself.');
   } else {
-    lines.push('当前只有地名，没有坐标，无法得出具体距离。不要给出一个具体数值。');
+    lines.push('Only place names are available, without coordinates, so no distance'
+      + ' can be determined. Do not state a specific figure.');
   }
   return `\n\n[你们隔多远]\n${lines.join('\n')}`;
 }

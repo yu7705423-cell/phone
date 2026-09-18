@@ -59,14 +59,14 @@ export const CAPS = [
     id: 'image',
     on: ({ char }) => isImageReady() && char.canSendImage !== false,
     hot: ({ msgs }) => usedRecently(msgs, /^image$|[[【](图片|照片)/),
-    line: () => '发送图片：单独写一行 [图片：画面的描述]',
+    line: () => 'Send an image: write a line on its own, [图片：a description of the image]',
     detail: () => template('skeleton.image'),
   },
   {
     id: 'voice',
     on: ({ char }) => isVoiceReady() && !!char.voiceId && char.canSendVoice !== false,
     hot: ({ msgs }) => usedRecently(msgs, /^voice$|[[【]语音/),
-    line: () => '发送语音：单独写一行 [语音：要说的内容]',
+    line: () => 'Send a voice message: write a line on its own, [语音：what you say]',
     detail: () => template('skeleton.voice'),
   },
   {
@@ -84,7 +84,8 @@ export const CAPS = [
     id: 'quote',
     on: ({ msgs }) => msgs.length >= 2,
     hot: ({ msgs }) => usedRecently(msgs, /[[【](引用|回复)/),
-    line: () => '引用：单独写一行 [引用：该句的一小段原文]，下一行写你要说的内容',
+    line: () => 'Quote: write a line on its own, [引用：a short excerpt of that message],'
+      + ' then what you want to say on the next line',
     detail: () => template('skeleton.quote'),
   },
   {
@@ -92,9 +93,12 @@ export const CAPS = [
     on: ({ char }) => char.canTransfer !== false,
     hot: ({ msgs }) => usedRecently(msgs, /^transfer$|[[【]转账/)
       || hasPending(msgs, 'transfer', 'transfer', TR_PENDING),
-    line: () => '转账：单独写一行 [转账：金额 留言]；收到转账时写 [收款] 或 [退回]',
+    line: () => 'Send money: write a line on its own, [转账：amount note];'
+      + ' on receiving money, write [收款] or [退回]',
     detail: () => fillTemplate(template('skeleton.transfer'), {
-      currency: currency.label() ? `\n这段对话里的钱是${currency.label()}，按这个量级写金额。` : '',
+      currency: currency.label()
+        ? `\nMoney in this conversation is ${currency.label()}; write amounts on that scale.`
+        : '',
     }),
   },
   {
@@ -102,7 +106,8 @@ export const CAPS = [
     on: ({ char }) => char.canSendGift !== false,
     hot: ({ msgs }) => usedRecently(msgs, /^gift$|[[【]礼物/)
       || hasPending(msgs, 'gift', 'gift', GIFT_PENDING),
-    line: () => '送礼物：单独写一行 [礼物：封面名称 | 实际内容]；收到礼物时写 [拆开] 或 [拒收]',
+    line: () => 'Give a gift: write a line on its own, [礼物：cover name | what is inside];'
+      + ' on receiving one, write [拆开] or [拒收]',
     detail: () => template('skeleton.gift'),
   },
   {
@@ -112,23 +117,24 @@ export const CAPS = [
     // 正在一起听就必须是热的：那三条「别当鉴赏课」的规矩是这个功能的全部要害
     hot: ({ chat, msgs }) => (listen.get().active && listen.get().chatId === chat.id)
       || usedRecently(msgs, /^listen$|[[【](一起听|点歌|建歌单)/),
-    line: () => '一起听歌：单独写一行 [一起听]；中途换歌写 [点歌：歌名]',
+    line: () => 'Listen together: write a line on its own, [一起听];'
+      + ' to change the track, write [点歌：song title]',
     detail: () => template('skeleton.listen'),
   },
   {
     id: 'ring',
     on: ({ char }) => char.canCall !== false,
     hot: ({ msgs }) => usedRecently(msgs, /^call$|[[【](视频)?(去电|来电)/),
-    line: () => '通话：单独写一行 [去电]；需要画面时写 [视频去电]',
+    line: () => 'Call: write a line on its own, [去电]; for video, write [视频去电]',
     detail: () => template('skeleton.ring'),
   },
   {
     id: 'location',
     on: ({ char }) => char.canSendLocation !== false,
     hot: ({ msgs }) => usedRecently(msgs, /^location$|[[【](位置|定位)/),
-    line: () => '共享位置：单独写一行 [位置：地点名 地址]',
+    line: () => 'Share your location: write a line on its own, [位置：place name, address]',
     detail: ({ char }) => fillTemplate(template('skeleton.location'), {
-      city: char.timezone ? `（你在${clock.zoneLabel(char.timezone)}）` : '',
+      city: char.timezone ? ` (you are in ${clock.zoneLabel(char.timezone)})` : '',
     }),
   },
   {
@@ -137,14 +143,15 @@ export const CAPS = [
     // 还欠着约定就必须是热的：它得知道「完成」怎么写，才标得掉
     hot: ({ msgs }) => usedRecently(msgs, /^pact$|[[【]约定/)
       || hasPending(msgs, 'pact', 'pact', PACT_OPEN),
-    line: () => '立约定：单独写一行 [约定：该事项]；完成时写 [约定完成：该事项]',
+    line: () => 'Make a promise: write a line on its own, [约定：the thing];'
+      + ' when it is fulfilled, write [约定完成：the thing]',
     detail: () => template('skeleton.pact'),
   },
   {
     id: 'letter',
     on: ({ char }) => char.canWriteLetter !== false,
     hot: ({ msgs }) => usedRecently(msgs, /^letter$|[[【]信[:：]/),
-    line: () => '写信：单独写一行 [信：抬头 | 正文]',
+    line: () => 'Write a letter: write a line on its own, [信：salutation | body]',
     detail: () => template('skeleton.letter'),
   },
   {
@@ -169,22 +176,23 @@ export const CAPS = [
     // 挂着一单没处理的就必须是热的：它得知道「收下」「不要」怎么写
     hot: ({ msgs }) => usedRecently(msgs, /^takeout$|[[【](外卖|请客|代付)/)
       || hasPending(msgs, 'takeout', 'takeout', MEAL_PENDING),
-    line: () => '点外卖：[外卖：品名 金额] 给自己，[请客：…] 给对方，'
-      + '[代付：…] 由对方付；对方点来的写 [要了] 或 [不要]',
+    line: () => 'Order delivery: [外卖：item amount] for yourself, [请客：…] for them,'
+      + ' [代付：…] paid by them; for an order they placed, write [要了] or [不要]',
     detail: () => template('skeleton.takeout'),
   },
   {
     id: 'pat',
     on: ({ char }) => char.canPat !== false,
     hot: ({ msgs }) => usedRecently(msgs, /拍了拍|[[【]拍/),
-    line: () => '拍一拍：单独写一行 [拍一拍]',
+    line: () => 'Nudge: write a line on its own, [拍一拍]',
     detail: () => template('skeleton.pat'),
   },
   {
     id: 'dice',
     on: ({ char }) => char.canDice !== false,
     hot: ({ msgs }) => usedRecently(msgs, /^dice$|[[【]骰子/),
-    line: () => '掷骰子：单独写一行 [骰子]，点数由系统掷出，本轮不可知',
+    line: () => 'Roll a die: write a line on its own, [骰子]; the system rolls it,'
+      + ' and the result is not knowable this turn',
     detail: () => template('skeleton.dice'),
   },
   {
@@ -192,7 +200,8 @@ export const CAPS = [
     // 库是空的就没什么可换，提了反而让它点一张不存在的
     on: ({ char }) => !!avatarLib.poolNames(char),
     hot: ({ msgs }) => usedRecently(msgs, /[[【]换头像/),
-    line: ({ char }) => `换头像：单独写一行 [换头像：名称]，可选：${avatarLib.poolNames(char)}`,
+    line: ({ char }) => 'Change your avatar: write a line on its own, [换头像：name].'
+      + ` Available: ${avatarLib.poolNames(char)}`,
     detail: ({ char }) => fillTemplate(template('skeleton.avatar'), { names: avatarLib.poolNames(char) }),
   },
   {

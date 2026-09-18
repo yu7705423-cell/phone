@@ -46,7 +46,7 @@ export async function parse(raw, { charId = null, personaId = accounts.currentId
   if (!parts.length) throw new Error('没有可整理的内容');
 
   const known = listFor(charId, personaId);
-  const existing = known.slice(0, 40).map(m => `- ${m.content}`).join('\n') || '（暂无）';
+  const existing = known.slice(0, 40).map(m => `- ${m.content}`).join('\n') || '(none)';
   const seen = new Set(known.map(m => norm(m.content)));
   const out = [];
 

@@ -19,7 +19,7 @@ export const user = {
   build({ persona }) {
     if (!persona) return '';
     const bits = [];
-    if (persona.name) bits.push(`昵称：${persona.name}`);
+    if (persona.name) bits.push(`Name: ${persona.name}`);
     if (persona.description) bits.push(persona.description.trim());
     let out = bits.length ? `\n\n[对方是谁]\n${bits.join('\n')}` : '';
 
@@ -28,7 +28,7 @@ export const user = {
     // 角色自己的记忆照常带着 —— 就像真人认识新朋友：自己的过去都在，
     // 只是对眼前这个人一片空白。
     if (isAlt(persona.id)) {
-      out += '\n\n[你和这个人的关系]\n你们刚刚认识，尚不熟悉。';
+      out += '\n\n[你和这个人的关系]\nYou have only just met. You do not know each other well.';
     }
     return out;
   },
@@ -56,8 +56,8 @@ export const time = {
     // 只给钟点，不替它认领一个地方。
     const named = !!(char && char.timezone);
     const lines = [named
-      ? `你在${clock.zoneLabel(cz)}，现在是 ${clock.format(n, cz)}。`
-      : `现在是 ${clock.format(n, cz)}。`];
+      ? `You are in ${clock.zoneLabel(cz)}. It is now ${clock.format(n, cz)}.`
+      : `It is now ${clock.format(n, cz)}.`];
 
     // 两人不在一个时区才说时差。同城还唠叨一句反而是噪音。
     //
@@ -65,8 +65,8 @@ export const time = {
     // 先后，两种读法方向正好相反。两边的钟点都写出来，方向自明。
     const d = clock.zoneDiff(cz, uz, n);
     if (d !== 0) {
-      lines.push(`对方在${clock.zoneLabel(uz)}，那边现在是 ${clock.clockOnly(n, uz)}，`
-        + `与你相差 ${clock.diffText(d)}。`);
+      lines.push(`The other party is in ${clock.zoneLabel(uz)}, where it is now `
+        + `${clock.clockOnly(n, uz)}, ${clock.diffText(d)} from your own clock.`);
     }
 
     const last = lastBeforeThisTurn(messages);

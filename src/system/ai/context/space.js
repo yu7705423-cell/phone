@@ -14,7 +14,7 @@ export const meta = {
 };
 
 const dayText = ({ item, left }) =>
-  left === 0 ? `今天是${item.title}` : `还有 ${left} 天是${item.title}`;
+  left === 0 ? `Today is ${item.title}` : `${item.title} is ${left} days away`;
 
 export function build({ chat }) {
   if (!chat) return '';
@@ -22,13 +22,14 @@ export function build({ chat }) {
   if (!s) return '';
 
   const lines = [];
-  if (s.days) lines.push(`你们在一起第 ${s.days} 天。`);
-  s.soon.forEach(x => lines.push(dayText(x) + '。'));
+  if (s.days) lines.push(`This is day ${s.days} of your relationship.`);
+  s.soon.forEach(x => lines.push(dayText(x) + '.'));
   if (s.open.length) {
-    lines.push(`还没完成的约定：${s.open.join('；')}。`);
+    lines.push(`Promises not yet fulfilled: ${s.open.join('；')}。`);
   }
   if (!lines.length) return '';
 
-  lines.push('以上为你们之间的事项。聊到相关内容时再提及，不必每轮都说。');
+  lines.push('The above concerns the two of you. Mention an item only when the'
+    + ' conversation touches it; there is no need to raise it every turn.');
   return `\n\n[你们之间]\n${lines.join('\n')}`;
 }

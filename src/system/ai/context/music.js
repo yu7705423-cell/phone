@@ -31,14 +31,17 @@ export function build({ char }) {
       : got.songs;
     if (!fresh.length) return '';
     const [now, ...rest] = fresh;
-    let out = `\n\n[你在听的歌]\n最近一首：${line(now)}`;
-    if (rest.length) out += `\n此前依次为：${rest.map(line).join('；')}`;
-    return out + '\n以上为你本人的播放记录。被问及时照此回答，不要换成其他曲目。';
+    let out = `\n\n[你在听的歌]\nMost recent track: ${line(now)}`;
+    if (rest.length) out += `\nBefore that, in order: ${rest.map(line).join('；')}`;
+    return out + '\nThe above is your own listening history. Answer from it when asked,'
+      + ' and do not substitute other tracks.';
   }
 
-  return `\n\n[你在听的歌]\n最近常听：${got.songs.map(line).join('；')}`
-    + '\n以上为你本人的播放记录。被问及时照此回答，不要换成其他曲目。'
-    + '\n该记录不含时间，不要表述为「正在听」。';
+  return `\n\n[你在听的歌]\nFrequently played lately: ${got.songs.map(line).join('；')}`
+    + '\nThe above is your own listening history. Answer from it when asked,'
+    + ' and do not substitute other tracks.'
+    + '\nThe history carries no timestamps; do not describe it as what you are'
+    + ' playing right now.';
 }
 
 export const meta = {

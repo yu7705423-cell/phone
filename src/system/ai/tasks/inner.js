@@ -22,7 +22,7 @@ export async function generate(chatId, lines) {
 
   const system = fillTemplate(template('task.inner'), {
     charName: char.name || '该角色',
-    charPersona: char.persona || '（没写人设）',
+    charPersona: char.persona || '(no character card was written)',
   });
 
   const text = await runTextTask('inner.voice', {

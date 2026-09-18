@@ -47,7 +47,7 @@ export async function generateCell({ domain, tone, rarity = 'common', count }) {
     tone: t.label, toneHint: t.hint,
     rarity: r.label, rarityHint: r.hint,
     count: n,
-    existing: existingFor(domain, tone) || '（这一格还是空的）',
+    existing: existingFor(domain, tone) || '(this category is still empty)',
   });
 
   const out = await runJSONTask('event.batch', {

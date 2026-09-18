@@ -23,16 +23,19 @@ export function build() {
   const c = watchStore.context();
   if (!c) return '';
 
-  const lines = [`你正在和对方一起看《${c.title}》。`];
+  const lines = [`You are watching 《${c.title}》 together with the other party.`];
   lines.push(c.duration
-    ? `当前进度 ${c.stamp}，全片 ${subtitle.stamp(c.duration)}。`
-    : `当前进度 ${c.stamp}。`);
-  if (c.away) lines.push('对方暂时离开了播放页面，画面已暂停，进度停在上述时刻。');
-  else if (!c.playing) lines.push('画面此刻是暂停的。');
+    ? `Current position ${c.stamp}, of a total running time of ${subtitle.stamp(c.duration)}.`
+    : `Current position ${c.stamp}.`);
+  if (c.away) {
+    lines.push('The other party has stepped away from the playback page. Playback is'
+      + ' paused and the position is held at the moment given above.');
+  } else if (!c.playing) lines.push('Playback is paused at this moment.');
 
   lines.push(c.seen
-    ? '你以前看过这部片，知道后面会发生什么，但不要说破。'
-    : '你是第一次看这部片，只知道到目前为止演了什么，不要说出尚未发生的情节。');
+    ? 'You have seen this film before and know what is coming, but do not give it away.'
+    : 'You are watching this film for the first time. You know only what has played so'
+      + ' far; do not mention anything that has not yet happened.');
 
   if (c.outline.length) {
     lines.push('', '[到目前为止的剧情]');
@@ -43,18 +46,22 @@ export function build() {
     lines.push('', '[刚刚的台词]');
     c.recent.forEach(t => lines.push(t));
   } else if (!c.hasLines) {
-    lines.push('', '这部片没有字幕，你听不到台词，只知道进度。不要编造剧情。');
+    lines.push('', 'This film has no subtitles. You cannot hear the dialogue and know'
+      + ' only the position. Do not invent plot.');
   }
 
   lines.push('');
   lines.push(c.talky
-    ? '这一段台词密集，正在演对手戏。此时少说或不说，不要盖过正在进行的对白。'
+    ? 'Dialogue is dense here: a scene between characters is playing. Say little or'
+      + ' nothing, and do not talk over the exchange in progress.'
     : c.quiet
-      ? '这一段没有台词。此时可以开口。'
-      : '这一段台词不密。可以说一两句。');
-  lines.push('说的是看片时的即时反应：对刚才那句台词、对人物、对正在发生的事。'
-    + '不复述剧情，不解说，不总结。');
-  lines.push('需要暂停、继续或倒回时，按[一起看]中给出的写法单独写一行。');
+      ? 'There is no dialogue here. This is a moment to speak.'
+      : 'Dialogue is sparse here. One or two lines are appropriate.');
+  lines.push('Speak as one does while watching: react to the line just spoken, to a'
+    + ' character, to what is happening now. Do not recap the plot, do not explain it,'
+    + ' and do not summarise it.');
+  lines.push('To pause, resume, or go back, write a line on its own in the form given'
+    + ' under [一起看].');
 
   return `\n\n[你们正在看]\n${lines.join('\n')}`;
 }

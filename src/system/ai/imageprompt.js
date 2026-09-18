@@ -51,7 +51,7 @@ export async function ensureFaceDesc(char) {
     // 交给聊天模型那一档：它自己能看图，用同一条路
     text = await runTextTask('chat.face-describe', {
       system: template('task.face-describe'),
-      user: '请描述这个人的长相。',
+      user: 'Describe this person as instructed.',
       image: { dataUrl, mediaType: blob.type || 'image/png' },
       key: `face:${char.id}`, maxTokens: 400,
     });
@@ -64,7 +64,7 @@ export async function ensureFaceDesc(char) {
 // 拼最终提示词。face 是已经拿到的那段外貌描述，没有就不拼。
 export function compose({ prompt, char, face = '' }) {
   const parts = [String(prompt || '').trim()];
-  if (face) parts.push(`画面里这个人的长相：${face}`);
+  if (face) parts.push(`The appearance of the person in frame: ${face}`);
   const own = String(char?.imagePrompt || '').trim();
   if (own) parts.push(own);
   const global = String(settings.get().imagePrompt || '').trim();

@@ -41,7 +41,7 @@ export async function makeCore(persona) {
   if (!text) return '';
   const system = fillTemplate(template('task.core'), { persona: text.slice(0, 6000) });
   const out = await runTextTask('card.core', {
-    system, user: '请按要求输出。', key: `card-core:${Date.now()}`, maxTokens: 400,
+    system, user: 'Produce the output as instructed.', key: `card-core:${Date.now()}`, maxTokens: 400,
   });
   return str(out).slice(0, 400);
 }
@@ -108,9 +108,9 @@ export async function generateNpcs(charId, count = 4, { signal } = {}) {
 
   const system = fillTemplate(template('task.npc-batch'), {
     charName: char.name,
-    charPersona: char.persona || '（没写人设）',
+    charPersona: char.persona || '(no character card was written)',
     count: Math.max(1, Math.round(count) || 1),
-    existing: known ? `## 该角色身边已有这些人，不要重复\n${known}` : '',
+    existing: known ? `## These people already exist around the character. Do not repeat them\n${known}` : '',
   });
 
   const r = await runJSONTask('card.npc', {

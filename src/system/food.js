@@ -162,6 +162,6 @@ export function eat({ charId, meal, at = 0, rng } = {}) {
 export function mealText(row) {
   if (!row) return '';
   const m = mealOf(row.meal);
-  const head = m ? m.label : '这一顿';
-  return row.place ? `${head}吃了${row.name}（${row.place}）` : `${head}吃了${row.name}`;
+  const head = m ? m.label : 'This meal';
+  return row.place ? `${head}: ${row.name}（${row.place}）` : `${head}: ${row.name}`;
 }

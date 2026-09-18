@@ -127,8 +127,8 @@ export function diffText(minutes) {
   const n = Math.abs(minutes);
   const h = Math.floor(n / 60);
   const m = n % 60;
-  if (!h) return `${m} 分钟`;
-  return m ? `${h} 小时 ${m} 分钟` : `${h} 小时`;
+  if (!h) return `${m} minutes`;
+  return m ? `${h} hours ${m} minutes` : `${h} hours`;
 }
 
 export function userZone() { return settings.get().timeZoneUser || LOCAL; }
@@ -145,8 +145,8 @@ export function charZone(char) { return (char && char.timezone) || userZone(); }
  */
 export function gapText(sinceMs) {
   const min = Math.floor((Date.now() - sinceMs) / 60000);
-  if (min < 5) return '你们正在聊。';
-  if (min < 60) return `距离上一次说话过去了 ${min} 分钟。`;
-  if (min < 1440) return `距离上一次说话过去了 ${Math.floor(min / 60)} 小时。`;
-  return `距离上一次说话过去了 ${Math.floor(min / 1440)} 天。`;
+  if (min < 5) return 'The two of you are mid-conversation.';
+  if (min < 60) return `${min} minutes have passed since either of you last spoke.`;
+  if (min < 1440) return `${Math.floor(min / 60)} hours have passed since either of you last spoke.`;
+  return `${Math.floor(min / 1440)} days have passed since either of you last spoke.`;
 }
