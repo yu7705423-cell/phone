@@ -700,19 +700,15 @@ export function Conversation({ chatId, focusId = '' }) {
     setPicked(null);
   };
 
+  // 「清空聊天记录」「清空记忆」都在角色卡的「清除数据」里，菜单上面那一行
+  // 进得去。同一件事只留一个入口（CLAUDE.md 第 5 条），而那两件事本来就该
+  // 挨在一起选。这一页留的是消息这一级的：挑几条删掉。
   const summarize = async () => {
     setMenu(false);
     try {
       const r = await ai.memory.extract(chatId);
       toast(r.added + r.updated ? `新增 ${r.added} 条，更新 ${r.updated} 条` : '没有需要记录的新信息');
     } catch (err) { toast(String(err.message || err), 'error', 4000); }
-  };
-
-  const clearHistory = async () => {
-    setMenu(false);
-    if (!await confirm({ title: '清空聊天记录', message: '已提取的记忆不会被删除。', danger: true })) return;
-    db.messages.removeWhere(m => m.chatId === chatId);
-    db.chats.update(chatId, { memoryUpTo: null, summary: '' });
   };
 
   const pending = ai.memory.pendingOf(chatId).length;
@@ -998,8 +994,6 @@ export function Conversation({ chatId, focusId = '' }) {
           <${ListItem} title="多选消息" subtitle="选择多条消息后一并删除。长按任意消息亦可进入" arrow multiline
             left=${html`<${Icon} name="check" size=${18}/>`}
             onClick=${() => { setMenu(false); setPicked([]); setPanel(null); }}/>
-          <${ListItem} title="清空聊天记录" danger arrow
-            left=${html`<${Icon} name="trash" size=${18}/>`} onClick=${clearHistory}/>
         <//>
       <//>
     <//>`;

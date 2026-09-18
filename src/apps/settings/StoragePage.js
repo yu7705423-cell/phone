@@ -8,23 +8,6 @@ export const fmtBytes = b => b < 1024 ? `${b} B`
   : b < 1048576 ? `${(b / 1024).toFixed(1)} KB`
   : `${(b / 1048576).toFixed(1)} MB`;
 
-function collectUsedImageIds() {
-  const used = new Set();
-  const add = id => id && used.add(id);
-  db.characters.all().forEach(c => { add(c.avatar); add(c.cover); });
-  db.moments.all().forEach(m => (m.images || []).forEach(add));
-  db.personas.all().forEach(p => { add(p.avatar); add(p.cover); });
-  const w = db.layout.get().wallpaper || {}; add(w.home); add(w.lock);
-  Object.values(db.settings.get().appIcons || {}).forEach(v => add(v?.imageId));
-  (db.layout.get().pages || []).forEach(p =>
-    (p.cells || []).forEach(c => add(c.config?.imageId)));
-  db.stickers.all().forEach(st => add(st.imageId));
-  // 外观预设里的图也算有引用，否则一清理存好的预设就成了空壳
-  phone.looks.allImageIds().forEach(add);
-  // 字体存在 files 域，不在这一批里，删字体走「主题」那边
-  return used;
-}
-
 export function StoragePage() {
   useStore(db.characters.store);
   useStore(db.moments.store);
@@ -88,9 +71,11 @@ export function StoragePage() {
     } finally { setBusy(false); setWork(null); }
   };
 
+  // 「谁还引用着图片」这张单子在 system/purge.js。从前写在这里，
+  // 漏掉了聊天记录里的图、通话背景、脸部参考与头像池 —— 按那张单子清一遍
+  // 会把它们全删了。这种单子必须和存图的地方放在一起维护。
   const cleanOrphans = async () => {
-    const used = collectUsedImageIds();
-    const orphans = db.images.ids().filter(id => !used.has(id));
+    const orphans = phone.purge.orphanImageIds();
     if (!orphans.length) { toast('没有需要清理的图片'); return; }
     if (!await confirm({ title: '清理无引用图片', message: `将删除 ${orphans.length} 张未被引用的图片。`, danger: true })) return;
     await Promise.all(orphans.map(id => db.images.remove(id)));

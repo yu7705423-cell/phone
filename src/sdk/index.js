@@ -63,6 +63,7 @@ import * as eventBatch from '../system/ai/tasks/event-batch.js';
 import * as musicApi from '../system/music.js';
 import * as listenApi from '../system/listen.js';
 import * as neteaseApi from '../system/netease.js';
+import * as purgeApi from '../system/purge.js';
 import * as playerApi from '../system/player.js';
 import * as videoApi from '../system/video.js';
 import * as watchApi from '../system/watch.js';
@@ -196,6 +197,7 @@ export const phone = {
   music: musicApi,
   listen: listenApi,
   netease: neteaseApi,
+  purge: purgeApi,
   player: playerApi,
   video: videoApi,
   watch: watchApi,
