@@ -1,5 +1,6 @@
 import { videos, files } from './db/index.js';
 import * as subtitle from './subtitle.js';
+import * as mp4subs from './mp4subs.js';
 
 // 片库。和曲库（music.js）同一套：片子要么是一个地址，要么是一个存在本机的
 // 文件，不做「只有片名」的虚拟片 —— 一起看要真的有东西在放，进度才有意义。
@@ -116,6 +117,30 @@ export function linesOf(video) {
 export function outlineSoFar(video, sec) {
   const all = Array.isArray(video?.outline) ? video.outline : [];
   return all.filter(seg => Number(seg.from) <= sec + 1);
+}
+
+/**
+ * 从片子自己带的字幕轨里读一份出来，写成 SRT 交回去。
+ *
+ * **只对 MP4 有用**，而且只对本机上传的文件：填地址那种拿不到文件本身，
+ * MKV 浏览器本来也播不了。读不到给 null —— 多数片子就是没有内封字幕，
+ * 这不算出错，界面上不必报红。
+ *
+ * 写不写进片库由调用方决定：编辑表里那一份是草稿，要用户按了保存才算数。
+ */
+export async function subtitleFromFile(blob) {
+  if (!blob) return null;
+  const tracks = await mp4subs.extract(blob);
+  if (!tracks.length) return null;
+  // 有好几轨就取句数最多的那一轨：双语轨里通常它才是正片台词
+  const best = tracks.slice().sort((a, b) => b.lines.length - a.lines.length)[0];
+  return {
+    srt: mp4subs.toSrt(best.lines),
+    lines: best.lines.length,
+    tracks: tracks.length,
+    lang: best.lang,
+    format: best.format,
+  };
 }
 
 /** 片库里这一部有没有可用的字幕。界面上要据此提示。 */

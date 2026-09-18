@@ -28,6 +28,21 @@ function EditSheet({ open, row, onClose }) {
   const [f, setForm] = useState(init);
   useEffect(() => { if (open) setForm(init()); }, [open, row?.id]);
   const set = patch => setForm({ ...f, ...patch });
+  const [reading, setReading] = useState(false);
+
+  // 片库里已经有的那一部，随时可以再读一次（比如当初传的时候版本不对）
+  const readEmbedded = async () => {
+    setReading(true);
+    try {
+      const blob = await db.files.blob(f.fileId);
+      if (!blob) throw new Error('找不到这个视频文件');
+      const got = await video.subtitleFromFile(blob);
+      if (!got) { toast('这个视频里没有可读的字幕轨'); return; }
+      set({ subtitle: got.srt });
+      toast(`已读出 ${got.lines} 句${got.tracks > 1 ? `，共 ${got.tracks} 轨` : ''}`, 'ok');
+    } catch (err) { toast(String(err.message || err), 'error', 4000); }
+    finally { setReading(false); }
+  };
 
   const pickFile = async e => {
     const file = e.target.files?.[0];
@@ -35,10 +50,19 @@ function EditSheet({ open, row, onClose }) {
     if (!file) return;
     try {
       const id = await db.files.put(file, { name: file.name, type: file.type || 'video/mp4' });
-      set({
+      const next = {
         fileId: id, name: file.name, url: '',
         title: f.title.trim() || file.name.replace(/\.[^.]+$/, ''),
-      });
+      };
+      // 片子自己带字幕的话就不必再去找一份。读不到是常事，不吭声。
+      if (!f.subtitle.trim()) {
+        const got = await video.subtitleFromFile(file).catch(() => null);
+        if (got) {
+          next.subtitle = got.srt;
+          toast(`已从视频中读出 ${got.lines} 句字幕`, 'ok');
+        }
+      }
+      set(next);
     } catch (err) { toast('视频存不下：' + (err.message || err), 'error'); }
   };
 
@@ -87,13 +111,17 @@ function EditSheet({ open, row, onClose }) {
 
       <${Field} label="字幕"
         desc=${`支持 SRT、ASS 与 WebVTT。${count ? `当前已识别 ${count} 句。` : ''}`
-          + '角色看不到画面，台词是它唯一能读到的内容。没有字幕时它只知道进度。'}>
+          + '上传 MP4 时会自动读取其内封字幕轨，读不到则需自行导入。'
+          + '角色看不到画面，台词是它唯一能读到的内容。'}>
         <${Textarea} rows=${6} value=${f.subtitle}
           placeholder=${'1\n00:00:12,000 --> 00:00:14,500\n第一句'}
           onInput=${v => set({ subtitle: v })}/>
-        <div class="pad-t">
+        <div class="pad-t wg-edit-cover">
           <${Button} size="sm" variant="ghost" icon="upload"
             onClick=${() => subRef.current?.click()}>导入字幕文件<//>
+          ${f.fileId ? html`
+            <${Button} size="sm" variant="ghost" icon="film" disabled=${reading}
+              onClick=${readEmbedded}>${reading ? '读取中' : '从视频中读取'}<//>` : null}
         </div>
         <input type="file" accept=".srt,.ass,.ssa,.vtt,.txt,text/plain" ref=${subRef}
           onChange=${pickSub} style="display:none"/>
