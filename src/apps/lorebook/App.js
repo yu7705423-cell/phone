@@ -1,15 +1,22 @@
 import { html, useState } from '../../lib.js';
 import { phone, useStore } from '../../sdk/index.js';
 import { Page, List, ListItem, Button, Icon, Field, Input, Textarea, Switch,
-         Segmented, EmptyState, toast, confirm, prompt } from '../../ui/index.js';
+         Segmented, NumberInput, EmptyState, toast, confirm, prompt } from '../../ui/index.js';
 
 const { db, nav, ai } = phone;
 
-const POSITIONS = [
-  { value: 'system', label: '设定区' },
-  { value: 'beforeChat', label: '对话前' },
-  { value: 'afterChat', label: '对话后' },
+const PARTS = [
+  { value: 'before', label: '角色前' },
+  { value: 'after', label: '角色后' },
 ];
+
+const partOf = e => (e?.part === 'after' ? 'after' : 'before');
+const depthOf = e => Math.max(0, Math.round(Number(e?.depth) || 0));
+
+// 一句话说清这一条会落在哪儿。列表和总览都用它
+const placeText = e => (depthOf(e) === 0
+  ? `设定区 · ${partOf(e) === 'before' ? '角色前' : '角色后'}`
+  : `对话中 · 倒数第 ${depthOf(e)} 条之前`);
 
 function BookList() {
   useStore(db.lorebooks.store);
@@ -38,8 +45,12 @@ function BookList() {
           action=${html`<${Button} size="sm" onClick=${add} icon="plus">新建世界书<//>`}/>`}
 
       <div class="pad-x pad-b">
-        <${Button} full variant="ghost" icon="eye"
-          onClick=${() => nav.push('/preview')}>激活预览<//>
+        <${Button} full variant="ghost" icon="layers"
+          onClick=${() => nav.push('/map')}>注入位置总览<//>
+        <div class="pad-t">
+          <${Button} full variant="ghost" icon="eye"
+            onClick=${() => nav.push('/preview')}>激活预览<//>
+        </div>
       </div>
     <//>`;
 }
@@ -57,7 +68,7 @@ function BookPage({ id }) {
     const e = {
       id: phone.uid('e'), comment: '', keys: [], secondaryKeys: [], content: '',
       enabled: true, constant: false, priority: 100, order: 0,
-      position: 'system', caseSensitive: false, probability: 100,
+      part: 'before', depth: 0, caseSensitive: false, probability: 100,
     };
     db.lorebooks.update(id, b => ({ entries: [...b.entries, e] }));
     nav.push(`/entry/${id}/${e.id}`);
@@ -87,7 +98,8 @@ function BookPage({ id }) {
         ${(book.entries || []).map(e => html`
           <${ListItem} key=${e.id}
             title=${e.comment || e.content.slice(0, 18) || '未命名条目'}
-            subtitle=${e.constant ? '常驻' : (e.keys.length ? `关键词：${e.keys.join('、')}` : '未填写关键词，不会触发')}
+            subtitle=${`${e.constant ? '常驻' : (e.keys.length ? `关键词：${e.keys.join('、')}` : '未填写关键词，不会触发')} · ${placeText(e)}`}
+            multiline
             arrow
             left=${html`<${Switch} checked=${e.enabled}
               onChange=${v => patchEntry(e.id, { enabled: v })}/>`}
@@ -142,10 +154,21 @@ function EntryPage({ bookId, entryId }) {
             onInput=${v => patch({ secondaryKeys: v.split(/[,，]/).map(s => s.trim()).filter(Boolean) })}/>
         <//>
 
-        <${Field} label="插入位置">
-          <${Segmented} value=${entry.position} items=${POSITIONS}
-            onChange=${v => patch({ position: v })}/>
+        <${Field} label="所属部分"
+          desc="决定该条目位于角色卡之前还是之后。世界观、时代背景一类置于角色前；角色在该世界中的处境一类置于角色后。">
+          <${Segmented} value=${partOf(entry)} items=${PARTS}
+            onChange=${v => patch({ part: v })}/>
         <//>
+
+        <${Field} label="注入深度"
+          desc=${`填 0 表示留在设定区，位于${partOf(entry) === 'before' ? '角色卡之前' : '角色卡之后'}。`
+            + '填 N（N ≥ 1）表示从设定区取出，插入对话历史中倒数第 N 条消息之前。'
+            + '数值越小越接近当前对话，模型越不容易忽略；代价是每轮都占据靠近末尾的位置。'
+            + '深度超过现有消息条数时，落在对话最前面。'}>
+          <${NumberInput} value=${depthOf(entry)} min=${0} unit="条"
+            onChange=${v => patch({ depth: Math.max(0, Math.round(v) || 0) })}/>
+        <//>
+        <div class="field-desc pad-x">当前位置：${placeText(entry)}</div>
 
         <${Field} label=${`优先级　${entry.priority}`} desc="注入预算不足时，从低优先级开始丢弃。">
           <input type="range" min="0" max="400" step="10" value=${entry.priority}
@@ -217,11 +240,89 @@ function PreviewPage() {
     <//>`;
 }
 
+// 「这一堆条目到底按什么顺序、落在哪儿」—— 没有这一页只能对着代码数。
+// 和激活预览不同：预览看的是「这段话会命中谁」，这一页看的是
+// **全部条目的位置**，命不命中都列出来。
+function MapPage() {
+  useStore(db.lorebooks.store);
+  useStore(db.characters.store);
+  const chars = db.characters.all();
+  const [charId, setCharId] = useState(chars[0]?.id || '');
+  const char = db.characters.get(charId);
+  const attached = new Set(char?.lorebookIds || []);
+
+  const all = [];
+  for (const b of db.lorebooks.all()) {
+    const applies = b.global || attached.has(b.id);
+    for (const e of (b.entries || [])) {
+      all.push({ ...e, bookName: b.name, bookId: b.id, applies });
+    }
+  }
+  all.sort(ai.lore.compare);
+
+  // 分组的顺序就是注入的顺序
+  const groups = [
+    { key: 'before', title: '设定区 · 角色卡之前',
+      desc: '位于角色人设之前。适合世界观、时代背景一类先于角色存在的设定。',
+      rows: all.filter(e => depthOf(e) === 0 && partOf(e) === 'before') },
+    { key: 'after', title: '设定区 · 角色卡之后',
+      desc: '位于角色人设之后。适合角色在该世界中的处境、关系一类依附于角色的设定。',
+      rows: all.filter(e => depthOf(e) === 0 && partOf(e) === 'after') },
+  ];
+  const depths = [...new Set(all.filter(e => depthOf(e) > 0).map(depthOf))].sort((a, b) => b - a);
+  for (const d of depths) {
+    groups.push({
+      key: `d${d}`, title: `对话中 · 倒数第 ${d} 条之前`,
+      desc: '以 system 身份插入对话历史。越接近末尾，模型越不容易忽略。',
+      rows: all.filter(e => depthOf(e) === d),
+    });
+  }
+
+  const row = e => html`
+    <${ListItem} key=${`${e.bookId}-${e.id}`} multiline arrow
+      title=${e.comment || (e.content || '').slice(0, 20) || '未命名条目'}
+      subtitle=${[
+        e.bookName,
+        e.constant ? '常驻' : (e.keys || []).length ? `关键词：${e.keys.join('、')}` : '无关键词',
+        `优先级 ${e.priority ?? 100}`,
+        e.enabled ? '' : '已停用',
+        e.applies ? '' : '该角色未关联此世界书',
+      ].filter(Boolean).join(' · ')}
+      onClick=${() => nav.push(`/entry/${e.bookId}/${e.id}`)}/>`;
+
+  return html`
+    <${Page} title="注入位置总览" onBack=${nav.pop}>
+      <div class="pad">
+        <div class="hint-box">
+          按注入顺序列出全部条目。角色卡之前的先进入 prompt，其次是角色人设，
+          再次是角色卡之后的部分；标注了深度的条目不进设定区，改为插入对话历史。
+        </div>
+        ${chars.length ? html`
+          <${Field} label="以哪个角色的视角">
+            <div class="chip-row">
+              ${chars.map(c => html`
+                <button key=${c.id} class=${`chip${charId === c.id ? ' is-active' : ''}`}
+                  onClick=${() => setCharId(c.id)}>${c.name}</button>`)}
+            </div>
+          <//>` : null}
+      </div>
+
+      ${groups.map(g => html`
+        <${List} key=${g.key} title=${`${g.title} · ${g.rows.length}`}>
+          ${g.rows.length ? g.rows.map(row) : html`
+            <${ListItem} title="此处暂无条目" subtitle=${g.desc} multiline/>`}
+        <//>`)}
+
+      ${!all.length ? html`<${EmptyState} icon="book" title="暂无条目"/>` : null}
+    <//>`;
+}
+
 export default function LorebookApp({ route }) {
   const book = route?.match(/^\/book\/(.+)$/);
   if (book) return html`<${BookPage} id=${book[1]}/>`;
   const entry = route?.match(/^\/entry\/([^/]+)\/(.+)$/);
   if (entry) return html`<${EntryPage} bookId=${entry[1]} entryId=${entry[2]}/>`;
   if (route === '/preview') return html`<${PreviewPage}/>`;
+  if (route === '/map') return html`<${MapPage}/>`;
   return html`<${BookList}/>`;
 }

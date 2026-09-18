@@ -30,11 +30,19 @@ export function ContextPage() {
   const s = useStore(db.settings.store);
   const byTurn = s.historyMode === 'turn';
   useStore(db.memories.store);
+  useStore(db.lorebooks.store);
   const vecReady = ai.services.embedReady();
   const total = db.memories.count();
   const indexed = ai.memvec.indexedCount();
   const todo = ai.memvec.pending().length;
   const order = ai.resolveOrder(s.injectOrder);
+  // 一句话交代世界书现在有多少条、分别落在哪儿，省得进去才看得见
+  const entries = db.lorebooks.all().flatMap(b => (b.entries || [])
+    .filter(e => e.enabled).map(e => ({ ...e })));
+  const deep = entries.filter(e => Math.round(Number(e.depth) || 0) > 0).length;
+  const loreLine = entries.length
+    ? `共 ${entries.length} 个启用中的条目，其中 ${deep} 个插入对话历史，其余留在设定区`
+    : '尚无启用中的条目';
   const styleCost = ai.estimateTokens(ai.template('skeleton.style'));
 
   // 轮数是自己填的。输入过程中会经过「空」和「0」这些中间状态，
@@ -80,6 +88,18 @@ export function ContextPage() {
               <${OrderRow} key=${id} id=${id} idx=${i} total=${order.length} onMove=${move}/>`)}
           </div>
         <//>
+      </div>
+
+      <${List} title="世界书">
+        <${ListItem} title="注入位置总览" arrow multiline
+          subtitle=${loreLine}
+          left=${html`<${Icon} name="book" size=${18}/>`}
+          onClick=${() => phone.intent.open('lorebook', { route: '/map' })}/>
+      <//>
+      <div class="settings-foot">
+        条目分为角色卡之前与角色卡之后两部分，各自可再设置注入深度：
+        深度为 0 留在设定区，大于 0 则改为插入对话历史中倒数第 N 条消息之前。
+        总览页按实际注入顺序列出全部条目。
       </div>
 
       <${List} title="回复风格">

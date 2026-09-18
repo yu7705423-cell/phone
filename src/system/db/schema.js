@@ -23,7 +23,7 @@ export const KV = {
 
 // 业务层数据迁移。与 IndexedDB 的版本升级分开:
 // 这里处理的是记录内部结构的变化,而不是仓库的增删。
-export const DATA_VERSION = 3;
+export const DATA_VERSION = 4;
 
 export const MIGRATIONS = {
   // 1: 初始结构,无需迁移
@@ -59,6 +59,40 @@ export const MIGRATIONS = {
         charId = (chats.get(scope.slice(5))?.characterIds || [])[0] || null;
       }
       memories.update(m.id, { charId });
+    });
+  },
+
+  // 4: 世界书条目的位置从一个 position 拆成两个字段。
+  //    原来三档 system / beforeChat / afterChat 其实都落在同一个设定区里，
+  //    只是排序不同 —— 名字里的 "chat" 骗了人，它们谁都没进过对话。
+  //    现在 part 决定在角色卡前还是后，depth 决定插不插进对话、插多深。
+  4({ lorebooks, settings }) {
+    // 拆成两块之后，注入顺序里也要跟着分开：角色前那块挪到角色卡前面，
+    // 角色后那块插在它后面。resolveOrder 只会把新区块补在**末尾**，
+    // 老用户不改这一下的话，「角色前」会排在角色卡后面，名不副实。
+    const order = settings.get().injectOrder;
+    if (Array.isArray(order) && order.includes('character')) {
+      const rest = order.filter(id => id !== 'lorebook' && id !== 'loreAfter');
+      const at = rest.indexOf('character');
+      rest.splice(at, 0, 'lorebook');
+      rest.splice(at + 2, 0, 'loreAfter');
+      settings.set({ injectOrder: rest });
+    }
+
+    lorebooks.all().forEach(b => {
+      if (!Array.isArray(b.entries)) return;
+      lorebooks.update(b.id, {
+        entries: b.entries.map(e => {
+          if (e.part) return e;
+          const pos = e.position;
+          return {
+            ...e,
+            part: pos === 'system' ? 'before' : 'after',
+            // afterChat 想待在对话之后，深度 0 正是那个位置
+            depth: 0,
+          };
+        }),
+      });
     });
   },
 };

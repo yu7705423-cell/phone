@@ -2,6 +2,7 @@ import { settings, persona, characters, chats, messages, messagesOf } from '../d
 import * as accounts from '../accounts.js';
 import * as clock from '../time.js';
 import { assemble } from './context/index.js';
+import { activate as activateLore, split as splitLore, textOf as loreText } from './context/lorebook.js';
 import { fillTemplate, template } from './templates.js';
 import { capabilityBlock } from './capabilities.js';
 import { embedQuery, embedReady } from './embed.js';
@@ -132,6 +133,7 @@ export function buildChatSystem(chat, char, msgs, opts = {}) {
     scanText: scanTextOf(msgs, s.scanWindow),
     budgets: budgets(s.contextBudget),
     queryVec: opts.queryVec || null,
+    lore: opts.lore || null,
   };
 
   let out = fillTemplate(template('skeleton.opening'), {
@@ -234,6 +236,29 @@ export async function imagesFor(msgs) {
   return out.size ? out : null;
 }
 
+/**
+ * 把「要插进对话里」的世界书条目塞进历史。
+ *
+ * 深度 N = 插在**倒数第 N 条之前**，深度 1 就是贴在最后一条前面。
+ * 比历史还深的（比如只剩三条却填了深度十）一律落在最前面 ——
+ * 丢掉它更糟：用户明明写了一条规则，却因为聊得还不够长就不生效。
+ *
+ * 以 system 角色插入。不混进用户或角色的发言里：那样模型会把它当成
+ * 谁说过的话，甚至回一句「好的我记住了」。
+ */
+export function insertLore(list, depths) {
+  if (!depths || !depths.size) return list;
+  const out = list.slice();
+  // 从深到浅插：先插深的，浅的那一条的「倒数第 N 条」才还是原来那一条
+  for (const depth of [...depths.keys()].sort((a, b) => b - a)) {
+    const text = loreText(depths.get(depth));
+    if (!text) continue;
+    const at = Math.max(0, out.length - depth);
+    out.splice(at, 0, { role: 'system', content: `[世界设定]\n${text}` });
+  }
+  return out;
+}
+
 // 历史消息转 API 格式。群聊时给非本人的发言加上说话人前缀。
 export function buildHistory(chat, char, msgs, opts = {}) {
   const s = settings.get();
@@ -261,7 +286,11 @@ export function buildHistory(chat, char, msgs, opts = {}) {
     const who = characters.get(m.authorId)?.name || '某人';
     return { role: 'user', content: isGroup ? `${who}：${text}` : text };
   });
-  return mergeAdjacent(view2);
+  // 先合并再插：合并会把相邻同角色的消息并成一条，插完再合并就把
+  // 刚插进去的位置又挪了。
+  const lore = opts.lore
+    || (char ? activateLore(char, scanTextOf(msgs, s.scanWindow), budgets(s.contextBudget).lorebook).items : []);
+  return insertLore(mergeAdjacent(view2), splitLore(lore).depths);
 }
 
 // 合并相邻同角色消息,部分接口不接受连续同角色。
@@ -335,9 +364,14 @@ export function streamReply({ chat, char, onDelta }) {
     // 动态 import：day 那个任务要用本模块，静态引会成环。
     await import('./tasks/day.js').then(m => m.ensureToday(char.id)).catch(() => {});
     const pics = await imagesFor(msgs);
-    const history = buildHistory(chat, char, msgs, { images: pics });
+    // 一轮只激活一次世界书：设定区和对话里各要一份。各算各的会把带概率的
+    // 条目掷两次骰子，于是「设定区里有、对话里没有」这种鬼事就出现了。
+    const s0 = settings.get();
+    const lore = activateLore(char, scanTextOf(msgs, s0.scanWindow),
+      budgets(s0.contextBudget).lorebook).items;
+    const history = buildHistory(chat, char, msgs, { images: pics, lore });
     const queryVec = await queryVecFor(msgs);
-    const { system } = buildChatSystem(chat, char, msgs, { queryVec });
+    const { system } = buildChatSystem(chat, char, msgs, { queryVec, lore });
     const text = await withFallback(c => getProvider(c.provider)
       .stream(c, { system, messages: history, maxTokens: c.maxTokens, signal, onDelta }));
     // 不 await：描述是给以后几轮用的，这一轮模型已经看过原图了，

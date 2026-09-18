@@ -8,7 +8,10 @@ import * as geoBlock from './geo.js';
 
 export const BLOCKS = {
   character,
+  // 世界书拆成两块：一块在角色卡之前，一块在之后。哪一条落在哪一块
+  // 由条目自己的 part 决定，这里只是两个可以单独排位置的注入点。
   lorebook: { meta: lorebook.meta, build: lorebook.build },
+  loreAfter: { meta: lorebook.metaAfter, build: lorebook.buildAfter },
   user,
   time,
   memory: { meta: memory.meta, build: memory.build },
@@ -18,7 +21,7 @@ export const BLOCKS = {
   geo: { meta: geoBlock.meta, build: geoBlock.build },
 };
 
-export const DEFAULT_ORDER = ['character', 'lorebook', 'user', 'time', 'day', 'avatar', 'geo', 'memory', 'space'];
+export const DEFAULT_ORDER = ['lorebook', 'character', 'loreAfter', 'user', 'time', 'day', 'avatar', 'geo', 'memory', 'space'];
 
 // 读出一份干净的顺序:丢掉不认识的 id,补上配置里缺失的。
 // 没有这一步,以后每新增一个区块,老用户配置里就少一项,该区块永远不注入,
