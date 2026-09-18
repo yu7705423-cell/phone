@@ -42,6 +42,7 @@
 
 /* 联系：卡片墙 */
 .ct-sec {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2);
   padding: var(--sp-5) var(--sp-4) var(--sp-2);
   font-size: var(--fs-12); color: var(--text-3);
 }
@@ -64,7 +65,6 @@
   padding: 2px 7px; border-radius: var(--r-full);
   background: var(--scrim-strong); color: var(--on-scrim); font-size: var(--fs-11);
 }
-.ct-badge-npc { left: auto; right: var(--sp-2); }
 .ct-name { margin-top: var(--sp-2); font-size: var(--fs-14); font-weight: var(--fw-semi); }
 .ct-sign { margin-top: 1px; font-size: var(--fs-12); color: var(--text-3); }
 
@@ -200,16 +200,12 @@ input[type="range"] {
 }
 .msg.is-mine .bubble { background: var(--accent); color: var(--on-accent); }
 
-/* 正在输入。不是转圈也不是三个点，就四个字 ——
-   转圈是「系统在忙」，这里要说的是「对面在打字」。 */
-.bubble-typing { color: var(--text-3); font-size: var(--fs-13); }
+/* 正在输入写在标题栏上，名字整个换掉 —— 这句话说的是「对方现在在干什么」，
+   属于这段对话的状态，不属于消息流。聊天记录里凭空多一个空泡，
+   是这个界面在说自己的事。 */
+.conv-typing { color: var(--text-3); font-weight: var(--fw-normal); }
 
-/* 标题那一行：名字在上，「正在输入」在下，和真机一样 */
-.conv-title { display: flex; flex-direction: column; align-items: center; line-height: 1.2; }
-.conv-sub {
-  font-size: var(--fs-11); font-weight: var(--fw-normal); color: var(--text-3);
-  animation: fade-in var(--dur-fast) var(--ease);
-}
+
 .msg-retry { display: flex; align-items: center; gap: 4px; font-size: var(--fs-11); color: var(--text-2); text-decoration: underline; }
 .swipes { display: flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-11); color: var(--text-3); }
 .swipe-btn { color: var(--text-2); display: flex; }
@@ -621,7 +617,6 @@ input[type="range"] {
 .icon-upload-acts { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
 
 /* 图片与语音消息 */
-.bubble.is-typing { opacity: .65; }
 .media-pending, .media-failed {
   display: flex; align-items: center; gap: var(--sp-2);
   font-size: var(--fs-12); color: var(--text-3);

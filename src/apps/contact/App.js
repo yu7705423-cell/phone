@@ -39,18 +39,53 @@ function AvatarPicker({ src, name, onPick, onNote }) {
     </div>`;
 }
 
+// 分组名直接存在角色身上（char.group），空字符串即未分组。
+// 聊天 app 的联系人页读的是同一个字段，两边看到的分组一致。
+const UNGROUPED = '未分组';
+
+function groupsOf(chars) {
+  const map = new Map();
+  for (const c of chars) {
+    const g = (c.group || '').trim() || UNGROUPED;
+    if (!map.has(g)) map.set(g, []);
+    map.get(g).push(c);
+  }
+  return [...map.keys()]
+    .sort((a, b) => (a === UNGROUPED ? 1 : b === UNGROUPED ? -1 : a.localeCompare(b, 'zh')))
+    .map(name => ({ name, chars: map.get(name) }));
+}
+
 // 像卡片墙一样铺开，不是一行一行的列表
-function Card({ char, onClick }) {
+function Card({ char, onClick, onHold }) {
   const url = useImage(char.avatar);
+  const timer = useRef(null);
+  const fired = useRef(false);
   const alts = db.characters.where(x => x.parentId === char.id).length;
   const bits = [char.age && `${char.age}`, char.gender].filter(Boolean).join(' · ');
+
+  // 长按开分组表。松手时浏览器还会补一个 click，不拦掉的话
+  // 菜单刚弹出来人就已经被送进资料页了。
+  const start = () => {
+    if (!onHold) return;
+    timer.current = setTimeout(() => {
+      timer.current = null; fired.current = true; onHold(char);
+    }, 500);
+  };
+  const end = () => { if (timer.current) { clearTimeout(timer.current); timer.current = null; } };
+  const tap = () => {
+    if (fired.current) { fired.current = false; return; }
+    onClick();
+  };
+
   return html`
-    <button class="ct-card press" onClick=${onClick}>
+    <button class="ct-card press no-callout" onClick=${tap}
+      onMouseDown=${start} onMouseUp=${end} onMouseLeave=${end}
+      onTouchStart=${start} onTouchEnd=${end} onTouchMove=${end} onTouchCancel=${end}
+      onContextMenu=${e => { if (onHold) { e.preventDefault(); onHold(char); } }}>
       <div class=${`ct-cover${url ? ' has-image' : ''}`}
         style=${url ? `background-image:url(${url})` : ''}>
         ${url ? null : html`<span class="ct-initial">${(char.name || '?').slice(0, 1)}</span>`}
         ${alts ? html`<span class="ct-badge">${alts} 个小号</span>` : null}
-        ${char.isNpc ? html`<span class="ct-badge ct-badge-npc">NPC</span>` : null}
       </div>
       <div class="ct-name ellipsis">${char.name || '未命名'}</div>
       <div class="ct-sign ellipsis">${char.signature || bits || '还没写签名'}</div>
@@ -73,19 +108,87 @@ function Home() {
   useStore(db.settings.store);
   useStore(db.chats.store);
   const [picking, setPicking] = useState(false);
+  const [held, setHeld] = useState(null);       // 长按的角色
+  const [managing, setManaging] = useState(''); // 正在管理的分组名
+  const [picker, setPicker] = useState(null);   // { name, ids } 挑选分组成员
 
   const me = accounts.current();
   const roots = accounts.roots();
-  const chars = db.characters.all()
+  const all = db.characters.all()
     .filter(c => !c.parentId)
     .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+  // NPC 由关系网生成，数量容易压过正主，单独一栏排在后面
+  const chars = all.filter(c => !c.isNpc);
+  const npcs = all.filter(c => c.isNpc);
+  const groups = groupsOf(chars);
+  const named = groups.map(g => g.name).filter(n => n !== UNGROUPED);
 
   const addChar = () => {
     const c = db.characters.create({
-      name: '新角色', persona: '', signature: '',
+      name: '新角色', persona: '', signature: '', group: '',
       lorebookIds: [], canSendVoice: true, canSendImage: true, parentId: null,
     });
     nav.push(`/edit/${c.id}`);
+  };
+
+  const setGroup = (id, g) => { db.characters.update(id, { group: g }); setHeld(null); };
+
+  // 分组没有自己的记录，它就是写在角色身上的那个名字。
+  // 所以「新建分组」必须当场把人放进去，否则它一落地就消失了。
+  const askName = async (title, value = '') => {
+    const v = await prompt({ title, value, placeholder: '例如：同事' });
+    if (v == null) return '';
+    const name = v.trim();
+    if (!name) return '';
+    if (name === UNGROUPED) { toast(`「${UNGROUPED}」为保留名称，请另取一个名称`); return ''; }
+    return name;
+  };
+
+  const newGroup = async () => {
+    const name = await askName('新建分组');
+    if (!name) return;
+    setHeld(null);
+    setPicker({ name, ids: [] });
+  };
+
+  const newGroupFor = async char => {
+    const name = await askName('新建分组');
+    if (!name) return;
+    setGroup(char.id, name);
+  };
+
+  const toggle = id => setPicker(p => ({
+    ...p, ids: p.ids.includes(id) ? p.ids.filter(x => x !== id) : [...p.ids, id],
+  }));
+
+  const applyPicker = () => {
+    const { name, ids } = picker;
+    chars.forEach(c => {
+      const now = (c.group || '').trim();
+      if (ids.includes(c.id)) { if (now !== name) db.characters.update(c.id, { group: name }); }
+      else if (now === name) db.characters.update(c.id, { group: '' });
+    });
+    setPicker(null);
+  };
+
+  const renameGroup = async name => {
+    const next = await askName('重命名分组', name);
+    setManaging('');
+    if (!next || next === name) return;
+    chars.forEach(c => {
+      if ((c.group || '').trim() === name) db.characters.update(c.id, { group: next });
+    });
+  };
+
+  const dissolve = async name => {
+    setManaging('');
+    if (!await confirm({
+      title: '解散分组', okText: '解散', danger: true,
+      message: `「${name}」中的角色将移至${UNGROUPED}。角色本身不会删除。`,
+    })) return;
+    chars.forEach(c => {
+      if ((c.group || '').trim() === name) db.characters.update(c.id, { group: '' });
+    });
   };
 
   const newAccount = async () => {
@@ -98,6 +201,15 @@ function Home() {
   };
 
   const pickAccount = id => { accounts.switchTo(id); setPicking(false); };
+
+  const section = (title, list, right) => html`
+    <div class="ct-sec">
+      <span class="ellipsis">${title} · ${list.length}</span>${right || null}
+    </div>
+    <div class="ct-grid">
+      ${list.map(c => html`<${Card} key=${c.id} char=${c} onHold=${setHeld}
+        onClick=${() => nav.push(`/char/${c.id}`)}/>`)}
+    </div>`;
 
   return html`
     <${Page} title="联系"
@@ -115,20 +227,97 @@ function Home() {
           onClick=${() => setPicking(true)}/>
       <//>
 
-      ${chars.length ? html`
-        <div class="ct-sec">角色 · ${chars.length}</div>
-        <div class="ct-grid">
-          ${chars.map(c => html`<${Card} key=${c.id} char=${c}
-            onClick=${() => nav.push(`/char/${c.id}`)}/>`)}
-        </div>`
-      : html`<${EmptyState} icon="users" title="暂无角色"
+      ${all.length ? null : html`
+        <${EmptyState} icon="users" title="暂无角色"
           desc="可新建角色，或导入已写好的 txt / docx 资料。"
           action=${html`<${Button} size="sm" icon="plus" onClick=${addChar}>新建角色<//>`}/>`}
 
+      ${groups.map(g => html`
+        <div key=${g.name}>
+          ${section(g.name, g.chars, g.name === UNGROUPED ? null : html`
+            <${IconButton} name="more" size=${17} label=${`管理分组 ${g.name}`}
+              onClick=${() => setManaging(g.name)}/>`)}
+        </div>`)}
+
+      ${chars.length ? html`
+        <div class="pad">
+          <${Button} full variant="ghost" icon="folder" onClick=${newGroup}>新建分组<//>
+        </div>` : null}
+
+      ${npcs.length ? html`
+        <div>
+          ${section('NPC', npcs)}
+          <div class="settings-foot">
+            NPC 由关系网生成，单独列出，不参与分组。<br/>
+            长按可将其转为普通角色。
+          </div>
+        </div>` : null}
+
       <div class="settings-foot">
         这里写的是「这个人是谁」，会进 prompt。<br/>
-        语音、发图、主动找我这些在会话右上角的角色卡里调。
+        语音、发图、主动找我这些在会话右上角的角色卡里调。<br/>
+        长按角色卡可调整所属分组。
       </div>
+
+      <${Sheet} open=${!!held} onClose=${() => setHeld(null)} title=${held?.name || ''}>
+        ${held && held.isNpc ? html`
+          <${List} inset=${false}>
+            <${ListItem} title="转为普通角色" multiline arrow
+              subtitle="转出后与其他角色同列，可加入分组。关系网中的关联不受影响"
+              left=${html`<${Icon} name="user" size=${18}/>`}
+              onClick=${() => { db.characters.update(held.id, { isNpc: false }); setHeld(null); }}/>
+          <//>` : null}
+        ${held && !held.isNpc ? html`
+          <${List} inset=${false} title="分组">
+            <${ListItem} title=${UNGROUPED}
+              right=${(held.group || '').trim() ? null : html`<${Icon} name="check" size=${16}/>`}
+              onClick=${() => setGroup(held.id, '')}/>
+            ${named.map(g => html`
+              <${ListItem} key=${g} title=${g}
+                right=${(held.group || '').trim() === g ? html`<${Icon} name="check" size=${16}/>` : null}
+                onClick=${() => setGroup(held.id, g)}/>`)}
+            <${ListItem} title="新建分组" arrow
+              left=${html`<${Icon} name="plus" size=${18}/>`}
+              onClick=${() => newGroupFor(held)}/>
+          <//>` : null}
+      <//>
+
+      <${Sheet} open=${!!managing} onClose=${() => setManaging('')} title=${managing}>
+        <${List} inset=${false}>
+          <${ListItem} title="编辑成员" arrow multiline
+            subtitle="勾选后即加入该分组，取消勾选则移回未分组"
+            left=${html`<${Icon} name="users" size=${18}/>`}
+            onClick=${() => {
+              const name = managing;
+              setManaging('');
+              setPicker({ name, ids: chars.filter(c => (c.group || '').trim() === name).map(c => c.id) });
+            }}/>
+          <${ListItem} title="重命名" arrow
+            left=${html`<${Icon} name="edit" size=${18}/>`}
+            onClick=${() => renameGroup(managing)}/>
+          <${ListItem} title="解散分组" arrow multiline
+            subtitle="分组消失，其中的角色移至未分组，不会删除角色"
+            left=${html`<${Icon} name="trash" size=${18}/>`}
+            onClick=${() => dissolve(managing)}/>
+        <//>
+      <//>
+
+      <${Sheet} open=${!!picker} onClose=${() => setPicker(null)}
+        title=${picker ? `分组：${picker.name}` : ''} height="70%">
+        ${picker ? html`
+          <${List} inset=${false} title=${`已选 ${picker.ids.length}`}>
+            ${chars.map(c => html`
+              <${Row} key=${c.id} subject=${c}
+                right=${picker.ids.includes(c.id) ? html`<${Icon} name="check" size=${17}/>` : null}
+                onClick=${() => toggle(c.id)}/>`)}
+          <//>
+          <div class="pad">
+            <${Button} full onClick=${applyPicker}>保存<//>
+          </div>
+          <div class="settings-foot">
+            一个角色同时只属于一个分组。此处选中的角色会从原分组移出。
+          </div>` : null}
+      <//>
 
       <${Sheet} open=${picking} onClose=${() => setPicking(false)} title="切换账号" height="70%">
         <${List} inset=${false}>
@@ -312,7 +501,7 @@ function EditPage({ id }) {
       ${char.parentId ? html`
         <div class="settings-foot">
           这是「${db.characters.get(char.parentId)?.name || '某个角色'}」自己开的小号。<br/>
-          ${char.altReason ? html`她给自己的理由：${char.altReason}<br/>` : null}
+          ${char.altReason ? html`该角色给出的理由：${char.altReason}<br/>` : null}
           它和本体是两个身份，各自和你单独聊，记忆也分开。
         </div>`
       : html`

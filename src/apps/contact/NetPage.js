@@ -86,8 +86,8 @@ export function NetPage({ id }) {
       </div>
 
       <div class="settings-foot">
-        一共 ${nodes.length} 个人，${edges.length} 条关系。点圆圈跳到那个人的资料。<br/>
-        线上的字是「在${char.name}眼里，那个人是她的什么」。
+        共 ${nodes.length} 人，${edges.length} 条关系。点击圆圈可打开该角色的资料。<br/>
+        连线上的文字表示：在${char.name}眼中，对方是什么身份。
       </div>
 
       <div class="pad">

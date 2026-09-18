@@ -62,13 +62,12 @@ const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, onSwipe,
   const parts = splitBubbles(msg.content);
   const swipes = msg.swipes || [];
   const sticker = msg.kind === 'sticker' ? db.stickers.get(msg.stickerId) : null;
-  const typing = msg.kind === 'typing';
   const quote = quoteOf(msg, { char, chat });
   const trans = (msg.translation || '').trim();
   const showTrans = trans && (transOpen === 'always' || openTrans);
 
   const start = () => {
-    if (frozen || typing || selecting) return;
+    if (frozen || selecting) return;
     hold.current.fired = false;
     hold.current.timer = setTimeout(() => {
       hold.current.timer = null;
@@ -97,7 +96,7 @@ const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, onSwipe,
       class=${`msg no-callout${mine ? ' is-mine' : ''}${selecting && !frozen ? ' is-picking' : ''}${selected ? ' is-picked' : ''}`}
       onClickCapture=${capture}
       onTouchStart=${start} onTouchEnd=${end} onTouchMove=${end} onTouchCancel=${end}
-      onContextMenu=${e => { e.preventDefault(); if (!selecting && !frozen && !typing) onHold(msg); }}>
+      onContextMenu=${e => { e.preventDefault(); if (!selecting && !frozen) onHold(msg); }}>
 
       ${selecting && !frozen ? html`
         <span class=${`pick-dot${selected ? ' is-on' : ''}`}>
@@ -143,14 +142,14 @@ const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, onSwipe,
           ? html`<${MediaBubble} msg=${msg} char=${char}/>`
           : parts.length ? parts.map((p, i) => html`
               <div key=${i}
-                class=${`bubble${typing ? ' is-typing' : ''}${trans && i === parts.length - 1 ? ' has-trans' : ''}`}
+                class=${`bubble${trans && i === parts.length - 1 ? ' has-trans' : ''}`}
                 onClick=${trans && i === parts.length - 1 && !selecting
                   ? () => setOpenTrans(v => !v) : null}>
                 ${p}
                 ${trans && i === parts.length - 1 && showTrans ? html`
                   <div class="bubble-trans">${trans}</div>` : null}
               </div>`)
-          : html`<div class="bubble bubble-typing">正在输入</div>`}
+          : null}
 
         ${msg.inner && openInner
           ? html`<${InnerVoice} text=${msg.inner} style=${innerStyle}/>` : null}
@@ -388,26 +387,13 @@ export function Conversation({ chatId, focusId = '' }) {
     if (!ai.isConfigured()) { toast('尚未配置模型接口', 'error'); return; }
     setBusy(true);
 
-    // 生成中先放一条「正在输入」，流式内容打在上面。
-    // 这一条不落盘：一秒要改几十次，而且回复完成后就会删掉，
-    // 写下去的每一版都是马上作废的东西。页面中途挂掉，丢的也只是这个占位。
-    const typing = db.messages.create({
-      chatId, role: 'char', authorId: char.id, kind: 'typing',
-      content: '', status: 'sending',
-    }, { persist: false });
-
+    // 生成期间**不放占位气泡**。要说的是「对方在输入」，那句话属于标题栏，
+    // 不属于消息流 —— 聊天记录里凭空多一个空泡，是这个界面在说自己的事。
+    // 气泡等内容真的好了再出现。
     try {
-      const text = await ai.streamReply({
-        chat, char,
-        // 自检那一段也是流式吐出来的。不剥掉的话，整张检查清单会先在
-        // 「正在输入」那条气泡里滚一遍，等收尾才消失。
-        onDelta: (_, full) => db.messages.update(typing.id,
-          { content: ai.reply.stripThink(full).text }, { persist: false }),
-      });
+      const text = await ai.streamReply({ chat, char });
       const clean = String(text || '').trim();
       if (!clean) throw new Error('模型返回了空内容');
-
-      db.messages.remove(typing.id);
 
       const turnId = reuseTurn || phone.uid('turn');
       const swipes = prevSwipes ? [...prevSwipes, clean] : [clean];
@@ -430,7 +416,6 @@ export function Conversation({ chatId, focusId = '' }) {
           .catch(err => console.warn('[memory] 自动提取失败', err));
       }
     } catch (err) {
-      db.messages.remove(typing.id);
       if (!ai.queue.isAbort(err)) {
         db.messages.create({
           chatId, role: 'char', authorId: char.id, kind: 'text',
@@ -755,11 +740,8 @@ export function Conversation({ chatId, focusId = '' }) {
   const canRegen = !!(held && held.role === 'char' && held.turnId && held.turnId === lastTurnId);
 
   return html`
-    <${Page} title=${selecting ? `已选 ${picked.length} 条` : html`
-      <span class="conv-title">
-        <span class="ellipsis">${char.name}</span>
-        ${busy ? html`<span class="conv-sub">正在输入</span>` : null}
-      </span>`}
+    <${Page} title=${selecting ? `已选 ${picked.length} 条`
+      : busy ? html`<span class="conv-typing">正在输入</span>` : char.name}
       onBack=${selecting ? () => setPicked(null) : nav.pop} noScroll
       right=${selecting
         ? html`<button class="nav-text press" onClick=${() => setPicked(view.map(m => m.id))}>全选</button>`

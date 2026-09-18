@@ -110,7 +110,7 @@ export async function generateNpcs(charId, count = 4, { signal } = {}) {
     charName: char.name,
     charPersona: char.persona || '（没写人设）',
     count: Math.max(1, Math.round(count) || 1),
-    existing: known ? `## 她身边已经有这些人（别重复）\n${known}` : '',
+    existing: known ? `## 该角色身边已有这些人，不要重复\n${known}` : '',
   });
 
   const r = await runJSONTask('card.npc', {

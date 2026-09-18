@@ -1,7 +1,6 @@
 import { html, useState } from '../../../lib.js';
 import { phone, useStore, useImage } from '../../../sdk/index.js';
-import { Avatar, EmptyState, Button, Icon, Input, Sheet, List, ListItem,
-         toast, prompt, confirm } from '../../../ui/index.js';
+import { Avatar, EmptyState, Button, Icon, Sheet, List, ListItem } from '../../../ui/index.js';
 
 const { db, nav } = phone;
 const UNGROUPED = '未分组';
@@ -41,19 +40,20 @@ export function ContactsTab() {
         .filter(Boolean).some(v => String(v).toLowerCase().includes(key)))
     : all;
 
-  // 按分组归拢，未分组排最后
+  // 按分组归拢，未分组排最后。NPC 不进分组，单独列在最后一栏
+  const byName = (a, b) =>
+    (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) || a.name.localeCompare(b.name, 'zh');
+  const npcs = matched.filter(c => c.isNpc).sort(byName);
   const groups = new Map();
   for (const c of matched) {
+    if (c.isNpc) continue;
     const g = (c.group || '').trim() || UNGROUPED;
     if (!groups.has(g)) groups.set(g, []);
     groups.get(g).push(c);
   }
   const names = [...groups.keys()].sort((a, b) =>
     a === UNGROUPED ? 1 : b === UNGROUPED ? -1 : a.localeCompare(b, 'zh'));
-  names.forEach(n => groups.get(n).sort((a, b) =>
-    (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) || a.name.localeCompare(b.name, 'zh')));
-
-  const existingGroups = [...new Set(all.map(c => (c.group || '').trim()).filter(Boolean))];
+  names.forEach(n => groups.get(n).sort(byName));
 
   const add = () => {
     const c = db.characters.create({
@@ -61,17 +61,6 @@ export function ContactsTab() {
       exampleDialogue: '', lorebookIds: [], tags: [], group: '',
     });
     phone.intent.open('contact', { route: `/char/${c.id}` });
-  };
-
-  const setGroup = async g => {
-    db.characters.update(held.id, { group: g });
-    setHeld(null);
-  };
-
-  const newGroup = async () => {
-    const name = await prompt({ title: '新建分组', placeholder: '例如：同事、同学' });
-    if (name == null) return;
-    setGroup(name.trim());
   };
 
   if (!all.length) {
@@ -90,13 +79,21 @@ export function ContactsTab() {
           <${Icon} name="close" size=${15}/></button>` : null}
       </div>
 
-      ${names.length ? names.map(g => html`
-        <div key=${g} class="cap-wrap">
-          <div class="cap-title">${g} · ${groups.get(g).length}</div>
-          <div class="capsule">
-            ${groups.get(g).map(c => html`<${Row} key=${c.id} char=${c} onHold=${setHeld}/>`)}
-          </div>
-        </div>`)
+      ${names.length || npcs.length ? html`
+        ${names.map(g => html`
+          <div key=${g} class="cap-wrap">
+            <div class="cap-title">${g} · ${groups.get(g).length}</div>
+            <div class="capsule">
+              ${groups.get(g).map(c => html`<${Row} key=${c.id} char=${c} onHold=${setHeld}/>`)}
+            </div>
+          </div>`)}
+        ${npcs.length ? html`
+          <div class="cap-wrap">
+            <div class="cap-title">NPC · ${npcs.length}</div>
+            <div class="capsule">
+              ${npcs.map(c => html`<${Row} key=${c.id} char=${c} onHold=${setHeld}/>`)}
+            </div>
+          </div>` : null}`
       : html`<${EmptyState} icon="search" title="无匹配的角色"/>`}
 
       <div class="pad">
@@ -105,16 +102,11 @@ export function ContactsTab() {
 
       <${Sheet} open=${!!held} onClose=${() => setHeld(null)} title=${held?.name || ''}>
         ${held ? html`
-          <${List} inset=${false} title="分组">
-            <${ListItem} title=${UNGROUPED}
-              right=${!(held.group || '').trim() ? html`<${Icon} name="check" size=${16}/>` : null}
-              onClick=${() => setGroup('')}/>
-            ${existingGroups.map(g => html`
-              <${ListItem} key=${g} title=${g}
-                right=${held.group === g ? html`<${Icon} name="check" size=${16}/>` : null}
-                onClick=${() => setGroup(g)}/>`)}
-            <${ListItem} title="新建分组" arrow
-              left=${html`<${Icon} name="plus" size=${18}/>`} onClick=${newGroup}/>
+          <${List} inset=${false}>
+            <${ListItem} title="分组" arrow multiline
+              subtitle=${`当前：${(held.group || '').trim() || UNGROUPED}。分组在「联系」中新建与调整，此处只显示`}
+              left=${html`<${Icon} name="folder" size=${18}/>`}
+              onClick=${() => { setHeld(null); phone.intent.open('contact', { route: '/' }); }}/>
           <//>
           <${List} inset=${false}>
             <${ListItem} title=${held.pinned ? '取消置顶' : '在分组内置顶'} arrow

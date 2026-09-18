@@ -104,18 +104,17 @@ export function ContextPage() {
       </div>
 
       <${List} title="回复的获取方式">
-        <${ListItem} title="逐字显示" multiline
+        <${ListItem} title="流式接收" multiline
           subtitle=${s.streamMode === 'once'
-            ? '当前为等待整段生成完毕后一次显示。生成期间只显示「正在输入」，'
-              + '不会出现空白气泡。'
-            : '生成过程中逐字显示。输出前的自检也在这一阶段产生，其内容会被剥除，'
-              + '因此开启自检时，开头数秒气泡可能是空的。'}
+            ? '当前为一次性接收完整回复。部分接口不支持流式返回，此时应保持关闭。'
+            : '边生成边接收。消息仍然在整段生成完毕后一次显示，'
+              + '此项只影响与接口之间的传输方式，不影响界面。'}
           right=${html`<${Switch} checked=${s.streamMode !== 'once'}
             onChange=${v => db.settings.set({ streamMode: v ? 'stream' : 'once' })}/>`}/>
       <//>
       <div class="settings-foot">
-        两种方式发出的请求内容完全相同，费用也相同，区别仅在于何时显示。
-        部分接口不支持流式返回，此时请关闭该项。
+        生成期间，会话标题显示为「正在输入」，不再插入占位气泡。
+        两种接收方式发出的请求内容与费用完全相同。
       </div>
 
       <${List} title="回复风格">

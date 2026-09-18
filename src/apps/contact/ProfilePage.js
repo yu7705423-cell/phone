@@ -69,7 +69,7 @@ export function ProfilePage({ id }) {
       ${parent ? html`
         <div class="settings-foot">
           这是「${parent.name}」自己开的小号。<br/>
-          ${char.altReason ? html`她给自己的理由：${char.altReason}` : null}
+          ${char.altReason ? html`该角色给出的理由：${char.altReason}` : null}
         </div>` : null}
       ${alts.length ? html`
         <${List} title=${`该角色的小号 · ${alts.length}`}>
