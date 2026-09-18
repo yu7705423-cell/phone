@@ -9,6 +9,8 @@ import { appLook } from '../system/look.js';
 import { nav, currentRoute } from '../system/nav.js';
 
 const SHOW_MS = 4600;
+// 藏起来的时候最多攒这么多条。再多就是一串补弹，反而看不清
+const QUEUE_MAX = 3;
 
 function Banner({ item, onDone }) {
   const avatar = useImage(item.avatar);
@@ -22,9 +24,20 @@ function Banner({ item, onDone }) {
     setTimeout(onDone, 220);
   };
 
+  // 页面不在前台时**不走这个计时**。
+  //
+  // 从前是收到就起一个 4.6 秒的定时器，于是保活状态下角色半夜发来的消息，
+  // 横幅在你看不见的时候弹出来、又自己消失，切回来什么都没有。
+  // 现在藏起来时把计时停掉，回到前台再从头计。
   useEffect(() => {
-    timer.current = setTimeout(close, SHOW_MS);
-    return () => clearTimeout(timer.current);
+    const stop = () => clearTimeout(timer.current);
+    const go = () => {
+      stop();
+      if (document.visibilityState === 'visible') timer.current = setTimeout(close, SHOW_MS);
+    };
+    go();
+    document.addEventListener('visibilitychange', go);
+    return () => { stop(); document.removeEventListener('visibilitychange', go); };
   }, [item.id]);
 
   const app = item.appId ? appLook(item.appId) : null;
@@ -75,14 +88,18 @@ export function NotifyBanner() {
     const cfg = soundConfig();
     ring(cfg);
     if (!cfg.banner) return;
-    // 同一时刻只显示最新那条，旧的直接顶掉，不排队堆成一摞
-    setQueue([item]);
+    setQueue(q => {
+      // 前台时只显示最新那条，旧的顶掉，不堆成一摞。
+      // 藏起来的时候攒着：这几条都是你没看见的，回来要一条条补上。
+      if (document.visibilityState === 'visible') return [item];
+      return [...q, item].slice(-QUEUE_MAX);
+    });
   }), []);
 
   if (!queue.length) return null;
   const item = queue[0];
   return html`
     <div class="banner-host">
-      <${Banner} key=${item.id} item=${item} onDone=${() => setQueue([])}/>
+      <${Banner} key=${item.id} item=${item} onDone=${() => setQueue(q => q.slice(1))}/>
     </div>`;
 }

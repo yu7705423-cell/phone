@@ -215,12 +215,14 @@ export function CharacterEdit({ id }) {
           <${ListItem} title="所在时区" arrow multiline
             subtitle=${char.timezone
               ? `${clock.zoneLabel(char.timezone)} · 当前 ${clock.clockOnly(clock.now(), char.timezone)}`
-              : `与本人相同 · 当前 ${clock.clockOnly(clock.now(), clock.userZone())}`}
+              : `尚未设置，暂时跟随你所在的时区 · 当前 ${clock.clockOnly(clock.now(), clock.userZone())}`}
             left=${html`<${Icon} name="map" size=${18}/>`}
             onClick=${() => setPicking(true)}/>
         <//>
         <div class="settings-foot">
           设为其他国家后，角色将按该地的作息与时间作出反应。
+          未设置时，角色使用你所在时区的时间，且 prompt 中不会写出它身处何地。
+          角色设定在其他国家时请在此设置，否则它报出的时间是你这边的时间。
           本人所在时区在「上下文与记忆 - 时间感知」中设置。
         </div>` : null}
 

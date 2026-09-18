@@ -51,7 +51,13 @@ export const time = {
     const n = clock.now();
     const cz = clock.charZone(char);
     const uz = clock.userZone();
-    const lines = [`你在${clock.zoneLabel(cz)}，现在是 ${clock.format(n, cz)}。`];
+    // 角色**明确设过时区**才写地名。没设过时它跟的是你的设备时区，
+    // 照着写就成了「你在中国」——一个日本角色会照这句话认下来。
+    // 只给钟点，不替它认领一个地方。
+    const named = !!(char && char.timezone);
+    const lines = [named
+      ? `你在${clock.zoneLabel(cz)}，现在是 ${clock.format(n, cz)}。`
+      : `现在是 ${clock.format(n, cz)}。`];
 
     // 两人不在一个时区才说时差。同城还唠叨一句反而是噪音。
     //
