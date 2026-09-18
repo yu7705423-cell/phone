@@ -332,7 +332,9 @@
 
 /* ---- 锁屏 ---- */
 .lock {
-  height: 100%; display: flex; flex-direction: column; padding: var(--sp-6) var(--sp-4);
+  height: 100%; display: flex; flex-direction: column;
+  /* 「上滑解锁」那一行在最底下，不让开安全区就正好压在 Home Indicator 上 */
+  padding: var(--sp-6) var(--sp-4) calc(var(--sp-6) + var(--safe-bottom));
   background: linear-gradient(170deg, var(--surface-2), var(--bg));
 }
 .lock.has-wallpaper { background: none; }

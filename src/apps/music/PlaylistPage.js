@@ -34,6 +34,6 @@ export function PlaylistPage({ id }) {
             right=${html`<${KeepButton} track=${t}/>`}/>`)}
       </div>
       </div>
-      <${NowBar}/>
+      <${NowBar} safe/>
     <//>`;
 }

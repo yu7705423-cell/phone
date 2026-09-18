@@ -50,7 +50,8 @@ export function KeepButton({ track }) {
 }
 
 // 底部那条。没在放就不占位置。
-export function NowBar() {
+// safe：这一页底下没有页签栏，那条就得自己让开 Home Indicator。
+export function NowBar({ safe }) {
   const s = useStore(player.player);
   const cur = s.queue[s.index];
   if (!cur) return null;
@@ -62,7 +63,7 @@ export function NowBar() {
     player.seek(((e.clientX - box.left) / box.width) * s.duration);
   };
   return html`
-    <div class="mu-bar">
+    <div class=${`mu-bar${safe ? ' mu-bar-safe' : ''}`}>
       <div class="mu-bar-line" onClick=${jump}><i style=${`width:${pct}%`}></i></div>
       <div class="mu-bar-body">
         <${Cover} src=${cur.cover} name=${cur.title} size=${40}/>

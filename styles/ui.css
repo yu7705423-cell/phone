@@ -3,6 +3,9 @@
 /* ---- Page ---- */
 .page { height: 100%; display: flex; flex-direction: column; background: var(--bg); }
 .page-body { flex: 1; min-height: 0; }
+/* 底下没有页签栏时，滚动区一直铺到屏幕底，最后一行会压在 Home Indicator 下面。
+   有页签栏的那些不加 —— 页签栏自己已经把安全区让出来了。 */
+.page > .page-body:last-child { padding-bottom: var(--safe-bottom); }
 
 .navbar {
   flex: none; height: var(--navbar-h);
@@ -17,8 +20,14 @@
 .nav-title { text-align: center; font-size: var(--fs-15); font-weight: var(--fw-semi); }
 
 /* ---- 应用内 TabBar ---- */
+/* 高度要把安全区**加上去**，不能让它从里面挖。
+   box-sizing 是 border-box（base.css），写成 height: var(--tabbar-h) 加
+   padding-bottom: 34px，能放东西的就只剩 20px —— 图标和字会顶出底栏上沿，
+   字还会压进 Home Indicator 那条。dock 那边（shell.css）一直是 calc 写法，
+   这里漏了。 */
 .tabbar {
-  flex: none; height: var(--tabbar-h);
+  flex: none;
+  height: calc(var(--tabbar-h) + var(--safe-bottom));
   padding-bottom: var(--safe-bottom);
   display: flex; background: var(--bg);
 }

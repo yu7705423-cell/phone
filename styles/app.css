@@ -1239,6 +1239,7 @@ button.search-bar { width: 100%; border: none; }
 /* 条子只有两像素，手指点不准。伪元素把上下各撑出一截当热区，不影响外观 */
 .mu-bar-line::after { content: ""; position: absolute; inset: -9px 0; }
 .mu-bar-line i { display: block; height: 100%; background: var(--accent); }
+.mu-bar-safe .mu-bar-body { padding-bottom: calc(var(--sp-2) + var(--safe-bottom)); }
 .mu-bar-body {
   display: flex; align-items: center; gap: var(--sp-3);
   padding: var(--sp-2) var(--sp-3);
