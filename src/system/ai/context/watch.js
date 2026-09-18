@@ -10,8 +10,9 @@ import * as subtitle from '../../subtitle.js';
 //   **提纲**        只给已经看过的那几段。后面的一段都不给 —— 给了就会剧透。
 //   **最近的台词**  这是主力。模型看不见画面，但它读得到台词。
 //
-// 另外给一句「这一带是密还是疏」。密的时候少说，是本地算出来的，
-// 不是让模型自己感觉（见 subtitle.density）。
+// **不再给「这一带该不该说话」那一句。** 那是在替角色决定什么时候闭嘴，
+// 属于倾向，按 CLAUDE.md 第 16 条删掉了。疏密仍然算，但只用来决定
+// 「要不要发起这一轮」（见 watch.due），不写进 prompt。
 
 export const meta = {
   id: 'watch',
@@ -51,15 +52,6 @@ export function build() {
   }
 
   lines.push('');
-  lines.push(c.talky
-    ? 'Dialogue is dense here: a scene between characters is playing. Say little or'
-      + ' nothing, and do not talk over the exchange in progress.'
-    : c.quiet
-      ? 'There is no dialogue here. This is a moment to speak.'
-      : 'Dialogue is sparse here. One or two lines are appropriate.');
-  lines.push('Speak as one does while watching: react to the line just spoken, to a'
-    + ' character, to what is happening now. Do not recap the plot, do not explain it,'
-    + ' and do not summarise it.');
   lines.push('To pause, resume, or go back, write a line on its own in the form given'
     + ' under [一起看].');
 

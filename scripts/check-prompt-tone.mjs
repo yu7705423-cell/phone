@@ -53,6 +53,28 @@ const RULES = [
     '中文里用了直引号，应当用「」', 'noJson'],
 ];
 
+// 骨架每一段的字数预算。见 CLAUDE.md 第 16 条：内置提示词只写规则，不写倾向。
+//
+// 倾向是**长出来的**。没有人会一次写一整章「该怎么做人」，都是一句一句添的：
+// 「用之前先想想合不合适」「多数时候不必说话」「说得自然一些」—— 每一句单看
+// 都有道理，攒够几十句，所有角色就开始像同一个人说话了。
+//
+// 字数拦不住内容，但拦得住这种生长。一条格式规则用不了这么多字；
+// 超了就说明里面混进了不是规则的东西，回去看看那几句该不该在。
+const SKELETON_BUDGET = 900;
+const RULES_BUDGET = 200;      // 消息规则就一条：分 3 到 5 条发
+
+// 模板正文：'skeleton.xxx': `...`
+function templates(src) {
+  const out = [];
+  const re = /^ {2}'((?:skeleton|task)\.[\w-]+)':\n`([\s\S]*?)`,$/gm;
+  let m;
+  while ((m = re.exec(src))) {
+    out.push({ id: m[1], text: m[2], line: src.slice(0, m.index).split('\n').length + 1 });
+  }
+  return out;
+}
+
 // 连着这么多个汉字就算是在写中文句子了。标记名（图片、约定完成）都比它短。
 const RUN = 4;
 const HAN_RUN = new RegExp(`[\\u4e00-\\u9fff]{${RUN},}`, 'u');
@@ -122,6 +144,19 @@ function literals(src) {
 
 export function check() {
   const problems = [];
+
+  // 骨架的字数预算。只管 skeleton.*：task.* 是生成任务的规格书，
+  // 本来就该写长，它们不注入聊天。
+  const tplSrc = read('src/system/ai/templates.js');
+  for (const t of templates(tplSrc)) {
+    if (!t.id.startsWith('skeleton.')) continue;
+    const cap = t.id === 'skeleton.rules' ? RULES_BUDGET : SKELETON_BUDGET;
+    if (t.text.length > cap) {
+      problems.push(`src/system/ai/templates.js:${t.line}  ${t.id} 有 ${t.text.length} 字，`
+        + `超过 ${cap}。骨架只写规则，不写倾向（CLAUDE.md 第 16 条）`);
+    }
+  }
+
   for (const file of sources(['.js'])) {
     const name = rel(file);
     if (!FILES.test(name) && !EXTRA.has(name)) continue;

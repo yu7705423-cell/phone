@@ -61,8 +61,6 @@ export const DEFAULT_SETTINGS = {
   bondAuto: false,                // S 级记忆有变动时自动重压关系底色。开了每轮可能多一次调用
   coreAuto: true,                 // 导入角色卡时顺带生成核心设定
   memoryDepth: 1,                 // 本轮相关记忆插在倒数第几条之前，0 为留在设定区
-  promptExamples: true,           // 骨架里的示例，按 token 计费，可关
-  promptThink: true,              // 输出前的自检，模型先写 thinking 再说话
 
   // 上下文
   injectOrder: ['character', 'lorebook', 'user', 'time', 'memory'],

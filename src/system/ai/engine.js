@@ -203,15 +203,6 @@ export function buildChatSystem(chat, char, msgs, opts = {}) {
   }
 
   out += '\n\n' + template('skeleton.rules');
-  // 示例。三家提示词工程材料里都把它列为对格式一致性作用最大的一项。
-  // 它按 token 计费而不额外调接口，所以给开关，默认开着。
-  //
-  // **角色卡自带说话示例时不注入内置的那两段。** 示例这东西的力气很大，
-  // 两套示例同时在场，内置那套的语气会把角色自己的语气盖过去 ——
-  // 一个话少的角色会被带成例子里那种语气。角色有自己的示例时，
-  // 形式由它自己演示，内置那套让位。
-  const ownVoice = String(char.exampleDialogue || '').trim();
-  if (s.promptExamples !== false && !ownVoice) out += '\n\n' + template('skeleton.examples');
 
   // 各项能力。平时只列一张单子，这一轮真沾边了才给整段细则，见 capabilities.js
   out += capabilityBlock(ctx);
@@ -222,7 +213,6 @@ export function buildChatSystem(chat, char, msgs, opts = {}) {
   const core = String(char.core || '').trim();
   if (core) out += '\n\n' + fillTemplate(template('skeleton.core'), { core });
   if (gender) out += '\n\n' + gender;
-  if (s.promptThink !== false) out += '\n\n' + template('skeleton.think');
 
   // 「对方换了头像」只该说一次。这一轮说完就记下是哪一张，下一轮它就不新了。
   if (chat.id && me?.avatar) avatarLib.markSeen(chat.id, me.avatar);

@@ -120,10 +120,13 @@ const pick = pre => all.filter(t => t.id.startsWith(pre));
 console.log('## 一、骨架');
 console.log();
 console.log('每一轮聊天按这个顺序拼：开场、性别、各上下文区块、消息规则、');
-console.log('示例、能力、取舍顺序、核心设定、性别、自检。');
+console.log('能力、取舍顺序、核心设定、性别。');
+console.log();
+console.log('内置提示词只写规则，不写倾向（见 CLAUDE.md 第 16 条）：');
+console.log('角色该有多大反应、该不该反驳、话题怎么接、什么时候该沉默，一律不作规定。');
 console.log();
 const SKEL_MAIN = ['skeleton.opening', 'skeleton.gender', 'skeleton.world', 'skeleton.rules',
-  'skeleton.examples', 'skeleton.priority', 'skeleton.core', 'skeleton.think', 'skeleton.group'];
+  'skeleton.priority', 'skeleton.core', 'skeleton.group'];
 for (const t of all.filter(x => SKEL_MAIN.includes(x.id))) emit(t);
 
 console.log('## 二、各项能力的细则');

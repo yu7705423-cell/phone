@@ -29,7 +29,6 @@ export function build({ chat }) {
   }
   if (!lines.length) return '';
 
-  lines.push('The above concerns the two of you. Mention an item only when the'
-    + ' conversation touches it; there is no need to raise it every turn.');
+  lines.push('The above concerns the two of you.');
   return `\n\n[你们之间]\n${lines.join('\n')}`;
 }

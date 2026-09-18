@@ -51,10 +51,6 @@ export function build({ char }) {
   if (luck) lines.push(luck);
 
   lines.push('',
-    'The above are your own plans, not a task list. Mention an item only when the'
-    + ' conversation touches it; do not recite the whole schedule at the start.',
-    'Plans may change, and may be cancelled on short notice, but do not treat them'
-    + ' as though they were never made.',
     'For slots that have not yet arrived, you know what you intend to do, not how'
     + ' it turned out.');
 

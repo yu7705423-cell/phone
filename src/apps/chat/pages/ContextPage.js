@@ -43,8 +43,7 @@ export function ContextPage() {
   const loreLine = entries.length
     ? `共 ${entries.length} 个启用中的条目，其中 ${deep} 个插入对话历史，其余留在设定区`
     : '尚无启用中的条目';
-  const exampleCost = ai.estimateTokens(ai.template('skeleton.examples'));
-  const thinkCost = ai.estimateTokens(ai.template('skeleton.think'));
+  const rulesCost = ai.estimateTokens(ai.template('skeleton.rules'));
 
   // 轮数是自己填的。输入过程中会经过「空」和「0」这些中间状态，
   // 直接写进设置会把自动总结顺手关掉，所以编辑期间先放在 draft 里，
@@ -118,19 +117,11 @@ export function ContextPage() {
       </div>
 
       <${List} title="回复风格">
-        <${ListItem} title="示例" multiline
-          subtitle=${`骨架中的两段示例，演示分条方式与回应方式，约 ${exampleCost} token。`
-            + `${s.promptExamples === false ? '当前已关闭，仅保留文字规则。' : ''}`
-            + '角色卡中填写了对话示例时，该角色不注入此处的示例，由角色自己的示例演示形式。'
-            + '正文可在「Prompt 模板」中修改。'}
-          right=${html`<${Switch} checked=${s.promptExamples !== false}
-            onChange=${v => db.settings.set({ promptExamples: v })}/>`}/>
-        <${ListItem} title="输出前的自检" multiline
-          subtitle=${`角色在正式回复前，先在 thinking 标签内逐条检查本轮要点，约 ${thinkCost} token`
-            + '，并会增加一部分输出长度。检查内容不会显示在对话中。'
-            + `${s.promptThink === false ? '当前已关闭。' : ''}`}
-          right=${html`<${Switch} checked=${s.promptThink !== false}
-            onChange=${v => db.settings.set({ promptThink: v })}/>`}/>
+        <${ListItem} title="内置规则" multiline
+          subtitle=${`骨架中只保留格式规则，约 ${rulesCost} token。`
+            + '当前的规则是：每轮回复分 3 到 5 条发出。'
+            + '角色怎么说话由角色卡与世界书决定，内置提示词不作规定。'
+            + '规则正文可在「Prompt 模板」中修改。'}/>
       <//>
       <div class="pad-x">
         <${Field} label="兜底分条的长度"

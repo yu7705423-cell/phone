@@ -92,8 +92,6 @@ export function select(charId, scanText, budget, personaId) {
 // 检索本来就不可能完美，能改的是检索结果的定位。
 const HEAD = `[相关记忆]
 The following are your relevant memories, ordered by relevance, for reference.
-You may bring one into the conversation naturally, as something that happens to
-come back to you.
 When none of them fits the present situation, disregard this section.`;
 
 // 写给模型看的标签用类别 id。原先是 [S/事实] —— S 对模型没有任何含义，

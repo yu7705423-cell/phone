@@ -20,6 +20,5 @@ export function build({ chat, persona }) {
   const note = String(persona.avatarNote || '').trim();
   return `\n\n[对方的头像]\nThe other party changed their avatar.`
     + (note ? ` The new one: ${note}.` : '')
-    + '\nThis is a fact visible to you. Whether to mention it, and how to react,'
-    + ' is yours to decide.';
+    + '\nThis is a fact visible to you.';
 }
