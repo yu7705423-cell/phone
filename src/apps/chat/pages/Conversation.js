@@ -8,12 +8,13 @@ import { StickerImg } from './StickerBits.js';
 import { MediaBubble } from './MediaBubble.js';
 import { MsgMenu } from './MsgMenu.js';
 import { PactBubble, LetterBubble, LetterSheet, PactSheet } from './SpaceBits.js';
+import { DiceBubble, InnerVoice, DiceSheet } from './ExtrasBits.js';
 import { TransferBubble, NoticeLine, TransferSheet, SettleSheet,
          LocationBubble, LocationSheet, CallBubble, CallLogSheet,
          GiftBubble, GiftSheet, UnwrapSheet,
          ListenBubble, ListenLogSheet, ListenBar } from './TransferBits.js';
 
-const { db, nav, ai, call } = phone;
+const { db, nav, ai, call, extras } = phone;
 
 // 一屏装不下这么多，但往上翻几下够用；不够再按按钮要下一段。
 // 见 CLAUDE.md 第 13 条：这是默认值不是上限，设置里填 0 就一次画全。
@@ -42,12 +43,17 @@ function QuoteRef({ quote, onClick }) {
 // 记忆化：流式回复时只有最后那条在变，别的几百条没必要跟着重画。
 // 下面传给它的函数属性都是稳定身份的，见 Conversation 里的 stable。
 const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, onSwipe, onHold,
-                  selecting, selected, onToggle, transOpen, onSettle, onOpenLog, onUnwrap }) {
+                  selecting, selected, onToggle, transOpen, onSettle, onOpenLog, onUnwrap,
+                  onPat, innerStyle }) {
   const mine = msg.role === 'user';
   const avatar = useImage(mine ? phone.accounts.current()?.avatar : char?.avatar);
   const hold = useRef({ timer: null, fired: false });
   // 默认展开时就一直开着；点一下展开这一档，点过才开
   const [openTrans, setOpenTrans] = useState(false);
+  // 心声默认藏着，点头像才展开
+  const [openInner, setOpenInner] = useState(false);
+  // 单击看心声、双击拍一拍，只能等一下才分得清是哪一个
+  const tap = useRef(null);
 
   const parts = splitBubbles(msg.content);
   const swipes = msg.swipes || [];
@@ -94,7 +100,13 @@ const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, onSwipe,
           ${selected ? html`<${Icon} name="check" size=${11}/>` : null}
         </span>` : null}
 
-      <${Avatar} src=${avatar} name=${mine ? phone.accounts.current()?.name : char?.name} size=${36} radius=${18}/>
+      <div class="msg-face no-callout"
+        onClick=${selecting || frozen ? null : () => {
+          if (tap.current) { clearTimeout(tap.current); tap.current = null; onPat && onPat(); return; }
+          tap.current = setTimeout(() => { tap.current = null; setOpenInner(v => !v); }, 260);
+        }}>
+        <${Avatar} src=${avatar} name=${mine ? phone.accounts.current()?.name : char?.name} size=${36} radius=${18}/>
+      </div>
       <div class="msg-col">
         <${QuoteRef} quote=${quote} onClick=${() => jumpTo(quote.id)}/>
 
@@ -112,6 +124,8 @@ const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, onSwipe,
           ? html`<${PactBubble} msg=${msg} onFinish=${selecting ? null : onOpenLog}/>`
           : msg.kind === 'letter'
           ? html`<${LetterBubble} msg=${msg} onOpen=${selecting ? null : onOpenLog}/>`
+          : msg.kind === 'dice'
+          ? html`<${DiceBubble} msg=${msg}/>`
           : msg.kind === 'sticker'
           ? html`<div class="bubble-sticker">
               ${sticker ? html`<${StickerImg} sticker=${sticker} size=${112}/>`
@@ -131,6 +145,9 @@ const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, onSwipe,
                   <div class="bubble-trans">${trans}</div>` : null}
               </div>`)
           : html`<div class="bubble bubble-empty"><span class="spinner"></span></div>`}
+
+        ${msg.inner && openInner
+          ? html`<${InnerVoice} text=${msg.inner} style=${innerStyle}/>` : null}
 
         ${msg.status === 'error' ? html`
           <button class="msg-retry press" onClick=${() => onRetry(msg)}>
@@ -173,6 +190,7 @@ export function Conversation({ chatId, focusId = '' }) {
   const [listenLog, setListenLog] = useState(null); // 正在看的那一场
   const [letter, setLetter] = useState(null);    // 正在读的那封信
   const [pact, setPact] = useState(null);        // 正在标完成的那条约定
+  const [dicing, setDicing] = useState(false);   // 骰子面板开着
   // 只画最近这么多条。聊了两万条的会话一次性铺出来要一两秒，手机上十几秒，
   // 而且往上翻从来也不会翻到那么远。不够就按「查看更早的消息」再要一段。
   const [shown, setShown] = useState(pageSize);
@@ -192,9 +210,11 @@ export function Conversation({ chatId, focusId = '' }) {
     onSettle: m => latest.current.onSettle(m),
     onOpenLog: m => latest.current.onOpenLog(m),
     onUnwrap: m => latest.current.onUnwrap(m),
+    onPat: () => latest.current.onPat(),
     noop: () => {},
   }), []);
   const pickedSet = useMemo(() => new Set(picked || []), [picked]);
+  const innerStyle = extras.innerStyle();
 
   const chat = db.chats.get(chatId);
   const char = db.characters.get((chat?.characterIds || [])[0]);
@@ -310,6 +330,9 @@ export function Conversation({ chatId, focusId = '' }) {
       // 人不在这个会话里（切到别的 app、锁屏、页面在后台）才弹。
       // 页面不在前台时会转成系统通知，见 system/push.js
       ai.reply.notifyTurn(chat, char, made);
+      // 「单独生成」那一档在整轮说完之后另起一次调用。不 await：
+      // 心声是背面那一层，晚一两秒出现不影响已经发出去的话。
+      ai.inner.attach(chatId, made).catch(() => {});
 
       if (ai.memory.shouldAutoExtract(chatId, settings.autoSummarizeInterval)) {
         ai.memory.extract(chatId)
@@ -552,7 +575,8 @@ export function Conversation({ chatId, focusId = '' }) {
     : m.kind === 'pact' ? setPact(m)
     : setCallLog(m));
   latest.current = { onRetry, onSwipe, togglePick, onSettle: setSettling,
-    onOpenLog: openLog, onUnwrap: setUnwrap };
+    onOpenLog: openLog, onUnwrap: setUnwrap,
+    onPat: () => extras.pat({ chatId, role: 'user' }) };
 
   const deletePicked = async () => {
     if (!picked.length) return;
@@ -597,6 +621,7 @@ export function Conversation({ chatId, focusId = '' }) {
     { id: 'gift', icon: 'gift', label: '礼物', onTap: () => setGifting(true) },
     { id: 'location', icon: 'map', label: '位置', onTap: () => setPlacing(true) },
     { id: 'listen', icon: 'music', label: '一起听', onTap: () => nav.push(`/listen/${chatId}`) },
+    { id: 'dice', icon: 'grid', label: '骰子', onTap: () => setDicing(true) },
   ].map(it => ({ ...it, onTap: it.onTap || (() => toast(`「${it.label}」尚未实现`)) }));
 
   const quotingRef = quoting ? quoteOf({ quoteId: quoting.id }, { char, chat }) : null;
@@ -624,7 +649,8 @@ export function Conversation({ chatId, focusId = '' }) {
               selecting=${selecting} selected=${selecting && pickedSet.has(m.id)}
               onToggle=${stable.onToggle} transOpen=${settings.translateOpen}
               onSettle=${stable.onSettle} onOpenLog=${stable.onOpenLog}
-              onUnwrap=${stable.onUnwrap}/>`)}
+              onUnwrap=${stable.onUnwrap} onPat=${stable.onPat}
+              innerStyle=${innerStyle}/>`)}
           ${!msgs.length && !char.firstMessage ? html`
             <div class="conv-hint">发送第一条消息开始对话</div>` : null}
         </div>
@@ -707,6 +733,7 @@ export function Conversation({ chatId, focusId = '' }) {
       <${UnwrapSheet} msg=${unwrap} onClose=${() => setUnwrap(null)}/>
       <${LetterSheet} msg=${letter} onClose=${() => setLetter(null)}/>
       <${PactSheet} msg=${pact} onClose=${() => setPact(null)}/>
+      <${DiceSheet} open=${dicing} chatId=${chatId} onClose=${() => setDicing(false)}/>
       <${TransferSheet} open=${paying} chatId=${chatId} onClose=${() => setPaying(false)}/>
       <${LocationSheet} open=${placing} chatId=${chatId} onClose=${() => setPlacing(false)}/>
       <${SettleSheet} msg=${settling} onClose=${() => setSettling(null)}/>
@@ -745,6 +772,12 @@ export function Conversation({ chatId, focusId = '' }) {
               : '关着。开启后角色每说一条会同时给出译文'}
             left=${html`<${Icon} name="translate" size=${18}/>`}
             onClick=${() => { setMenu(false); nav.push(`/translate/${chatId}`); }}/>
+          <${ListItem} title="互动" arrow multiline
+            subtitle=${`心声${extras.innerMode(chat) === extras.INNER_OFF ? '关着'
+              : extras.innerMode(chat) === extras.INNER_INLINE ? '随回复一起生成' : '每轮单独生成'}`
+              + ` · 拍一拍 · ${extras.facesOf(chat)} 面骰子`}
+            left=${html`<${Icon} name="heart" size=${18}/>`}
+            onClick=${() => { setMenu(false); nav.push(`/extras/${chatId}`); }}/>
           <${ListItem} title="Prompt 模板" subtitle="骨架与各任务的提示词" arrow
             left=${html`<${Icon} name="sparkle" size=${18}/>`}
             onClick=${() => { setMenu(false); nav.push('/templates'); }}/>

@@ -8,6 +8,7 @@ import { embedQuery, embedReady } from './embed.js';
 import { getProvider } from './providers/index.js';
 import { activeChat, fallbackChat, visionMode } from './services.js';
 import { images } from '../db/images.js';
+import * as avatarLib from '../avatar.js';
 import { toDataUrl } from '../audio.js';
 import { enqueue, cancel, isRunning, isAbort } from './queue.js';
 import { parseJSON } from './sse.js';
@@ -57,6 +58,7 @@ export const BACKGROUND_TASKS = new Set([
   'event.batch',       // 批量生成随机事件
   'recipe.batch',      // 批量生成食谱
   'day.plan',          // 排角色当天的日程
+  'inner.voice',       // 单独生成心声
 ]);
 
 export function backgroundUsesSpare() {
@@ -155,6 +157,9 @@ export function buildChatSystem(chat, char, msgs, opts = {}) {
 
   // 各项能力。平时只列一张单子，这一轮真沾边了才给整段细则，见 capabilities.js
   out += capabilityBlock(ctx);
+
+  // 「对方换了头像」只该说一次。这一轮说完就记下是哪一张，下一轮它就不新了。
+  if (chat.id && me?.avatar) avatarLib.markSeen(chat.id, me.avatar);
 
   return { system: out, failed, tokens: estimate(out) };
 }

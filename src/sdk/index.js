@@ -41,6 +41,9 @@ import * as giftApi from '../system/gift.js';
 import * as spaceApi from '../system/space.js';
 import * as eventsApi from '../system/events.js';
 import * as dayApi from '../system/day.js';
+import * as extrasApi from '../system/extras.js';
+import * as avatarApi from '../system/avatar.js';
+import * as innerTask from '../system/ai/tasks/inner.js';
 import * as foodApi from '../system/food.js';
 import * as dayTask from '../system/ai/tasks/day.js';
 import * as recipeBatch from '../system/ai/tasks/recipe-batch.js';
@@ -122,6 +125,7 @@ export const phone = {
     card: cardApi,
     eventBatch,
     dayTask,
+    inner: innerTask,
     recipeBatch,
     runWithPreset: engine.runWithPreset,
 
@@ -150,6 +154,8 @@ export const phone = {
   space: spaceApi,
   events: eventsApi,
   day: dayApi,
+  extras: extrasApi,
+  avatarLink: avatarApi,
   food: foodApi,
   draw: drawApi,
   music: musicApi,

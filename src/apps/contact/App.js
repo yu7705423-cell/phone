@@ -16,7 +16,7 @@ const AVATAR_MAX = 256;
 // 注意：人设正文只在「编辑资料」页的输入框里出现。列表和资料页一个字都不露，
 // 要显示就用 signature。见 CLAUDE.md 第 6 条。
 
-function AvatarPicker({ src, name, onPick }) {
+function AvatarPicker({ src, name, onPick, onNote }) {
   const fileRef = useRef(null);
   const url = useImage(src);
   const choose = async e => {
@@ -26,6 +26,8 @@ function AvatarPicker({ src, name, onPick }) {
     try {
       const id = await images.put(file, AVATAR_MAX);
       onPick(id, src);
+      // 角色看得见这张头像。描述在这一刻算好存起来，注入时只读一个字段。
+      if (onNote) onNote(id);
     } catch (err) { toast('图片处理失败：' + err.message, 'error'); }
   };
   return html`
@@ -194,7 +196,8 @@ function MePage({ id }) {
           onClick=${() => { accounts.switchTo(me.id); toast(`已切换至 ${me.name}`, 'ok'); }}>切换至此</button>`}>
       <div class="pad">
         <${AvatarPicker} src=${me.avatar} name=${me.name}
-          onPick=${(imgId, old) => { set({ avatar: imgId }); if (old) images.remove(old); }}/>
+          onPick=${(imgId, old) => { set({ avatar: imgId }); if (old) images.remove(old); }}
+          onNote=${imgId => phone.avatarLink.rememberMine(me.id, imgId)}/>
 
         <${Field} label="昵称" desc="角色将以此称呼你。">
           <${Input} value=${me.name} onInput=${v => set({ name: v })}/>

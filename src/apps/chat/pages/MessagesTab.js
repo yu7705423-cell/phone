@@ -40,6 +40,8 @@ const Row = memo(function Row({ chat, onHold }) {
       <${Avatar} src=${avatar} name=${title} size=${46} radius=${23}/>
       <div class="msg-main">
         <div class="msg-line">
+          ${phone.extras.isStarred(char) ? html`
+            <${Icon} name="star" size=${13} class="msg-star"/>` : null}
           <span class="msg-name ellipsis">${title}</span>
           <span class="msg-time">${relTime(chat.lastMessageAt)}</span>
         </div>

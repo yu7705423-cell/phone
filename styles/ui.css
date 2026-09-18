@@ -67,6 +67,13 @@
 .num-row input { flex: 1; min-width: 0; }
 .num-unit { flex: none; font-size: var(--fs-15); color: var(--text-3); }
 
+/* 未读数。消息列表直接用这个类，不经过组件 */
+.badge {
+  min-width: 17px; height: 17px; padding: 0 5px; border-radius: var(--r-full);
+  background: var(--accent); color: var(--on-accent);
+  font-size: var(--fs-11); line-height: 17px; text-align: center;
+}
+
 .switch {
   width: 46px; height: 27px; border-radius: var(--r-full); background: var(--surface-3);
   padding: 2px; display: flex; transition: background var(--dur) var(--ease);

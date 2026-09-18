@@ -15,12 +15,14 @@ import * as gift from '../gift.js';
 import * as music from '../music.js';
 import * as space from '../space.js';
 import * as dayStore from '../day.js';
+import * as extras from '../extras.js';
+import * as avatar from '../avatar.js';
 
 // 角色回复里可以带这几种标记，由模型自己决定什么时候用。
 // 中英文冒号都认，方括号也认全角。
 // 「约定完成」必须排在「约定」前面 —— 交替是从左往右试的，反过来写
 // 「约定完成：早点睡」会先被「约定」吃掉，剩下「完成：早点睡」当成内容。
-const MARK = /[[【]\s*(图片|照片|image|pic|语音|voice|audio|表情|sticker|emoji|转账|transfer|位置|定位|location|礼物|gift|点歌|建歌单|约定完成|约定|pact|信|letter|事项完成|事项取消)\s*[:：]\s*([^\]】]+)[\]】]/gi;
+const MARK = /[[【]\s*(图片|照片|image|pic|语音|voice|audio|表情|sticker|emoji|转账|transfer|位置|定位|location|礼物|gift|点歌|建歌单|约定完成|约定|pact|信|letter|事项完成|事项取消|心声|换头像)\s*[:：]\s*([^\]】]+)[\]】]/gi;
 
 const IMAGE_KINDS = new Set(['图片', '照片', 'image', 'pic']);
 const STICKER_KINDS = new Set(['表情', 'sticker', 'emoji']);
@@ -33,6 +35,8 @@ const PACTDONE_KINDS = new Set(['约定完成']);
 const LETTER_KINDS = new Set(['信', 'letter']);
 const ITEM_DONE_KINDS = new Set(['事项完成']);
 const ITEM_DROP_KINDS = new Set(['事项取消']);
+const INNER_KINDS = new Set(['心声']);
+const WEAR_KINDS = new Set(['换头像']);
 const LIST_KINDS = new Set(['建歌单']);
 
 // 转账那一条里，金额在前，后面随手写的是留言
@@ -49,6 +53,10 @@ const REFUSE_LINE = /^[[【(（]\s*(拒收|不收|退掉)\s*[\]】)）]$/;
 
 // 拉着一起听歌。同样必须带方括号。
 const LISTEN_LINE = /^[[【(（]\s*(一起听|一起听歌|听歌)\s*[\]】)）]$/;
+
+// 拍一拍、掷骰子。都是「一件事」不是「一条消息」，所以不带冒号，整行就是它。
+const PAT_LINE = /^[[【(（]\s*(?:拍一拍|拍拍|戳一戳)\s*[\]】)）]$/;
+const DICE_LINE = /^[[【(（]\s*(?:骰子|掷骰子|扔骰子|dice)\s*[\]】)）]$/i;
 
 // 打个电话过来。同样必须带方括号。写「视频来电」就是视频通话。
 const RING_LINE = /^[[【(（]\s*(视频)?(?:来电|打电话|拨打|通话|call)\s*[\]】)）]$/i;
@@ -67,6 +75,7 @@ const TRANS_LINE = /^[[【(（]?\s*(?:译文|翻译|译|translation)\s*[:：]\s*
 // 模型多半会照着模板写 [时间：…]，但也常常只丢一个 [2026-01-01 周三 14:30]，
 // 标签说掉就掉。两种都得认 —— 认不出来那一行就当正文渲染出去了，
 // 而且它挡在最前面，后面那行引用标记也跟着剥不掉，整条消息全乱。
+const INNER_LINE = /^[[【(（]?\s*(?:心声|内心|inner)\s*[:：]\s*(.+?)[\]】)）]?\s*$/i;
 const STAMP_LINE = /^[[【(（]?\s*(?:时间|time)\s*[:：]\s*([^\n\]】)）]+)[\]】)）]?\s*$/i;
 const BRACKETED = /^[[【(（]\s*([^\n\]】)）]+?)\s*[\]】)）]\s*$/;
 // 只由数字和时间用字构成，且确实带着钟点或日期的样子
@@ -141,6 +150,19 @@ export function splitReply(raw) {
       // 拉一起听。和电话一样是一件事不是一条消息，不占气泡。
       if (LISTEN_LINE.test(t)) { push({ type: 'listen' }); return; }
 
+      // 拍一拍落一行提示，骰子落一条自己的消息，两样都不占气泡。
+      if (PAT_LINE.test(t)) { push({ type: 'pat' }); return; }
+      if (DICE_LINE.test(t)) { push({ type: 'dice' }); return; }
+
+      // 心声和译文一样，挂到刚刚那一条上 —— 它是那句话背后的那一层，
+      // 前面没有话就无从谈起。
+      const iv = t.match(INNER_LINE);
+      if (iv) {
+        const prev = parts[parts.length - 1];
+        if (prev) prev.inner = iv[1].trim();
+        return;
+      }
+
       // 译文相反，挂到刚刚那一条上。前面没有正文就只能丢掉。
       const tr = t.match(TRANS_LINE);
       if (tr) {
@@ -164,6 +186,11 @@ export function splitReply(raw) {
         push({ type: 'pick', name: body });
       } else if (LIST_KINDS.has(kind)) {
         push({ type: 'newlist', name: body });
+      } else if (INNER_KINDS.has(kind)) {
+        const prev = parts[parts.length - 1];
+        if (prev) prev.inner = body;
+      } else if (WEAR_KINDS.has(kind)) {
+        push({ type: 'wear', name: body });
       } else if (ITEM_DONE_KINDS.has(kind)) {
         push({ type: 'agenda', state: dayStore.DONE, title: body });
       } else if (ITEM_DROP_KINDS.has(kind)) {
@@ -254,6 +281,7 @@ export function materialize(part, base, char) {
     ...base, ...quote,
     ...(part.stamp ? { stamp: part.stamp } : {}),
     ...(part.translation ? { translation: part.translation } : {}),
+    ...(part.inner ? { inner: String(part.inner).slice(0, 300) } : {}),
   };
 
   if (part.type === 'sticker') {
@@ -328,6 +356,19 @@ export function materialize(part, base, char) {
     const target = gift.pendingFrom(base.chatId, base.role === 'user' ? 'char' : 'user');
     return target ? gift.settle(target.id, part.open, row) : null;
   }
+  if (part.type === 'pat') {
+    return extras.pat({ chatId: base.chatId, role: base.role });
+  }
+  if (part.type === 'dice') {
+    // 点数是本地掷的。这一条要到下一轮才进历史，所以她写下这一行的时候
+    // 还不知道掷出来是几 —— 和礼物拆开之前不知道里面是什么同构。
+    return extras.roll({ chatId: base.chatId, role: base.role });
+  }
+  if (part.type === 'wear') {
+    // 认不出名字就不换。凭空换成另一张，用户看到的是一个她根本没提过的头像。
+    if (base.role === 'char' && char) avatar.wear(char.id, part.name);
+    return null;
+  }
   if (part.type === 'agenda') {
     // 事项是角色自己的事，不落消息 —— 它改的是那一天，不是这段对话。
     // 认不出是哪一条就什么都不做，和约定那边同一条规矩。
@@ -397,7 +438,7 @@ export function notifyTurn(chat, char, created) {
   if (!created.length || !shouldNotify(chat.id)) return;
   const first = created.find(m => m.kind === 'text') || created[0];
   notify({
-    title: char.name || '新消息',
+    title: extras.starTitle(char, char.name || '新消息'),
     body: first?.content || '发来一条消息',
     icon: 'message', appId: 'chat', avatar: char.avatar,
     payload: { route: `/chat/${chat.id}` },

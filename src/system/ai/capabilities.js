@@ -9,6 +9,8 @@ import { PENDING as GIFT_PENDING } from '../gift.js';
 import { listen } from '../listen.js';
 import { PACT_OPEN } from '../space.js';
 import * as dayStore from '../day.js';
+import * as extras from '../extras.js';
+import * as avatarLib from '../avatar.js';
 import { allSongs } from '../music.js';
 
 // 能力目录。
@@ -150,6 +152,36 @@ export const CAPS = [
     on: ({ char }) => !!dayStore.brief(char.id),
     always: true,
     detail: () => template('skeleton.agenda'),
+  },
+  {
+    id: 'pat',
+    on: ({ char }) => char.canPat !== false,
+    hot: ({ msgs }) => usedRecently(msgs, /拍了拍|[[【]拍/),
+    line: () => '轻轻碰一下对方：单独写一行 [拍一拍]',
+    detail: () => template('skeleton.pat'),
+  },
+  {
+    id: 'dice',
+    on: ({ char }) => char.canDice !== false,
+    hot: ({ msgs }) => usedRecently(msgs, /^dice$|[[【]骰子/),
+    line: () => '交给运气：单独写一行 [骰子]，点数由系统掷，你这一轮还不知道',
+    detail: () => template('skeleton.dice'),
+  },
+  {
+    id: 'avatar',
+    // 库是空的就没什么可换，提了反而让它点一张不存在的
+    on: ({ char }) => !!avatarLib.poolNames(char),
+    hot: ({ msgs }) => usedRecently(msgs, /[[【]换头像/),
+    line: ({ char }) => `换头像：单独写一行 [换头像：名字]，可换的有 ${avatarLib.poolNames(char)}`,
+    detail: ({ char }) => fillTemplate(template('skeleton.avatar'), { names: avatarLib.poolNames(char) }),
+  },
+  {
+    id: 'inner',
+    // 心声是每一轮的义务，不是「想用再用」的功能，冷着注入等于关掉它。
+    // 「单独生成」那一档不走这儿 —— 那一档是另一次调用，不必在这儿交代写法。
+    on: ({ chat }) => extras.innerMode(chat) === extras.INNER_INLINE,
+    always: true,
+    detail: () => template('skeleton.inner'),
   },
   {
     id: 'time',

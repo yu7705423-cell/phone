@@ -983,3 +983,34 @@ button.search-bar { width: 100%; border: none; }
 
 /* 取消掉的事项：留在那儿，但一眼看得出不作数了 */
 .list-item.is-dropped .li-title { text-decoration: line-through; color: var(--text-3); }
+
+/* ---- 关系小件 ---- */
+/* 头像是可点的：单击看心声，双击拍一拍。所以要禁掉系统的选中浮层 */
+.msg-face { flex: none; cursor: pointer; }
+
+.bubble-dice {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  min-width: 72px; padding: var(--sp-3) var(--sp-4);
+}
+.dice-num {
+  font-size: var(--fs-24); font-weight: var(--fw-semi); line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.dice-face { font-size: var(--fs-11); opacity: .6; }
+
+.inner-voice { margin-top: var(--sp-2); line-height: 1.6; }
+.inner-quiet {
+  font-size: var(--fs-12); color: var(--text-3); padding: 0 var(--sp-1);
+}
+.inner-card {
+  font-size: var(--fs-13); color: var(--text-2);
+  padding: var(--sp-3); border-radius: var(--r-md);
+  background: var(--group-fill);
+}
+.msg.is-mine .inner-quiet, .msg.is-mine .inner-card { text-align: right; }
+
+.pool-thumb {
+  width: 32px; height: 32px; border-radius: var(--r-full);
+  object-fit: cover; background: var(--surface-2);
+}
+.msg-star { flex: none; color: var(--accent); }

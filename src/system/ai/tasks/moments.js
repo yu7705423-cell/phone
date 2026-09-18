@@ -1,6 +1,8 @@
 import { moments, characters, persona, images } from '../../db/index.js';
 import * as imageSvc from '../image.js';
 import { template, runJSONTask } from '../engine.js';
+import { notify } from '../../notify.js';
+import * as extras from '../../extras.js';
 import { fillTemplate } from '../templates.js';
 import { listFor } from '../context/memory.js';
 
@@ -36,6 +38,16 @@ export async function createMoment(charId) {
         moments.update(mo.id, { images: [id], imagePending: false });
       })
       .catch(err => moments.update(mo.id, { imagePending: false, imageError: String(err.message || err) }));
+  }
+  // 特别关心的角色发了动态就弹一下。不是特别关心的不弹 ——
+  // 朋友圈本来就是「你想起来才去看」的东西，每条都弹就成了骚扰。
+  if (extras.isStarred(char)) {
+    notify({
+      title: extras.starTitle(char, char.name || '新动态'),
+      body: String(mo.text || '').slice(0, 40),
+      icon: 'moments', appId: 'chat', avatar: char.avatar,
+      payload: { route: '/moments' },
+    });
   }
   return mo;
 }

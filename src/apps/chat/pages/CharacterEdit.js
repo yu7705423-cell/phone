@@ -3,8 +3,9 @@ import { phone, useStore, useImage } from '../../../sdk/index.js';
 import { Page, Field, Input, Textarea, Avatar, List, ListItem,
          Switch, Segmented, Icon, Button, QrLogin, toast } from '../../../ui/index.js';
 import { ZonePicker } from './ZonePicker.js';
+import { AvatarPool } from './AvatarPool.js';
 
-const { db, nav, clock } = phone;
+const { db, nav, clock, extras } = phone;
 
 const FACE_MODES = [
   { value: 'off', label: '关闭' },
@@ -129,6 +130,14 @@ export function CharacterEdit({ id }) {
             + `关闭后角色不再有自己的一天，随机事件与吃饭记录也不再产生`}
           right=${html`<${Switch} checked=${!!char.dayOn}
             onChange=${v => patch({ dayOn: v })}/>`}/>
+        <${ListItem} title="拍一拍" multiline
+          subtitle="角色可以主动拍你。你双击角色头像也可以拍它，无论此项开关"
+          right=${html`<${Switch} checked=${char.canPat !== false}
+            onChange=${v => patch({ canPat: v })}/>`}/>
+        <${ListItem} title="骰子" multiline
+          subtitle="角色可以掷骰子。点数由本地随机数决定，角色要到下一轮才知道结果"
+          right=${html`<${Switch} checked=${char.canDice !== false}
+            onChange=${v => patch({ canDice: v })}/>`}/>
         <${ListItem} title="随机事件" multiline
           subtitle=${`角色的每一天可能撞上一件事，从「日常」的事件库中由本地随机数抽取，`
             + `不消耗接口调用。关闭后这个角色不再遇到随机事件`}
@@ -216,6 +225,22 @@ export function CharacterEdit({ id }) {
         <${Input} value=${char.region || ''} placeholder="例如：成都"
           onInput=${v => patch({ region: v })}/>
       <//>
+
+      <${List} title="关系">
+        <${ListItem} title="特别关心" multiline
+          subtitle="该角色的消息、来电与动态在通知中加上「特别关心」前缀，动态另行提醒"
+          right=${html`<${Switch} checked=${!!char.star}
+            onChange=${v => extras.setStar(char.id, v)}/>`}/>
+      <//>
+
+      <${Field} label="别人拍这个角色时显示的后缀"
+        desc=${`双击角色头像即可拍一拍。后缀由被拍的一方设定，所以这一项是你拍它时显示的。`
+          + `留空则使用「${extras.DEFAULT_PAT}」。你自己的那一项在会话菜单的「互动」里。`}>
+        <${Input} value=${char.patSuffix || ''} placeholder=${extras.DEFAULT_PAT}
+          onInput=${v => extras.setCharPat(char.id, v)}/>
+      <//>
+
+      <${AvatarPool} char=${char}/>
 
       <${List} title="关联世界书">
         ${db.lorebooks.all().map(b => html`

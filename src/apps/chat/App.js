@@ -10,6 +10,7 @@ import { CharacterEdit } from './pages/CharacterEdit.js';
 import { Conversation } from './pages/Conversation.js';
 import { ContextPage } from './pages/ContextPage.js';
 import { TimePage } from './pages/TimePage.js';
+import { ExtrasPage } from './pages/ExtrasPage.js';
 import { TranslatePage } from './pages/TranslatePage.js';
 import { TemplatesPage } from './pages/TemplatesPage.js';
 import { StickerManager } from './pages/StickerManager.js';
@@ -73,6 +74,9 @@ export default function ChatApp({ route }) {
   if (route === '/stickers') return html`<${StickerManager}/>`;
   if (route === '/context') return html`<${ContextPage}/>`;
   if (route === '/time') return html`<${TimePage}/>`;
+
+  const ex = route?.match(/^\/extras\/(.+)$/);
+  if (ex) return html`<${ExtrasPage} chatId=${ex[1]}/>`;
 
   const tr = route?.match(/^\/translate\/(.+)$/);
   if (tr) return html`<${TranslatePage} chatId=${tr[1]}/>`;

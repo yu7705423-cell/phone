@@ -10,6 +10,7 @@ import { fillTemplate } from './ai/templates.js';
 import { configOf, inQuiet } from './ai/proactive.js';
 import { notify } from './notify.js';
 import * as camera from './camera.js';
+import * as extras from './extras.js';
 import { visionMode } from './ai/services.js';
 
 // 通话。
@@ -206,7 +207,8 @@ export function ring(chatId, { video = false } = {}) {
   framedAt = 0;
 
   notify({
-    title: char.name || '来电', body: video ? '视频通话' : '语音通话', icon: 'phone',
+    title: extras.starTitle(char, char.name || '来电'),
+    body: video ? '视频通话' : '语音通话', icon: 'phone',
     appId: 'chat', avatar: char.avatar, payload: { route: `/chat/${chatId}` },
   });
 
