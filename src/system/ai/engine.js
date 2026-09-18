@@ -14,9 +14,26 @@ import { toDataUrl } from '../audio.js';
 import { enqueue, cancel, isRunning, isAbort } from './queue.js';
 import { parseJSON } from './sse.js';
 import { estimate, takeLatestWithin } from './tokens.js';
+import * as trace from './trace.js';
 
 // 接口协议要求带 max_tokens，取一个足够大的值，等同于不限制
 export const MAX_OUTPUT = 32000;
+
+/**
+ * 所有发给模型的请求都从这里过。
+ *
+ * 只有一个目的：留一道门，好在门口记下这一轮实际发出去的是什么
+ *（见 trace.js，默认关着）。分散在六处各调各的，就没有这样一个地方。
+ */
+function send(taskId, c, payload, kind = 'complete') {
+  const t = trace.begin({
+    taskId, preset: c.name, model: c.model,
+    system: payload.system, messages: payload.messages, stream: kind === 'stream',
+  });
+  return getProvider(c.provider)[kind](c, payload)
+    .then(text => { t.done(text); return text; })
+    .catch(err => { t.fail(err); throw err; });
+}
 
 export { template };
 
@@ -346,8 +363,8 @@ export function streamCall({ chat, char, system, lines = [], opening = '', image
     else all.push({ role: 'user', content: '（这是我这边的画面）', image });
   }
 
-  return enqueue(callKey(chat.id), signal => withFallback(c => getProvider(c.provider)
-    .stream(c, { system, messages: all, maxTokens: callMax() || c.maxTokens, signal, onDelta })),
+  return enqueue(callKey(chat.id), signal => withFallback(c => send('chat.call', c,
+    { system, messages: all, maxTokens: callMax() || c.maxTokens, signal, onDelta }, 'stream')),
     { replace: true, retries: 1 });
 }
 
@@ -372,8 +389,8 @@ export function streamReply({ chat, char, onDelta }) {
     const history = buildHistory(chat, char, msgs, { images: pics, lore });
     const queryVec = await queryVecFor(msgs);
     const { system } = buildChatSystem(chat, char, msgs, { queryVec, lore });
-    const text = await withFallback(c => getProvider(c.provider)
-      .stream(c, { system, messages: history, maxTokens: c.maxTokens, signal, onDelta }));
+    const text = await withFallback(c => send('chat.reply', c,
+      { system, messages: history, maxTokens: c.maxTokens, signal, onDelta }, 'stream'));
     // 不 await：描述是给以后几轮用的，这一轮模型已经看过原图了，
     // 让它拖住回复的返回没有意义。
     if (pics) describeCarried(pics);
@@ -408,7 +425,7 @@ async function describeCarried(pics) {
 export async function runJSONTask(taskId, { system, user, key, maxTokens = 1400 }) {
   const run = runnerFor(taskId);
   const raw = await enqueue(key || `task:${taskId}:${Date.now()}`, signal =>
-    run(c => getProvider(c.provider).complete(c, {
+    run(c => send(taskId, c, {
       system,
       messages: [{ role: 'user', content: user || '请按要求输出 JSON。' }],
       maxTokens, signal,
@@ -429,9 +446,7 @@ export async function runTextTask(taskId, { system, user, key, image, maxTokens 
   const msg = { role: 'user', content: user || '请按要求输出。' };
   if (image) msg.image = image;
   return enqueue(key || `task:${taskId}:${Date.now()}`, signal =>
-    run(c => getProvider(c.provider).complete(c, {
-      system, messages: [msg], maxTokens, signal,
-    })), { retries: 1 });
+    run(c => send(taskId, c, { system, messages: [msg], maxTokens, signal })), { retries: 1 });
 }
 
 // 指定一个预设跑一次结构化任务。会联网搜索的那套接口走这条路 ——
@@ -440,7 +455,7 @@ export async function runJSONWithPreset(preset, { system, user, key, maxTokens =
   const c = asConfig(preset);
   if (!usable(c)) throw new Error('这套接口还没填全');
   const raw = await enqueue(key || `preset:${Date.now()}`, signal =>
-    getProvider(c.provider).complete(c, {
+    send('preset.json', c, {
       system, messages: [{ role: 'user', content: user || '请按要求输出 JSON。' }],
       maxTokens, signal,
     }), { retries: 1 });
@@ -457,7 +472,7 @@ export async function runJSONWithPreset(preset, { system, user, key, maxTokens =
 export function runWithPreset(preset, { system, user, maxTokens = 64 }) {
   const c = asConfig(preset);
   return enqueue(`test:${preset.id}:${Date.now()}`, signal =>
-    getProvider(c.provider).complete(c, {
+    send('preset.test', c, {
       system, messages: [{ role: 'user', content: user }], maxTokens, signal,
     }), { retries: 0 });
 }

@@ -19,6 +19,7 @@ import * as memoryCtx from '../system/ai/context/memory.js';
 import * as embedApi from '../system/ai/embed.js';
 import * as memvecApi from '../system/ai/memvec.js';
 import * as loreCtx from '../system/ai/context/lorebook.js';
+import * as traceApi from '../system/ai/trace.js';
 import { extract, shouldAutoExtract, pendingOf } from '../system/ai/tasks/memory-extract.js';
 import * as memImport from '../system/ai/tasks/memory-import.js';
 import * as charAltApi from '../system/ai/tasks/char-alt.js';
@@ -120,6 +121,7 @@ export const phone = {
     embed: embedApi,
     memvec: memvecApi,
     lore: loreCtx,
+    trace: traceApi,
     moments: momentTasks,
     services: svc,
     fetchModels,

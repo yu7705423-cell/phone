@@ -148,5 +148,12 @@ export function StoragePage() {
       <div class="pad">
         <${Button} full variant="danger" disabled=${busy} onClick=${wipe}>清空全部数据<//>
       </div>
+
+      <${List} title="排查">
+        <${ListItem} title="请求记录" arrow multiline
+          subtitle="记录每一轮向模型发出的完整请求，用于排查提示词。默认关闭，关闭时不记录任何内容。"
+          left=${html`<${Icon} name="notes" size=${18}/>`}
+          onClick=${() => nav.push('/trace')}/>
+      <//>
     <//>`;
 }

@@ -6,6 +6,7 @@ import { VoicePage } from './VoicePage.js';
 import { ImagePage } from './ImagePage.js';
 import { AppearancePage } from './AppearancePage.js';
 import { StoragePage } from './StoragePage.js';
+import { TracePage } from './TracePage.js';
 import { NotifyPage } from './NotifyPage.js';
 import { EmbedPage } from './EmbedPage.js';
 import { VisionPage } from './VisionPage.js';
@@ -165,5 +166,6 @@ export default function SettingsApp({ route }) {
   if (route === '/image') return html`<${ImagePage}/>`;
   if (route === "/appearance") return html`<${AppearancePage}/>`;
   if (route === '/storage') return html`<${StoragePage}/>`;
+  if (route === '/trace') return html`<${TracePage}/>`;
   return html`<${Home}/>`;
 }

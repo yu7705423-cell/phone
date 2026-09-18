@@ -24,7 +24,7 @@ const ROUTES = {
   daily: ['/', '/gen', '/cell/env/good', '/cell/social/bad', '/cell/luck/plain',
     '/today', '/today/:char', '/food', '/food/', '/food/%E6%88%90%E9%83%BD'],
   settings: ['/', '/api', '/voice', '/image', '/embed', '/notify', '/music',
-    '/appearance', '/storage', '/vision', '/asr', '/limits', '/search'],
+    '/appearance', '/storage', '/trace', '/vision', '/asr', '/limits', '/search'],
 };
 
 // 本项目不装 npm 依赖（CLAUDE.md 第 9 条），所以 playwright 从别处借：
