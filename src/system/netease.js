@@ -94,14 +94,31 @@ const probeOne = async (url, ms = 12000) => {
   const at = Date.now();
   try {
     const res = await fetch(url, { method: 'GET', signal: ctl.signal });
+    // **原样留一份返回的内容。** 只报一个状态码是不够用的：
+    // 400 的 body 里通常写着到底缺什么、是不是被限流、Space 是不是没起来，
+    // 那句话才是能照着改的东西。一个光秃秃的「返回 400」谁也查不下去。
+    const raw = await res.text().catch(() => '');
     let body = null;
-    try { body = await res.json(); } catch { /* 有些错误页不是 JSON */ }
-    return { ok: res.ok, status: res.status, body, ms: Date.now() - at };
+    try { body = JSON.parse(raw); } catch { /* 有些错误页不是 JSON */ }
+    return { ok: res.ok, status: res.status, body, raw, ms: Date.now() - at };
   } catch (err) {
     // CORS 被拦、地址不通、超时，在浏览器里都是一个 TypeError，分不开
-    return { ok: false, status: 0, err: String(err.name === 'AbortError' ? '超时' : '请求发不出去'), ms: Date.now() - at };
+    return { ok: false, status: 0, raw: '',
+      err: String(err.name === 'AbortError' ? '超时' : '请求发不出去'), ms: Date.now() - at };
   } finally { clearTimeout(t); }
 };
+
+// 接口说了什么。JSON 里的 message / msg 最有用，没有就退回原文。
+// 截短到一行 —— 完整的 HTML 错误页铺满一屏，反而看不清。
+function said(r) {
+  const b = r.body;
+  const msg = b && (b.message || b.msg || b.error
+    || (typeof b.data === 'string' ? b.data : ''));
+  const text = String(msg || r.raw || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!text) return '';
+  const code = b && typeof b.code === 'number' && b.code !== r.status ? `code ${b.code}，` : '';
+  return `${code}${text.slice(0, 120)}${text.length > 120 ? '…' : ''}`;
+}
 
 const CHECKS = [
   {
@@ -112,7 +129,9 @@ const CHECKS = [
     // 会睡过去，第一个请求要等它整个起来，几十秒是常事。
     // 按八秒判超时，会把一个好实例判成死的。
     ms: 60000,
-    judge: r => (r.status === 0 ? [false, r.err] : r.ok ? [true, `${r.ms} 毫秒`] : [false, `返回 ${r.status}`]),
+    judge: r => (r.status === 0 ? [false, r.err]
+      : r.ok ? [true, `${r.ms} 毫秒`]
+      : [false, `返回 ${r.status}${said(r) ? `：${said(r)}` : ''}`]),
   },
   {
     id: 'search', label: '搜歌',
@@ -122,7 +141,8 @@ const CHECKS = [
       if (r.status === 0) return [false, r.err];
       if (r.status === 404) return [false, '没有这个接口，将退回旧版搜索'];
       const n = r.body?.result?.songs?.length || 0;
-      return n ? [true, `搜到了，带封面`] : [false, `返回 ${r.status}，没有结果`];
+      return n ? [true, '搜到了，带封面']
+        : [false, `返回 ${r.status}${said(r) ? `：${said(r)}` : '，没有结果'}`];
     },
   },
   {
@@ -130,7 +150,8 @@ const CHECKS = [
     desc: '扫码登录的第一步。这一步不通，登录整条路都走不了',
     path: '/login/qr/key',
     judge: r => (r.status === 0 ? [false, r.err]
-      : r.body?.data?.unikey ? [true, '拿得到'] : [false, `返回 ${r.status}`]),
+      : r.body?.data?.unikey ? [true, '拿得到']
+      : [false, `返回 ${r.status}${said(r) ? `：${said(r)}` : ''}`]),
   },
   {
     id: 'qrimg', label: '生成二维码',
@@ -146,7 +167,8 @@ const CHECKS = [
     judge: r => {
       if (r.status === 0) return [false, r.err];
       const img = r.body?.data?.qrimg;
-      return img && String(img).startsWith('data:') ? [true, '拿得到图'] : [false, `返回 ${r.status}，没有图`];
+      return img && String(img).startsWith('data:') ? [true, '拿得到图']
+        : [false, `返回 ${r.status}${said(r) ? `：${said(r)}` : '，没有图'}`];
     },
   },
   {
@@ -160,7 +182,7 @@ const CHECKS = [
       if (r.status === 404) return [false, '没有这个接口'];
       if (typeof r.body?.code === 'number') return [true, `活着，返回 ${r.body.code}`];
       if (r.status >= 400 && r.status < 500) return [true, `活着，用假 key 问它回了 ${r.status}`];
-      return [false, `返回 ${r.status}`];
+      return [false, `返回 ${r.status}${said(r) ? `：${said(r)}` : ''}`];
     },
   },
   {
@@ -175,7 +197,7 @@ const CHECKS = [
       if (r.status === 404) return [false, '没有这个接口'];
       if (r.body && typeof r.body === 'object') return [true, '认这个参数'];
       if (r.status >= 400 && r.status < 500) return [true, `读到了，用假 cookie 问它回了 ${r.status}`];
-      return [false, `返回 ${r.status}，不像是认`];
+      return [false, `返回 ${r.status}${said(r) ? `：${said(r)}` : '，不像是认'}`];
     },
   },
   {
@@ -187,7 +209,7 @@ const CHECKS = [
       if (r.status === 404) return [false, '没有这个接口'];
       const row = (r.body?.data || [])[0];
       if (row && row.url) return [true, '拿得到'];
-      return [false, `拿不到（返回 ${r.status}），可能需要登录或受版权限制`];
+      return [false, `拿不到（返回 ${r.status}）${said(r) ? `：${said(r)}` : '，可能需要登录或受版权限制'}`];
     },
   },
 ];
