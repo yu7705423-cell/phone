@@ -123,6 +123,12 @@ export function CharacterEdit({ id }) {
           subtitle="角色可以写信，信会放进情侣空间的信箱。关闭后角色不再写信，你仍可写给角色"
           right=${html`<${Switch} checked=${char.canWriteLetter !== false}
             onChange=${v => patch({ canWriteLetter: v })}/>`}/>
+        <${ListItem} title="当日日程" multiline
+          subtitle=${`开启后，每天首次对话前会为这个角色排一次当天的日程，`
+            + `并把当前时段的安排带进上下文。每天一次单独的接口调用。`
+            + `关闭后角色不再有自己的一天，随机事件与吃饭记录也不再产生`}
+          right=${html`<${Switch} checked=${!!char.dayOn}
+            onChange=${v => patch({ dayOn: v })}/>`}/>
         <${ListItem} title="随机事件" multiline
           subtitle=${`角色的每一天可能撞上一件事，从「日常」的事件库中由本地随机数抽取，`
             + `不消耗接口调用。关闭后这个角色不再遇到随机事件`}
@@ -204,6 +210,12 @@ export function CharacterEdit({ id }) {
           设为其他国家后，角色将按该地的作息与时间作出反应。
           本人所在时区在「上下文与记忆 - 时间感知」中设置。
         </div>` : null}
+
+      <${Field} label="所在地区"
+        desc="决定这个角色吃到的是哪一批食物。与「日常 - 吃什么」里的地区名写成一样，两边才对得上。留空则只吃不分地区的那一批。">
+        <${Input} value=${char.region || ''} placeholder="例如：成都"
+          onInput=${v => patch({ region: v })}/>
+      <//>
 
       <${List} title="关联世界书">
         ${db.lorebooks.all().map(b => html`

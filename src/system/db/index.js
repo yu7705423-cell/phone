@@ -21,8 +21,13 @@ export const playlists  = makeCollection('playlists', 'pl');
 export const spaceItems = makeCollection('spaceItems', 'si', { indexBy: 'chatId' });
 // 随机事件库。按「领域 × 色彩」分格，索引就建在这个格子上。
 export const events     = makeCollection('events', 'ev', { indexBy: 'cell' });
+// 角色的一天：一个角色一天一条。日程、抽中的随机事件、当天的大运都在里面。
+export const days       = makeCollection('days', 'day', { indexBy: 'charId' });
+// 食谱库按地区分，地区留空的是通用的。吃饭记录按角色分，抽的时候要回头看。
+export const recipes    = makeCollection('recipes', 'rc', { indexBy: 'region' });
+export const meals      = makeCollection('meals', 'ml', { indexBy: 'charId' });
 
-const COLLECTIONS = { characters, lorebooks, memories, chats, messages, moments, stickers, looks, personas, songs, playlists, spaceItems, events };
+const COLLECTIONS = { characters, lorebooks, memories, chats, messages, moments, stickers, looks, personas, songs, playlists, spaceItems, events, days, recipes, meals };
 
 // ---- kv: settings / persona / layout ----
 function makeKV(key, fallback, { deep = false } = {}) {
@@ -105,7 +110,7 @@ window.addEventListener('pagehide', () => { images.revokeAll(); files.revokeAll(
 
 export const db = {
   characters, lorebooks, memories, chats, messages, moments, stickers, looks, personas,
-  songs, playlists, spaceItems, events,
+  songs, playlists, spaceItems, events, days, recipes, meals,
   images, files, settings, persona, layout,
   messagesOf, lastMessageOf, ready,
 };

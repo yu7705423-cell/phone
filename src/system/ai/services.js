@@ -14,6 +14,9 @@ export const EMPTY_SERVICES = {
   vision: { mode: 'off', baseUrl: '', apiKey: '', model: '' },
   // 语音识别：把用户发的语音读成文字。mode 决定只转文字还是连语气一起读
   asr: { baseUrl: '', apiKey: '', model: '', mode: 'text' },
+  // 会联网搜索的那套接口。和聊天预设是同一种形状，区别只在模型本身能不能上网。
+  // 配了它，生成食谱时才问得出「这个地方真的有哪几家店」。
+  search: { provider: 'openai', baseUrl: '', apiKey: '', model: '' },
   // 网易云。baseUrl 指向自己部署的那个 NeteaseCloudMusicApi，
   // cookie 是登录后拿到的凭据 —— 它等于账号权限，只存在这台设备的浏览器里。
   netease: { baseUrl: '', cookie: '', nickname: '', uid: '', sync: false },
@@ -28,6 +31,7 @@ export function services() {
     embed: { ...EMPTY_SERVICES.embed, ...(s?.embed || {}) },
     vision: { ...EMPTY_SERVICES.vision, ...(s?.vision || {}) },
     asr: { ...EMPTY_SERVICES.asr, ...(s?.asr || {}) },
+    search: { ...EMPTY_SERVICES.search, ...(s?.search || {}) },
     netease: { ...EMPTY_SERVICES.netease, ...(s?.netease || {}) },
   };
 }
@@ -147,6 +151,13 @@ export function visionActive() {
 }
 
 // ---- 语音识别 ----
+export function searchConfig() { return services().search; }
+export function setSearch(patch) { write({ search: { ...services().search, ...patch } }); }
+export function searchReady() {
+  const v = services().search;
+  return !!(v.apiKey && v.model);
+}
+
 export function neteaseConfig() { return services().netease; }
 export function setNetease(patch) { write({ netease: { ...services().netease, ...patch } }); }
 export function neteaseReady() { return !!services().netease.baseUrl; }

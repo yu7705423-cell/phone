@@ -8,6 +8,7 @@ import { PENDING as TR_PENDING } from '../transfer.js';
 import { PENDING as GIFT_PENDING } from '../gift.js';
 import { listen } from '../listen.js';
 import { PACT_OPEN } from '../space.js';
+import * as dayStore from '../day.js';
 import { allSongs } from '../music.js';
 
 // 能力目录。
@@ -141,6 +142,14 @@ export const CAPS = [
     hot: ({ msgs }) => usedRecently(msgs, /^letter$|[[【]信[:：]/),
     line: () => '写一封信：单独写一行 [信：信封上写什么 | 信的正文]',
     detail: () => template('skeleton.letter'),
+  },
+  {
+    id: 'agenda',
+    // 今天没排日程就别提这回事。排了就常驻 —— 「你今天」那一段已经在上面了，
+    // 不告诉它怎么标完成，那几条事项就只能一直挂着。
+    on: ({ char }) => !!dayStore.brief(char.id),
+    always: true,
+    detail: () => template('skeleton.agenda'),
   },
   {
     id: 'time',

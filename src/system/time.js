@@ -77,7 +77,7 @@ export function now() {
 // 真实时刻换算成「世界时刻」。历史消息的 createdAt 要过这一道。
 export function toWorld(realMs) { return new Date(realMs + offset()); }
 
-function partsOf(date, zoneId) {
+export function partsOf(date, zoneId) {
   const f = new Intl.DateTimeFormat('zh-CN', {
     timeZone: tz(zoneId),
     year: 'numeric', month: '2-digit', day: '2-digit',

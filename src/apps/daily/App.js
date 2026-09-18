@@ -3,6 +3,8 @@ import { phone, useStore } from '../../sdk/index.js';
 import { Page, List, ListItem, Icon, IconButton, Field, NumberInput } from '../../ui/index.js';
 import { CellPage } from './CellPage.js';
 import { BatchPage } from './BatchPage.js';
+import { TodayList, TodayPage } from './TodayPage.js';
+import { FoodHome, FoodPage } from './FoodPage.js';
 
 const { db, nav, events } = phone;
 
@@ -50,6 +52,23 @@ function Home() {
       right=${html`<${IconButton} name="sparkle" label="批量生成"
         onClick=${() => nav.push('/gen')}/>`}>
 
+      <${List} title="角色的一天">
+        <${ListItem} title="今天" arrow multiline
+          left=${html`<${Icon} name="calendar" size=${19}/>`}
+          subtitle="每个角色当天的日程、撞上的事与三顿吃了什么。日程由模型排，其余全是本地掷的。"
+          onClick=${() => nav.push('/today')}/>
+        <${ListItem} title="吃什么" arrow multiline
+          left=${html`<${Icon} name="cup" size=${19}/>`}
+          subtitle="按地区分的食谱库。吃什么由本地抽取，最近吃过的会被压一压。"
+          onClick=${() => nav.push('/food')}/>
+      <//>
+
+      <${List} title="随机事件">
+        <${ListItem} title="事件库" arrow multiline
+          left=${html`<${Icon} name="layers" size=${19}/>`}
+          subtitle="按领域与色彩分成九格。抽中之后落进某个角色的那一天。"/>
+      <//>
+
       <${Grid}/>
 
       <${List} title="抽取">
@@ -61,7 +80,8 @@ function Home() {
 
       <div class="pad-x pad-b">
         <${Field} label="每天撞上一件事的概率"
-          desc=${`按百分比填写。距上次越久，实际概率越高；角色走背字时也会高一些。`
+          desc=${`按百分比填写。这是基础概率：距上次越久实际概率越高，`
+            + `角色走背字时也会高一些，但不会低于此处填写的数值。`
             + `填 0 表示不再发生随机事件，日程照常。`}>
           <${NumberInput} unit="%" placeholder="不发生"
             value=${Math.round((s.eventChance || 0) * 100)}
@@ -86,6 +106,12 @@ function Home() {
 
 export default function DailyApp({ route }) {
   if (route === '/gen') return html`<${BatchPage}/>`;
+  if (route === '/today') return html`<${TodayList}/>`;
+  if (route === '/food') return html`<${FoodHome}/>`;
+  const t = route?.match(/^\/today\/(.+)$/);
+  if (t) return html`<${TodayPage} charId=${t[1]}/>`;
+  const f = route?.match(/^\/food\/(.*)$/);
+  if (f) return html`<${FoodPage} region=${decodeURIComponent(f[1])}/>`;
   const c = route?.match(/^\/cell\/([^/]+)\/([^/]+)$/);
   if (c) return html`<${CellPage} domain=${c[1]} tone=${c[2]}/>`;
   return html`<${Home}/>`;

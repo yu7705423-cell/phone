@@ -40,6 +40,10 @@ import * as placeApi from '../system/place.js';
 import * as giftApi from '../system/gift.js';
 import * as spaceApi from '../system/space.js';
 import * as eventsApi from '../system/events.js';
+import * as dayApi from '../system/day.js';
+import * as foodApi from '../system/food.js';
+import * as dayTask from '../system/ai/tasks/day.js';
+import * as recipeBatch from '../system/ai/tasks/recipe-batch.js';
 import * as drawApi from '../system/draw.js';
 import * as eventBatch from '../system/ai/tasks/event-batch.js';
 import * as musicApi from '../system/music.js';
@@ -117,6 +121,8 @@ export const phone = {
     charAlt: charAltApi,
     card: cardApi,
     eventBatch,
+    dayTask,
+    recipeBatch,
     runWithPreset: engine.runWithPreset,
 
     queue: {
@@ -143,6 +149,8 @@ export const phone = {
   gift: giftApi,
   space: spaceApi,
   events: eventsApi,
+  day: dayApi,
+  food: foodApi,
   draw: drawApi,
   music: musicApi,
   listen: listenApi,

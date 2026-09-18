@@ -2,6 +2,7 @@ import { character, user, time } from './basic.js';
 import * as lorebook from './lorebook.js';
 import * as memory from './memory.js';
 import * as spaceBlock from './space.js';
+import * as dayBlock from './day.js';
 
 export const BLOCKS = {
   character,
@@ -10,9 +11,10 @@ export const BLOCKS = {
   time,
   memory: { meta: memory.meta, build: memory.build },
   space: { meta: spaceBlock.meta, build: spaceBlock.build },
+  day: { meta: dayBlock.meta, build: dayBlock.build },
 };
 
-export const DEFAULT_ORDER = ['character', 'lorebook', 'user', 'time', 'memory', 'space'];
+export const DEFAULT_ORDER = ['character', 'lorebook', 'user', 'time', 'day', 'memory', 'space'];
 
 // 读出一份干净的顺序:丢掉不认识的 id,补上配置里缺失的。
 // 没有这一步,以后每新增一个区块,老用户配置里就少一项,该区块永远不注入,

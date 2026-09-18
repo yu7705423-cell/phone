@@ -198,8 +198,10 @@ export function rollEvent({ charId = '', daysSince = 1, recent = [], rng = Math.
 
   const luck = luckOf(char);
   const base = Number(s.eventChance) || 0;
-  // 背字的时候事多一点。0.15 是个很小的斜率，别让运势变成开关。
-  const chance = overdue(base * Math.max(0.4, 1 - 0.15 * luck), daysSince);
+  // 走背字的时候事多一点。**只往上加，不往下减** —— 用户填的是基础概率，
+  // 填了 100% 就该是每天都有，不该被运势悄悄打个折。运势对「抽中哪一条」
+  // 的影响在 toneWeight 那儿，那才是「大运影响抽取」该待的地方。
+  const chance = overdue(base * (1 + 0.15 * Math.max(0, -luck)), daysSince);
   if (!roll(chance, rng)) return null;
 
   return draw({ luck, recent, rng });

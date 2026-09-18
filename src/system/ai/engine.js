@@ -55,6 +55,8 @@ export const BACKGROUND_TASKS = new Set([
   'card.npc',          // 批量生成关联 NPC
   'char.alt',          // 角色自己琢磨开小号
   'event.batch',       // 批量生成随机事件
+  'recipe.batch',      // 批量生成食谱
+  'day.plan',          // 排角色当天的日程
 ]);
 
 export function backgroundUsesSpare() {
@@ -323,6 +325,10 @@ export function streamReply({ chat, char, onDelta }) {
   const msgs = messagesOf(chat.id).filter(m => m.status !== 'error');
 
   return enqueue(replyKey(chat.id, char.id), async signal => {
+    // 今天还没排日程就先排一次，排完了这一轮才拼上下文 —— 否则「你今天」
+    // 那一段要等到下一条消息才出现。开关默认关着，关着就是一句 return。
+    // 动态 import：day 那个任务要用本模块，静态引会成环。
+    await import('./tasks/day.js').then(m => m.ensureToday(char.id)).catch(() => {});
     const pics = await imagesFor(msgs);
     const history = buildHistory(chat, char, msgs, { images: pics });
     const queryVec = await queryVecFor(msgs);
@@ -387,6 +393,25 @@ export async function runTextTask(taskId, { system, user, key, image, maxTokens 
     run(c => getProvider(c.provider).complete(c, {
       system, messages: [msg], maxTokens, signal,
     })), { retries: 1 });
+}
+
+// 指定一个预设跑一次结构化任务。会联网搜索的那套接口走这条路 ——
+// 它不在 chat 预设列表里，所以不能走 runJSONTask 的主用 / 副用那一套。
+export async function runJSONWithPreset(preset, { system, user, key, maxTokens = 1400 }) {
+  const c = asConfig(preset);
+  if (!usable(c)) throw new Error('这套接口还没填全');
+  const raw = await enqueue(key || `preset:${Date.now()}`, signal =>
+    getProvider(c.provider).complete(c, {
+      system, messages: [{ role: 'user', content: user || '请按要求输出 JSON。' }],
+      maxTokens, signal,
+    }), { retries: 1 });
+  const parsed = parseJSON(raw);
+  if (!parsed) {
+    const err = new Error('模型返回的内容不是合法 JSON');
+    err.raw = raw;
+    throw err;
+  }
+  return parsed;
 }
 
 // 用指定预设跑一次，用于设置页的连接测试

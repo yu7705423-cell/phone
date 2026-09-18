@@ -21,9 +21,10 @@ const ROUTES = {
   lorebook: ['/'],
   space: ['/', '/space/:chat', '/days/:chat', '/pacts/:chat', '/mail/:chat',
     '/log/:chat/gift', '/log/:chat/location', '/log/:chat/listen', '/log/:chat/call'],
-  daily: ['/', '/gen', '/cell/env/good', '/cell/social/bad', '/cell/luck/plain'],
+  daily: ['/', '/gen', '/cell/env/good', '/cell/social/bad', '/cell/luck/plain',
+    '/today', '/today/:char', '/food', '/food/', '/food/%E6%88%90%E9%83%BD'],
   settings: ['/', '/api', '/voice', '/image', '/embed', '/notify', '/music',
-    '/appearance', '/storage', '/vision', '/asr', '/limits'],
+    '/appearance', '/storage', '/vision', '/asr', '/limits', '/search'],
 };
 
 // 本项目不装 npm 依赖（CLAUDE.md 第 9 条），所以 playwright 从别处借：
@@ -62,6 +63,21 @@ const ids = await page.evaluate(async () => {
   events.add({ domain: 'env', tone: 'good', rarity: 'common', text: '路上一路绿灯' });
   events.add({ domain: 'social', tone: 'bad', rarity: 'common', text: '被临时叫去加班' });
   events.add({ domain: 'luck', tone: 'plain', rarity: 'rare', text: '排队时前面的人让了位' });
+
+  // 角色的一天与食谱库
+  const dayStore = await import('/src/system/day.js');
+  const food = await import('/src/system/food.js');
+  db.characters.update(a.id, { dayOn: true, region: '成都' });
+  food.add({ region: '成都', name: '担担面', place: '陈记面馆', meal: 'lunch' });
+  food.add({ region: '', name: '煎蛋', meal: 'breakfast' });
+  dayStore.save(a.id, {
+    date: dayStore.dateKey(db.characters.get(a.id)),
+    items: [{ slot: 'morning', text: '去邮局取包裹' }, { slot: 'evening', text: '看完那部片子' }],
+    event: { eventId: 'x', text: '路上一路绿灯', tone: 'good', domain: 'env', slot: 'morning' },
+    luck: 0.8,
+    meals: [{ meal: 'lunch', name: '担担面', place: '陈记面馆', recipeId: 'x' }],
+  });
+  food.record({ charId: a.id, meal: 'lunch', name: '担担面', place: '陈记面馆' });
 
   // 情侣空间的几页要有东西才走得到真正的分支，空状态跑不出问题
   const space = await import('/src/system/space.js');

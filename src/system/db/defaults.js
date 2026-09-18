@@ -81,6 +81,7 @@ export const DEFAULT_SETTINGS = {
   // ---- 随机事件（见 system/events.js）----
   eventChance: 0.35,              // 一天撞上一件事的基础概率
   eventCooldown: 12,              // 刚抽过的这么多条先压一压，压不是封杀
+  mealCooldown: 8,                // 最近吃过的这么多顿先压一压。0 = 不压
 
   promptLean: true,               // 功能说明平时只给一张目录，用上了才给细则
   giftBlind: true,                // 礼物拆开之前，里面装什么不进上下文

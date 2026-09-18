@@ -12,6 +12,7 @@ import { VisionPage } from './VisionPage.js';
 import { AsrPage } from './AsrPage.js';
 import { MusicPage } from './MusicPage.js';
 import { LimitsPage } from './LimitsPage.js';
+import { SearchApiPage } from './SearchApiPage.js';
 import { BUILD } from '../../version.js';
 
 const { db, nav } = phone;
@@ -55,6 +56,11 @@ function Home() {
     ? `${emb.model} · 已索引 ${embDone} / ${db.memories.count()} 条记忆`
     : '未配置。配置后记忆按语义检索，不再依赖关键词匹配';
 
+  const sc = svc.searchConfig();
+  const searchDesc = svc.searchReady()
+    ? `${sc.model} · 可按地区搜索真实的吃处`
+    : '未配置。配置后可在「日常 - 吃什么」中搜索真实存在的店';
+
   const nc = phone.sound.config();
   const soundName = nc.soundFileId ? '自定义音频'
     : (phone.sound.PRESETS.find(p => p.id === nc.sound) || {}).label || '清脆';
@@ -86,6 +92,9 @@ function Home() {
         <${ListItem} title="向量" subtitle=${embDesc} arrow multiline
           left=${html`<${Icon} name="brain" size=${19}/>`}
           onClick=${() => nav.push('/embed')}/>
+        <${ListItem} title="联网搜索" subtitle=${searchDesc} arrow multiline
+          left=${html`<${Icon} name="compass" size=${19}/>`}
+          onClick=${() => nav.push('/search')}/>
       <//>
 
       <${List} title="识别你发送的内容">
@@ -151,6 +160,7 @@ export default function SettingsApp({ route }) {
   if (route === '/asr') return html`<${AsrPage}/>`;
   if (route === '/music') return html`<${MusicPage}/>`;
   if (route === '/limits') return html`<${LimitsPage}/>`;
+  if (route === '/search') return html`<${SearchApiPage}/>`;
   if (route === '/voice') return html`<${VoicePage}/>`;
   if (route === '/image') return html`<${ImagePage}/>`;
   if (route === "/appearance") return html`<${AppearancePage}/>`;

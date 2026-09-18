@@ -980,3 +980,6 @@ button.search-bar { width: 100%; border: none; }
 .ev-cell.is-empty { color: var(--text-3); }
 .ev-input { display: flex; flex-direction: column; gap: 2px; }
 .ev-have { font-size: var(--fs-11); color: var(--text-3); text-align: center; }
+
+/* 取消掉的事项：留在那儿，但一眼看得出不作数了 */
+.list-item.is-dropped .li-title { text-decoration: line-through; color: var(--text-3); }

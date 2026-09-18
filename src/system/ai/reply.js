@@ -14,12 +14,13 @@ import * as place from '../place.js';
 import * as gift from '../gift.js';
 import * as music from '../music.js';
 import * as space from '../space.js';
+import * as dayStore from '../day.js';
 
 // 角色回复里可以带这几种标记，由模型自己决定什么时候用。
 // 中英文冒号都认，方括号也认全角。
 // 「约定完成」必须排在「约定」前面 —— 交替是从左往右试的，反过来写
 // 「约定完成：早点睡」会先被「约定」吃掉，剩下「完成：早点睡」当成内容。
-const MARK = /[[【]\s*(图片|照片|image|pic|语音|voice|audio|表情|sticker|emoji|转账|transfer|位置|定位|location|礼物|gift|点歌|建歌单|约定完成|约定|pact|信|letter)\s*[:：]\s*([^\]】]+)[\]】]/gi;
+const MARK = /[[【]\s*(图片|照片|image|pic|语音|voice|audio|表情|sticker|emoji|转账|transfer|位置|定位|location|礼物|gift|点歌|建歌单|约定完成|约定|pact|信|letter|事项完成|事项取消)\s*[:：]\s*([^\]】]+)[\]】]/gi;
 
 const IMAGE_KINDS = new Set(['图片', '照片', 'image', 'pic']);
 const STICKER_KINDS = new Set(['表情', 'sticker', 'emoji']);
@@ -30,6 +31,8 @@ const PICK_KINDS = new Set(['点歌']);
 const PACT_KINDS = new Set(['约定', 'pact']);
 const PACTDONE_KINDS = new Set(['约定完成']);
 const LETTER_KINDS = new Set(['信', 'letter']);
+const ITEM_DONE_KINDS = new Set(['事项完成']);
+const ITEM_DROP_KINDS = new Set(['事项取消']);
 const LIST_KINDS = new Set(['建歌单']);
 
 // 转账那一条里，金额在前，后面随手写的是留言
@@ -161,6 +164,10 @@ export function splitReply(raw) {
         push({ type: 'pick', name: body });
       } else if (LIST_KINDS.has(kind)) {
         push({ type: 'newlist', name: body });
+      } else if (ITEM_DONE_KINDS.has(kind)) {
+        push({ type: 'agenda', state: dayStore.DONE, title: body });
+      } else if (ITEM_DROP_KINDS.has(kind)) {
+        push({ type: 'agenda', state: dayStore.DROP, title: body });
       } else if (PACT_KINDS.has(kind)) {
         push({ type: 'pact', title: body });
       } else if (PACTDONE_KINDS.has(kind)) {
@@ -320,6 +327,16 @@ export function materialize(part, base, char) {
   if (part.type === 'unwrap') {
     const target = gift.pendingFrom(base.chatId, base.role === 'user' ? 'char' : 'user');
     return target ? gift.settle(target.id, part.open, row) : null;
+  }
+  if (part.type === 'agenda') {
+    // 事项是角色自己的事，不落消息 —— 它改的是那一天，不是这段对话。
+    // 认不出是哪一条就什么都不做，和约定那边同一条规矩。
+    if (base.role === 'char') {
+      const today = dayStore.today(char?.id);
+      const item = today && dayStore.findItem(today, part.title);
+      if (item) dayStore.setState(today.id, item.id, part.state);
+    }
+    return null;
   }
   if (part.type === 'pact') {
     return space.makePact({
