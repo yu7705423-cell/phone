@@ -117,8 +117,8 @@ export const CAPS = [
   {
     id: 'ring',
     on: ({ char }) => char.canCall !== false,
-    hot: ({ msgs }) => usedRecently(msgs, /^call$|[[【](视频)?来电/),
-    line: () => '通话：单独写一行 [来电]；需要画面时写 [视频来电]',
+    hot: ({ msgs }) => usedRecently(msgs, /^call$|[[【](视频)?(去电|来电)/),
+    line: () => '通话：单独写一行 [去电]；需要画面时写 [视频去电]',
     detail: () => template('skeleton.ring'),
   },
   {
