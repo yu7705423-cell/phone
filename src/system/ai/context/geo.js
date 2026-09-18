@@ -19,14 +19,14 @@ export function build({ chat }) {
   if (!s) return '';
 
   const lines = [];
-  const mine = s.me.place || '一个没写名字的地方';
-  const hers = s.char.place || '一个没写名字的地方';
+  const mine = s.me.place || '未命名的地点';
+  const hers = s.char.place || '未命名的地点';
   lines.push(`对方在${mine}，你在${hers}。`);
   if (s.text) {
     lines.push(`两地直线距离 ${s.text}。`);
-    lines.push('这个距离是算出来的，写的时候照它写，不要换成别的数，也不要自己估。');
+    lines.push('该距离由系统计算得出。提及距离时照此书写，不要改写为其他数值，也不要自行估算。');
   } else {
-    lines.push('只知道地名，没有坐标，所以说不出具体多远 —— 不要编一个数出来。');
+    lines.push('当前只有地名，没有坐标，无法得出具体距离。不要给出一个具体数值。');
   }
   return `\n\n[你们隔多远]\n${lines.join('\n')}`;
 }

@@ -45,9 +45,13 @@ export const NumberInput = ({ value, onChange, unit = '', min = 0, placeholder =
     </div>`;
 };
 
+// 开关常常放在一整行可点的 ListItem 里。点击事件必须停在这儿：
+// 不拦住的话，拨一下开关会顺着冒泡触发整行的 onClick，
+// 于是关掉一个世界书条目的同时又进了它的编辑页。
 export const Switch = ({ checked, onChange }) => html`
   <button class=${`switch${checked ? ' is-on' : ''}`} role="switch"
-    aria-checked=${!!checked} onClick=${() => onChange && onChange(!checked)}>
+    aria-checked=${!!checked}
+    onClick=${e => { e.stopPropagation(); if (onChange) onChange(!checked); }}>
     <span class="switch-dot"></span>
   </button>`;
 

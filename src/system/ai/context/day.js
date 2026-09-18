@@ -15,12 +15,14 @@ export const meta = {
   desc: '角色当天的日程、当前时段、撞上的事。需在角色卡中开启',
 };
 
+// 注入到 prompt 里的每一句都按 CLAUDE.md 第 14 条写：书面语、中性、祈使。
+// 这几句只陈述角色当前的状态，不带评价，也不替角色决定怎么表现。
 const luckLine = n => {
-  if (n >= 1.2) return '最近顺得很，看什么都不太容易上火。';
-  if (n >= 0.4) return '最近还算顺。';
+  if (n >= 1.2) return '近期状态良好，情绪较为平稳。';
+  if (n >= 0.4) return '近期状态尚可。';
   if (n > -0.4) return '';
-  if (n > -1.2) return '最近不太顺，耐心比平时短一点。';
-  return '最近一直在走背字，容易烦。';
+  if (n > -1.2) return '近期状态欠佳，耐心较平时短。';
+  return '近期状态持续不佳，较平时容易烦躁。';
 };
 
 export function build({ char }) {
@@ -28,16 +30,18 @@ export function build({ char }) {
   const b = day.brief(char.id);
   if (!b) return '';
 
-  const lines = [`今天是 ${b.date}，你那边现在是${b.slot.label}。`];
+  const lines = [`今天是 ${b.date}，你所在时区当前为${b.slot.label}。`];
   if (b.summary.length) lines.push(...b.summary);
 
   const now = [];
-  if (b.nowItems.length) now.push(`这个时段你本来要做的：${b.nowItems.join('；')}。`);
+  if (b.nowItems.length) now.push(`当前时段的安排：${b.nowItems.join('；')}。`);
   if (b.meal) now.push(b.meal + '。');
   if (b.event) {
     const tone = events.toneOf(b.event.tone);
-    now.push(`今天还撞上一件事：${b.event.text}。`);
-    if (tone && tone.id !== 'plain') now.push(`这件事${tone.id === 'good' ? '让你高兴' : '让你不痛快'}。`);
+    now.push(`今天另外发生了一件事：${b.event.text}。`);
+    if (tone && tone.id !== 'plain') {
+      now.push(`该事件使你感到${tone.id === 'good' ? '愉快' : '不快'}。`);
+    }
   }
   if (now.length) lines.push('', ...now);
 
@@ -45,9 +49,9 @@ export function build({ char }) {
   if (luck) lines.push(luck);
 
   lines.push('',
-    '这些是你自己的安排，不是任务清单。聊起来该提的时候提，别一上来就报一遍。',
-    '计划可以改，也可以临时不去，但不要当成从来没安排过。',
-    '还没到的时段只知道要做什么，不知道做得怎么样。');
+    '以上为你本人的安排，不是待办清单。聊到相关内容时再提及，不要在开始时复述全部安排。',
+    '安排可以更改，也可以临时取消，但不要当作从未安排过。',
+    '尚未到来的时段，你只知道打算做什么，不知道完成情况。');
 
   return `\n\n[你今天]\n${lines.join('\n')}`;
 }

@@ -18,6 +18,6 @@ export function build({ chat, persona }) {
   if (!chat || !persona || !persona.avatar) return '';
   if (!avatarLib.changedFor(chat, persona)) return '';
   const note = String(persona.avatarNote || '').trim();
-  return `\n\n[对方的头像]\n对方换了头像。${note ? `新的这张${note}。` : ''}\n`
-    + '这是你看得见的事实，怎么想、提不提是你自己的事。';
+  return `\n\n[对方的头像]\n对方更换了头像。${note ? `新的一张${note}。` : ''}\n`
+    + '这是你可以看到的事实。是否提及、作何反应，由你自行决定。';
 }

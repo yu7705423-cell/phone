@@ -29,6 +29,6 @@ export function build({ chat }) {
   }
   if (!lines.length) return '';
 
-  lines.push('这些是你们之间的事，该提的时候自然提起，不必每次都说。');
+  lines.push('以上为你们之间的事项。聊到相关内容时再提及，不必每轮都说。');
   return `\n\n[你们之间]\n${lines.join('\n')}`;
 }

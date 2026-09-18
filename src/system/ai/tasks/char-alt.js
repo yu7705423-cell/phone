@@ -32,14 +32,14 @@ export const altsOf = charId => characters.where(c => c.parentId === charId);
 // 她现在会不会想开一个号。返回 null 表示可以，否则是不行的原因。
 export function blockedBy(charId, personaId = accounts.currentId()) {
   const char = characters.get(charId);
-  if (!char) return '角色不在了';
-  if (char.parentId) return '小号自己不会再开小号';
-  if (!configOf(char).charAlt) return '开关关着';
-  if (altsOf(charId).length >= MAX_ALTS) return `已经有 ${MAX_ALTS} 个了，她不会再开`;
+  if (!char) return '该角色已被删除';
+  if (char.parentId) return '小号不会再开设小号';
+  if (!configOf(char).charAlt) return '该开关未开启';
+  if (altsOf(charId).length >= MAX_ALTS) return `已有 ${MAX_ALTS} 个小号，不会再开设`;
   const chat = chats.all().find(c => (c.characterIds || []).length === 1
     && c.characterIds[0] === charId && c.personaId === personaId);
   const n = chat ? messagesDb.where(m => m.chatId === chat.id).length : 0;
-  if (n < MIN_MESSAGES) return `还没聊够，攒到 ${MIN_MESSAGES} 条以上她才会动这个念头（现在 ${n} 条）`;
+  if (n < MIN_MESSAGES) return `对话不足 ${MIN_MESSAGES} 条，达到后才可能出现（当前 ${n} 条）`;
   return null;
 }
 

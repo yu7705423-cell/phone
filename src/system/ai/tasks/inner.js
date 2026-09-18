@@ -21,7 +21,7 @@ export async function generate(chatId, lines) {
   if (!said) return '';
 
   const system = fillTemplate(template('task.inner'), {
-    charName: char.name || '她',
+    charName: char.name || '该角色',
     charPersona: char.persona || '（没写人设）',
   });
 

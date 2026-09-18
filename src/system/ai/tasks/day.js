@@ -50,7 +50,7 @@ export async function generatePlan(charId) {
   const cons = constraintsOf(charId, date);
 
   const system = fillTemplate(template('task.day-plan'), {
-    charName: char.name || '她',
+    charName: char.name || '该角色',
     charPersona: char.persona || '（没写人设）',
     date,
     weekday: dayStore.weekdayOf(char),

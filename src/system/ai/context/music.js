@@ -31,17 +31,17 @@ export function build({ char }) {
       : got.songs;
     if (!fresh.length) return '';
     const [now, ...rest] = fresh;
-    let out = `\n\n[你在听的歌]\n刚刚在听：${line(now)}`;
-    if (rest.length) out += `\n再往前：${rest.map(line).join('；')}`;
-    return out + '\n这是你自己的播放记录。被问起时照此回答，不要换成别的歌。';
+    let out = `\n\n[你在听的歌]\n最近一首：${line(now)}`;
+    if (rest.length) out += `\n此前依次为：${rest.map(line).join('；')}`;
+    return out + '\n以上为你本人的播放记录。被问及时照此回答，不要换成其他曲目。';
   }
 
   return `\n\n[你在听的歌]\n最近常听：${got.songs.map(line).join('；')}`
-    + '\n这是你自己的播放记录。被问起时照此回答，不要换成别的歌。'
-    + '\n记录中没有时间，不要说成「正在听」。';
+    + '\n以上为你本人的播放记录。被问及时照此回答，不要换成其他曲目。'
+    + '\n该记录不含时间，不要表述为「正在听」。';
 }
 
 export const meta = {
-  id: 'music', label: '她在听什么',
+  id: 'music', label: '角色在听什么',
   desc: '角色那个音乐账号的真实播放记录，过期的不注入',
 };

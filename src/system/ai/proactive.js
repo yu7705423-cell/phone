@@ -238,7 +238,7 @@ export async function tick() {
       running.add(char.id);
       import('./tasks/char-alt.js')
         .then(m => m.openAlt(char.id))
-        .then(({ alt }) => console.info('[proactive] 她开了个小号:', alt.name))
+        .then(({ alt }) => console.info('[proactive] 角色开设了小号:', alt.name))
         .catch(err => console.warn('[proactive] 开小号失败:', err.message || err))
         .finally(() => running.delete(char.id));
       continue;
