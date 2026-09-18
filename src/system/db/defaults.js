@@ -48,6 +48,8 @@ export const DEFAULT_SETTINGS = {
   translateOpen: 'tap',           // tap | always
 
   // 回复风格。自然表达协议，见 ai/templates.js 的 skeleton.style
+  // 模型回了一整段没分条时，本地照标点断开。填 0 表示不动它，原样落库
+  autoSplitAt: 40,
   musicFresh: 120,                // 播放记录超过这么多分钟就不再注入，0 为不限
   bondAuto: true,                 // S 级记忆有变动时自动重压关系底色
   coreAuto: true,                 // 导入角色卡时顺带生成核心设定

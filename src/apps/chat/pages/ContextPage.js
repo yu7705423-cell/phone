@@ -107,6 +107,7 @@ export function ContextPage() {
         <${ListItem} title="示例" multiline
           subtitle=${`骨架中的两段示例，演示分条方式与回应方式，约 ${exampleCost} token。`
             + `${s.promptExamples === false ? '当前已关闭，仅保留文字规则。' : ''}`
+            + '角色卡中填写了对话示例时，该角色不注入此处的示例，由角色自己的示例演示形式。'
             + '正文可在「Prompt 模板」中修改。'}
           right=${html`<${Switch} checked=${s.promptExamples !== false}
             onChange=${v => db.settings.set({ promptExamples: v })}/>`}/>
@@ -117,6 +118,16 @@ export function ContextPage() {
           right=${html`<${Switch} checked=${s.promptThink !== false}
             onChange=${v => db.settings.set({ promptThink: v })}/>`}/>
       <//>
+      <div class="pad-x">
+        <${Field} label="兜底分条的长度"
+          desc="模型未按规则分条、整轮只回了一整段时，本地按句末标点与逗号断开。
+            超过该字数才处理，已经分好条的不作改动。
+            填 0 表示不处理，模型回什么就显示什么。">
+          <${NumberInput} value=${s.autoSplitAt ?? 40} unit="字" placeholder="不处理"
+            onChange=${v => db.settings.set({ autoSplitAt: v })}/>
+        <//>
+      </div>
+
       <div class="settings-foot">
         「消息规则」始终注入，不可关闭，它规定了消息如何分条与如何回应。
         以上两项是它的补充：示例用于稳定格式，自检用于每轮执行检查。

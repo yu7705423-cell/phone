@@ -138,6 +138,46 @@ export function stripThink(raw) {
   return { text: text.trim(), think: found.filter(Boolean).join('\n\n') };
 }
 
+// ---- 兜底分条 ----
+//
+// 规则写了「换行即分条」，但模型有时候就是回一整段。光靠 prompt 保证不了，
+// 所以本地补一刀：**整轮只有一行、而且长**的时候，照标点断开。
+//
+// 只在「一行」的时候动手。模型自己已经分好条的，一个字都不碰 ——
+// 它分得比标点准，那是它的判断，不该被规则推翻。
+//
+// 先按句末标点断；断完还是太长的，再按逗号断。句号在聊天里多半不写，
+// 断完去掉；问号叹号是语气，留着。
+const SENT = /(?<=[。！？!?…])/;
+const CLAUSE = /(?<=[，,、；;])/;
+
+const tidy = t => t.trim().replace(/[。，,、；;]+$/, '').trim();
+
+export function autoSplit(text, limit) {
+  const t = String(text || '').trim();
+  const n = Math.max(0, Math.round(Number(limit) || 0));
+  if (!n || t.length <= n) return [t];
+  // 带标记的那种不动：[图片：…] 被切开就废了
+  if (/[[【]/.test(t)) return [t];
+
+  const out = [];
+  for (const sent of t.split(SENT)) {
+    const s1 = sent.trim();
+    if (!s1) continue;
+    if (s1.length <= n) { out.push(s1); continue; }
+    // 还是太长，按逗号再断一次。断完仍然过长的就随它去，
+    // 硬按字数切会把词切断，那比一整句更难看
+    let buf = '';
+    for (const part of s1.split(CLAUSE)) {
+      if (!part.trim()) continue;
+      if ((buf + part).length > n && buf) { out.push(buf); buf = part; }
+      else buf += part;
+    }
+    if (buf.trim()) out.push(buf);
+  }
+  return out.map(tidy).filter(Boolean);
+}
+
 // 引用块只留一小段，长了在气泡上顶掉正文
 export function snippet(text, max = 40) {
   const t = String(text || '').replace(/\s+/g, ' ').trim();
@@ -271,6 +311,18 @@ export function splitReply(raw) {
     last = m.index + m[0].length;
   }
   pushText(text.slice(last));
+
+  // 整轮只拆出一条纯文字、而且很长：模型没照「换行即分条」办，本地补一刀。
+  // 只在这一种情况下动手 —— 它自己分好条的不碰。
+  const limit = Math.max(0, Math.round(Number(settings.get().autoSplitAt) ?? 0) || 0);
+  if (limit && parts.length === 1 && parts[0].type === 'text' && !parts[0].quote) {
+    const segs = autoSplit(parts[0].text, limit);
+    if (segs.length > 1) {
+      const { text: _drop, ...rest } = parts[0];
+      parts.length = 0;
+      segs.forEach((t, i) => parts.push(i === 0 ? { ...rest, type: 'text', text: t } : { type: 'text', text: t }));
+    }
+  }
 
   // 时间只挂在整轮第一条上
   if (stamp && parts.length) parts[0].stamp = stamp;
