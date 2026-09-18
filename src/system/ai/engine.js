@@ -455,8 +455,13 @@ export function streamReply({ chat, char, onDelta }) {
     });
     const history = buildHistory(chat, char, msgs, { images: pics, lore, recall });
     const { system } = buildChatSystem(chat, char, msgs, { queryVec, lore, recall });
+    // 流式 / 一次返回。流式能看见字一个个出来，但**自检那一段也是流式吐的**，
+    // 剥掉之后前面几秒气泡是空的，看着像卡住。一次返回则是等齐了整段才出现，
+    // 中间只有「正在输入」。两种都有人要，所以给开关。
+    const oneShot = settings.get().streamMode === 'once';
     const text = await withFallback(c => send('chat.reply', c,
-      { system, messages: history, maxTokens: c.maxTokens, signal, onDelta }, 'stream'));
+      { system, messages: history, maxTokens: c.maxTokens, signal, onDelta: oneShot ? undefined : onDelta },
+      oneShot ? 'complete' : 'stream'));
     // 不 await：描述是给以后几轮用的，这一轮模型已经看过原图了，
     // 让它拖住回复的返回没有意义。
     if (pics) describeCarried(pics);

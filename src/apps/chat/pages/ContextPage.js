@@ -103,6 +103,21 @@ export function ContextPage() {
         总览页按实际注入顺序列出全部条目。
       </div>
 
+      <${List} title="回复的获取方式">
+        <${ListItem} title="逐字显示" multiline
+          subtitle=${s.streamMode === 'once'
+            ? '当前为等待整段生成完毕后一次显示。生成期间只显示「正在输入」，'
+              + '不会出现空白气泡。'
+            : '生成过程中逐字显示。输出前的自检也在这一阶段产生，其内容会被剥除，'
+              + '因此开启自检时，开头数秒气泡可能是空的。'}
+          right=${html`<${Switch} checked=${s.streamMode !== 'once'}
+            onChange=${v => db.settings.set({ streamMode: v ? 'stream' : 'once' })}/>`}/>
+      <//>
+      <div class="settings-foot">
+        两种方式发出的请求内容完全相同，费用也相同，区别仅在于何时显示。
+        部分接口不支持流式返回，此时请关闭该项。
+      </div>
+
       <${List} title="回复风格">
         <${ListItem} title="示例" multiline
           subtitle=${`骨架中的两段示例，演示分条方式与回应方式，约 ${exampleCost} token。`

@@ -35,7 +35,7 @@ export function TodayList() {
         <div class="pad-x pad-t">
           <div class="hint-box">
             日程由模型按人设生成，一天一次。撞上的事、运势与三顿吃什么都由本地随机数决定，
-            不额外消耗接口调用。是否开启在每个角色的角色卡中设置。
+            不额外消耗接口调用。点击尚未开启的角色，可在其页面中直接开启。
           </div>
           <div class="capsule">
             ${list.map(c => html`
@@ -98,7 +98,11 @@ export function TodayPage({ charId }) {
 
       ${!on ? html`
         <${EmptyState} icon="sparkle" title="这个角色还没有开启当日日程"
-          desc="在角色卡的「当日日程」中开启后，每天首次对话时会自动安排一次。"/>`
+          desc=${`开启后，每天首次对话前会为这个角色安排一次当天的日程，`
+            + `并把当前时段的安排带进上下文。每天一次单独的接口调用。`}
+          action=${html`<${Button} size="sm"
+            onClick=${() => { db.characters.update(charId, { dayOn: true }); toast('已开启当日日程', 'ok'); }}>
+            现在开启<//>`}/>`
       : !today ? html`
         <${EmptyState} icon="calendar" title=${`${date} 还没有安排`}
           desc="每天首次对话时会自动安排一次，也可以现在就排。"

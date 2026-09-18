@@ -840,7 +840,8 @@ export function Conversation({ chatId, focusId = '' }) {
             arrow multiline
             left=${html`<${Icon} name="search" size=${18}/>`}
             onClick=${() => { setMenu(false); nav.push(`/search/${chatId}`); }}/>
-          <${ListItem} title="角色卡" subtitle="人设、开场白、对话示例、关联世界书" arrow multiline
+          <${ListItem} title="角色卡" arrow multiline
+            subtitle="人设、核心设定、开场白、对话示例、关联世界书，以及当日日程与各项能力的开关"
             left=${html`<${Icon} name="user" size=${18}/>`}
             onClick=${() => { setMenu(false); nav.push(`/edit/${char.id}`); }}/>
           <${ListItem} title="角色主页" arrow
