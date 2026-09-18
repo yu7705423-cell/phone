@@ -30,12 +30,6 @@ export function rootOf(id) {
 export const rootIdOf = id => rootOf(id)?.id || null;
 export const isAlt = id => !!personas.get(id)?.parentId;
 
-// 同一个人：大号和它名下的小号
-export function sameFamily(a, b) {
-  const ra = rootIdOf(a), rb = rootIdOf(b);
-  return !!ra && ra === rb;
-}
-
 export function current() {
   const id = settings.get().activePersonaId;
   return personas.get(id) || roots()[0] || null;
@@ -83,11 +77,6 @@ export function remove(id) {
     const next = roots()[0];
     settings.set({ activePersonaId: next?.id || null });
   }
-}
-
-// 当前账号能看见的会话
-export function chatsOf(personaId = currentId()) {
-  return chats.where(c => c.personaId === personaId);
 }
 
 export function label(p) {

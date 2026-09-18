@@ -29,8 +29,6 @@ export function closeTopOverlay() {
   return true;
 }
 
-export function overlayOpen() { return closers.length > 0; }
-
 // 组件式浮层共用这一段：开着的时候把自己的关闭函数压进栈里
 function useCloser(open, onClose) {
   useEffect(() => {
@@ -60,19 +58,6 @@ export const FullSheet = ({ open, onClose, title, right, children }) => {
   return html`
     <div class="fullsheet">
       <${Page} title=${title} onBack=${onClose} right=${right}>${children}<//>
-    </div>`;
-};
-
-export const Modal = ({ open, onClose, title, children, actions }) => {
-  useCloser(open, onClose);
-  if (!open) return null;
-  return html`
-    <div class="overlay overlay-center" onClick=${onClose}>
-      <div class="modal" onClick=${e => e.stopPropagation()}>
-        ${title ? html`<div class="modal-title">${title}</div>` : null}
-        <div class="modal-body">${children}</div>
-        ${actions ? html`<div class="modal-actions">${actions}</div>` : null}
-      </div>
     </div>`;
 };
 

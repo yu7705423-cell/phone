@@ -67,12 +67,6 @@ export const Avatar = ({ src, name = '', size = 44, radius }) => {
     : html`<div class="avatar avatar-fallback" style=${st}>${(name || '?').slice(0, 1)}</div>`;
 };
 
-export const Badge = ({ count, dot }) => {
-  if (dot) return html`<span class="badge badge-dot"></span>`;
-  if (!count) return null;
-  return html`<span class="badge">${count > 99 ? '99+' : count}</span>`;
-};
-
 export const Spinner = ({ size = 18 }) => html`
   <span class="spinner" style=${`width:${size}px;height:${size}px`}></span>`;
 

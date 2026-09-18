@@ -3,25 +3,10 @@ import { phone, useStore, useImage } from '../../sdk/index.js';
 import { Page, List, ListItem, Avatar, Icon, Switch, Sheet, Button,
          Field, EmptyState, toast } from '../../ui/index.js';
 
+import { ymd as toDateInput, fromDateInput, hhmm } from './fmt.js';
+
 const { db, nav, space, accounts, listen } = phone;
 
-export const toDateInput = ms => {
-  const d = new Date(ms);
-  const p = n => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
-};
-
-export const fromDateInput = v => {
-  const [y, m, d] = String(v || '').split('-').map(Number);
-  return (y && m && d) ? new Date(y, m - 1, d).getTime() : 0;
-};
-
-const hhmm = sec => {
-  const s = Math.max(0, Math.round(sec || 0));
-  const h = Math.floor(s / 3600);
-  const m = Math.round((s % 3600) / 60);
-  return h ? `${h} 小时 ${m} 分钟` : `${m} 分钟`;
-};
 
 // 起始日。没设就是没设 —— 不拿会话创建时间顶替，那是「什么时候装的这个应用」。
 function StartSheet({ open, chat, onClose }) {

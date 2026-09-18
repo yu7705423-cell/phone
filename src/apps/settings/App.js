@@ -48,7 +48,7 @@ function Home() {
   const ne = svc.neteaseConfig();
   const musicDesc = !ne.baseUrl
     ? '未配置。配置后可在一起听中搜索并播放网易云曲库'
-    : ne.cookie ? `已登录 ${ne.nickname}${ne.sync ? ' · 同步歌单' : ''}` : '已填写地址，尚未登录';
+    : svc.neteaseLoggedIn() ? `已登录 ${ne.nickname}${ne.sync ? ' · 同步歌单' : ''}` : '已填写地址，尚未登录';
 
   const emb = svc.embedConfig();
   const embDone = phone.ai.memvec.indexedCount();

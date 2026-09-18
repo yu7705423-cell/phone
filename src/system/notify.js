@@ -21,8 +21,6 @@ export function dismiss(id) {
   notifications.set({ items: notifications.get().items.filter(n => n.id !== id) });
 }
 
-export function clearAll() { notifications.set({ items: [] }); }
-
 export function openNotification(id) {
   const item = notifications.get().items.find(n => n.id === id);
   if (!item) return;
@@ -30,4 +28,3 @@ export function openNotification(id) {
   emit(EVENTS.notificationOpen, item);
 }
 
-export const unreadCount = () => notifications.get().items.filter(n => !n.read).length;

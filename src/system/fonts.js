@@ -93,8 +93,3 @@ export async function remove(id) {
 export function rename(id, name) {
   settings.set({ fonts: list().map(f => f.id === id ? { ...f, name: name || f.name } : f) });
 }
-
-// 字体占用的文件。清理时要认得，和外观预设那边一个道理。
-export function fileIds() {
-  return new Set(list().map(f => f.fileId).filter(Boolean));
-}

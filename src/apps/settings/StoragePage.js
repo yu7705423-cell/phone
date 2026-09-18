@@ -4,7 +4,7 @@ import { Page, List, ListItem, Button, Icon, toast, confirm } from '../../ui/ind
 
 const { db, nav } = phone;
 
-const fmt = b => b < 1024 ? `${b} B`
+export const fmtBytes = b => b < 1024 ? `${b} B`
   : b < 1048576 ? `${(b / 1024).toFixed(1)} KB`
   : `${(b / 1048576).toFixed(1)} MB`;
 
@@ -126,7 +126,7 @@ export function StoragePage() {
       <${List} title="占用">
         <${ListItem} title="图片" subtitle=${`${db.images.count()} 张`}
           left=${html`<${Icon} name="image" size=${18}/>`}
-          right=${html`<span>${fmt(db.images.totalBytes())}</span>`}/>
+          right=${html`<span>${fmtBytes(db.images.totalBytes())}</span>`}/>
         ${Object.entries(counts).map(([k, v]) => html`
           <${ListItem} key=${k} title=${k} right=${html`<span>${v}</span>`}/>`)}
       <//>

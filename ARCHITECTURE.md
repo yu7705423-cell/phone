@@ -2321,6 +2321,7 @@ Avatar / Badge / Toast / EmptyState / Spinner / Skeleton
 | prompt 模板与代码分离 | 调语气不用改代码,也不会误伤逻辑 |
 | 主界面布局自愈 | 增删 app 或挂件后出现空洞、重叠、漏图标 |
 | 视口单位检查脚本 | dvh 混入导致地址栏显隐时界面抽动错位 |
+| 死导出检查脚本 | 写了没人调的函数一直躺着，改 API 时悄悄坏掉 |
 
 ---
 
@@ -2674,8 +2675,8 @@ phone.camera.start() / stop() / attach(el) / grab() —— 帧只进请求，不
 - 角色的一天：日程按时段分层注入、事项三态、吃饭记录与按地区的食谱库（见 4.83）
 
 **护栏**
-- `scripts/doctor.mjs` 八项：视口单位、零 emoji、导入导出、hook 顺序、依赖边界、
-  硬编码颜色、长按禁选、构建号
+- `scripts/doctor.mjs` 九项：视口单位、零 emoji、导入导出、hook 顺序、依赖边界、
+  硬编码颜色、长按禁选、死导出、构建号
 - `scripts/smoke.mjs`：59 条路由全开一遍，抓 ErrorBoundary
 
 ### 13.2 接下来

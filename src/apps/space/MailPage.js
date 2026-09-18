@@ -3,14 +3,10 @@ import { phone, useStore } from '../../sdk/index.js';
 import { Page, List, ListItem, FullSheet, Sheet, Button, Field, Input, Textarea,
          Icon, IconButton, EmptyState, toast, confirm } from '../../ui/index.js';
 
+import { ymdhm as when } from './fmt.js';
+
 const { db, nav, space } = phone;
 
-const when = ms => {
-  if (!ms) return '';
-  const d = new Date(ms);
-  const p = n => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
-};
 
 const BLANK = { id: '', title: '', body: '' };
 

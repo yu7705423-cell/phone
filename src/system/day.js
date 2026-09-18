@@ -79,7 +79,6 @@ export function recent(charId, limit = 7) {
 }
 
 export const isOn = char => !!(char && char.dayOn);
-export function setOn(charId, on) { characters.update(charId, { dayOn: !!on }); }
 
 /**
  * 落一天。items 是模型给的 [{ slot, text }]，这里补上 id 与状态。
@@ -172,11 +171,6 @@ export function rollLocal(charId, { rng = Math.random, date } = {}) {
 
 // ---- 注入 ----
 
-const mealLine = m => {
-  const label = food.mealOf(m.meal)?.label || '这一顿';
-  return m.place ? `${label}吃了${m.name}（${m.place}）` : `${label}吃了${m.name}`;
-};
-
 /**
  * 给注入块用的那一份。**分两层**：
  *   summary 一整天的摘要，当天常驻；
@@ -212,7 +206,7 @@ export function brief(charId, at = clock.now()) {
   return {
     date, slot: cur, summary,
     nowItems: nowItems.map(it => it.text),
-    meal: meal ? mealLine(meal) : '',
+    meal: meal ? food.mealText(meal) : '',
     event: evReady ? ev : null,
     luck: day.luck || 0,
     done: items.filter(it => it.state === DONE).length,

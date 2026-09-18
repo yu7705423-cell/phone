@@ -18,8 +18,6 @@ import { toDataUrl } from '../audio.js';
 //     像不像取决于接口支不支持，支持的话比 A 准得多。
 // 两条可以同时开：先试 B，接口不认就退回 A。
 
-export const LOCK_MODES = ['off', 'self', 'always'];
-
 // 什么算「涉及脸部」。把角色自己的名字也算进去 ——
 // 模型写「阿岚站在窗边」时画的就是她本人。
 const SELFISH = /自拍|自照|正脸|我的脸|我的样子|镜子|镜头|selfie|头像|证件照/i;

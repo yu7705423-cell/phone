@@ -2,6 +2,8 @@ import { html } from '../../lib.js';
 import { phone, useStore, useImage } from '../../sdk/index.js';
 import { Page, List, ListItem, Icon, EmptyState } from '../../ui/index.js';
 
+import { ymdhm as when, hhmm } from './fmt.js';
+
 const { db, nav, space, gift, call, music } = phone;
 
 const META = {
@@ -15,19 +17,6 @@ const META = {
     desc: '每通电话结束后会记录方向、结果与时长。' },
 };
 
-const when = ms => {
-  if (!ms) return '';
-  const d = new Date(ms);
-  const p = n => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
-};
-
-const hhmm = sec => {
-  const s = Math.max(0, Math.round(sec || 0));
-  const h = Math.floor(s / 3600);
-  const m = Math.round((s % 3600) / 60);
-  return h ? `${h} 小时 ${m} 分钟` : `${m} 分钟`;
-};
 
 // 一条记录怎么念。四种记录各有各的字段，标题和副标题在这儿分流，
 // 不去动消息本身的正文 —— 正文是给模型读的，这里是给人看的。

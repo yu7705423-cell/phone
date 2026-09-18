@@ -2,7 +2,6 @@ import * as food from '../../food.js';
 import { fillTemplate, template } from '../templates.js';
 import { runJSONTask, runJSONWithPreset } from '../engine.js';
 import { searchConfig, searchReady } from '../services.js';
-import { cancel } from '../queue.js';
 
 // 生成食谱库。
 //
@@ -20,7 +19,6 @@ import { cancel } from '../queue.js';
 const str = v => String(v ?? '').trim();
 
 export const recipeKey = region => `recipe-batch:${region || 'common'}`;
-export const cancelBatch = region => cancel(recipeKey(region));
 
 export const canSearch = () => searchReady();
 

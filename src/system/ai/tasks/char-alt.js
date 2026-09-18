@@ -17,7 +17,6 @@ export const DEFAULTS = {
 
 const MIN_MESSAGES = 30;   // 聊得够久才会动这个念头
 export const MAX_ALTS = 2;   // 一个角色最多同时挂两个马甲
-export const MIN_TALK = 30;
 
 export function configOf(char) {
   if (!char) return { ...DEFAULTS };

@@ -1,4 +1,5 @@
 import { recipes, meals, characters, settings } from './db/index.js';
+import { normalize } from './text.js';
 import { pick } from './draw.js';
 import * as clock from './time.js';
 
@@ -22,6 +23,8 @@ const trim = (v, n) => String(v || '').trim().slice(0, n);
 
 // 一天里哪几顿。和 day.js 的时段表对得上，但不共用 —— 那边是「几点到几点」，
 // 这边是「这一顿叫什么」，两件事。
+export { normalize };
+
 export const MEALS = [
   { id: 'breakfast', label: '早饭', slot: 'morning' },
   { id: 'lunch', label: '午饭', slot: 'noon' },
@@ -32,9 +35,6 @@ export const mealBySlot = slot => MEALS.find(m => m.slot === slot) || null;
 
 export const regionOf = char => trim(char?.region, 20);
 
-export function normalize(text) {
-  return String(text || '').replace(/[\s\p{P}\p{S}]/gu, '').toLowerCase();
-}
 
 // ---- 食谱库 ----
 
@@ -122,17 +122,11 @@ export function history(charId, limit = 0) {
   return limit > 0 ? rows.slice(0, limit) : rows;
 }
 
-export function lastOf(charId, mealId) {
-  return history(charId).find(m => m.meal === mealId) || null;
-}
-
 export function record({ charId, meal, recipeId = '', name, place = '', at = 0 }) {
   const n = trim(name, 40);
   if (!charId || !n) return null;
   return meals.create({ charId, meal, recipeId, name: n, place: trim(place, 40), at: at || clock.now().getTime() });
 }
-
-export function forget(id) { return meals.remove(id); }
 
 export function clearHistory(charId) {
   meals.byIndex(charId).forEach(m => meals.remove(m.id));
@@ -168,6 +162,6 @@ export function eat({ charId, meal, at = 0, rng } = {}) {
 export function mealText(row) {
   if (!row) return '';
   const m = mealOf(row.meal);
-  const head = m ? m.label : '吃的';
-  return row.place ? `${head}：${row.name}（${row.place}）` : `${head}：${row.name}`;
+  const head = m ? m.label : '这一顿';
+  return row.place ? `${head}吃了${row.name}（${row.place}）` : `${head}吃了${row.name}`;
 }

@@ -180,4 +180,3 @@ export const phone = {
 };
 
 export { useStore, useImage, useFile, phone as default };
-export function usePhone() { return phone; }

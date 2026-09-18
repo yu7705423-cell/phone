@@ -309,9 +309,3 @@ export function setCellConfig(cellId, config) {
   }
   return null;
 }
-
-export function setDockSlot(i, appId) {
-  const lay = structuredClone(layout.get());
-  lay.dock[i] = appId;
-  layout.replace(lay);
-}

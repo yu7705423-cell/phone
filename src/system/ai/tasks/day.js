@@ -5,7 +5,6 @@ import * as dayStore from '../../day.js';
 import * as space from '../../space.js';
 import { fillTemplate, template } from '../templates.js';
 import { runJSONTask } from '../engine.js';
-import { cancel } from '../queue.js';
 
 // 生成角色当天的日程。
 //
@@ -19,7 +18,6 @@ import { cancel } from '../queue.js';
 // 一个人不会在纪念日当天随便安排别的事。
 
 export const dayKey = charId => `day-plan:${charId}`;
-export const cancelPlan = charId => cancel(dayKey(charId));
 
 // 这个角色和当前身份之间那段单人会话 —— 纪念日和约定都长在它上面。
 function pairChatOf(charId) {

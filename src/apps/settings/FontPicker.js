@@ -4,7 +4,7 @@ import { List, ListItem, Button, Icon, Sheet, toast, confirm, prompt } from '../
 
 const { db, fonts } = phone;
 
-const fmt = b => b < 1048576 ? `${Math.round(b / 1024)} KB` : `${(b / 1048576).toFixed(1)} MB`;
+import { fmtBytes as fmt } from './StoragePage.js';
 
 // 一行预览，直接用那个字体渲染，选之前就能看出长什么样
 function Sample({ id }) {

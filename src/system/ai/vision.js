@@ -1,3 +1,4 @@
+import { baseOf } from './url.js';
 import { visionConfig, visionReady } from './services.js';
 import { enqueue } from './queue.js';
 import { template } from './engine.js';
@@ -10,12 +11,11 @@ import { toDataUrl } from '../audio.js';
 // 走 OpenAI 兼容的 chat/completions，内容块里带一个 image_url。
 // 这是目前覆盖面最广的形态，官方和多数中转站都认。
 
-const trim = u => String(u || '').replace(/\/+$/, '');
 
 export { visionReady as isVisionReady };
 
 function endpoint(v) {
-  const base = trim(v.baseUrl) || 'https://api.openai.com/v1';
+  const base = baseOf(v.baseUrl, 'https://api.openai.com/v1');
   return /\/v\d+$/.test(base) ? `${base}/chat/completions` : `${base}/v1/chat/completions`;
 }
 

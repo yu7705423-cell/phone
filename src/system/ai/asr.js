@@ -1,3 +1,4 @@
+import { baseOf } from './url.js';
 import { asrConfig, asrReady } from './services.js';
 import { enqueue } from './queue.js';
 import { template } from './engine.js';
@@ -16,7 +17,6 @@ import { toWav, toBase64, speechSupported } from '../audio.js';
 // 两档都先把录音转成 16k 单声道 wav：MediaRecorder 在各浏览器上给出的
 // 格式不一样（webm / m4a），而 input_audio 只认 wav 和 mp3。
 
-const trim = u => String(u || '').replace(/\/+$/, '');
 
 export { asrReady as isAsrReady };
 export function asrMode() { return asrConfig().mode === 'tone' ? 'tone' : 'text'; }
@@ -25,7 +25,7 @@ export function asrMode() { return asrConfig().mode === 'tone' ? 'tone' : 'text'
 export function canSendVoice() { return asrReady() || speechSupported(); }
 
 function base(a) {
-  const b = trim(a.baseUrl) || 'https://api.openai.com/v1';
+  const b = baseOf(a.baseUrl, 'https://api.openai.com/v1');
   return /\/v\d+$/.test(b) ? b : `${b}/v1`;
 }
 

@@ -1,7 +1,7 @@
+import { baseOf } from './url.js';
 import { voiceConfig } from './services.js';
 import { enqueue } from './queue.js';
 
-const trim = u => String(u || '').replace(/\/+$/, '');
 
 // MiniMax 语音合成。按其 T2A 接口的常见形态实现：
 // POST {base}/v1/t2a_v2?GroupId=xxx ，Bearer 鉴权，音色在 voice_setting.voice_id。
@@ -23,7 +23,7 @@ async function asError(res) {
 export function speak({ text, voiceId, speed = 1, key }) {
   const v = voiceConfig();
   if (!v.apiKey) throw new Error('还没有配置语音接口');
-  const base = trim(v.baseUrl) || 'https://api.minimax.chat';
+  const base = baseOf(v.baseUrl, 'https://api.minimax.chat');
 
   return enqueue(key || `tts:${Date.now()}`, async signal => {
     const res = await fetch(`${base}/v1/t2a_v2?GroupId=${encodeURIComponent(v.groupId)}`, {

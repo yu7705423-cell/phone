@@ -3,14 +3,10 @@ import { phone, useStore } from '../../sdk/index.js';
 import { Page, List, ListItem, Sheet, Button, Field, Input,
          Icon, IconButton, EmptyState, toast, confirm } from '../../ui/index.js';
 
+import { ymd as when } from './fmt.js';
+
 const { db, nav, space } = phone;
 
-const when = ms => {
-  if (!ms) return '';
-  const d = new Date(ms);
-  const p = n => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
-};
 
 // 约定是一条消息（kind 为 pact），所以它天然在聊天记录里，也天然进上下文。
 // 这一页只是同一批消息的另一种看法。

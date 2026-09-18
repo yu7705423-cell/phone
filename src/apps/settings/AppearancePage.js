@@ -13,15 +13,6 @@ const { db, nav, apps: appsApi } = phone;
 const PRESET_COLORS = ['#000000', '#1A1A1A', '#3D3D3D', '#6B6B6B',
                        '#9A9A9A', '#C4C4C4', '#FFFFFF'];
 
-function MiniTile({ app }) {
-  const url = useImage(app.imageId);
-  return html`
-    <div class=${`app-tile app-tile-mini${url ? ' has-image' : ''}`}
-      style=${url ? `background-image:url(${url})` : ''}>
-      ${url ? null : html`<${Icon} name=${app.icon} size=${18}/>`}
-    </div>`;
-}
-
 function WallpaperRow({ slot, label, desc }) {
   const lay = useStore(db.layout.store);
   const id = lay.wallpaper?.[slot] || null;

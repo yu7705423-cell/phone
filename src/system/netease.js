@@ -1,3 +1,4 @@
+import { baseOf } from './ai/url.js';
 import { neteaseConfig, setNetease, neteaseReady } from './ai/services.js';
 import { characters } from './db/index.js';
 
@@ -18,10 +19,9 @@ import { characters } from './db/index.js';
 // **cookie 就是账号权限**，比接口密钥还敏感，只存在这台设备的浏览器里。
 // 登录页把这句话直说，不替用户含糊。
 
-const trim = u => String(u || '').replace(/\/+$/, '');
 
 function base() {
-  const b = trim(neteaseConfig().baseUrl);
+  const b = baseOf(neteaseConfig().baseUrl);
   if (!b) throw new Error('还没有填写音乐接口地址');
   return b;
 }

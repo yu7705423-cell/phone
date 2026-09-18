@@ -185,8 +185,6 @@ export function listenLocally(lang = 'zh-CN') {
 // 配了语音接口且角色有音色时走接口，那才是「这个角色的声音」。
 const TTS = typeof window !== 'undefined' && window.speechSynthesis;
 
-export function speakSupported() { return !!TTS; }
-
 export function stopSpeaking() { try { TTS && TTS.cancel(); } catch { /* 有的实现会抛 */ } }
 
 // 念一句，念完了 resolve。念不出来也 resolve —— 通话不能卡在这儿。

@@ -63,25 +63,6 @@ export function pick(items, { weightOf, recent = [], cooldown = 0, rng = Math.ra
 }
 
 /**
- * 抽 n 个不重复的。抽出来的当场记进 recent，所以一批里面也不会重。
- * 池子不够就给多少算多少，不补齐 —— 补齐只能靠重复，那正是要避免的。
- */
-export function pickMany(items, n, opts = {}) {
-  const want = Math.max(0, Math.round(n) || 0);
-  const out = [];
-  const left = [...(items || [])];
-  const recent = [...(opts.recent || [])];
-  for (let i = 0; i < want && left.length; i++) {
-    const hit = pick(left, { ...opts, recent });
-    if (!hit) break;
-    out.push(hit);
-    recent.unshift(hit.id);
-    left.splice(left.indexOf(hit), 1);
-  }
-  return out;
-}
-
-/**
  * 掷一次，看这件事发不发生。chance 是概率，超出 [0,1] 会被夹回来 ——
  * 那是算术，不是给用户设的上限。
  */

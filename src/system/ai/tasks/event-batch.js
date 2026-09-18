@@ -2,7 +2,6 @@ import { settings } from '../../db/index.js';
 import * as events from '../../events.js';
 import { fillTemplate, template } from '../templates.js';
 import { runJSONTask } from '../engine.js';
-import { cancel } from '../queue.js';
 
 // 批量生成随机事件。
 //
@@ -31,7 +30,6 @@ function existingFor(domain, tone) {
 }
 
 export const batchKey = (domain, tone) => `event-batch:${domain}:${tone}`;
-export const cancelBatch = (domain, tone) => cancel(batchKey(domain, tone));
 
 /**
  * 生成一格。返回的是**还没入库**的行，交给界面先让人看一眼。

@@ -94,12 +94,6 @@
   display: flex; align-items: center; justify-content: center;
   color: var(--text-2); font-weight: var(--fw-medium); text-transform: uppercase;
 }
-.badge {
-  min-width: 17px; height: 17px; padding: 0 5px; border-radius: var(--r-full);
-  background: var(--accent); color: var(--on-accent);
-  font-size: var(--fs-11); line-height: 17px; text-align: center;
-}
-.badge-dot { min-width: 8px; width: 8px; height: 8px; padding: 0; }
 
 .spinner {
   display: inline-block; border: 2px solid var(--border-2);

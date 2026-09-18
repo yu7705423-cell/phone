@@ -1,5 +1,5 @@
 // 从服务端拉模型列表。各家路径不同，但返回都能归一成一串 id。
-const trim = u => String(u || '').replace(/\/+$/, '');
+import { baseOf } from './url.js';
 
 async function asError(res, label) {
   let detail = '';
@@ -24,7 +24,7 @@ export async function fetchModels({ provider, baseUrl, apiKey, signal }) {
   if (!apiKey) throw new Error('先填 API Key');
 
   if (provider === 'anthropic') {
-    const base = trim(baseUrl) || 'https://api.anthropic.com';
+    const base = baseOf(baseUrl, 'https://api.anthropic.com');
     const res = await fetch(`${base}/v1/models?limit=200`, {
       headers: {
         'x-api-key': apiKey,
@@ -37,7 +37,7 @@ export async function fetchModels({ provider, baseUrl, apiKey, signal }) {
   }
 
   // OpenAI 兼容：中转站大多也实现了 /models
-  const base = trim(baseUrl) || 'https://api.openai.com/v1';
+  const base = baseOf(baseUrl, 'https://api.openai.com/v1');
   const url = /\/v\d+$/.test(base) ? `${base}/models` : `${base}/v1/models`;
   const res = await fetch(url, { headers: { authorization: `Bearer ${apiKey}` }, signal });
   if (!res.ok) await asError(res, '接口');

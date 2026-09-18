@@ -77,18 +77,19 @@ export function recordsOf(chatId, kind) {
 export function stats(chatId) {
   const list = messagesOf(chatId);
   const chat = chats.get(chatId);
-  const count = k => list.reduce((n, m) => n + (m.kind === k ? 1 : 0), 0);
+  // 一趟扫完。空间列表每行都要算一次，聊了几万条的会话五趟 reduce 就是几万×五
+  const n = { gift: 0, location: 0, call: 0, letter: 0, open: 0, done: 0 };
+  for (const m of list) {
+    if (m.kind === 'pact') { if (m.pact === PACT_OPEN) n.open++; else if (m.pact === PACT_DONE) n.done++; }
+    else if (m.kind in n) n[m.kind]++;
+  }
   return {
     days: togetherDays(chat),
-    gifts: count('gift'),
-    places: count('location'),
-    calls: count('call'),
-    letters: count('letter'),
+    gifts: n.gift, places: n.location, calls: n.call, letters: n.letter,
     // 一起听的累积数落在会话上，一场一场结算时累加，不因为结束而清零
     listenSeconds: chat?.listenSeconds || 0,
     listenCount: chat?.listenCount || 0,
-    pactsOpen: list.reduce((n, m) => n + (m.kind === 'pact' && m.pact === PACT_OPEN ? 1 : 0), 0),
-    pactsDone: list.reduce((n, m) => n + (m.kind === 'pact' && m.pact === PACT_DONE ? 1 : 0), 0),
+    pactsOpen: n.open, pactsDone: n.done,
     drafts: items(chatId, DRAFT).length,
   };
 }

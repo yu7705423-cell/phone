@@ -55,6 +55,9 @@ export function Profile({ subjectId, embedded }) {
     });
     db.memories.removeWhere(m => m.charId === subjectId);
     db.moments.removeWhere(m => m.authorId === subjectId);
+    // 它的每一天和吃饭记录都按 charId 建了索引，角色没了这些就成了孤儿
+    phone.day.clearOf(subjectId);
+    phone.food.clearHistory(subjectId);
     db.characters.remove(subjectId);
     nav.popToRoot();
   };

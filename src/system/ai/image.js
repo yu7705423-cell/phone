@@ -1,7 +1,7 @@
+import { baseOf } from './url.js';
 import { activeImage } from './services.js';
 import { enqueue } from './queue.js';
 
-const trim = u => String(u || '').replace(/\/+$/, '');
 
 export function isImageReady() {
   const p = activeImage();
@@ -9,7 +9,7 @@ export function isImageReady() {
 }
 
 function endpoint(preset) {
-  const base = trim(preset.baseUrl) || 'https://api.openai.com/v1';
+  const base = baseOf(preset.baseUrl, 'https://api.openai.com/v1');
   return /\/v\d+$/.test(base) ? `${base}/images/generations` : `${base}/v1/images/generations`;
 }
 
@@ -23,7 +23,7 @@ async function asError(res) {
 }
 
 function editEndpoint(preset) {
-  const base = trim(preset.baseUrl) || 'https://api.openai.com/v1';
+  const base = baseOf(preset.baseUrl, 'https://api.openai.com/v1');
   return /\/v\d+$/.test(base) ? `${base}/images/edits` : `${base}/v1/images/edits`;
 }
 

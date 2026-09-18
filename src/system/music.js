@@ -85,11 +85,6 @@ export function createList({ name, owner = LIB_OWNER, trackIds = [] }) {
   return playlists.create({ name: n, owner, trackIds: [...trackIds] });
 }
 
-export function renameList(id, name) {
-  const n = String(name || '').trim().slice(0, 40);
-  if (n) playlists.update(id, { name: n });
-}
-
 export function removeList(id) { return playlists.remove(id); }
 
 export function addTrack(listId, songId) {
@@ -100,12 +95,6 @@ export function addTrack(listId, songId) {
   return true;
 }
 
-export function removeTrack(listId, songId) {
-  const p = playlists.get(listId);
-  if (!p) return false;
-  playlists.update(listId, { trackIds: (p.trackIds || []).filter(x => x !== songId) });
-  return true;
-}
 
 export function tracksOf(listId) {
   const p = playlists.get(listId);

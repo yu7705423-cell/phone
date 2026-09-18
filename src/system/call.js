@@ -25,8 +25,6 @@ import { visionMode } from './ai/services.js';
 //      而且一分钱不多花。想听声音在通话界面上点开喇叭。
 //   3. **system 只拼一次**（见 engine.buildCallSystem）。
 
-export const PHASES = ['idle', 'dialing', 'ringing', 'active', 'ended'];
-
 export const call = createStore({
   phase: 'idle',
   chatId: '',

@@ -1,4 +1,5 @@
 import { events, characters, settings } from './db/index.js';
+import { normalize } from './text.js';
 import { pick, roll, overdue, drift } from './draw.js';
 
 // 随机事件库。
@@ -20,6 +21,8 @@ import { pick, roll, overdue, drift } from './draw.js';
 //
 // 三个表都是表驱动的，加一行就多一档。库本身是全局的：
 // 「路上堵车」不属于任何一个角色，它是可能落在任何人头上的一件事。
+
+export { normalize };
 
 export const DOMAINS = [
   { id: 'env', label: '环境', hint: '天气、交通、住的地方、随身的东西、公共场所' },
@@ -47,13 +50,6 @@ export const rarityOf = id => byId(RARITIES, id) || RARITIES[0];
 export const cellKey = (domain, tone) => `${domain}:${tone}`;
 export const cells = () => DOMAINS.flatMap(d => TONES.map(t => ({ domain: d, tone: t })));
 
-// 去重用的形。标点、空白、常见的语气尾巴都抹掉 ——
-// 「今天下雨了」和「今天下雨了。」是同一条。
-export function normalize(text) {
-  return String(text || '')
-    .replace(/[\s\p{P}\p{S}]/gu, '')
-    .toLowerCase();
-}
 
 // ---- 库 ----
 
