@@ -70,9 +70,9 @@
    background-size 一起重置成 auto，自定义图标就按原尺寸画、只露出一角。 */
 :root[data-wallpaper="on"] .app-tile {
   background-color: var(--capsule-bg); border: 1px solid var(--capsule-border);
-  backdrop-filter: blur(var(--glass-blur)); -webkit-backdrop-filter: blur(var(--glass-blur));
   box-shadow: none;
 }
+:root[data-wallpaper="on"][data-glass="on"] .app-tile { backdrop-filter: blur(var(--glass-blur)); -webkit-backdrop-filter: blur(var(--glass-blur)); }
 .app-tile svg { color: var(--icon-color); width: 52%; height: 52%; }
 /* 图标整张放进去，永远不裁。存的时候已经补成方图带透明边，
    这里再用 contain 兜一层：格子万一不是正方也不会切掉。 */
@@ -113,9 +113,9 @@
 }
 :root[data-wallpaper="on"] .folder-tile {
   background: var(--capsule-bg); border: 1px solid var(--capsule-border);
-  backdrop-filter: blur(var(--glass-blur)); -webkit-backdrop-filter: blur(var(--glass-blur));
   box-shadow: none;
 }
+:root[data-wallpaper="on"][data-glass="on"] .folder-tile { backdrop-filter: blur(var(--glass-blur)); -webkit-backdrop-filter: blur(var(--glass-blur)); }
 :root[data-icon-shadow="off"] .folder-tile { box-shadow: none; }
 .cell-app:active .folder-tile { transform: scale(.93); }
 .home-grid.is-edit .folder-tile { animation: jiggle .5s ease-in-out infinite; }
@@ -160,9 +160,9 @@
   box-shadow: var(--shadow-2); overflow: hidden; cursor: pointer;
 }
 :root[data-wallpaper="on"] .cell-widget {
-  backdrop-filter: blur(var(--glass-blur)); -webkit-backdrop-filter: blur(var(--glass-blur));
   box-shadow: none; border: 1px solid var(--capsule-border);
 }
+:root[data-wallpaper="on"][data-glass="on"] .cell-widget { backdrop-filter: blur(var(--glass-blur)); -webkit-backdrop-filter: blur(var(--glass-blur)); }
 .wg {
   height: 100%; padding: var(--sp-4); display: flex; flex-direction: column;
   gap: var(--sp-2); min-width: 0; color: var(--text);
@@ -267,8 +267,8 @@
   min-height: calc(var(--cell, 76px) * var(--tile-ratio) + var(--sp-4));
   background: var(--capsule-bg); border-radius: var(--r-xl);
   border: 1px solid var(--capsule-border);
-  backdrop-filter: blur(var(--glass-blur)); -webkit-backdrop-filter: blur(var(--glass-blur));
 }
+:root[data-glass="on"] .dock-capsule { backdrop-filter: blur(var(--glass-blur)); -webkit-backdrop-filter: blur(var(--glass-blur)); }
 .dock-slot {
   display: flex; align-items: center; justify-content: center;
   min-width: 0; height: 100%;
@@ -301,11 +301,11 @@
   padding: var(--sp-3) var(--sp-4);
   border-radius: var(--r-lg);
   background: var(--capsule-bg); border: 1px solid var(--capsule-border);
-  backdrop-filter: blur(var(--glass-blur)); -webkit-backdrop-filter: blur(var(--glass-blur));
   box-shadow: var(--shadow-2);
   cursor: pointer;
   animation: banner-in var(--dur) var(--ease-out);
 }
+:root[data-glass="on"] .banner { backdrop-filter: blur(var(--glass-blur)); -webkit-backdrop-filter: blur(var(--glass-blur)); }
 .banner.is-leaving { animation: banner-out .2s var(--ease) forwards; }
 @keyframes banner-in  { from { transform: translateY(-130%); opacity: 0; } to { transform: none; opacity: 1; } }
 @keyframes banner-out { to { transform: translateY(-130%); opacity: 0; } }
@@ -362,9 +362,10 @@
 }
 
 /* ---- 多任务 ---- */
+:root[data-glass="on"] .switcher { backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
 .switcher {
   position: absolute; inset: 0; z-index: var(--z-app);
-  background: var(--scrim-strong); backdrop-filter: blur(6px);
+  background: var(--scrim-strong);
   display: flex; flex-direction: column; justify-content: center; gap: var(--sp-4);
   animation: fade-in var(--dur-fast) var(--ease);
 }

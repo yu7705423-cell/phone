@@ -38,7 +38,7 @@ export function LockScreen() {
       </div>
 
       <div class="lock-notifications scroll">
-        ${items.slice(0, 6).map(n => html`
+        ${items.slice(0, 8).map(n => html`
           <div key=${n.id} class="lock-note press" onClick=${() => { openNotification(n.id); unlock(); }}>
             <${Icon} name=${n.icon || 'bell'} size=${16}/>
             <div class="lock-note-body">

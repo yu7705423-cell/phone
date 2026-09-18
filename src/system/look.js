@@ -26,6 +26,7 @@ export function applyLook(s) {
   root.style.setProperty('--bottom-lift', Math.max(0, s.bottomLift || 0) + 'px');
   root.dataset.iconShadow = s.iconShadow === false ? 'off' : 'on';
   root.dataset.iconLabel = s.iconLabels === false ? 'off' : 'on';
+  root.dataset.glass = s.glass === true ? 'on' : 'off';
 }
 
 // 用户自定义 CSS。注入到独立的 style 节点，随时可清空。

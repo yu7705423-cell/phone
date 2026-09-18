@@ -8,7 +8,7 @@ export { looks };
 
 // settings 里属于外观的那些字段。别把接口密钥、prompt 模板这些一起拍进来。
 const LOOK_KEYS = [
-  'theme', 'appIcons', 'iconColor', 'iconShadow', 'iconLabels',
+  'theme', 'appIcons', 'iconColor', 'iconShadow', 'iconLabels', 'glass',
   'bottomLift', 'customCSS', 'statusBar', 'showLockScreen',
   'fontBody', 'fontSerif',
 ];

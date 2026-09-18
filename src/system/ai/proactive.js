@@ -3,7 +3,7 @@ import * as accounts from '../accounts.js';
 
 import { template, buildChatSystem, isConfigured, isReplying, runTextTask, queryVecFor } from './engine.js';
 import { fillTemplate } from './templates.js';
-import { renderTurn, notifyTurn } from './reply.js';
+import { renderTurn } from './reply.js';
 
 // 每个角色自己一套设置，存在角色卡上。见 CLAUDE.md 第 5 条：
 // 属于某个角色的开关就放在那个角色身上，不放全局设置里。
@@ -175,11 +175,10 @@ export async function sendProactive(chatId, charId, { mood = false } = {}) {
   if (!raw || !raw.trim()) throw new Error('模型返回了空内容');
 
   const created = await renderTurn({
-    chat, char, raw: raw.trim(), turnId: `p-${Date.now()}`,
+    chat, char, raw: raw.trim(), turnId: `p-${Date.now()}`, notify: true,
   });
 
   chats.update(chat.id, { unread: (chats.get(chat.id)?.unread || 0) + created.length });
-  notifyTurn(chat, char, created);
   return created;
 }
 

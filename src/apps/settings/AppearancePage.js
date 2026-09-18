@@ -260,6 +260,10 @@ export function AppearancePage() {
         <${ListItem} title="显示图标名称"
           right=${html`<${Switch} checked=${s.iconLabels !== false}
             onChange=${v => db.settings.set({ iconLabels: v })}/>`}/>
+        <${ListItem} title="毛玻璃" multiline
+          subtitle="图标底板、小组件、底栏与横幅对其下方的壁纸做模糊。此效果持续占用图形处理器，设备容易发热、耗电更快。关闭后改用更不透明的底色。"
+          right=${html`<${Switch} checked=${s.glass === true}
+            onChange=${v => db.settings.set({ glass: v })}/>`}/>
       <//>
 
       <div class="pad-x">

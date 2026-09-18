@@ -1,7 +1,8 @@
 import { createStore, uid } from './store.js';
 import { emit, EVENTS } from './bus.js';
 
-const MAX = 30;
+// 一条消息一条通知，一轮就是三到五条，攒的上限相应放宽
+const MAX = 50;
 export const notifications = createStore({ items: [] });
 
 export function notify({ title, body, icon = 'bell', appId, payload, avatar }) {

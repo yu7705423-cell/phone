@@ -660,12 +660,27 @@ function shouldNotify(chatId) {
   return !(looking && document.visibilityState === 'visible');
 }
 
-export function notifyTurn(chat, char, created) {
-  if (!created.length || !shouldNotify(chat.id)) return;
-  const first = created.find(m => m.kind === 'text') || created[0];
+// 通知里那一行写什么。文字照抄；图片、语音这些没有可读正文的，写成它是什么。
+// 「[图片：一段给生图接口的描述]」不能原样露出来，那是给机器看的。
+const BODY_OF = {
+  image: '[图片]', voice: '[语音]', sticker: '[表情]', transfer: '[转账]', gift: '[礼物]',
+  location: '[位置]', call: '[通话]', listen: '[一起听]', watch: '[一起看]',
+  takeout: '[外卖]', request: '[申请]', share: '[分享]', dice: '[骰子]',
+  pact: '[约定]', letter: '[信]', vote: '[投票]',
+};
+const bodyOf = m => (m.kind === 'text' ? m.content : BODY_OF[m.kind]) || '发来一条消息';
+
+// **一条消息一条通知**，不是一轮一条。
+//
+// 从前整轮落完只弹一次，正文取第一条 —— 于是系统通知永远只看得见开头那句，
+// 后面那几条像没发过。手机上本来就是一条一条弹的，这里照做。
+// 由 renderTurn 在每条气泡落下的那一刻调，和气泡的节奏一致，
+// 而不是整轮说完之后一口气补三条。
+export function notifyMessage(chat, char, msg) {
+  if (!msg || !shouldNotify(chat.id)) return;
   notify({
     title: extras.starTitle(char, char.name || '新消息'),
-    body: first?.content || '发来一条消息',
+    body: bodyOf(msg),
     icon: 'message', appId: 'chat', avatar: char.avatar,
     payload: { route: `/chat/${chat.id}` },
   });
@@ -707,7 +722,9 @@ async function applyTranslate(job, byPart) {
   });
 }
 
-export async function renderTurn({ chat, char, raw, turnId, swipes, swipeIndex, onEach, signal, instant }) {
+// notify：每落一条就弹一条通知（人不在这个会话里时）。
+// 重放候选、一起看里的插话这些不传，它们不是「新来的消息」。
+export async function renderTurn({ chat, char, raw, turnId, swipes, swipeIndex, onEach, signal, instant, notify: wantNotify = false }) {
   const parts = splitReply(raw);
   if (!parts.length) throw new Error('模型返回了空内容');
   const { think } = stripThink(raw);
@@ -730,6 +747,7 @@ export async function renderTurn({ chat, char, raw, turnId, swipes, swipeIndex, 
     created.push(msg);
     chats.update(chat.id, { lastMessageAt: Date.now() });
     onEach && onEach(msg, i, parts.length);
+    if (wantNotify) notifyMessage(chat, char, msg);
     if (!instant && i < parts.length - 1) await new Promise(r => setTimeout(r, pause(part)));
   }
   await applyTranslate(job, byPart);

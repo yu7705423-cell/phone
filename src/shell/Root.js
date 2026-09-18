@@ -34,7 +34,7 @@ export function Root() {
   }, [cfg.theme]);
 
   useEffect(() => { applyLook(cfg); },
-    [cfg.iconColor, cfg.iconShadow, cfg.iconLabels, cfg.bottomLift]);
+    [cfg.iconColor, cfg.iconShadow, cfg.iconLabels, cfg.bottomLift, cfg.glass]);
 
   useEffect(() => { applyCustomCSS(cfg.customCSS); }, [cfg.customCSS]);
 

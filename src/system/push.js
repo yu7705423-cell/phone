@@ -47,15 +47,17 @@ export async function ask() {
 }
 
 // 真正的系统通知。iOS 上不能用 new Notification()，只有 SW 的 showNotification 有效
-export async function show({ title, body, route, appId, icon }) {
+//
+// tag 要每条不一样。同一个 tag 的通知会**顶掉**前一条，从前全用 'phone-msg'，
+// 一轮五条落下来通知中心里只剩最后一条，看起来就是「只弹了一条」。
+export async function show({ title, body, route, appId, icon, tag }) {
   if (permission() !== 'granted') throw new Error('还没有通知权限');
   const r = await registration() || await register();
   await r.showNotification(title || '小手机', {
     body: body || '',
     icon: icon || 'icon-192.png',
     badge: 'icon-192.png',
-    tag: 'phone-msg',
-    renotify: true,
+    tag: tag || `phone-${Date.now()}`,
     data: { route: route || null, appId: appId || null },
   });
 }
@@ -145,7 +147,7 @@ export function installBridge() {
   busOn(EVENTS.notify, item => {
     if (!shouldUseSystem()) return;
     show({
-      title: item.title, body: item.body,
+      title: item.title, body: item.body, tag: item.id,
       route: item.payload?.route, appId: item.appId,
     }).catch(err => console.warn('[push] 系统通知没弹出来:', err.message || err));
   });

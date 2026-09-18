@@ -165,9 +165,9 @@ export async function runDue(now = Date.now()) {
       if (!text) continue;
       const made = await reply.renderTurn({
         chat, char, raw: text, turnId: `pace-${Date.now()}`, swipes: [text], swipeIndex: 0,
+        notify: true,
       });
       chats.update(chat.id, { unread: (chats.get(chat.id)?.unread || 0) + made.length });
-      reply.notifyTurn(chat, char, made);
       done += 1;
     } catch (err) {
       console.warn('[pace] 这一段没回成:', err.message || err);

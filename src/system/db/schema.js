@@ -24,7 +24,7 @@ export const KV = {
 
 // 业务层数据迁移。与 IndexedDB 的版本升级分开:
 // 这里处理的是记录内部结构的变化,而不是仓库的增删。
-export const DATA_VERSION = 7;
+export const DATA_VERSION = 8;
 
 export const MIGRATIONS = {
   // 1: 初始结构,无需迁移
@@ -133,6 +133,14 @@ export const MIGRATIONS = {
     const at = rest.indexOf('memory');
     rest.splice(at < 0 ? rest.length : at, 0, 'watch');
     settings.set({ injectOrder: rest });
+  },
+
+  // 8: 会话一次画的条数，默认从 200 降到 60。
+  //    settings.set 存的是整份合并后的对象，所以只要用户改过任何一项，
+  //    老默认值 200 就已经落在库里了，改 DEFAULT_SETTINGS 到不了他那儿。
+  //    仍然是 200 的按新默认走；自己改成别的数的不动。
+  8({ settings }) {
+    if (settings.get().chatPage === 200) settings.set({ chatPage: 60 });
   },
 };
 

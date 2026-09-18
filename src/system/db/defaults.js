@@ -5,6 +5,7 @@ export const DEFAULT_SETTINGS = {
   appIcons: {},                   // appId -> { icon }  单独换某个 app 的图标
   iconColor: '#000000',           // SVG 颜色
   iconShadow: true,               // 图标阴影
+  glass: false,                   // 毛玻璃。持续的 GPU 合成开销，默认关，见 tokens.css
   iconLabels: true,               // 图标下的名称
   bottomLift: 0,                  // 底部整体上移的像素，见 styles/tokens.css
   fonts: [],                      // 自己传的字体，见 system/fonts.js
@@ -85,7 +86,7 @@ export const DEFAULT_SETTINGS = {
   stickerCold: 12,                // 没在用表情时列几个名字给模型。0 = 全列
   stickerHot: 60,                 // 最近用过表情时列几个。0 = 全列
   proactiveMaxUnread: 3,          // 堆了几条没看就不再主动发。0 = 一直发
-  chatPage: 200,                  // 会话一次画多少条。0 = 全画
+  chatPage: 60,                   // 会话一次画多少条。0 = 全画。往上翻按同样的数继续加载
   billBook: '',                   // 记账当前看的是哪一本，见 system/ledger.js
   searchLimit: 200,               // 搜索最多给多少条结果。0 = 全给
   scrobbleAfter: 30,              // 一首歌放够几秒才给网易云打卡。0 = 一放就打

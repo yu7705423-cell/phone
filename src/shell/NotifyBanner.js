@@ -9,8 +9,13 @@ import { appLook } from '../system/look.js';
 import { nav, currentRoute } from '../system/nav.js';
 
 const SHOW_MS = 4600;
-// 藏起来的时候最多攒这么多条。再多就是一串补弹，反而看不清
+// 藏起来的时候最多攒这么多条。再多就是一串补弹，反而看不清。
+// 一条消息一条通知之后，同一个会话的在队列里并成一条（带条数），
+// 所以这个数限的是「几个来源」，不是几条消息。
 const QUEUE_MAX = 3;
+
+// 同一个会话的算同一个来源
+const sourceOf = item => `${item.appId || ''}:${item.payload?.route || item.title || ''}`;
 
 function Banner({ item, onDone }) {
   const avatar = useImage(item.avatar);
@@ -65,7 +70,9 @@ function Banner({ item, onDone }) {
           <span class="banner-app ellipsis">${app?.name || '小手机'}</span>
           <span class="banner-time">${hh}:${mm}</span>
         </div>
-        <div class="banner-title ellipsis">${item.title}</div>
+        <div class="banner-title ellipsis">
+          ${item.title}${item.count > 1 ? html`<span class="banner-count">${item.count} 条</span>` : null}
+        </div>
         ${item.body ? html`<div class="banner-body">${item.body}</div>` : null}
       </div>
     </div>`;
@@ -90,8 +97,16 @@ export function NotifyBanner() {
     if (!cfg.banner) return;
     setQueue(q => {
       // 前台时只显示最新那条，旧的顶掉，不堆成一摞。
-      // 藏起来的时候攒着：这几条都是你没看见的，回来要一条条补上。
+      // 藏起来的时候攒着：这几条都是你没看见的，回来要补上 ——
+      // 但同一个会话的并成一条，正文取最新那句，条数累计。
+      // 一轮五条各弹一遍，回来就是二十几秒的横幅，谁也不会等着看完。
       if (document.visibilityState === 'visible') return [item];
+      const src = sourceOf(item);
+      const at = q.findIndex(x => sourceOf(x) === src);
+      if (at >= 0) {
+        const merged = { ...item, count: (q[at].count || 1) + 1 };
+        return [...q.slice(0, at), ...q.slice(at + 1), merged];
+      }
       return [...q, item].slice(-QUEUE_MAX);
     });
   }), []);

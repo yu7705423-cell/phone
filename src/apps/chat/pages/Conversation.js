@@ -406,13 +406,12 @@ export function Conversation({ chatId, focusId = '' }) {
 
       const turnId = reuseTurn || phone.uid('turn');
       const swipes = prevSwipes ? [...prevSwipes, clean] : [clean];
+      // notify：人不在这个会话里（切到别的 app、锁屏、页面在后台）时，
+      // 每落一条弹一条。页面不在前台时会转成系统通知，见 system/push.js
       const made = await ai.reply.renderTurn({
         chat, char, raw: clean, turnId,
-        swipes, swipeIndex: swipes.length - 1,
+        swipes, swipeIndex: swipes.length - 1, notify: true,
       });
-      // 人不在这个会话里（切到别的 app、锁屏、页面在后台）才弹。
-      // 页面不在前台时会转成系统通知，见 system/push.js
-      ai.reply.notifyTurn(chat, char, made);
       // 「单独生成」那一档在整轮说完之后另起一次调用。不 await：
       // 心声是背面那一层，晚一两秒出现不影响已经发出去的话。
       ai.inner.attach(chatId, made).catch(() => {});
