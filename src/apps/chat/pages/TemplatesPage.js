@@ -80,7 +80,12 @@ export function TemplatesPage() {
     toast('已恢复默认');
   };
 
+  // 旧版把整套模板抄进了 settings，迁移 6 把它们挪到了 legacy 里。
+  // 那些文本不一定是用户写的，但也不该直接扔掉，所以留一个找回的入口。
+  const legacy = s.promptTemplatesLegacy || {};
+
   if (editing) {
+    const old = legacy[editing];
     return html`
       <${Page} title=${LABELS[editing] || editing} onBack=${() => setEditing(null)}
         right=${html`<button class="nav-text press" onClick=${save}>保存</button>`}>
@@ -88,6 +93,12 @@ export function TemplatesPage() {
           <${Textarea} rows=${18} value=${draft} onInput=${setDraft}/>
           <div class="tpl-vars">可用占位符：${(ai.templates[editing] || '').match(/\{\{\w+\}\}/g)?.join(' ') || '无'}</div>
           <${Button} full variant="ghost" onClick=${reset}>恢复默认<//>
+          ${old && old !== draft ? html`
+            <div class="pad-t">
+              <${Button} full variant="ghost" onClick=${() => setDraft(old)}>
+                载入升级前的版本<//>
+              <div class="tpl-vars">升级到新版内置提示词时，此处保留了替换前的文本。</div>
+            </div>` : null}
         </div>
       <//>`;
   }

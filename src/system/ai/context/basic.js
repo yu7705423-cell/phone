@@ -34,23 +34,36 @@ export const user = {
   },
 };
 
+// 距上次说话多久，要量到**上一轮结束**为止。
+// 直接拿最后一条消息算的话，那一条往往就是用户刚发出的这一句，
+// 于是永远是「刚刚还在聊」，哪怕两个人三天没说过话。
+function lastBeforeThisTurn(messages) {
+  const list = (messages || []).filter(m => m.createdAt);
+  let i = list.length;
+  while (i > 0 && list[i - 1].role === 'user') i--;
+  return list[i - 1] || null;
+}
+
 export const time = {
-  meta: { id: 'time', label: '时间情境', desc: '现在几点、两边的时差、距上次聊天多久' },
+  meta: { id: 'time', label: '时间情境', desc: '现在几点、两边的时差、距上次说话多久' },
   build({ messages, char }) {
     if (!clock.enabled()) return '';
     const n = clock.now();
     const cz = clock.charZone(char);
     const uz = clock.userZone();
-    const lines = [`你那边现在是 ${clock.format(n, cz)}。`];
+    const lines = [`你在${clock.zoneLabel(cz)}，现在是 ${clock.format(n, cz)}。`];
 
     // 两人不在一个时区才说时差。同城还唠叨一句反而是噪音。
+    //
+    // 不用「早」「晚」：这两个字在中文里既能指时区的前后，也能指钟面上的
+    // 先后，两种读法方向正好相反。两边的钟点都写出来，方向自明。
     const d = clock.zoneDiff(cz, uz, n);
     if (d !== 0) {
       lines.push(`对方在${clock.zoneLabel(uz)}，那边现在是 ${clock.clockOnly(n, uz)}，`
-        + `比你${d > 0 ? '晚' : '早'} ${clock.diffText(d)}。想想那个点他在干嘛。`);
+        + `与你相差 ${clock.diffText(d)}。`);
     }
 
-    const last = [...(messages || [])].reverse().find(m => m.createdAt);
+    const last = lastBeforeThisTurn(messages);
     if (last) lines.push(clock.gapText(last.createdAt));
 
     return `\n\n[现在几点]\n${lines.join('\n')}`;

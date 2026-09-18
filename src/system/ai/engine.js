@@ -192,7 +192,7 @@ export function buildChatSystem(chat, char, msgs, opts = {}) {
   out += '\n\n' + template('skeleton.rules');
   // 示例。三家提示词工程材料里都把它列为对格式一致性作用最大的一项。
   // 它按 token 计费而不额外调接口，所以给开关，默认开着。
-  if (s.promptExamples !== false) out += '\n\n' + fillTemplate(template('skeleton.examples'), names);
+  if (s.promptExamples !== false) out += '\n\n' + template('skeleton.examples');
 
   // 各项能力。平时只列一张单子，这一轮真沾边了才给整段细则，见 capabilities.js
   out += capabilityBlock(ctx);

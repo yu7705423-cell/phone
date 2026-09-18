@@ -47,9 +47,17 @@ const known = id => ZONES.find(z => z.id === id);
 // Intl 里「跟设备一样」就是不传 timeZone
 const tz = id => (!id || id === LOCAL ? undefined : id);
 
+// 跟随设备时要把真实时区解出来再说。写「本地」等于什么都没说 ——
+// 模型不知道「本地」在哪儿，也就没法判断那个点对方在干什么。
+export function resolveZone(id) {
+  if (id && id !== LOCAL) return id;
+  try { return Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch { return ''; }
+}
+
 export function zoneLabel(id) {
-  if (!id || id === LOCAL) return '本地';
-  return known(id)?.label || id;
+  const real = resolveZone(id);
+  if (!real) return '未设定的时区';
+  return known(real)?.label || real;
 }
 
 export function enabled() { return settings.get().injectTime !== false; }
@@ -109,7 +117,9 @@ function utcOffset(date, zoneId) {
 
 // a 比 b 快多少分钟。正数表示 a 那边的钟走在前面。
 export function zoneDiff(a, b, date = now()) {
-  if ((a || LOCAL) === (b || LOCAL)) return 0;
+  // 先解析再比：一边填「跟随设备」、一边显式填了同一个时区时，
+  // 按 id 比会当成两个不同的地方，凭空多出一句时差
+  if (resolveZone(a) === resolveZone(b)) return 0;
   return utcOffset(date, a) - utcOffset(date, b);
 }
 
@@ -126,10 +136,17 @@ export function userZone() { return settings.get().timeZoneUser || LOCAL; }
 // 角色没单独设就跟你同一个时区 —— 绝大多数情况本来就是同城
 export function charZone(char) { return (char && char.timezone) || userZone(); }
 
+/**
+ * 距上次说话多久。
+ *
+ * 要量的是**上一轮结束到现在**，不是「最后一条消息到现在」——
+ * 最后一条往往就是用户刚刚发出的这一条，那样算出来永远是「刚刚」，
+ * 哪怕两个人三天没说过话。
+ */
 export function gapText(sinceMs) {
   const min = Math.floor((Date.now() - sinceMs) / 60000);
-  if (min < 1) return '你们刚刚还在聊。';
-  if (min < 60) return `距离你们上次聊天过去了 ${min} 分钟。`;
-  if (min < 1440) return `距离你们上次聊天过去了 ${Math.floor(min / 60)} 小时。`;
-  return `距离你们上次聊天过去了 ${Math.floor(min / 1440)} 天。`;
+  if (min < 5) return '你们正在聊。';
+  if (min < 60) return `距离上一次说话过去了 ${min} 分钟。`;
+  if (min < 1440) return `距离上一次说话过去了 ${Math.floor(min / 60)} 小时。`;
+  return `距离上一次说话过去了 ${Math.floor(min / 1440)} 天。`;
 }

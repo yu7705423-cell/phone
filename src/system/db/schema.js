@@ -23,7 +23,7 @@ export const KV = {
 
 // 业务层数据迁移。与 IndexedDB 的版本升级分开:
 // 这里处理的是记录内部结构的变化,而不是仓库的增删。
-export const DATA_VERSION = 5;
+export const DATA_VERSION = 6;
 
 export const MIGRATIONS = {
   // 1: 初始结构,无需迁移
@@ -106,6 +106,20 @@ export const MIGRATIONS = {
     const rest = order.filter(id => id !== 'bond');
     rest.splice(rest.indexOf('character'), 0, 'bond');
     settings.set({ injectOrder: rest });
+  },
+
+  // 6: 提示词模板不再整套存进 settings。
+  //
+  //    老版本把 DEFAULT_TEMPLATES 整个抄进 settings 并落库，而 template()
+  //    优先读 settings —— 于是代码里改了默认提示词，老库一个字都吃不到，
+  //    而且界面上每一条都显示「已修改」，虽然用户从没动过。
+  //
+  //    这里把存着的那一套整体挪到 promptTemplatesLegacy，清空 promptTemplates。
+  //    新的内置版本立刻生效，此前的文本仍可在模板编辑页里逐条找回。
+  6({ settings }) {
+    const cur = settings.get().promptTemplates;
+    if (!cur || !Object.keys(cur).length) return;
+    settings.set({ promptTemplates: {}, promptTemplatesLegacy: cur });
   },
 };
 
