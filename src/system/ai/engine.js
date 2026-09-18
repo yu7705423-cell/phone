@@ -207,9 +207,11 @@ export function buildChatSystem(chat, char, msgs, opts = {}) {
   // 各项能力。平时只列一张单子，这一轮真沾边了才给整段细则，见 capabilities.js
   out += capabilityBlock(ctx);
 
-  // 收束三件套，全部贴着输出放：取舍顺序、核心设定、性别。
-  // 靠后的位置模型读得最重，而这三件正是不能被前面任何一段压过去的。
-  out += '\n\n' + template('skeleton.priority');
+  // 收尾两件，贴着输出放：核心设定、性别。靠后的位置模型读得最重。
+  //
+  // 从前这里还有一段「冲突时的取舍」，规定人设 > 世界 > 其余。那是替用户
+  // 排优先级 —— 哪条该让哪条，是他自己写这几份设定时的事，不该由内置
+  // 提示词代判（见 CLAUDE.md 第 16 条）。
   const core = String(char.core || '').trim();
   if (core) out += '\n\n' + fillTemplate(template('skeleton.core'), { core });
   if (gender) out += '\n\n' + gender;
@@ -472,6 +474,22 @@ export function streamReply({ chat, char, onDelta }) {
   }, { replace: true, retries: 1 });
 }
 
+/**
+ * 一小段原文，用来告诉模型「这段对话是什么语言」。
+ *
+ * 描述图片这件事本身没有语言线索 —— 图上没有字。从前这里写死「用中文描述」，
+ * 那是替用户拿主意（见 CLAUDE.md 第 16 条），而角色来自各个国家。
+ * 改成给它一段实际的原文照着走：先拿这段对话最近说的话，没有就拿角色卡。
+ */
+function langSampleOf(msgId) {
+  const m = messages.get(msgId);
+  const list = m ? messagesOf(m.chatId).filter(x => x.kind === 'text' && x.content) : [];
+  const recent = list.slice(-3).map(x => x.content).join('\n').trim();
+  if (recent) return recent.slice(0, 200);
+  const char = characters.get((chats.get(m?.chatId)?.characterIds || [])[0]);
+  return String(char?.persona || char?.name || '').slice(0, 200);
+}
+
 // 图给模型看过之后，再让同一个模型用一句话把它描述下来写回消息。
 // 从下一轮起这条消息就是纯文字，不必再传图。
 // 这一档本来就是「聊天模型自己能看图」，所以描述也用聊天模型，不需要另配接口。
@@ -479,7 +497,7 @@ async function describeCarried(pics) {
   for (const [msgId, pic] of pics) {
     try {
       const text = (await runTextTask('chat.vision-describe', {
-        system: template('task.vision-describe'),
+        system: fillTemplate(template('task.vision-describe'), { sample: langSampleOf(msgId) }),
         user: 'Describe this image as instructed.',
         image: pic,
         key: `vision-carry:${msgId}`,

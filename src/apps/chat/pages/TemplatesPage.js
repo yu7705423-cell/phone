@@ -11,7 +11,6 @@ const LABELS = {
   'skeleton.gender': '骨架 · 性别锚点',
   'skeleton.world': '骨架 · 世界规则抬头',
   'skeleton.rules': '骨架 · 消息规则',
-  'skeleton.priority': '骨架 · 冲突时的取舍',
   'skeleton.core': '骨架 · 核心设定',
   'skeleton.sticker': '骨架 · 可用表情',
   'skeleton.quote': '骨架 · 引用某一句',

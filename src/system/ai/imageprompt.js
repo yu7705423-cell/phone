@@ -1,5 +1,5 @@
 import { settings, characters, images } from '../db/index.js';
-import { template } from './templates.js';
+import { template, fillTemplate } from './templates.js';
 import { runTextTask } from './engine.js';
 import { visionConfig, visionReady, visionMode } from './services.js';
 import { describe as visionDescribe } from './vision.js';
@@ -50,7 +50,7 @@ export async function ensureFaceDesc(char) {
   } else {
     // 交给聊天模型那一档：它自己能看图，用同一条路
     text = await runTextTask('chat.face-describe', {
-      system: template('task.face-describe'),
+      system: fillTemplate(template('task.face-describe'), { sample: langSample(char) }),
       user: 'Describe this person as instructed.',
       image: { dataUrl, mediaType: blob.type || 'image/png' },
       key: `face:${char.id}`, maxTokens: 400,
@@ -60,6 +60,11 @@ export async function ensureFaceDesc(char) {
   if (out) characters.update(char.id, { faceDesc: out });
   return out;
 }
+
+// 一小段角色卡原文，告诉模型「这个角色是什么语言」。图上没有字，
+// 描述图片本身没有语言线索，而写死中文是替用户拿主意（CLAUDE.md 第 16 条）。
+const langSample = char =>
+  String(char?.persona || char?.scenario || char?.name || '').slice(0, 200);
 
 // 拼最终提示词。face 是已经拿到的那段外貌描述，没有就不拼。
 export function compose({ prompt, char, face = '' }) {

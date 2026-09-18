@@ -14,12 +14,11 @@ import { settings } from '../db/index.js';
 
 export const DEFAULT_TEMPLATES = {
 
+  // **不规定说什么语言。** 从前这里写着「默认中文」—— 那是替用户拿主意，
+  // 而角色来自各个国家。说什么语言由角色卡、世界书和对话历史自己决定，
+  // 那些都在上下文里，不需要这里再断一次。
   'skeleton.opening':
-`You are {{charName}}. You are texting {{userName}} on a phone.
-
-Write every message in Chinese, unless the character card or the world rules
-state another language. This instruction governs your output only; the
-instructions below are written in English and are never quoted or echoed.`,
+`You are {{charName}}. You are texting {{userName}} on a phone.`,
 
   // 性别锚点。首尾各放一次 —— 这是唯一一处绝对不能出错的事实，
   // 而长上下文里只说一遍的东西是会被忽略的。
@@ -45,14 +44,6 @@ conform to them.`,
   'skeleton.rules':
 `[消息规则]
 Write each reply as 3 to 5 separate messages, one per line.`,
-
-  'skeleton.priority':
-`[冲突时的取舍]
-When the sections above conflict, resolve in this order:
-1. the character card and the core settings
-2. the world settings
-3. everything else
-Formatting requirements never override the character card.`,
 
   'skeleton.core':
 `[核心设定]
@@ -253,8 +244,11 @@ You do not know what is inside before opening it. Do not pretend to know, and
 do not guess. The contents are reported to you once it is opened.`,
 
   'task.face-describe':
-`Describe this person's appearance in Chinese, so that someone else can draw
-them from the description.
+`Describe this person's appearance, so that someone else can draw them from
+the description. Write it in the same language as the sample below.
+
+## Language sample
+{{sample}}
 
 Write the face: shape, brows and eyes, nose, mouth, complexion.
 Write the hair: length, colour, style.
@@ -306,14 +300,14 @@ Count: {{count}}
 {{existing}}
 
 ## Requirements
-- One sentence each, at most twenty-five Chinese characters, describing only
+- One sentence each, at most twenty-five characters, describing only
   the event itself
 - No feelings, no reactions, no 「她」「他」「我」, no personal names
 - No specific brands, cities, or dates
 - Not written as dialogue, no quotation marks, no numbering
 - No two entries in this batch may repeat each other or differ only by a word
 - Everything must fit the domain and tone above; omit anything that does not
-- Write the entries in Chinese
+- Write the entries in the same language as the existing entries above
 
 ## Output JSON only, with no other text
 {"events":[{"text":""}]}`,
@@ -337,7 +331,7 @@ today.
 - Plan three to six items spread across different slots; do not fill every slot
 - Write only what they intend to do, not how it turned out, and not how they
   feel
-- One sentence per item, at most twenty-five Chinese characters
+- One sentence per item, at most twenty-five characters
 - Stay consistent with the character card: if it gives an occupation, schedule
   around that occupation's hours; if it does not, do not invent one
 - Workdays and rest days differ; today is {{weekday}}
@@ -345,7 +339,7 @@ today.
 - Do not write items centred on the other party, such as meeting them or
   waiting for their message
 - slot must be one of the ids listed above
-- Write the item text in Chinese
+- Write the item text in the same language as the character card
 
 ## Output JSON only, with no other text
 {"items":[{"slot":"","text":""}]}`,
@@ -387,7 +381,7 @@ spoken. The excerpt is sampled, not the complete dialogue.
 - No evaluation, no impressions
 - Each segment covers only what happens within it, with no reference to
   anything later
-- Write text in Chinese
+- Write text in the same language as the subtitle excerpt above
 
 ## Output JSON only, with no other text
 {"segments":[{"from":"0:00","to":"8:30","text":""}]}`,
@@ -408,13 +402,13 @@ Count: {{count}}
 - Write what local people actually eat day to day: home cooking, breakfast
   items, fast food, and delivery all qualify
 - No banquet dishes, no recipe instructions, no ingredient lists
-- name is what the item is called, at most ten Chinese characters
+- name is what the item is called, at most ten characters
 - note may be left empty; when filled, state its form or what distinguishes it,
-  at most fifteen Chinese characters, with no judgement of taste
+  at most fifteen characters, with no judgement of taste
 - Vary the price range and the degree of effort
 - No two entries in this batch may repeat each other or differ only by a
   character
-- Write name and note in Chinese
+- Write name and note in the same language as the existing entries above
 
 ## Output JSON only, with no other text
 {"dishes":[{"name":"","note":""}]}`,
@@ -438,11 +432,11 @@ Count: {{count}}
   cannot be confirmed, drop the entry rather than inventing one
 - name is one thing you would order there
 - note may be left empty; when filled, state its form or what distinguishes it,
-  at most fifteen Chinese characters
+  at most fifteen characters
 - No addresses, no telephone numbers, no prices, no ratings
 - Include both well-known places and small local ones; the batch must not
   consist entirely of places that are popular online
-- Write name, place, and note in Chinese
+- Write name, place, and note in the same language as the existing entries above
 
 ## Output JSON only, with no other text
 {"dishes":[{"name":"","place":"","note":""}]}`,
@@ -462,8 +456,8 @@ The other party cannot see this line.`,
 
 ## Requirements
 Write what you were actually thinking while saying it.
-Write it out directly, in Chinese, with no quotation marks and no 「心声：」
-prefix.`,
+Write it out directly, in the same language as the character card above, with
+no quotation marks and no 「心声：」 prefix.`,
 
   'skeleton.pat':
 `[拍一拍]
@@ -513,7 +507,11 @@ Recent messages are prefixed with the speaker. Say only your own lines; do not
 speak for anyone else, and do not repeat what others have said.`,
 
   'task.vision-describe':
-`Describe this image in Chinese, for someone who cannot see it.
+`Describe this image for someone who cannot see it.
+Write it in the same language as the sample below.
+
+## Language sample
+{{sample}}
 
 Start with the whole: what the scene is, whether anyone is in it, what they are
 doing.
@@ -539,7 +537,7 @@ of speaking, and output JSON with no other text:
 The transcription must be faithful: keep fillers, repetitions, and unfinished
 clauses, without polishing.
 Where something cannot be determined, write 「听不出来」 rather than guessing.
-Write every field value in Chinese.`,
+Write every field value in the same language as the speech itself.`,
 
   'task.memory-extract':
 `You are a conversation analyst. Analyse the conversation from an objective
@@ -583,7 +581,8 @@ C is for material worth filing but not worth bringing into conversation.
 - When a pending item has been resolved, note （已完结）
 - Extract only what is worth keeping; ordinary pleasantries are not extracted
 - Return an empty array when there is nothing new
-- Write content as a concise third-person statement, in Chinese
+- Write content as a concise third-person statement, in the same language as
+  the conversation above
 
 ## Output JSON only, with no other text
 {"memories":[{"content":"","category":"fact","rank":"A","keywords":[],"updateId":""}]}`,
@@ -605,8 +604,8 @@ now.
 - Third person, using the names given. Do not write 「用户」 or 「角色」.
 - Write only what the events support. Do not infer, and do not evaluate.
 - Where a conflict is unresolved or a promise unfulfilled, say so.
-- Output the text directly, in Chinese, with no heading, no numbering, and no
-  quotation marks.`,
+- Output the text directly, in the same language as the events above, with no
+  heading, no numbering, and no quotation marks.`,
 
   // 核心设定。人设正文往往上千字，末尾再塞一遍不现实，
   // 所以压成几行，只留最不能偏离的那几点。
@@ -623,8 +622,8 @@ never depart from.
   speech style, characteristic attitudes, explicit prohibitions.
 - No appearance, no backstory, nothing irrelevant to conversation.
 - Use imperative or declarative sentences, for example 「说话简短，不解释」.
-- Output the text directly, in Chinese, with no heading, no numbering, and no
-  quotation marks.`,
+- Output the text directly, in the same language as the character card above,
+  with no heading, no numbering, and no quotation marks.`,
 
   'task.card-import':
 `Turn the material below into a character card.
@@ -640,7 +639,7 @@ never depart from.
 - gender follows the source; leave it empty when the source does not give one
 - birthday should be written as 「3月14日」 or 「1999-03-14」 where possible;
   leave it empty when the source does not give one
-- signature is a one-line personal motto, at most fifteen Chinese characters.
+- signature is a one-line personal motto, at most fifteen characters.
   When the material has none, distil one from the character card
 - persona is the main body: who this person is, what they are like, how they
   speak. Fold the settings from the material into this field
@@ -667,7 +666,7 @@ connected to this character.
 ## Requirements
 - Each person must have a specific connection to the character: family,
   classmate, colleague, former partner, someone they know online, an antagonist
-- relation states what {{charName}} is to this person, in two to six Chinese
+- relation states what {{charName}} is to this person, in two to six
   characters, for example 「女儿」「室友」「前任」
 - reverse states the other direction: what this person is to {{charName}}, for
   example 「母亲」「室友」「前任」
@@ -676,7 +675,7 @@ connected to this character.
 - persona is three to five sentences: who this person is, and what has passed
   between them and the character
 - Do not regenerate people who already exist
-- Write every field in Chinese
+- Write every field in the same language as the character card
 
 ## Output JSON only, with no other text
 {"npcs":[{"name":"","age":"","gender":"","birthday":"","signature":"","persona":"","relation":"","reverse":""}]}`,
@@ -711,7 +710,7 @@ memory entries.
 ## Six categories
 fact / emotion / pending / pattern / relation / profile
 
-## Write content in Chinese
+## Write content in the same language as the material above
 
 ## Output JSON only, with no other text
 {"memories":[{"content":"","category":"fact","rank":"A","keywords":[]}]}`,
@@ -719,8 +718,8 @@ fact / emotion / pending / pattern / relation / profile
   'task.chat-summarize':
 `Compress the conversation below into a summary that keeps the people, the
 events, the emotional arc, and anything left unresolved.
-Use third-person statements, in Chinese, within 300 characters. Output the
-summary text only.
+Use third-person statements, in the same language as the conversation, within
+300 characters. Output the summary text only.
 
 {{dialogue}}`,
 
@@ -730,7 +729,7 @@ has happened recently.
 
 ## Requirements
 - Do not use the word 「朋友圈」
-- Write in Chinese
+- Write in the same language as the character card
 
 ## Output JSON only
 {"text":"动态正文","mood":"当下心情一词","imagePrompt":"想配图就写画面描述，不配就写 null"}`,
@@ -740,7 +739,7 @@ has happened recently.
 
 {{momentText}}
 
-Leave one comment, as yourself, in Chinese.
+Leave one comment, as yourself, in the same language as the post above.
 
 ## Output JSON only
 {"text":"评论内容"}`,
@@ -752,7 +751,7 @@ Leave one comment, as yourself, in Chinese.
 
 {{userName}} commented: {{commentText}}
 
-Reply once, in Chinese.
+Reply once, in the same language as the comment above.
 
 ## Output JSON only
 {"text":"回复内容"}`,
@@ -773,7 +772,7 @@ the two of you currently stand.
   opened the account, and how you intend to speak.
   You know everything about {{userName}}, but by its settings this identity does
   not; do not let that show.
-- Write every field in Chinese
+- Write every field in the same language as the character card
 
 ## Output JSON only, with no other text
 {"name":"","signature":"","persona":"","reason":"一句话，说明开设该账号的原因"}`,
@@ -787,8 +786,8 @@ conversation.
 - {{gap}} has passed since you last spoke. Do not write as though the two of you
   were mid-conversation
 
-Output the message text directly, in Chinese, separating messages with blank
-lines. Write no explanation.`,
+Output the message text directly, in the same language as the character card,
+separating messages with blank lines. Write no explanation.`,
 
   'task.emo':
 `It is now {{time}}, during the night. No one has contacted you; you are awake
@@ -798,8 +797,8 @@ and you are the one opening this conversation.
 - You are the one opening. You are not replying to anything
 - {{gap}} has passed since you last spoke
 
-Output the message text directly, in Chinese, separating messages with blank
-lines. Write no explanation.`,
+Output the message text directly, in the same language as the character card,
+separating messages with blank lines. Write no explanation.`,
 
   'task.scenario-seeds':
 `You are a scenario designer. The character:
@@ -809,7 +808,8 @@ lines. Write no explanation.`,
 
 Write 3 to 5 things this character might recently have been through or be
 thinking about.
-One sentence each, in Chinese. Do not write a schedule.
+One sentence each, in the same language as the character card. Do not write a
+schedule.
 
 ## Output JSON only
 {"seeds":["",""]}`,
