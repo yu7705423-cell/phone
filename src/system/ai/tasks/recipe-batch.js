@@ -53,7 +53,8 @@ export async function generate({ region = '', meal = '', count = 20, web = false
   return rows
     .map(x => (typeof x === 'string'
       ? { name: str(x) }
-      : { name: str(x?.name), note: str(x?.note), place: useWeb ? str(x?.place) : '' }))
+      : { name: str(x?.name), note: str(x?.note), place: useWeb ? str(x?.place) : '',
+        price: Math.max(0, Number(x?.price) || 0) }))
     .filter(r => {
       const key = food.normalize(r.name);
       if (!key || seen.has(key)) return false;

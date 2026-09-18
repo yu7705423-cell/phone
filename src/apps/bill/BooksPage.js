@@ -126,6 +126,12 @@ function BookEditor({ book, onClose }) {
               : '已关闭。角色不知道账上有多少钱，提到金额时会自行编造。'}
             right=${html`<${Switch} checked=${ledger.injectOn(book)}
               onChange=${v => ledger.update(book.id, { inject: v })}/>`}/>
+          <${ListItem} title="结算角色每天的花销" multiline
+            subtitle=${book.settle
+              ? '每天为角色排新日程时，把前一天日程中各项的花销与三顿的价钱记入该角色的账户。不额外调用接口，花销随日程一并生成。'
+              : '已关闭。角色的日常花销不计入账目，只有对话中明确发生的转账与消费才记账。'}
+            right=${html`<${Switch} checked=${!!book.settle}
+              onChange=${v => ledger.update(book.id, { settle: v })}/>`}/>
           <${ListItem} title="余额不足时不予支付" multiline
             subtitle=${ledger.strictOn(book)
               ? '转账、请客的金额超过该方余额时，该笔不予记录，并在对话中留下一行说明，角色下一轮可以看到。'

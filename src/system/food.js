@@ -72,13 +72,18 @@ export function has(name, region = '') {
   return recipes.byIndex(region).some(r => normalize(r.name) === key);
 }
 
-export function add({ region = '', name, meal = '', note = '', place = '' }) {
+const price = v => Math.max(0, Math.round(Number(v) * 100) / 100) || 0;
+
+export function add({ region = '', name, meal = '', note = '', place = '', price: p = 0 }) {
   const n = trim(name, 40);
   if (!n) throw new Error('请填写名称');
   return recipes.create({
     region: trim(region, 20), name: n,
     meal: mealOf(meal) ? meal : '',
     note: trim(note, 60), place: trim(place, 40),
+    // 这一顿多少钱。为了记账那边能结算，由词库生成时一并写好 ——
+    // 它不多花一次接口（见 CLAUDE.md 第 15 条），抽中就直接拿来用。
+    price: price(p),
     off: false,
   });
 }
@@ -91,6 +96,7 @@ export function update(id, patch) {
   if (patch.note !== undefined) next.note = trim(patch.note, 60);
   if (patch.place !== undefined) next.place = trim(patch.place, 40);
   if (patch.meal !== undefined) next.meal = mealOf(patch.meal) ? patch.meal : '';
+  if (patch.price !== undefined) next.price = price(patch.price);
   if (patch.region !== undefined) next.region = trim(patch.region, 20);
   if (patch.off !== undefined) next.off = !!patch.off;
   return recipes.update(id, next);
@@ -122,10 +128,11 @@ export function history(charId, limit = 0) {
   return limit > 0 ? rows.slice(0, limit) : rows;
 }
 
-export function record({ charId, meal, recipeId = '', name, place = '', at = 0 }) {
+export function record({ charId, meal, recipeId = '', name, place = '', price: p = 0, at = 0 }) {
   const n = trim(name, 40);
   if (!charId || !n) return null;
-  return meals.create({ charId, meal, recipeId, name: n, place: trim(place, 40), at: at || clock.now().getTime() });
+  return meals.create({ charId, meal, recipeId, name: n, place: trim(place, 40),
+    price: price(p), at: at || clock.now().getTime() });
 }
 
 export function clearHistory(charId) {
@@ -154,7 +161,8 @@ export function draw({ charId, meal = '', rng } = {}) {
 export function eat({ charId, meal, at = 0, rng } = {}) {
   const r = draw({ charId, meal, rng });
   if (!r) return null;
-  return record({ charId, meal, recipeId: r.id, name: r.name, place: r.place, at });
+  return record({ charId, meal, recipeId: r.id, name: r.name, place: r.place,
+    price: r.price, at });
 }
 
 // 上下文里怎么念这一顿。有店名就带上店名 —— 那是「联网搜出来的」那一档

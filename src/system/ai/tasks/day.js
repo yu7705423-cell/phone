@@ -68,6 +68,7 @@ export async function generatePlan(charId) {
     .map(it => ({
       slot: dayStore.slotOf(it?.slot) ? it.slot : '',
       text: String(it?.text ?? '').trim().slice(0, 60),
+      cost: Math.max(0, Number(it?.cost) || 0),
     }))
     .filter(it => it.slot && it.text);
 }
@@ -95,6 +96,12 @@ export async function makeToday(charId, { force = false, rng } = {}) {
   // 失败只写进 console，界面上一个字都没有。已经因此每轮多烧一次接口。
   const local = dayStore.rollLocal(charId, { rng, date });
   dayStore.save(charId, { date, items: [], ...local });
+
+  // 排新一天的时候顺手把昨天结了。不另调接口 —— 花销是昨天排日程时
+  // 一起生成的（见 task.day-plan 的 cost）。整项默认关着，见 ledger.settleOn
+  import('../../ledger.js')
+    .then(L => L.settleYesterday(charId))
+    .catch(err => console.warn('[bill] 昨天没结上:', err.message || err));
 
   let items = [];
   try {

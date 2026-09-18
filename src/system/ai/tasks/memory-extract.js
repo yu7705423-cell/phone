@@ -78,9 +78,15 @@ export async function extract(chatId) {
     added++;
   }
 
+  // 顺带把聊到的花销也记下来。**不多调一次接口** —— 它搭在这一次总结上，
+  // 见 CLAUDE.md 第 15 条。落成待确认，你点一下才进余额（见 ledger.pendingOf）。
+  let spent = 0;
+  try { spent = await catchSpending(chatId, result?.spending); }
+  catch (err) { console.warn('[bill] 花销没记上:', err.message || err); }
+
   const lastId = pending[pending.length - 1].id;
   chats.update(chatId, { memoryUpTo: lastId, memoryTriedId: null });
-  return { added, updated, total: rows.length };
+  return { added, updated, total: rows.length, spent };
 }
 
 // 每累计 N 轮角色回复触发一次。0 为关闭。
@@ -98,4 +104,36 @@ export function shouldAutoExtract(chatId, interval) {
   const at = tried ? all.findIndex(m => m.id === tried) : -1;
   const since = at >= 0 ? all.slice(at + 1) : all;
   return since.filter(m => m.role === 'char').length >= interval;
+}
+
+/**
+ * 把总结里读出来的花销落成待确认的流水。
+ *
+ * **一律先挂着。** 模型认错金额、把玩笑当真账，都不该直接污染账本 ——
+ * 尤其真实账本记的是你的实际生活。确认在记账 app 里点。
+ */
+async function catchSpending(chatId, rows) {
+  if (!Array.isArray(rows) || !rows.length) return 0;
+  const L = await import('../../ledger.js');
+  const book = L.bookOfChat(chatId);
+  if (!book) return 0;
+
+  let n = 0;
+  for (const r of rows) {
+    const v = Number(r?.amount) || 0;
+    if (!v) continue;
+    const owner = r?.who === 'char' ? L.CHAR : L.ME;
+    const acc = L.defaultFor(book.id, owner);
+    if (!acc) continue;
+    const at = /^\d{4}-\d{2}-\d{2}$/.test(String(r?.at || ''))
+      ? new Date(`${r.at}T12:00:00`).getTime() : Date.now();
+    L.add({
+      bookId: book.id, accountId: acc.id, amount: v,
+      category: v > 0 ? 'salary' : 'other',
+      note: String(r?.note || '').trim().slice(0, 40),
+      at: at || Date.now(), src: 'chat', pending: true,
+    });
+    n += 1;
+  }
+  return n;
 }

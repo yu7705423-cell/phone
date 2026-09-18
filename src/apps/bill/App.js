@@ -5,6 +5,7 @@ import { Money, Row, DayHead, dayKey } from './parts.js';
 import { EntrySheet } from './EntrySheet.js';
 import { BooksPage } from './BooksPage.js';
 import { AccountsPage } from './AccountsPage.js';
+import { RulesPage } from './RulesPage.js';
 
 const { db, nav, ledger } = phone;
 
@@ -19,8 +20,9 @@ function Home() {
   useStore(db.settings.store);
   const [sheet, setSheet] = useState(null);
 
-  // 第一次打开时建一本。不走迁移 —— 不用记账的人不该凭空多一本账
-  useEffect(() => { ledger.ensure(); }, []);
+  // 第一次打开时建一本。不走迁移 —— 不用记账的人不该凭空多一本账。
+  // 顺手把到期的固定入账补上：不起定时器，谁打开谁补（见 ledger.runRules）
+  useEffect(() => { const b = ledger.ensure(); if (b) ledger.runRules(b.id); }, []);
 
   const bookId = ledger.currentId();
   const book = ledger.get(bookId);
@@ -34,6 +36,7 @@ function Home() {
 
   const st = ledger.stats(bookId);
   const rows = ledger.recent(bookId).filter(e => !e.pending);
+  const pend = ledger.pendingOf(bookId);
   const days = [];
   for (const e of rows) {
     const k = dayKey(e.at);
@@ -66,12 +69,44 @@ function Home() {
       </div>
 
       <${List}>
+        <${ListItem} title="固定入账" arrow multiline
+          subtitle=${(() => {
+            const rs = ledger.rulesOf(bookId).filter(r => r.active !== false);
+            return rs.length
+              ? rs.map(r => `每月 ${r.day} 日 ${ledger.money(bookId, r.amount)}`).join('　')
+              : '还没有设置。可设置每月固定的收入或支出';
+          })()}
+          left=${html`<${Icon} name="calendar" size=${18}/>`}
+          onClick=${() => nav.push('/rules')}/>
         <${ListItem} title="账户" arrow multiline
           subtitle=${ledger.accountsOf(bookId).map(a =>
             `${a.name} ${ledger.money(bookId, ledger.balanceOf(bookId, a.id))}`).join('　') || '还没有账户'}
           left=${html`<${Icon} name="database" size=${18}/>`}
           onClick=${() => nav.push('/accounts')}/>
       <//>
+
+      ${pend.length ? html`
+        <${List} title=${`待确认 · ${pend.length} 笔`}>
+          ${pend.map(e => html`
+            <${ListItem} key=${e.id} multiline
+              title=${e.note || ledger.categoryOf(e.category).label}
+              subtitle=${`${ledger.accountOf(bookId, e.accountId)?.name || ''} · 来自对话，确认后计入余额`}
+              left=${html`<${Icon} name="notes" size=${18}/>`}
+              right=${html`
+                <div class="bl-pend">
+                  <${Money} bookId=${bookId} amount=${e.amount}/>
+                  <div class="bl-pend-act">
+                    <button class="chip press" onClick=${ev => { ev.stopPropagation(); ledger.confirm(e.id); }}
+                      >确认</button>
+                    <button class="chip press" onClick=${ev => { ev.stopPropagation(); ledger.drop(e.id); }}
+                      >删除</button>
+                  </div>
+                </div>`}
+              onClick=${() => setSheet({ id: e.id })}/>`)}
+        <//>
+        <div class="settings-foot">
+          以上条目由对话总结时提取，尚未计入余额与本月收支。确认后生效，删除后不再出现。
+        </div>` : null}
 
       ${st.byCategory.length ? html`
         <${List} title="本月支出分类">
@@ -103,5 +138,6 @@ function Home() {
 export default function BillApp({ route }) {
   if (route === '/books') return html`<${BooksPage}/>`;
   if (route === '/accounts') return html`<${AccountsPage}/>`;
+  if (route === '/rules') return html`<${RulesPage}/>`;
   return html`<${Home}/>`;
 }

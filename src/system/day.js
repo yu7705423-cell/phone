@@ -92,6 +92,8 @@ export function save(charId, { date, items = [], event = null, luck = 0, meals =
       text: String(it.text || '').trim().slice(0, 60),
       kind: it.kind || 'plan',
       state: it.state || PLAN,
+      // 这一项要花多少钱。记账那边第二天拿它结算（见 ledger.settleDay）
+      cost: Math.max(0, Number(it.cost) || 0),
     }))
     // 时段认不出来就整条丢掉。挪到一个默认时段等于凭空替她安排了一件事，
     // 而她自己从来没这么说过。

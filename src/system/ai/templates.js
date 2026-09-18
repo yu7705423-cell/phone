@@ -357,10 +357,12 @@ today.
 - Do not write items centred on the other party, such as meeting them or
   waiting for their message
 - slot must be one of the ids listed above
+- cost is what the item costs, as a number. Write 0 for anything that costs
+  nothing. Use amounts ordinary in {{zone}}
 - Write the item text in the same language as the character card
 
 ## Output JSON only, with no other text
-{"items":[{"slot":"","text":""}]}`,
+{"items":[{"slot":"","text":"","cost":0}]}`,
 
   'skeleton.agenda':
 `[今天的安排]
@@ -426,10 +428,12 @@ Count: {{count}}
 - Vary the price range and the degree of effort
 - No two entries in this batch may repeat each other or differ only by a
   character
+- price is what one serving costs, as a number, at prices ordinary for this
+  kind of place
 - Write name and note in the same language as the existing entries above
 
 ## Output JSON only, with no other text
-{"dishes":[{"name":"","note":""}]}`,
+{"dishes":[{"name":"","note":"","price":0}]}`,
 
   'task.recipe-search':
 `Write entries for a library of meals. This batch must be verified against the
@@ -454,10 +458,11 @@ Count: {{count}}
 - No addresses, no telephone numbers, no prices, no ratings
 - Include both well-known places and small local ones; the batch must not
   consist entirely of places that are popular online
+- price is what one serving costs there, as a number
 - Write name, place, and note in the same language as the existing entries above
 
 ## Output JSON only, with no other text
-{"dishes":[{"name":"","place":"","note":""}]}`,
+{"dishes":[{"name":"","place":"","note":"","price":0}]}`,
 
   'skeleton.inner':
 `[心声]
@@ -602,8 +607,20 @@ C is for material worth filing but not worth bringing into conversation.
 - Write content as a concise third-person statement, in the same language as
   the conversation above
 
+## Also extract spending mentioned in the conversation
+Every amount of money either party states they spent or received. Each entry:
+- amount: a number. Negative for money spent, positive for money received
+- note: what it was, in a few words
+- who: "user" or "char", whoever the money belongs to
+- at: the date it happened, as YYYY-MM-DD, when the conversation states one;
+  otherwise an empty string
+Include only amounts stated in the conversation. Do not infer an amount that
+was not stated, and do not convert a vague description into a figure.
+Return an empty array when none were mentioned.
+
 ## Output JSON only, with no other text
-{"memories":[{"content":"","category":"fact","rank":"A","keywords":[],"updateId":""}]}`,
+{"memories":[{"content":"","category":"fact","rank":"A","keywords":[],"updateId":""}],
+ "spending":[{"amount":0,"note":"","who":"user","at":""}]}`,
 
   // 关系底色。S 级记忆压成几句「你们到哪一步了」——
   // 逐条全量注入的做法会让日常闲聊也满眼都是大事。

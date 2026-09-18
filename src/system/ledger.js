@@ -4,6 +4,7 @@ import * as currency from './currency.js';
 import * as transferSvc from './transfer.js';
 import * as takeoutSvc from './takeout.js';
 import * as requestSvc from './request.js';
+import * as dayStore from './day.js';
 
 // 记账。
 //
@@ -82,6 +83,7 @@ export function update(id, patch) {
   if (patch.currency !== undefined) next.currency = patch.currency;
   if (patch.inject !== undefined) next.inject = !!patch.inject;
   if (patch.strict !== undefined) next.strict = !!patch.strict;
+  if (patch.settle !== undefined) next.settle = !!patch.settle;
   return books.update(id, next);
 }
 
@@ -113,14 +115,18 @@ export const accountOf = (id, accId) => accountsOf(id).find(a => a.id === accId)
 
 const writeAccounts = (id, list) => books.update(id, { accounts: list });
 
-export function addAccount(id, { name, owner = ME, secret = false } = {}) {
+export function addAccount(id, { name, owner = ME, secret = false, pass = '', hint = '' } = {}) {
   const book = get(id);
   if (!book) throw new Error('账本不存在');
   const acc = {
     id: `ac${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
     name: trim(name, 16) || '未命名',
     owner: OWNERS.includes(owner) ? owner : ME,
+    // 私密账户：余额与密码都不进 prompt，猜这件事只发生在记账 app 里
     secret: !!secret,
+    pass: String(pass || '').trim().slice(0, 12),
+    hint: trim(hint, 30),
+    unlocked: false,
   };
   writeAccounts(id, [...accountsOf(id), acc]);
   return acc;
@@ -132,6 +138,9 @@ export function updateAccount(id, accId, patch) {
     ...(patch.name !== undefined ? { name: trim(patch.name, 16) } : {}),
     ...(patch.owner !== undefined && OWNERS.includes(patch.owner) ? { owner: patch.owner } : {}),
     ...(patch.secret !== undefined ? { secret: !!patch.secret } : {}),
+    ...(patch.pass !== undefined ? { pass: String(patch.pass || '').trim().slice(0, 12) } : {}),
+    ...(patch.hint !== undefined ? { hint: trim(patch.hint, 30) } : {}),
+    ...(patch.unlocked !== undefined ? { unlocked: !!patch.unlocked } : {}),
   } : a));
   writeAccounts(id, next);
   return accountOf(id, accId);
@@ -221,6 +230,97 @@ export function cardUsed(bookId, cardId) {
 }
 export const cardLeft = (bookId, card) =>
   currency.round(Math.max(0, (card?.limit || 0) - cardUsed(bookId, card?.id)), get(bookId)?.currency);
+
+// ---- 固定入账 ----
+//
+// 每月某一天自动落一笔。**不起定时器** —— 谁打开账本谁顺手把到期的补上，
+// 和 watch.sweep、day.ensureToday 同一个路子。页面关着的时候没有任何东西
+// 在跑，回来一次补齐。
+//
+// 补出来的流水是真流水（存在 entries 里），不是现算的：它没有一条消息
+// 可以挂靠，而且用户随时会去改它。
+
+export const rulesOf = bookId => (get(bookId)?.rules || []);
+
+export function addRule(bookId, { accountId, day = 1, amount = 0, category = 'salary', note = '' }) {
+  const book = get(bookId);
+  if (!book) throw new Error('账本不存在');
+  const rule = {
+    id: `rl${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
+    accountId: accountId || accountsOf(bookId)[0]?.id || '',
+    day: Math.max(1, Math.min(31, Math.round(Number(day) || 1))),
+    amount: currency.round(Number(amount) || 0, book.currency),
+    category: categoryOf(category).id,
+    note: trim(note, 40),
+    active: true,
+    // 从建立的那一刻起算。不补历史 —— 新建一条规则不该凭空多出半年的账
+    from: Date.now(),
+  };
+  books.update(bookId, { rules: [...rulesOf(bookId), rule] });
+  return rule;
+}
+
+export function setRule(bookId, ruleId, patch) {
+  const book = get(bookId);
+  const next = rulesOf(bookId).map(r => (r.id === ruleId ? {
+    ...r,
+    ...(patch.accountId !== undefined ? { accountId: patch.accountId } : {}),
+    ...(patch.day !== undefined ? { day: Math.max(1, Math.min(31, Math.round(Number(patch.day) || 1))) } : {}),
+    ...(patch.amount !== undefined ? { amount: currency.round(Number(patch.amount) || 0, book?.currency) } : {}),
+    ...(patch.category !== undefined ? { category: categoryOf(patch.category).id } : {}),
+    ...(patch.note !== undefined ? { note: trim(patch.note, 40) } : {}),
+    ...(patch.active !== undefined ? { active: !!patch.active } : {}),
+  } : r));
+  books.update(bookId, { rules: next });
+  return rulesOf(bookId).find(r => r.id === ruleId) || null;
+}
+
+export const removeRule = (bookId, ruleId) =>
+  books.update(bookId, { rules: rulesOf(bookId).filter(r => r.id !== ruleId) });
+
+const ymd = at => {
+  const d = new Date(at);
+  const pad = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+};
+
+// 这条规则从 from 到今天，应该落过哪几次。按月走，遇到二月三十号这种
+// 就落在当月最后一天 —— 每月一号发工资的人不该因为二月短一天就少领一次。
+function dueDates(rule, now = Date.now()) {
+  const out = [];
+  const start = new Date(rule.from || now);
+  const end = new Date(now);
+  const d = new Date(start.getFullYear(), start.getMonth(), 1);
+  while (d <= end) {
+    const last = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+    const at = new Date(d.getFullYear(), d.getMonth(), Math.min(rule.day, last), 9, 0, 0);
+    if (at.getTime() >= (rule.from || 0) && at <= end) out.push(at.getTime());
+    d.setMonth(d.getMonth() + 1);
+  }
+  return out;
+}
+
+/** 把到期还没落的固定入账补上。返回补了几笔。 */
+export function runRules(bookId, now = Date.now()) {
+  const book = get(bookId);
+  if (!book) return 0;
+  const had = new Set(entriesOf(bookId).filter(e => e.src === 'rule').map(e => e.ref));
+  let made = 0;
+  for (const rule of rulesOf(bookId)) {
+    if (rule.active === false || !rule.amount) continue;
+    for (const at of dueDates(rule, now)) {
+      const ref = `${rule.id}@${ymd(at)}`;
+      if (had.has(ref)) continue;
+      entries.create({
+        bookId, accountId: rule.accountId, amount: rule.amount,
+        category: rule.category, note: rule.note, at,
+        src: 'rule', ref, pending: false,
+      });
+      made += 1;
+    }
+  }
+  return made;
+}
 
 // ---- 流水 ----
 //
@@ -385,9 +485,15 @@ export function balanceOf(bookId, accId) {
   return currency.round(n, get(bookId)?.currency);
 }
 
-/** 一本账上，某一类归属的总额。不给 owner 就是全部。 */
+/**
+ * 一本账上，某一类归属的总额。不给 owner 就是全部。
+ *
+ * **还锁着的私密账户不计入。** 计入的话，合计减一减就能反推出里面有多少，
+ * 那张卡也就不必猜了。界面上单独列一行说明它锁着。
+ */
 export function totalOf(bookId, owner) {
-  const list = accountsOf(bookId).filter(a => !owner || a.owner === owner);
+  const list = accountsOf(bookId)
+    .filter(a => (!owner || a.owner === owner) && unlocked(a));
   const ids = new Set(list.map(a => a.id));
   let n = 0;
   for (const e of allEntries(bookId)) if (counted(e) && ids.has(e.accountId)) n += e.amount;
@@ -476,6 +582,10 @@ export function context(chatId) {
   const joint = defaultFor(book.id, JOINT);
   const st = stats(book.id);
   const fmt = n => currency.format(n, book.currency);
+  const hidden = new Set(hiddenFromPrompt(book.id));
+  if (hidden.has(hers?.id) || hidden.has(mine?.id) || hidden.has(joint?.id)) {
+    console.warn('[bill] 私密账户不该出现在注入里');
+  }
   return {
     name: book.name,
     self: hers ? fmt(balanceOf(book.id, hers.id)) : '',
@@ -497,3 +607,92 @@ export function context(chatId) {
     })(),
   };
 }
+
+// ---- 结算角色前一天花了多少 ----
+//
+// 数据来自那天的日程与三顿，**不另调接口**：日程本来每天就要排一次，
+// 花销跟着那一次一起生成（见 task.day-plan 的 cost 与 task.recipe-batch
+// 的 price）。见 CLAUDE.md 第 15 条。
+//
+// 一天只结一次，靠 ref 去重 —— 补两遍不该变成扣两遍。
+
+export function settleDay(bookId, charId, date) {
+  const book = get(bookId);
+  if (!book) return 0;
+  const row = dayStore.get(charId, date);
+  if (!row) return 0;
+  const acc = defaultFor(bookId, CHAR);
+  if (!acc) return 0;
+
+  const had = new Set(entriesOf(bookId).filter(e => e.src === 'day').map(e => e.ref));
+  const at = new Date(`${date}T20:00:00`).getTime() || Date.now();
+  let made = 0;
+
+  const put = (key, amount, category, note) => {
+    const ref = `${charId}@${date}#${key}`;
+    if (had.has(ref) || !amount) return;
+    entries.create({
+      bookId, accountId: acc.id, amount: currency.round(-Math.abs(amount), book.currency),
+      category, note: trim(note, 40), at, src: 'day', ref, pending: false,
+    });
+    made += 1;
+  };
+
+  // 取消掉的那几项不算 —— 没做的事不花钱
+  (row.items || []).forEach((it, i) => {
+    if (it.state === dayStore.DROP) return;
+    put(`i${it.id || i}`, Number(it.cost) || 0, 'other', it.text);
+  });
+  (row.meals || []).forEach((m, i) => {
+    put(`m${m.meal || i}`, Number(m.price) || 0, 'food', m.name);
+  });
+  return made;
+}
+
+/** 前一天的结算。每天排新日程时顺手结掉昨天，见 tasks/day.js。 */
+export function settleYesterday(charId, now = Date.now()) {
+  const book = all().find(b => {
+    const chat = b.chatId ? chats.get(b.chatId) : null;
+    return chat && (chat.characterIds || [])[0] === charId;
+  });
+  if (!book || !settleOn(book)) return 0;
+  const char = characters.get(charId);
+  if (!char) return 0;
+  const y = new Date(now - 86400000);
+  const pad = n => String(n).padStart(2, '0');
+  return settleDay(book.id, charId,
+    `${y.getFullYear()}-${pad(y.getMonth() + 1)}-${pad(y.getDate())}`);
+}
+
+// 结算前一天要不要做。**默认关着** —— 它会凭空往账上添一串支出，
+// 用户得自己点头（第 13 条）。
+export const settleOn = book => !!(book && book.settle);
+
+// ---- 私密账户 ----
+//
+// 角色可以有一张不愿让人看见的卡。**密码不注入 prompt**，余额也不注入 ——
+// 注入了它迟早会说漏，那就没得猜了。猜这件事整个发生在记账 app 里。
+
+export const secretOf = bookId => accountsOf(bookId).find(a => a.owner === CHAR && a.secret) || null;
+
+/**
+ * 私密账户里有多少，**任何时候都不注入 prompt**。
+ *
+ * 这一句在 context() 里被显式调用，不是摆设：defaultFor 已经跳过了
+ * secret，所以余额本来就不会漏进去 —— 但那是一个「顺带正确」，
+ * 谁改一下 defaultFor 就悄悄破了。这里把它写成一件明说的事。
+ */
+export const hiddenFromPrompt = bookId => {
+  const acc = secretOf(bookId);
+  return acc ? [acc.id] : [];
+};
+
+/** 猜对了就永久解开。密码只存在这台设备上，这是个游戏，不是安全边界。 */
+export function tryPass(bookId, accId, input) {
+  const acc = accountOf(bookId, accId);
+  if (!acc || !acc.secret) return true;
+  const ok = String(input || '').trim() === String(acc.pass || '');
+  if (ok) updateAccount(bookId, accId, { unlocked: true });
+  return ok;
+}
+export const unlocked = acc => !acc?.secret || acc.unlocked === true;

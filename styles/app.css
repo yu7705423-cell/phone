@@ -1358,3 +1358,5 @@ button.search-bar { width: 100%; border: none; }
 .bl-sub { font-size: var(--fs-12); color: var(--text-3); margin-top: 2px; }
 /* 申请气泡的标题比金额短，不必用金额那个字号 */
 .bl-req-title { font-size: var(--fs-15); }
+.bl-pend { display: flex; flex-direction: column; align-items: flex-end; gap: var(--sp-2); }
+.bl-pend-act { display: flex; gap: var(--sp-2); }

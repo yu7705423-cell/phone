@@ -25,7 +25,7 @@ const ROUTES = {
   daily: ['/', '/gen', '/cell/env/good', '/cell/social/bad', '/cell/luck/plain',
     '/today', '/today/:char', '/food', '/food/', '/food/%E6%88%90%E9%83%BD'],
   music: ['/', '/library', '/list/1'],
-  bill: ['/', '/books', '/accounts'],
+  bill: ['/', '/books', '/accounts', '/rules'],
   settings: ['/', '/api', '/voice', '/image', '/embed', '/notify', '/music',
     '/appearance', '/storage', '/trace', '/vision', '/asr', '/limits', '/search', '/translate', '/memoryapi'],
 };
@@ -101,7 +101,32 @@ const ids = await page.evaluate(async () => {
     direction: 'out', outcome: 'done', seconds: 95, callKind: 'voice', callLog: [],
     content: '[通话 01:35]', status: 'done' });
 
-  return { char: a.id, chat: chat.id, mem: mem.id, persona: me.id };
+  // 记账。**每一样都要有一份**：账户、共同账户、亲属卡、手记的流水、
+  // 会话里的转账与申请。路由打得开不代表画得出来 —— 亲属卡那一段
+  // 就是只在「有卡」时才求值，漏 import 的 Switch 靠空账本抓不到。
+  const L = await import('/src/system/ledger.js');
+  const rq = await import('/src/system/request.js');
+  const tr = await import('/src/system/transfer.js');
+  const bk = L.create({ name: '我们俩', kind: 'play', chatId: chat.id });
+  const mine = L.accountsOf(bk.id)[0];
+  const hers = L.addAccount(bk.id, { name: '她的钱包', owner: 'char' });
+  L.ensureJoint(bk.id);
+  L.addCard(bk.id, { from: 'me', to: 'char', limit: 500 });
+  L.add({ bookId: bk.id, accountId: mine.id, amount: 3000, category: 'salary', note: '工资' });
+  L.add({ bookId: bk.id, accountId: hers.id, amount: -42, category: 'food', note: '早饭' });
+  L.add({ bookId: bk.id, accountId: mine.id, amount: -88, category: 'shopping',
+    note: '聊天里说买的', src: 'chat', pending: true });
+  L.addRule(bk.id, { accountId: mine.id, day: 1, amount: 8000, category: 'salary', note: '工资' });
+  L.addAccount(bk.id, { name: '她的私房钱', owner: 'char', secret: true, pass: '0314', hint: '和某个日期有关' });
+  L.update(bk.id, { settle: true });
+  L.create({ name: '我的账本', kind: 'real' });
+  const paid = tr.send({ chatId: chat.id, role: 'user', authorId: 'me', amount: 100, note: '给你' });
+  tr.settle(paid.id, true);
+  rq.send({ chatId: chat.id, role: 'char', authorId: a.id, kind: rq.SPEND, amount: 200, note: '买菜' });
+  const okd = rq.send({ chatId: chat.id, role: 'char', authorId: a.id, kind: rq.CARD, amount: 300 });
+  rq.settle(okd.id, true);
+
+  return { char: a.id, chat: chat.id, mem: mem.id, persona: me.id, book: bk.id };
 });
 await page.waitForTimeout(400);
 

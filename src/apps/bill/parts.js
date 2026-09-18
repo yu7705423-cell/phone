@@ -42,9 +42,6 @@ export function DayHead({ bookId, day, rows }) {
     </div>`;
 }
 
-export const OwnerDot = ({ owner }) => html`
-  <${Icon} name=${owner === 'joint' ? 'users' : owner === 'char' ? 'heart' : 'user'} size=${16}/>`;
-
 export const dayKey = at => {
   const d = new Date(at);
   const pad = n => String(n).padStart(2, '0');
