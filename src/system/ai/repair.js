@@ -112,9 +112,17 @@ function describe(parts) {
   ].join('；');
 }
 
+// 正文不是随便写的那几种：气泡里显示的东西来自各自的字段，正文是给模型读的
+// 固定格式。改正文改不动字段，落下来就是两套说法 —— 所以这几种既不给改，
+// 也不给「修格式」伸手。一处定义，MsgMenu 那边引这一份，别再各抄一遍。
+export const STRUCTURED = new Set([
+  'sticker', 'typing', 'notice',
+  'transfer', 'gift', 'location', 'call', 'listen', 'pact', 'letter',
+]);
+
 // 这条消息用得上的修法，附带改完长什么样
 export function fixesFor(msg) {
-  if (!msg || ['sticker', 'typing', 'transfer', 'notice', 'location', 'call', 'gift', 'listen'].includes(msg.kind)) return [];
+  if (!msg || STRUCTURED.has(msg.kind)) return [];
   const out = [];
   let t = textOf(msg);
 

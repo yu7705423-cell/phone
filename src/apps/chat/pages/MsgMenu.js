@@ -109,10 +109,10 @@ export function MsgMenu({ msg, char, onClose, onRegenerate, onQuote, onMultiSele
   if (repairing) return html`<${RepairSheet} msgId=${msg.id} open=${true} onClose=${close}/>`;
 
   const gone = !fresh;
-  // 转账和提示行不给改：正文里写着金额，改了正文金额也不会跟着变，
-  // 落下来的就是两套说法。要撤销就整条删掉。
-  const NO_EDIT = new Set(['sticker', 'typing', 'transfer', 'notice', 'location', 'call', 'gift', 'listen']);
-  const canEdit = !gone && !NO_EDIT.has(fresh.kind);
+  // 转账、礼物、约定、信这些不给改：正文里写着金额和内容，改了正文，
+  // 消息上的字段不会跟着变，落下来就是两套说法。要撤销就整条删掉。
+  // 名单和「修格式」共用一份（ai.repair.STRUCTURED），别在两处各抄一遍。
+  const canEdit = !gone && !ai.repair.STRUCTURED.has(fresh.kind);
 
   const copy = async () => {
     try {
