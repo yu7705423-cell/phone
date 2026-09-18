@@ -28,16 +28,24 @@ export const Textarea = ({ value, onInput, placeholder, rows = 4, ...rest }) => 
 //
 // 不设 max。一次能做多少由用户决定，见 CLAUDE.md 第 13 条。min 默认 0，
 // 而 0 一律表示「不限」，所以 0 显示为空，由 placeholder 写明不限时的行为。
-export const NumberInput = ({ value, onChange, unit = '', min = 0, placeholder = '' }) => {
+// step 小于 1 时收小数（字幕偏移要 ±0.5 秒），其余照旧取整。
+// max 与负的 min 也放开了：偏移可以是负数。
+export const NumberInput = ({ value, onChange, unit = '', min = 0, max = null,
+                              step = 1, placeholder = '' }) => {
   const [draft, setDraft] = useState(null);
   const commit = text => {
     setDraft(text);
-    const n = Math.floor(Number(text));
-    onChange(Number.isFinite(n) ? Math.max(min, n) : min);
+    const raw = Number(text);
+    if (!Number.isFinite(raw)) { onChange(min); return; }
+    const n = step < 1 ? Math.round(raw / step) * step : Math.floor(raw);
+    const lo = Math.max(min, n);
+    onChange(max === null ? lo : Math.min(max, lo));
   };
   return html`
     <div class="num-row">
-      <input type="number" inputmode="numeric" min=${min} placeholder=${placeholder}
+      <input type="number" inputmode=${step < 1 ? 'decimal' : 'numeric'}
+        min=${min} max=${max === null ? undefined : max} step=${step}
+        placeholder=${placeholder}
         value=${draft != null ? draft : (value ? String(value) : '')}
         onInput=${e => commit(e.target.value)}
         onBlur=${() => setDraft(null)}/>

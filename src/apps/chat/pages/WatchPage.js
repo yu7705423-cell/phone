@@ -71,10 +71,20 @@ function Screen({ chatId, chat, char }) {
   const [busy, setBusy] = useState(false);
   const busyRef = useRef(false);
   useStore(db.messages.store);
+  // 片库那条记录也要订阅：字幕偏移就写在它上面，改完这一屏要立刻跟着变
+  useStore(db.videos.store);
 
   const row = watch.current();
   const lines = video.linesOf(row);
   const cue = subtitle.lineAt(lines, s.at);
+  const off = video.offsetOf(row);
+
+  // 字幕对不上是常事，而**只有正在看的时候才发现**。所以调整放在这一屏上，
+  // 不必退出去改片库。改完立刻生效：偏移是读出来的时候才加的。
+  const nudge = d => {
+    try { video.updateVideo(row.id, { offset: off + d }); }
+    catch (err) { toast(String(err.message || err), 'error'); }
+  };
 
   // 把 <video> 交给 watch：标记里那几行（暂停、继续、倒回）要控制得到它
   useEffect(() => {
@@ -162,6 +172,15 @@ function Screen({ chatId, chat, char }) {
           </div>
           <span class="wt-time">${subtitle.stamp(s.at)}</span>
         </div>
+
+        ${lines.length ? html`
+          <div class="wt-sync">
+            <span>字幕</span>
+            <button class="press" aria-label="字幕提前半秒" onClick=${() => nudge(-0.5)}>提前</button>
+            <b>${off > 0 ? `+${off}` : off} 秒</b>
+            <button class="press" aria-label="字幕推迟半秒" onClick=${() => nudge(0.5)}>推迟</button>
+            ${off ? html`<button class="press" onClick=${() => nudge(-off)}>归零</button>` : null}
+          </div>` : null}
 
         <div class="wt-msgs" ref=${msgsRef}>
           ${recent.map(m => html`

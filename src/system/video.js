@@ -7,6 +7,10 @@ import * as subtitle from './subtitle.js';
 // 字幕单独存原文，用的时候现解析（subtitle.parse）。解析结果不入库：
 // 那是一份可以随时从原文再算出来的东西，存两份只会不一致。
 //
+// offset 是字幕的整体偏移，秒，可正可负。下回来的字幕和手里这一版片源对不上
+// 是常事（片头 logo、导演剪辑版），差的几乎总是一个固定的量。
+// **偏移只在读出来的时候加**，不改原文 —— 改坏了还能调回来。
+//
 // outline 是**开看之前一次性**让模型读完整份字幕写出的分段提纲，
 // 形如 [{ from, to, text }]，秒为单位。注入时只给已经看到的那几段，
 // 后面的一律不给 —— 给了她就会剧透，而且是「第一次看却知道结局」那种穿帮。
@@ -27,6 +31,7 @@ export function addVideo({ title, url = '', fileId = null, subtitle: sub = '', s
     fileId,
     subtitle: String(sub || ''),
     seconds: Math.max(0, Math.round(seconds) || 0),
+    offset: 0,
     outline: [],
     outlineAt: 0,
   });
@@ -43,6 +48,7 @@ export function updateVideo(id, patch = {}) {
     next.title = t;
   }
   if (patch.seconds !== undefined) next.seconds = Math.max(0, Math.round(patch.seconds) || 0);
+  if (patch.offset !== undefined) next.offset = offsetOf({ offset: patch.offset });
 
   // 字幕换了，原来那份提纲就对不上了，一并作废
   if (patch.subtitle !== undefined) {
@@ -83,7 +89,25 @@ export async function srcOf(video) {
   return '';
 }
 
-export const linesOf = video => subtitle.parse(video?.subtitle || '');
+// 偏移取整到十分之一秒。再细人耳也听不出来，而浮点尾数会让界面上的数字很难看。
+// 上限一分钟：再多就不是「对不齐」而是拿错了字幕，该换一份。
+export function offsetOf(video) {
+  const n = Math.round((Number(video?.offset) || 0) * 10) / 10;
+  if (!Number.isFinite(n)) return 0;
+  return Math.max(-60, Math.min(60, n));
+}
+
+export function linesOf(video) {
+  const lines = subtitle.parse(video?.subtitle || '');
+  const off = offsetOf(video);
+  if (!off) return lines;
+  // 偏移之后跑到零之前的那几句，夹在 0 上而不是丢掉：它们仍然是这部片的台词
+  return lines.map(l => ({
+    ...l,
+    at: Math.max(0, l.at + off),
+    end: Math.max(0, l.end + off),
+  }));
+}
 
 /**
  * 到这一刻为止的提纲。**严格截断**：只给已经播过去的那些段，

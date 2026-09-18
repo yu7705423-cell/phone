@@ -1,7 +1,7 @@
 import { html, useState, useRef, useEffect } from '../../../lib.js';
 import { phone, useStore } from '../../../sdk/index.js';
 import { Page, Field, Input, Textarea, Button, Icon, Sheet, List, ListItem,
-         EmptyState, toast, confirm } from '../../../ui/index.js';
+         NumberInput, EmptyState, toast, confirm } from '../../../ui/index.js';
 
 const { db, nav, video, subtitle, ai } = phone;
 
@@ -22,7 +22,8 @@ function EditSheet({ open, row, onClose }) {
 
   const init = () => ({
     title: row?.title || '', url: row?.url || '',
-    fileId: row?.fileId || null, subtitle: row?.subtitle || '', name: '',
+    fileId: row?.fileId || null, subtitle: row?.subtitle || '',
+    offset: row?.offset || 0, name: '',
   });
   const [f, setForm] = useState(init);
   useEffect(() => { if (open) setForm(init()); }, [open, row?.id]);
@@ -98,6 +99,14 @@ function EditSheet({ open, row, onClose }) {
           onChange=${pickSub} style="display:none"/>
       <//>
 
+      <${Field} label="字幕偏移"
+        desc=${'字幕整体提前或推迟这么多秒，用于字幕与手中片源版本不一致的情况。'
+          + '填正数表示字幕推迟出现，负数表示提前。观看时也可以随时调整。'}>
+        <${NumberInput} value=${f.offset} unit="秒" placeholder="0"
+          min=${-60} max=${60} step=${0.5}
+          onChange=${v => set({ offset: v })}/>
+      <//>
+
       <div class="pad-t">
         <${Button} full onClick=${submit}
           disabled=${!f.title.trim() || (!f.url.trim() && !f.fileId)}>
@@ -142,7 +151,11 @@ export function VideosPage() {
             const segs = (row.outline || []).length;
             return html`
               <${ListItem} key=${row.id} title=${row.title} multiline
-                subtitle=${`${n ? `字幕 ${n} 句` : '没有字幕'} · ${segs ? `提纲 ${segs} 段` : '未生成提纲'}`}
+                subtitle=${[
+                  n ? `字幕 ${n} 句` : '没有字幕',
+                  video.offsetOf(row) ? `偏移 ${video.offsetOf(row) > 0 ? '+' : ''}${video.offsetOf(row)} 秒` : '',
+                  segs ? `提纲 ${segs} 段` : '未生成提纲',
+                ].filter(Boolean).join(' · ')}
                 left=${html`<${Icon} name="film" size=${18}/>`}
                 right=${html`
                   <span class="row-acts">
