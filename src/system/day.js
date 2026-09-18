@@ -84,7 +84,7 @@ export const isOn = char => !!(char && char.dayOn);
  * 落一天。items 是模型给的 [{ slot, text }]，这里补上 id 与状态。
  * 同一天再落一次就整条换掉 —— 「重新安排今天」走的就是这条路。
  */
-export function save(charId, { date, items = [], event = null, luck = 0, meals = [] }) {
+export function save(charId, { date, items = [], event = null, luck = 0, meals = [], planFailed = '' }) {
   const rows = items
     .map(it => ({
       id: it.id || uid('it'),
@@ -99,7 +99,7 @@ export function save(charId, { date, items = [], event = null, luck = 0, meals =
     .sort((a, b) => slotIndex(a.slot) - slotIndex(b.slot));
 
   const old = get(charId, date);
-  const row = { charId, date, items: rows, event, luck, meals };
+  const row = { charId, date, items: rows, event, luck, meals, planFailed };
   return old ? days.update(old.id, row) : days.create(row);
 }
 

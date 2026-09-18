@@ -81,6 +81,11 @@ export function stale(charId, personaId) {
  * 重压一遍。调接口，所以要花钱 —— 只在签名变了的时候跑，
  * 而且用户可以整项关掉（见「用量与上限」）。
  *
+ * **试过就把签名记下来，成功失败都记。** 不记的话，压失败之后每发一条消息
+ * 都会再压一次 —— 一条回复两次请求，而且永远不会自己停，因为失败只写进
+ * console，界面上一个字都没有。想再试走「关系底色」页里的「重新生成」，
+ * 那是 force。
+ *
  * 动态 import：engine 那一串要用到 db 和模板，静态引进来会绕一大圈。
  */
 export async function refresh(charId, personaId, { force = false } = {}) {
@@ -91,20 +96,33 @@ export async function refresh(charId, personaId, { force = false } = {}) {
   const [engine, tpl] = await Promise.all([
     import('./ai/engine.js'), import('./ai/templates.js'),
   ]);
+  // 没配接口不算「试过」：一个请求都没发出去，配好之后该照压不误
   if (!engine.isConfigured()) return null;
 
-  const text = (await engine.runTextTask('memory.bond', {
-    system: tpl.fillTemplate(engine.template('task.bond'), {
-      events: rows.map(m => `- ${m.content}`).join('\n'),
-    }),
-    user: 'Produce the output as instructed.',
-    key: `bond:${charId}:${keyFor(personaId)}`,
-    maxTokens: 400,
-  }) || '').trim();
-  if (!text) return null;
+  // 签名在发请求**之前**取。压的就是此刻这几条，中途记忆再变是下一轮的事。
+  const sig = signature(charId, personaId);
+  // 失败时只写签名，不动 text —— 上一份压好的底色还留着，
+  // 不该因为这次没压成就被清空。
+  const mark = why => write(charId, personaId, { at: Date.now(), sig, failed: why });
+
+  let text = '';
+  try {
+    text = (await engine.runTextTask('memory.bond', {
+      system: tpl.fillTemplate(engine.template('task.bond'), {
+        events: rows.map(m => `- ${m.content}`).join('\n'),
+      }),
+      user: 'Produce the output as instructed.',
+      key: `bond:${charId}:${keyFor(personaId)}`,
+      maxTokens: 400,
+    }) || '').trim();
+  } catch (err) {
+    mark(String(err.message || err));
+    throw err;
+  }
+  if (!text) { mark('模型返回了空内容'); return null; }
 
   return write(charId, personaId, {
     text: text.slice(0, 600), manual: false,
-    at: Date.now(), sig: signature(charId, personaId),
+    at: Date.now(), sig, failed: '',
   });
 }

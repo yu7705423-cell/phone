@@ -39,9 +39,18 @@ export async function extract(chatId) {
     dialogue,
   });
 
-  const result = await runJSONTask('memory.extract', {
-    system, key: `memory-extract:${chatId}`, maxTokens: 1600,
-  });
+  let result;
+  try {
+    result = await runJSONTask('memory.extract', {
+      system, key: `memory-extract:${chatId}`, maxTokens: 1600,
+    });
+  } catch (err) {
+    // 记下这次试到哪儿了。不记的话，提取一旦失败，之后**每发一条消息**
+    // 都会再提取一次 —— 未总结的消息只增不减，门槛永远是过的。
+    // 一条回复两次请求，而且永远不会自己停。记下之后要再攒够一个间隔才重试。
+    chats.update(chatId, { memoryTriedId: pending[pending.length - 1].id });
+    throw err;
+  }
 
   const rows = Array.isArray(result?.memories) ? result.memories : [];
   let added = 0, updated = 0;
@@ -70,7 +79,7 @@ export async function extract(chatId) {
   }
 
   const lastId = pending[pending.length - 1].id;
-  chats.update(chatId, { memoryUpTo: lastId });
+  chats.update(chatId, { memoryUpTo: lastId, memoryTriedId: null });
   return { added, updated, total: rows.length };
 }
 
@@ -82,5 +91,11 @@ export async function extract(chatId) {
 export function shouldAutoExtract(chatId, interval) {
   if (!settings.get().memoryEnabled) return false;
   if (!interval) return false;
-  return pendingOf(chatId).filter(m => m.role === 'char').length >= interval;
+  // 上次提取失败之后，要在那个位置之后再攒够一个间隔才重试。
+  // 手动的「立即总结」不走这里，随时都能再试一次。
+  const all = pendingOf(chatId);
+  const tried = chats.get(chatId)?.memoryTriedId;
+  const at = tried ? all.findIndex(m => m.id === tried) : -1;
+  const since = at >= 0 ? all.slice(at + 1) : all;
+  return since.filter(m => m.role === 'char').length >= interval;
 }

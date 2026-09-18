@@ -84,8 +84,26 @@ export async function makeToday(charId, { force = false, rng } = {}) {
   const had = dayStore.get(charId, date);
   if (had && !force) return had;
 
-  const items = await generatePlan(charId);
+  // **先把本地那几样掷了落下来，再去问模型。**
+  //
+  // 大运、随机事件、三顿本来就不花钱，没有理由等模型。更要紧的是：
+  // 这一步落下之后，今天这条记录就存在了。模型那一步失败时 ensureToday
+  // 才会认为「今天已经排过」，不再重试。
+  //
+  // 反过来写（先问模型，失败就什么都不落）的后果是安静的：日程一旦排不出来，
+  // **之后每发一条消息都会再排一次**，一条回复两次请求，而且永远不会自己停 ——
+  // 失败只写进 console，界面上一个字都没有。已经因此每轮多烧一次接口。
   const local = dayStore.rollLocal(charId, { rng, date });
+  dayStore.save(charId, { date, items: [], ...local });
+
+  let items = [];
+  try {
+    items = await generatePlan(charId);
+  } catch (err) {
+    // 记下来，界面上说明白，并给「重新安排」那个按钮
+    dayStore.save(charId, { date, items: [], ...local, planFailed: String(err.message || err) });
+    throw err;
+  }
   return dayStore.save(charId, { date, items, ...local });
 }
 
@@ -93,6 +111,8 @@ export async function makeToday(charId, { force = false, rng } = {}) {
  * 开着日程的角色，今天还没生成的就生成。聊天开始前调一次。
  * 失败不抛：日程没排出来不该让消息发不出去。
  */
+// 一天只自动排一次。**排失败了也算排过** —— 见 makeToday 里那段。
+// 想再试走「日常 - 今天」里的「重新安排」，那是 force。
 export async function ensureToday(charId) {
   const char = characters.get(charId);
   if (!char || !dayStore.isOn(char)) return null;

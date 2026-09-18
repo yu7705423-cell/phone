@@ -116,6 +116,16 @@ export function TodayPage({ charId }) {
           </div>
         </div>
 
+        ${today.planFailed ? html`
+          <div class="pad-x pad-t">
+            <${List} title="日程未能生成">
+              <${ListItem} title="今天的日程没有排出来" multiline
+                subtitle=${`${today.planFailed}。撞上的事与三顿吃什么不受影响，已照常生成。`
+                  + `为避免重复计费，今天不会再自动重试，可点击右上角重新安排。`}
+                left=${html`<${Icon} name="close" size=${18}/>`}/>
+            <//>
+          </div>` : null}
+
         ${day.SLOTS.map(s => {
           const items = (today.items || []).filter(it => it.slot === s.id);
           const meal = meals.find(m => food.mealBySlot(s.id)?.id === m.meal);
