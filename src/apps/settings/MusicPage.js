@@ -40,6 +40,13 @@ export function MusicPage() {
           <${Input} value=${cfg.baseUrl} placeholder="https://music.example.com"
             onInput=${v => { svc.setNetease({ baseUrl: v }); setRows(null); }}/>
         <//>
+        <${Field} label="来源地址 realIP"
+          desc=${`随每次请求发送给上面的接口，由接口转交网易云作为请求来源地址。`
+            + `网易云对境外地址常返回「请完成验证操作」（code -462），`
+            + `此时填写一个中国大陆 IP 可使请求正常返回。留空则不发送此参数。`}>
+          <${Input} value=${cfg.realIP} placeholder="116.25.146.177"
+            onInput=${v => { svc.setNetease({ realIP: v.trim() }); setRows(null); }}/>
+        <//>
       </div>
 
       ${cfg.baseUrl ? html`
@@ -59,9 +66,15 @@ export function MusicPage() {
           <div class="settings-foot">
             ${!rows[0].pass
               ? '这个地址在本机用不了：服务不通，或它不允许本页面跨域读取。请更换地址，或自行部署一份。'
-              : rows.every(r => r.pass)
-                ? '各项均可用。'
-                : '部分项目不可用。未通过的功能会自动退回或显示为不可用，其余功能照常。'}
+              : rows.some(r => r.risk)
+                ? (cfg.realIP
+                  ? '地址与跨域均正常，但网易云拒绝了这个实例的出口 IP，填写的 realIP 未能生效。'
+                    + '请更换 realIP，或改用另一个公开实例。'
+                  : '地址与跨域均正常，未通过的项目是网易云拒绝了这个实例的出口 IP。'
+                    + '请在上方填写一个中国大陆 IP 作为来源地址，然后重新测试。')
+                : rows.every(r => r.pass)
+                  ? '各项均可用。'
+                  : '部分项目不可用。未通过的功能会自动退回或显示为不可用，其余功能照常。'}
             <br/>公共实例由他人运行，其可用性不受本项目控制。
           </div>` : null}` : null}
 

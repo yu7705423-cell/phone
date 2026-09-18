@@ -28,7 +28,10 @@ export const EMPTY_SERVICES = {
   // 网易云。baseUrl 指向自己部署的那个 NeteaseCloudMusicApi，
   // cookie 是登录后拿到的凭据 —— 它等于账号权限，只存在这台设备的浏览器里。
   // recentGap：发消息时顺便拉一次角色听歌记录的最小间隔，分钟。0 为只手动拉
-  netease: { baseUrl: '', cookie: '', nickname: '', uid: '', sync: false, recentGap: 5 },
+  // realIP：随每次请求带给接口，由接口转交网易云当作请求来源地址。
+  //   境外出口 IP 会被网易云风控拦下（code -462「请完成验证操作」），
+  //   填一个中国大陆 IP 就绕开了。留空则不带这个参数。
+  netease: { baseUrl: '', realIP: '', cookie: '', nickname: '', uid: '', sync: false, recentGap: 5 },
 };
 
 export function services() {

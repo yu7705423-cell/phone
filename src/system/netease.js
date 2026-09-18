@@ -34,6 +34,10 @@ async function call(path, params = {}, cookie = '') {
   });
   url.searchParams.set('timestamp', String(Date.now()));
   if (cookie) url.searchParams.set('cookie', cookie);
+  // 网易云按请求来源的 IP 做风控，境外地址会被要求先过验证（code -462）。
+  // 接口支持把这个参数当作来源地址转交上去，填了就一路带着。
+  const ip = neteaseConfig().realIP;
+  if (ip) url.searchParams.set('realIP', ip);
 
   const res = await fetch(url.toString(), { method: 'GET' });
   let body = null;
@@ -88,6 +92,10 @@ export function ready() { return neteaseReady(); }
 // 每一项单独跑、单独报，不用一个「通过 / 不通过」把话说死：
 // 多数实例是部分可用的（能搜歌，登不了），那也够用。
 
+// 探测时也把 realIP 带上，否则测出来的结果和实际用起来的不是一回事。
+const withIP = (url, ip) =>
+  (ip ? `${url}${url.includes('?') ? '&' : '?'}realIP=${encodeURIComponent(ip)}` : url);
+
 const probeOne = async (url, ms = 12000) => {
   const ctl = new AbortController();
   const t = setTimeout(() => ctl.abort(), ms);
@@ -120,6 +128,29 @@ function said(r) {
   return `${code}${text.slice(0, 120)}${text.length > 120 ? '…' : ''}`;
 }
 
+// 网易云自己的业务码。回来了这个，说明请求一路打到了网易云、又原路回到了
+// 这个页面 —— 地址通，跨域也放行了。这类回复是**上游**不认这个实例的出口 IP，
+// 和实例本身能不能用是两件事，不该记在「连得上」头上。
+const RISK = {
+  '-462': '网易云要求先完成验证：这个实例的出口 IP 在风控名单上',
+  '-460': '网易云拒绝了这个实例的出口 IP',
+  '250': '网易云要求输入验证码',
+};
+
+function bizCode(r) {
+  const c = r.body && r.body.code;
+  return typeof c === 'number' ? c : null;
+}
+
+// 是不是上游风控。是就返回一句现成的说明，不是就空字符串。
+// 只说这一项发生了什么，怎么办由页面底下那段统一说一次 ——
+// 七行里重复七遍「填 realIP」，反而没人看。
+function riskNote(r) {
+  const c = bizCode(r);
+  const hit = c !== null && RISK[String(c)];
+  return hit ? `${hit}（code ${c}）` : '';
+}
+
 const CHECKS = [
   {
     id: 'reach', label: '连得上',
@@ -129,9 +160,15 @@ const CHECKS = [
     // 会睡过去，第一个请求要等它整个起来，几十秒是常事。
     // 按八秒判超时，会把一个好实例判成死的。
     ms: 60000,
-    judge: r => (r.status === 0 ? [false, r.err]
-      : r.ok ? [true, `${r.ms} 毫秒`]
-      : [false, `返回 ${r.status}${said(r) ? `：${said(r)}` : ''}`]),
+    judge: r => {
+      if (r.status === 0) return [false, r.err];
+      if (r.ok) return [true, `${r.ms} 毫秒`];
+      // 回来的是网易云自己的业务码，说明这两件事都成立，只是上游不放行。
+      // 这一项判通过，上游那件事记在它该在的那一项上。
+      const c = bizCode(r);
+      if (c !== null) return [true, `${r.ms} 毫秒。网易云回了 code ${c}`];
+      return [false, `返回 ${r.status}${said(r) ? `：${said(r)}` : ''}`];
+    },
   },
   {
     id: 'search', label: '搜歌',
@@ -140,6 +177,7 @@ const CHECKS = [
     judge: r => {
       if (r.status === 0) return [false, r.err];
       if (r.status === 404) return [false, '没有这个接口，将退回旧版搜索'];
+      if (riskNote(r)) return [false, riskNote(r)];
       const n = r.body?.result?.songs?.length || 0;
       return n ? [true, '搜到了，带封面']
         : [false, `返回 ${r.status}${said(r) ? `：${said(r)}` : '，没有结果'}`];
@@ -151,6 +189,7 @@ const CHECKS = [
     path: '/login/qr/key',
     judge: r => (r.status === 0 ? [false, r.err]
       : r.body?.data?.unikey ? [true, '拿得到']
+      : riskNote(r) ? [false, riskNote(r)]
       : [false, `返回 ${r.status}${said(r) ? `：${said(r)}` : ''}`]),
   },
   {
@@ -158,14 +197,15 @@ const CHECKS = [
     desc: '第二步。有的实例有 key 却生成不出图，那样扫不了码',
     // key 现取一个：用假 key 去要图，有的实例会直接拒绝
     path: null,
-    run: async b => {
-      const k = await probeOne(`${b}/login/qr/key?timestamp=${Date.now()}`);
+    run: async (b, ip) => {
+      const k = await probeOne(withIP(`${b}/login/qr/key?timestamp=${Date.now()}`, ip));
       const key = k.body?.data?.unikey;
-      if (!key) return { status: 0, err: '前一步没拿到 key' };
-      return probeOne(`${b}/login/qr/create?qrimg=true&key=${encodeURIComponent(key)}`);
+      if (!key) return { status: 0, err: riskNote(k) || '前一步没拿到 key' };
+      return probeOne(withIP(`${b}/login/qr/create?qrimg=true&key=${encodeURIComponent(key)}`, ip));
     },
     judge: r => {
       if (r.status === 0) return [false, r.err];
+      if (riskNote(r)) return [false, riskNote(r)];
       const img = r.body?.data?.qrimg;
       return img && String(img).startsWith('data:') ? [true, '拿得到图']
         : [false, `返回 ${r.status}${said(r) ? `：${said(r)}` : '，没有图'}`];
@@ -180,6 +220,7 @@ const CHECKS = [
     judge: r => {
       if (r.status === 0) return [false, r.err];
       if (r.status === 404) return [false, '没有这个接口'];
+      if (riskNote(r)) return [true, `接口在。${riskNote(r)}`];
       if (typeof r.body?.code === 'number') return [true, `活着，返回 ${r.body.code}`];
       if (r.status >= 400 && r.status < 500) return [true, `活着，用假 key 问它回了 ${r.status}`];
       return [false, `返回 ${r.status}${said(r) ? `：${said(r)}` : ''}`];
@@ -195,6 +236,7 @@ const CHECKS = [
     judge: r => {
       if (r.status === 0) return [false, r.err];
       if (r.status === 404) return [false, '没有这个接口'];
+      if (riskNote(r)) return [true, `接口在。${riskNote(r)}`];
       if (r.body && typeof r.body === 'object') return [true, '认这个参数'];
       if (r.status >= 400 && r.status < 500) return [true, `读到了，用假 cookie 问它回了 ${r.status}`];
       return [false, `返回 ${r.status}${said(r) ? `：${said(r)}` : '，不像是认'}`];
@@ -207,6 +249,7 @@ const CHECKS = [
     judge: r => {
       if (r.status === 0) return [false, r.err];
       if (r.status === 404) return [false, '没有这个接口'];
+      if (riskNote(r)) return [false, riskNote(r)];
       const row = (r.body?.data || [])[0];
       if (row && row.url) return [true, '拿得到'];
       return [false, `拿不到（返回 ${r.status}）${said(r) ? `：${said(r)}` : '，可能需要登录或受版权限制'}`];
@@ -218,14 +261,15 @@ const CHECKS = [
  * 逐项探一遍。onStep 每测完一项回调一次，界面可以一行一行地显示出来。
  * 不抛错：某一项挂了就是那一项的结果，别的照测。
  */
-export async function probe(baseUrl, onStep) {
+export async function probe(baseUrl, onStep, realIP = neteaseConfig().realIP) {
   const b = baseOf(baseUrl);
   if (!b) throw new Error('请先填写地址');
   const out = [];
   for (const c of CHECKS) {
-    const r = c.run ? await c.run(b) : await probeOne(b + c.path, c.ms);
+    const r = c.run ? await c.run(b, realIP) : await probeOne(withIP(b + c.path, realIP), c.ms);
     const [pass, note] = c.judge(r);
-    const row = { id: c.id, label: c.label, desc: c.desc, pass, note, ms: r.ms };
+    const row = { id: c.id, label: c.label, desc: c.desc, pass, note, ms: r.ms,
+      risk: !!riskNote(r) };
     out.push(row);
     if (onStep) onStep(row, out);
     // 第一项就连不上，后面几项只会重复同一个错误，不必再等
