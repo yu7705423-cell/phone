@@ -60,6 +60,38 @@ function writeMap(m) {
 }
 export function nextAt(charId) { return readMap()[charId] || 0; }
 
+/**
+ * 一个 tick 里只读一次、只在真的变了的时候写一次。
+ *
+ * 从前每个角色都单独 `nextAt()`（一次 localStorage.getItem + JSON.parse），
+ * 而 `setNext()` 每次都整份写回去（localStorage.setItem，**同步落盘**）。
+ * 最花钱的是没开主动消息的那些：`setNext(id, 0)` 删一个本来就不存在的键，
+ * 再把一模一样的内容写一遍 —— 二十个角色就是每二十秒四十次同步磁盘操作，
+ * 全在主线程上，什么也没换来。
+ *
+ * 这里把一轮扫描当成一次事务：进来读一次，改动记在内存里，
+ * 出去的时候脏了才落盘。
+ */
+function openMap() {
+  const m = readMap();
+  let dirty = false;
+  return {
+    get: id => m[id] || 0,
+    set(id, t) {
+      if (t) {
+        if (m[id] === t) return;
+        m[id] = t;
+      } else {
+        if (m[id] === undefined) return;
+        delete m[id];
+      }
+      dirty = true;
+    },
+    ids: () => Object.keys(m),
+    flush() { if (dirty) writeMap(m); },
+  };
+}
+
 // ---- 深夜那一档 ----
 //
 // 单独记上次是什么时候发的。用户的原话是「不要反复触发」——
@@ -190,27 +222,35 @@ const running = new Set();
 // 避免两个模块静态互相 import 成环。
 let altMod = null;
 import('./tasks/char-alt.js').then(m => { altMod = m; }).catch(() => {});
+
+// 同样的道理，这两个也只在装载时引一次。
+// 从前是每个 tick 现 import 一次 —— 模块本身有缓存，但每次仍要新起两条
+// promise 链，每二十秒一轮，白跑。
+let spaceMod = null, paceMod = null;
+import('../space.js').then(m => { spaceMod = m; }).catch(() => {});
+import('../pace.js').then(m => { paceMod = m; }).catch(() => {});
 const altReady = id => !!altMod && altMod.eligible(id);
 const altRolls = id => !!altMod && altMod.rolls(id);
 
 export async function tick() {
   // 定时寄信不依赖接口，所以放在 isConfigured 前面：没配接口也该寄出去
-  import('../space.js').then(m => m.deliverDue()).catch(() => {});
+  try { spaceMod?.deliverDue(); } catch { /* 一封没寄成不该拖住别的 */ }
   // 到点该回的那几段。会话页自己也有定时器，但只管你正开着的那一段 ——
   // 人在别处的时候靠这一条，「她趁你没看的时候回了一句」才成立
-  import('../pace.js').then(m => m.runDue()).catch(() => {});
+  paceMod?.runDue().catch(() => {});
   if (!isConfigured()) return;
   const now = Date.now();
   const live = new Set();
+  const m = openMap();
 
   for (const char of characters.all()) {
     const cfg = configOf(char);
     live.add(char.id);
-    if (!cfg.proactive) { setNext(char.id, 0); continue; }
+    if (!cfg.proactive) { m.set(char.id, 0); continue; }
     if (running.has(char.id)) continue;
 
-    const next = nextAt(char.id);
-    if (!next) { setNext(char.id, now + rollDelay(cfg.proactiveMinutes)); continue; }
+    const next = m.get(char.id);
+    if (!next) { m.set(char.id, now + rollDelay(cfg.proactiveMinutes)); continue; }
     if (now < next) continue;
 
     const chat = chatFor(char.id);
@@ -219,7 +259,7 @@ export async function tick() {
     // 默认正好是 0 点到 8 点 —— 排在后面的话，这一档永远轮不上。
     // 它有自己的时段和自己的开关，界面上也写明了不受免打扰限制。
     if (chat && emoDue(char)) {
-      setNext(char.id, now + rollDelay(cfg.proactiveMinutes));
+      m.set(char.id, now + rollDelay(cfg.proactiveMinutes));
       setEmoAt(char.id, now);
       running.add(char.id);
       sendProactive(chat.id, char.id, { mood: true })
@@ -228,8 +268,8 @@ export async function tick() {
       continue;
     }
 
-    if (inQuiet(cfg)) { setNext(char.id, quietEndsAt(cfg)); continue; }
-    setNext(char.id, now + rollDelay(cfg.proactiveMinutes));
+    if (inQuiet(cfg)) { m.set(char.id, quietEndsAt(cfg)); continue; }
+    m.set(char.id, now + rollDelay(cfg.proactiveMinutes));
 
     // 轮到她主动时，有一定概率她开的不是口，而是一个新号。
     // 动态 import：char-alt 反过来要用这里的 scheduleIn，静态引会成环。
@@ -252,10 +292,30 @@ export async function tick() {
   }
 
   // 角色删了，落点也跟着清掉
-  const m = readMap();
-  let dirty = false;
-  for (const id of Object.keys(m)) if (!live.has(id)) { delete m[id]; dirty = true; }
-  if (dirty) writeMap(m);
+  m.ids().forEach(id => { if (!live.has(id)) m.set(id, 0); });
+  m.flush();
+
+  // 最近的那个落点，用来决定下一次什么时候醒。见 start()
+  return m.ids().reduce((a, id) => {
+    const t = m.get(id);
+    return t && (!a || t < a) ? t : a;
+  }, 0);
+}
+
+// 下一次多久之后醒。
+//
+// **上限就是安全网**：哪怕这个数算错了，到点该发的也最多迟 MAX 这么久。
+// 所以不必去问 pace 和 space「你们下一件事什么时候」—— 它们要的精度
+// 远没有一分钟那么细，上限兜得住。
+//
+// 从前是固定二十秒。主动消息的间隔按**分钟**算（默认平均 60 分钟，
+// 还要乘 0.5 到 1.5 的随机），二十秒的精度对它毫无意义，只是把人闲着的时候
+// 也叫醒三倍的次数 —— 这一段是跟着整个外壳跑的，页面开着就一直在数。
+const MIN_GAP = 20000;
+const MAX_GAP = 60000;
+function gapUntil(soonest, now = Date.now()) {
+  if (!soonest) return MAX_GAP;
+  return Math.min(MAX_GAP, Math.max(MIN_GAP, soonest - now));
 }
 
 export function start() {
@@ -273,6 +333,19 @@ export function start() {
   }
   if (dirty) writeMap(m);
 
-  timer = setInterval(tick, 20000);
-  return () => { clearInterval(timer); timer = null; };
+  // 串起来跑，不用 setInterval：tick 是异步的，上一轮还没跑完就再进一轮，
+  // 同一个角色会被安排两次。跑完再定下一次，顺便按最近的落点决定隔多久。
+  let stopped = false;
+  const loop = delay => {
+    timer = setTimeout(async () => {
+      let next = 0;
+      try { next = await tick(); } catch (err) { console.warn('[proactive] tick 出错:', err.message || err); }
+      if (!stopped) loop(gapUntil(next));
+    }, delay);
+  };
+  // 第一次照旧按最短的来：页面刚打开，关着的这段时间里可能积了该寄的信、
+  // 该回的话，不该让它们再等一分钟
+  loop(MIN_GAP);
+
+  return () => { stopped = true; clearTimeout(timer); timer = null; };
 }
