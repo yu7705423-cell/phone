@@ -129,6 +129,23 @@ export function LimitsPage() {
         <//>
       </div>
 
+      <div class="list-title">一起看</div>
+      <div class="pad-x pad-b">
+        <${Field} label="角色两次开口的最小间隔"
+          desc="一起看时，角色自行开口至少相隔这个时长，每次开口调用一次模型接口。
+            台词密集的段落会自动再等一轮，避免盖过正在进行的对白。
+            填 0 表示角色不自行开口，只在你说话时回应。">
+          <${NumberInput} value=${s.watchGap} unit="秒" placeholder="只在你说话时回应"
+            onChange=${v => set({ watchGap: v })}/>
+        <//>
+        <${Field} label="每次提供的台词条数"
+          desc="注入到 prompt 中的最近台词数量。条数越多角色越清楚上下文，
+            占用的 token 也越多。">
+          <${NumberInput} value=${s.watchLines} unit="条" placeholder="8"
+            onChange=${v => set({ watchLines: v })}/>
+        <//>
+      </div>
+
       <div class="settings-foot">
         历史范围、注入预算、记忆条数在会话右上角的「上下文」中设置。
         某个角色是否主动发起对话、间隔多久，在该角色的会话菜单中设置。

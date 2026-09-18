@@ -11,6 +11,7 @@ import { PACT_OPEN } from '../space.js';
 import * as dayStore from '../day.js';
 import * as extras from '../extras.js';
 import * as avatarLib from '../avatar.js';
+import * as watchStore from '../watch.js';
 import { PENDING as MEAL_PENDING } from '../takeout.js';
 import { allSongs } from '../music.js';
 
@@ -145,6 +146,14 @@ export const CAPS = [
     hot: ({ msgs }) => usedRecently(msgs, /^letter$|[[【]信[:：]/),
     line: () => '写信：单独写一行 [信：抬头 | 正文]',
     detail: () => template('skeleton.letter'),
+  },
+  {
+    id: 'watch',
+    // 这一场开着才有这回事。没开的时候一个字都不提 ——
+    // 「你可以暂停」对着没在放的画面说，只会让它凭空去暂停。
+    on: ({ chat }) => !!chat && watchStore.inChat(chat.id),
+    always: true,
+    detail: () => template('skeleton.watch'),
   },
   {
     id: 'agenda',

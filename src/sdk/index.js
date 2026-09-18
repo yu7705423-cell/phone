@@ -60,6 +60,10 @@ import * as musicApi from '../system/music.js';
 import * as listenApi from '../system/listen.js';
 import * as neteaseApi from '../system/netease.js';
 import * as playerApi from '../system/player.js';
+import * as videoApi from '../system/video.js';
+import * as watchApi from '../system/watch.js';
+import * as subtitleApi from '../system/subtitle.js';
+import * as watchOutline from '../system/ai/tasks/watch-outline.js';
 import * as callApi from '../system/call.js';
 import * as cameraApi from '../system/camera.js';
 import * as keepAliveApi from '../system/keepalive.js';
@@ -109,6 +113,7 @@ export const phone = {
     buildChatSystem: engine.buildChatSystem,
     buildHistory: engine.buildHistory,
     streamReply: engine.streamReply,
+    watchOutline,
     isReplying: engine.isReplying,
     cancelReply: engine.cancelReply,
     runJSONTask: engine.runJSONTask,
@@ -182,6 +187,9 @@ export const phone = {
   listen: listenApi,
   netease: neteaseApi,
   player: playerApi,
+  video: videoApi,
+  watch: watchApi,
+  subtitle: subtitleApi,
   call: callApi,
   camera: cameraApi,
   keepAlive: keepAliveApi,

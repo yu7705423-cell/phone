@@ -173,6 +173,17 @@ export function ListenBubble({ msg, onOpen }) {
     </div>`;
 }
 
+// 一起看的记录。和一起听同构，只是这一条不列曲目，列的是看到哪儿。
+export function WatchBubble({ msg }) {
+  const row = db.videos.get(msg.videoId);
+  const [first, second] = String(msg.content || '').split('\n');
+  return html`
+    <div class="bubble bubble-call">
+      <${Icon} name="film" size=${18}/>
+      <span>${(first || '').replace(/^\[|\]$/g, '')}${second ? `　${row ? row.title : second}` : ''}</span>
+    </div>`;
+}
+
 export function ListenLogSheet({ msg, onClose }) {
   if (!msg) return null;
   const tracks = (msg.trackIds || []).map(id => db.songs.get(id)).filter(Boolean);

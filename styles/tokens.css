@@ -29,6 +29,7 @@
   /* 浮层 */
   --scrim:        rgba(0, 0, 0, .40);
   --scrim-strong: rgba(0, 0, 0, .56);
+  --stage-bg:    #000000;         /* 视频四周的信箱底色。深浅主题下都是黑 */
   --on-scrim:     #FFFFFF;
   /* 压在遮罩上的实心块。遮罩不跟主题走，所以这一对两套主题里是一样的 */
   --scrim-fill:    #FFFFFF;
@@ -152,6 +153,7 @@
 
   --scrim:        rgba(0, 0, 0, .62);
   --scrim-strong: rgba(0, 0, 0, .76);
+  --stage-bg:    #000000;
   --on-scrim:     #FFFFFF;
   --scrim-fill:    #FFFFFF;
   --on-scrim-fill: #000000;

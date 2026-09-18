@@ -1,5 +1,5 @@
 export const DB_NAME = 'phone';
-export const DB_VERSION = 9;
+export const DB_VERSION = 10;
 
 // 每个数据域一个对象仓库。新增仓库时提升 DB_VERSION 并在 upgrade 里补建。
 export const STORES = [
@@ -7,7 +7,7 @@ export const STORES = [
   'chats', 'messages', 'moments',
   'stickers',
   'looks', 'personas',
-  'songs', 'playlists',
+  'songs', 'playlists', 'videos',
   'spaceItems',
   'events', 'days', 'recipes', 'meals',
   'images', 'files', 'kv',
@@ -23,7 +23,7 @@ export const KV = {
 
 // 业务层数据迁移。与 IndexedDB 的版本升级分开:
 // 这里处理的是记录内部结构的变化,而不是仓库的增删。
-export const DATA_VERSION = 6;
+export const DATA_VERSION = 7;
 
 export const MIGRATIONS = {
   // 1: 初始结构,无需迁移
@@ -120,6 +120,18 @@ export const MIGRATIONS = {
     const cur = settings.get().promptTemplates;
     if (!cur || !Object.keys(cur).length) return;
     settings.set({ promptTemplates: {}, promptTemplatesLegacy: cur });
+  },
+
+  // 7: 注入顺序里多了「正在一起看」。和迁移 4、5 同一个道理：
+  //    resolveOrder 只把新区块补在**末尾**，而它讲的是此刻正在发生的事，
+  //    应当排在记忆之前、贴着对话。
+  7({ settings }) {
+    const order = settings.get().injectOrder;
+    if (!Array.isArray(order) || order.includes('watch')) return;
+    const rest = [...order];
+    const at = rest.indexOf('memory');
+    rest.splice(at < 0 ? rest.length : at, 0, 'watch');
+    settings.set({ injectOrder: rest });
   },
 };
 

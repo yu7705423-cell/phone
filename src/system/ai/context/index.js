@@ -6,6 +6,7 @@ import * as dayBlock from './day.js';
 import * as avatarBlock from './avatar.js';
 import * as geoBlock from './geo.js';
 import * as musicBlock from './music.js';
+import * as watchBlock from './watch.js';
 
 export const BLOCKS = {
   character,
@@ -23,9 +24,10 @@ export const BLOCKS = {
   avatar: { meta: avatarBlock.meta, build: avatarBlock.build },
   geo: { meta: geoBlock.meta, build: geoBlock.build },
   music: { meta: musicBlock.meta, build: musicBlock.build },
+  watch: { meta: watchBlock.meta, build: watchBlock.build },
 };
 
-export const DEFAULT_ORDER = ['lorebook', 'bond', 'character', 'loreAfter', 'user', 'time', 'day', 'avatar', 'geo', 'music', 'memory', 'space'];
+export const DEFAULT_ORDER = ['lorebook', 'bond', 'character', 'loreAfter', 'user', 'time', 'day', 'avatar', 'geo', 'music', 'watch', 'memory', 'space'];
 
 // 读出一份干净的顺序:丢掉不认识的 id,补上配置里缺失的。
 // 没有这一步,以后每新增一个区块,老用户配置里就少一项,该区块永远不注入,

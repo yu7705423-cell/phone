@@ -14,7 +14,7 @@ import { TakeoutBubble, TakeoutSheet, MealSettleSheet, ShareSheet, MoreSheet } f
 import { TransferBubble, NoticeLine, TransferSheet, SettleSheet,
          LocationBubble, LocationSheet, CallBubble, CallLogSheet,
          GiftBubble, GiftSheet, UnwrapSheet,
-         ListenBubble, ListenLogSheet, ListenBar } from './TransferBits.js';
+         ListenBubble, ListenLogSheet, ListenBar, WatchBubble } from './TransferBits.js';
 
 // panel 这个名字在本文件里已经被「当前开着哪个面板」占了（见下面的 useState），
 // 所以模块换个名字进来 —— 同名会被局部变量盖掉，读出来是 null。
@@ -123,6 +123,8 @@ const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, onSwipe,
           ? html`<${CallBubble} msg=${msg} onOpen=${selecting ? null : onOpenLog}/>`
           : msg.kind === 'listen'
           ? html`<${ListenBubble} msg=${msg} onOpen=${selecting ? null : onOpenLog}/>`
+          : msg.kind === 'watch'
+          ? html`<${WatchBubble} msg=${msg}/>`
           : msg.kind === 'pact'
           ? html`<${PactBubble} msg=${msg} onFinish=${selecting ? null : onOpenLog}/>`
           : msg.kind === 'letter'
@@ -726,6 +728,7 @@ export function Conversation({ chatId, focusId = '' }) {
     gift: () => setGifting(true),
     location: () => setPlacing(true),
     listen: () => nav.push(`/listen/${chatId}`),
+    watch: () => nav.push(`/watch/${chatId}`),
     takeout: () => setOrdering(true),
     share: () => setSharing(true),
     dice: () => setDicing(true),

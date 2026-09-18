@@ -248,6 +248,13 @@ export function CharacterEdit({ id }) {
 
       <${AvatarPool} char=${char}/>
 
+      <${List} title="一起看">
+        <${ListItem} title="这部片它看过" multiline
+          subtitle="开启后，角色在一起看时知道后续情节，但仍不会说破。关闭则只知道已经播放过的部分"
+          right=${html`<${Switch} checked=${!!char.watchedBefore}
+            onChange=${v => patch({ watchedBefore: v })}/>`}/>
+      <//>
+
       <${List} title="关联世界书">
         ${db.lorebooks.all().map(b => html`
           <${ListItem} key=${b.id} title=${b.name}

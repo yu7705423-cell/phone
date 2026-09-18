@@ -65,6 +65,12 @@ const REFUSE_LINE = /^[[【(（]\s*(拒收|不收|退掉)\s*[\]】)）]$/;
 // 拉着一起听歌。同样必须带方括号。
 const LISTEN_LINE = /^[[【(（]\s*(一起听|一起听歌|听歌)\s*[\]】)）]$/;
 
+// 一起看时控制播放的三行。它们会真的作用到播放器上，所以写法要严：
+// 整行只能是这一个标记，多一个字都不算。
+const PAUSE_LINE = /^[[【(（]\s*(?:暂停|暂停一下)\s*[\]】)）]$/;
+const RESUME_LINE = /^[[【(（]\s*(?:继续|继续播放|接着看)\s*[\]】)）]$/;
+const REWIND_LINE = /^[[【(（]\s*(?:倒回|回到|快进)\s*[:：]\s*([\d:：.]+)\s*[\]】)）]$/;
+
 // 拍一拍、掷骰子。都是「一件事」不是「一条消息」，所以不带冒号，整行就是它。
 const PAT_LINE = /^[[【(（]\s*(?:拍一拍|拍拍|戳一戳)\s*[\]】)）]$/;
 const DICE_LINE = /^[[【(（]\s*(?:骰子|掷骰子|扔骰子|dice)\s*[\]】)）]$/i;
@@ -188,6 +194,17 @@ export function snippet(text, max = 40) {
 }
 
 // 把一整段回复拆成按顺序排列的若干条。空行分段，标记单独成条。
+// 模型写的 12:30 / 1:02:03 读成秒。写不成数的当没写。
+function subtitleSeconds(text) {
+  const t = String(text || '').trim().replace(/：/g, ':');
+  if (/^\d+$/.test(t)) return Number(t);
+  const parts = t.split(':').map(x => Number(x));
+  if (!parts.length || parts.some(x => !Number.isFinite(x))) return null;
+  if (parts.length === 2) return parts[0] * 60 + parts[1];
+  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  return null;
+}
+
 export function splitReply(raw) {
   // 先摘自检，再摘时间戳：自检里也可能出现方括号时间，
   // 反过来会把检查内容里的东西当成这一轮的时刻
@@ -231,6 +248,12 @@ export function splitReply(raw) {
 
       // 拉一起听。和电话一样是一件事不是一条消息，不占气泡。
       if (LISTEN_LINE.test(t)) { push({ type: 'listen' }); return; }
+
+      // 一起看时动播放器。同样是一件事，不占气泡。
+      if (PAUSE_LINE.test(t)) { push({ type: 'playback', act: 'pause' }); return; }
+      if (RESUME_LINE.test(t)) { push({ type: 'playback', act: 'resume' }); return; }
+      const rw = t.match(REWIND_LINE);
+      if (rw) { push({ type: 'playback', act: 'seek', to: rw[1] }); return; }
 
       // 对方点的那一单，收下或者不要。不占气泡，落的是一行提示。
       if (TAKE_LINE.test(t)) { push({ type: 'meal', take: true }); return; }
@@ -446,6 +469,21 @@ export function materialize(part, base, char) {
         .then(m => m.ring(base.chatId, { video: !!part.video }))
         .catch(err => console.warn('[call] 来电没打通:', err.message || err));
     }
+    return null;
+  }
+  // 一起看：暂停、继续、倒回。不落消息 —— 动的是播放器，不是聊天记录。
+  // 这一场没开着就当没说过，不报错也不留痕。
+  if (part.type === 'playback') {
+    if (base.role !== 'char') return null;
+    import('../watch.js').then(w => {
+      if (!w.inChat(base.chatId)) return;
+      if (part.act === 'pause') w.toggle(false);
+      else if (part.act === 'resume') w.toggle(true);
+      else {
+        const sec = subtitleSeconds(part.to);
+        if (sec !== null) w.seek(sec);
+      }
+    }).catch(err => console.warn('[watch] 控制播放失败:', err.message || err));
     return null;
   }
   if (part.type === 'gift') {
