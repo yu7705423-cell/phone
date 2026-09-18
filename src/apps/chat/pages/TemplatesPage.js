@@ -19,6 +19,7 @@ const LABELS = {
   'skeleton.quote': '骨架 · 引用某一句',
   'skeleton.time': '骨架 · 先写出时间',
   'skeleton.translate': '骨架 · 顺带给出译文',
+  'task.translate': '任务 · 单独的翻译接口',
   'skeleton.transfer': '骨架 · 转账',
   'skeleton.location': '骨架 · 位置',
   'skeleton.abilities': '骨架 · 能力清单',

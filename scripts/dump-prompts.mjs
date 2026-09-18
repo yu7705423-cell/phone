@@ -109,7 +109,7 @@ console.log();
 console.log('由 `node scripts/dump-prompts.mjs` 从源码生成。');
 console.log('正文中的 `{{xxx}}` 是运行时填入的占位符。');
 console.log();
-console.log('规则：注入 prompt 的文字一律书面语、中性、祈使，见 CLAUDE.md 第 14 条。');
+console.log('规则：prompt 正文一律英文；方括号标记、区块抬头与「」里引的原话留中文。见 CLAUDE.md 第 14 条。');
 console.log();
 console.log('提示词的编写与修订，感谢 我厌 老师的帮助。');
 console.log();

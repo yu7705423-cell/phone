@@ -14,6 +14,10 @@ export const EMPTY_SERVICES = {
   vision: { mode: 'off', baseUrl: '', apiKey: '', model: '' },
   // 语音识别：把用户发的语音读成文字。mode 决定只转文字还是连语气一起读
   asr: { baseUrl: '', apiKey: '', model: '', mode: 'text' },
+  // 翻译。mode 决定译文从哪儿来：
+  //   inline  跟着聊天回复一起给出，不额外调用接口（没配的时候就是这一档）
+  //   api     单独调这套接口。只送原文与翻译规则，人设、记忆、对话历史一概不送
+  translate: { mode: 'inline', provider: 'openai', baseUrl: '', apiKey: '', model: '' },
   // 会联网搜索的那套接口。和聊天预设是同一种形状，区别只在模型本身能不能上网。
   // 配了它，生成食谱时才问得出「这个地方真的有哪几家店」。
   search: { provider: 'openai', baseUrl: '', apiKey: '', model: '' },
@@ -32,6 +36,7 @@ export function services() {
     embed: { ...EMPTY_SERVICES.embed, ...(s?.embed || {}) },
     vision: { ...EMPTY_SERVICES.vision, ...(s?.vision || {}) },
     asr: { ...EMPTY_SERVICES.asr, ...(s?.asr || {}) },
+    translate: { ...EMPTY_SERVICES.translate, ...(s?.translate || {}) },
     search: { ...EMPTY_SERVICES.search, ...(s?.search || {}) },
     netease: { ...EMPTY_SERVICES.netease, ...(s?.netease || {}) },
   };
@@ -163,6 +168,23 @@ export function neteaseConfig() { return services().netease; }
 export function setNetease(patch) { write({ netease: { ...services().netease, ...patch } }); }
 export function neteaseReady() { return !!services().netease.baseUrl; }
 export function neteaseLoggedIn() { const n = services().netease; return !!(n.baseUrl && n.cookie); }
+
+// ---- 翻译。OpenAI 兼容的 chat/completions ----
+export function translateConfig() { return services().translate; }
+export function setTranslate(patch) { write({ translate: { ...services().translate, ...patch } }); }
+
+// 配全了没有。没填全就算选了 api 也走不通，所以这两件事分开问。
+export function translateFilled() {
+  const t = services().translate;
+  return !!(t.apiKey && t.model);
+}
+
+// 译文到底从哪儿来。选了 api 却没填全，仍然回落到跟着回复一起给出 ——
+// 翻译开着却一条译文都没有，比慢一点糟得多。
+export function translateMode() {
+  const t = services().translate;
+  return t.mode === 'api' && translateFilled() ? 'api' : 'inline';
+}
 
 export function asrConfig() { return services().asr; }
 export function setAsr(patch) { write({ asr: { ...services().asr, ...patch } }); }

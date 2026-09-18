@@ -18,6 +18,7 @@ import * as dayStore from '../day.js';
 import * as extras from '../extras.js';
 import * as avatar from '../avatar.js';
 import * as takeout from '../takeout.js';
+import * as translate from './translate.js';
 
 // 角色回复里可以带这几种标记，由模型自己决定什么时候用。
 // 中英文冒号都认，方括号也认全角。
@@ -596,11 +597,49 @@ export function notifyTurn(chat, char, created) {
   });
 }
 
+// 单独那套翻译接口开着时，这一轮的译文由它来给。
+//
+// **请求在气泡开始滴之前就发出去**，和下面那些停顿并行跑 —— 一轮要滴好几秒，
+// 等最后一条落下来，译文一般已经回来了。等整轮发完再去发请求，用户就要
+// 对着已经看完的几条气泡再干等一次。
+//
+// 模型自己已经给了译文的那几条不再翻：那是回落那条路留下的，花钱重翻没有意义。
+function startTranslate(chat, parts) {
+  if (!chat.translateTo || !translate.ready()) return null;
+  const idx = [];
+  const texts = [];
+  parts.forEach((p, i) => {
+    if (p.type !== 'text' || p.translation) return;
+    const t = String(p.text || '').trim();
+    if (t) { idx.push(i); texts.push(t); }
+  });
+  if (!texts.length) return null;
+  return {
+    idx,
+    // 翻译挂了不能连累这一轮消息。原文已经发出去了，少一行译文而已
+    promise: translate.run(texts, { lang: chat.translateTo, extra: chat.translateRules })
+      .catch(err => { console.warn('[translate] 这一轮没翻出来:', err.message || err); return null; }),
+  };
+}
+
+async function applyTranslate(job, byPart) {
+  if (!job) return;
+  const out = await job.promise;
+  if (!out) return;
+  job.idx.forEach((at, k) => {
+    const id = byPart.get(at);
+    const text = String(out[k] || '').trim();
+    if (id && text) messages.update(id, { translation: text });
+  });
+}
+
 export async function renderTurn({ chat, char, raw, turnId, swipes, swipeIndex, onEach, signal, instant }) {
   const parts = splitReply(raw);
   if (!parts.length) throw new Error('模型返回了空内容');
   const { think } = stripThink(raw);
 
+  const job = startTranslate(chat, parts);
+  const byPart = new Map();
   const created = [];
   for (let i = 0; i < parts.length; i++) {
     if (signal?.aborted) break;
@@ -613,11 +652,13 @@ export async function renderTurn({ chat, char, raw, turnId, swipes, swipeIndex, 
     }, char);
 
     if (!msg) continue;
+    byPart.set(i, msg.id);
     created.push(msg);
     chats.update(chat.id, { lastMessageAt: Date.now() });
     onEach && onEach(msg, i, parts.length);
     if (!instant && i < parts.length - 1) await new Promise(r => setTimeout(r, pause(part)));
   }
+  await applyTranslate(job, byPart);
   return created;
 }
 

@@ -14,6 +14,7 @@ import { AsrPage } from './AsrPage.js';
 import { MusicPage } from './MusicPage.js';
 import { LimitsPage } from './LimitsPage.js';
 import { SearchApiPage } from './SearchApiPage.js';
+import { TranslateApiPage } from './TranslateApiPage.js';
 import { BUILD } from '../../version.js';
 
 const { db, nav } = phone;
@@ -56,6 +57,13 @@ function Home() {
   const embDesc = emb.apiKey && emb.model
     ? `${emb.model} · 已索引 ${embDone} / ${db.memories.count()} 条记忆`
     : '未配置。配置后记忆按语义检索，不再依赖关键词匹配';
+
+  const tr = svc.translateConfig();
+  const trDesc = svc.translateMode() === 'api'
+    ? `单独的接口 · ${tr.model}`
+    : tr.mode === 'api'
+      ? '选了单独的接口，但还没填全'
+      : '跟着回复一起给出。译文由聊天模型在生成回复时一并写出';
 
   const sc = svc.searchConfig();
   const searchDesc = svc.searchReady()
@@ -105,6 +113,12 @@ function Home() {
         <${ListItem} title="语音识别" subtitle=${asrDesc} arrow multiline
           left=${html`<${Icon} name="signal" size=${19}/>`}
           onClick=${() => nav.push('/asr')}/>
+      <//>
+
+      <${List} title="翻译">
+        <${ListItem} title="翻译" subtitle=${trDesc} arrow multiline
+          left=${html`<${Icon} name="translate" size=${19}/>`}
+          onClick=${() => nav.push('/translate')}/>
       <//>
 
       <${List} title="外观">
@@ -162,6 +176,7 @@ export default function SettingsApp({ route }) {
   if (route === '/music') return html`<${MusicPage}/>`;
   if (route === '/limits') return html`<${LimitsPage}/>`;
   if (route === '/search') return html`<${SearchApiPage}/>`;
+  if (route === '/translate') return html`<${TranslateApiPage}/>`;
   if (route === '/voice') return html`<${VoicePage}/>`;
   if (route === '/image') return html`<${ImagePage}/>`;
   if (route === "/appearance") return html`<${AppearancePage}/>`;

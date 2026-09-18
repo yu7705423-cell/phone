@@ -2,6 +2,7 @@ import { characters, stickers } from '../db/index.js';
 import * as clock from '../time.js';
 import * as currency from '../currency.js';
 import { template, fillTemplate } from './templates.js';
+import { translateMode } from './services.js';
 import { isImageReady } from './image.js';
 import { isVoiceReady } from './voice.js';
 import { PENDING as TR_PENDING } from '../transfer.js';
@@ -221,8 +222,10 @@ export const CAPS = [
   },
   {
     id: 'translate',
-    // 同理：每条消息都要跟一行译文
-    on: ({ chat }) => !!chat.translateTo,
+    // 同理：每条消息都要跟一行译文。
+    // 配了单独的翻译接口就不走这条路了 —— 那边只拿到原文与翻译规则，
+    // 这边一个字都不必提，提了反而是让聊天模型再翻一遍（见 ai/translate.js）。
+    on: ({ chat }) => !!chat.translateTo && translateMode() === 'inline',
     always: true,
     detail: ({ chat }) => fillTemplate(template('skeleton.translate'), { lang: chat.translateTo }),
   },

@@ -522,11 +522,11 @@ export async function runTextTask(taskId, { system, user, key, image, maxTokens 
 
 // 指定一个预设跑一次结构化任务。会联网搜索的那套接口走这条路 ——
 // 它不在 chat 预设列表里，所以不能走 runJSONTask 的主用 / 副用那一套。
-export async function runJSONWithPreset(preset, { system, user, key, maxTokens = 1400 }) {
+export async function runJSONWithPreset(preset, { system, user, key, maxTokens = 1400, taskId }) {
   const c = asConfig(preset);
   if (!usable(c)) throw new Error('这套接口还没填全');
   const raw = await enqueue(key || `preset:${Date.now()}`, signal =>
-    send('preset.json', c, {
+    send(taskId || 'preset.json', c, {
       system, messages: [{ role: 'user', content: user || 'Produce the JSON as instructed.' }],
       maxTokens, signal,
     }), { retries: 1 });

@@ -34,6 +34,7 @@ import * as voice from '../system/ai/voice.js';
 import * as image from '../system/ai/image.js';
 import * as visionApi from '../system/ai/vision.js';
 import * as asrApi from '../system/ai/asr.js';
+import * as translateApi from '../system/ai/translate.js';
 import * as audioApi from '../system/audio.js';
 import * as searchApi from '../system/search.js';
 import * as transferApi from '../system/transfer.js';
@@ -140,6 +141,7 @@ export const phone = {
     image,
     vision: visionApi,
     asr: asrApi,
+    translate: translateApi,
     reply: replyApi,
     repair: repairApi,
     proactive: proactiveApi,

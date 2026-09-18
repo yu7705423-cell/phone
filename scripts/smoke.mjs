@@ -26,7 +26,7 @@ const ROUTES = {
     '/today', '/today/:char', '/food', '/food/', '/food/%E6%88%90%E9%83%BD'],
   music: ['/', '/library', '/list/1'],
   settings: ['/', '/api', '/voice', '/image', '/embed', '/notify', '/music',
-    '/appearance', '/storage', '/trace', '/vision', '/asr', '/limits', '/search'],
+    '/appearance', '/storage', '/trace', '/vision', '/asr', '/limits', '/search', '/translate'],
 };
 
 // 本项目不装 npm 依赖（CLAUDE.md 第 9 条），所以 playwright 从别处借：
