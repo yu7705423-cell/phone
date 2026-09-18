@@ -93,7 +93,13 @@
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 
-.nav-text { font-size: var(--fs-14); color: var(--accent); padding: var(--sp-2); }
+/* 文字按钮同理：看着还是那几个字，命中区撑到 44 高 */
+.nav-text {
+  position: relative;
+  font-size: var(--fs-14); color: var(--accent); padding: var(--sp-2);
+  min-height: 34px; display: inline-flex; align-items: center;
+}
+.nav-text::after { content: ''; position: absolute; inset: -5px; }
 
 .hint-box {
   font-size: var(--fs-12); color: var(--text-2); line-height: 1.65;
@@ -176,6 +182,9 @@ input[type="range"] {
 .chat-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; font-size: var(--fs-11); }
 
 .conv { height: 100%; display: flex; flex-direction: column; }
+/* 消息区 + 浮在它上面的东西。定位上下文只能是这一层：
+   放到 .conv 上的话，「回到最新」会压在发送键上 */
+.conv-main { flex: 1; min-height: 0; display: flex; flex-direction: column; position: relative; }
 .conv-body { flex: 1; min-height: 0; padding: var(--sp-4) var(--sp-3); display: flex; flex-direction: column; gap: var(--sp-4); }
 .conv-hint { margin: auto; color: var(--text-3); font-size: var(--fs-12); }
 
@@ -190,6 +199,28 @@ input[type="range"] {
 }
 .msg.is-mine .bubble { background: var(--accent); color: var(--on-accent); }
 .bubble-empty { min-width: 46px; display: flex; justify-content: center; }
+
+/* 正在输入。三个点，不是转圈 —— 转圈是「系统在忙」，三个点是「对面在打字」，
+   这两件事在聊天里不是一回事。 */
+.typing-dots { display: inline-flex; align-items: center; gap: 4px; height: 18px; }
+.typing-dots i {
+  width: 6px; height: 6px; border-radius: var(--r-full);
+  background: var(--text-3);
+  animation: typing-dot 1.2s var(--ease-out) infinite;
+}
+.typing-dots i:nth-child(2) { animation-delay: .16s; }
+.typing-dots i:nth-child(3) { animation-delay: .32s; }
+@keyframes typing-dot {
+  0%, 60%, 100% { opacity: .3; transform: translateY(0); }
+  30%           { opacity: 1;  transform: translateY(-3px); }
+}
+
+/* 标题那一行：名字在上，「正在输入」在下，和真机一样 */
+.conv-title { display: flex; flex-direction: column; align-items: center; line-height: 1.2; }
+.conv-sub {
+  font-size: var(--fs-11); font-weight: var(--fw-normal); color: var(--text-3);
+  animation: fade-in var(--dur-fast) var(--ease);
+}
 .msg-retry { display: flex; align-items: center; gap: 4px; font-size: var(--fs-11); color: var(--text-2); text-decoration: underline; }
 .swipes { display: flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-11); color: var(--text-3); }
 .swipe-btn { color: var(--text-2); display: flex; }
@@ -266,6 +297,19 @@ input[type="range"] {
 .quote-bar .quote-ref { flex: 1; min-width: 0; }
 .quote-bar > button { flex: none; color: var(--text-3); display: flex; padding: var(--sp-1); }
 
+/* 回到最新。往上翻着看旧消息时才出现，压在输入框正上方 ——
+   那是拇指本来就在的位置，不必伸到别处去。 */
+.to-bottom {
+  position: absolute; right: var(--sp-4); bottom: var(--sp-3);
+  width: 38px; height: 38px; border-radius: var(--r-full);
+  display: flex; align-items: center; justify-content: center;
+  background: var(--surface); color: var(--text-2);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-2);
+  animation: fade-in var(--dur-fast) var(--ease);
+  z-index: 3;
+}
+
 /* 输入区与消息区同底，不要分隔线也不要换颜色 */
 .composer-bar {
   flex: none; display: flex; gap: var(--sp-2); align-items: flex-end;
@@ -274,9 +318,13 @@ input[type="range"] {
   background: var(--bg);
 }
 .composer-side {
+  position: relative;
   width: 38px; height: 38px; flex: none; border-radius: var(--r-full);
   display: flex; align-items: center; justify-content: center; color: var(--text-2);
 }
+/* 输入栏这几个是**最常按**的，命中区多给一点。
+   往上扩得比往下多：拇指从下方够过来，落点总是偏下 */
+.composer-side::after { content: ''; position: absolute; inset: -8px -3px -4px; }
 .composer-input {
   flex: 1; max-height: 110px; min-height: 38px; border-radius: var(--r-lg);
   padding: var(--sp-2) var(--sp-3); resize: none;
@@ -306,10 +354,12 @@ input[type="range"] {
   padding: var(--sp-2) var(--sp-3); resize: none;
 }
 .send-btn {
+  position: relative;
   width: 38px; height: 38px; flex: none; border-radius: var(--r-full);
   background: var(--accent); color: var(--on-accent);
   display: flex; align-items: center; justify-content: center;
 }
+.send-btn::after { content: ''; position: absolute; inset: -8px -3px -4px; }
 .send-btn:disabled { opacity: .35; }
 .send-btn.is-stop { background: var(--surface-3); color: var(--text); }
 /* 让对方回复：不要底色，只留图标 */

@@ -51,9 +51,17 @@
 .btn-danger  { background: var(--danger-weak); color: var(--danger); font-weight: var(--fw-semi); }
 .btn:disabled { opacity: .4; pointer-events: none; }
 
+/* 图标按钮画出来是 34，**摸得着的是 44**。
+   两家的人机指南都给到 44 到 48，而手指的接触面本来就有十来毫米宽 ——
+   按钮画大了难看，所以只把命中区撑开：一个看不见的伪元素往外扩五像素。
+   .press 的按下反馈仍然落在看得见的那一块上。 */
 .icon-btn {
+  position: relative;
   width: 34px; height: 34px; border-radius: var(--r-sm);
   display: inline-flex; align-items: center; justify-content: center; color: var(--text);
+}
+.icon-btn::after {
+  content: ''; position: absolute; inset: -5px;
 }
 .icon-btn.is-active { color: var(--accent); background: var(--accent-weak); }
 

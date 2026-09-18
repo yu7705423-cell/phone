@@ -150,7 +150,10 @@ const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, onSwipe,
                 ${trans && i === parts.length - 1 && showTrans ? html`
                   <div class="bubble-trans">${trans}</div>` : null}
               </div>`)
-          : html`<div class="bubble bubble-empty"><span class="spinner"></span></div>`}
+          : html`
+            <div class="bubble bubble-empty">
+              <span class="typing-dots"><i></i><i></i><i></i></span>
+            </div>`}
 
         ${msg.inner && openInner
           ? html`<${InnerVoice} text=${msg.inner} style=${innerStyle}/>` : null}
@@ -333,14 +336,30 @@ export function Conversation({ chatId, focusId = '' }) {
   const landed = useRef(false);
   useEffect(() => { landed.current = false; }, [chatId, focusId]);
 
+  // 人是不是正贴着底部看。往上翻着看旧消息的时候，新消息来了不该把人拽下去 ——
+  // 那是正在读的东西被抢走。离底 80 像素以内就算贴着。
+  const [atBottom, setAtBottom] = useState(true);
+  const onScroll = () => {
+    const el = bodyRef.current;
+    if (!el) return;
+    setAtBottom(el.scrollHeight - el.scrollTop - el.clientHeight < 80);
+  };
+  const toBottom = () => {
+    const el = bodyRef.current;
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+  };
+
+  const last = msgs[msgs.length - 1];
   useEffect(() => {
     // 多选时别乱滚，正挑着消息呢
     if (selecting) return;
     // 从搜索跳进来的那一下，位置归那一条管，别把它顶到底下去
     if (focusId && !landed.current) return;
+    // 自己刚发的一定滚到底；别人发的只在你本来就贴着底部时才滚
+    if (!atBottom && last?.role !== 'user') return;
     const el = bodyRef.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, [msgs.length, msgs[msgs.length - 1]?.content, selecting, focusId]);
+  }, [msgs.length, last?.content, selecting, focusId]);
 
   // 跳到搜索选中的那一条，闪一下。之后就交回给上面那个「新消息滚到底」。
   useEffect(() => {
@@ -739,7 +758,11 @@ export function Conversation({ chatId, focusId = '' }) {
   const canRegen = !!(held && held.role === 'char' && held.turnId && held.turnId === lastTurnId);
 
   return html`
-    <${Page} title=${selecting ? `已选 ${picked.length} 条` : char.name}
+    <${Page} title=${selecting ? `已选 ${picked.length} 条` : html`
+      <span class="conv-title">
+        <span class="ellipsis">${char.name}</span>
+        ${busy ? html`<span class="conv-sub">正在输入</span>` : null}
+      </span>`}
       onBack=${selecting ? () => setPicked(null) : nav.pop} noScroll
       right=${selecting
         ? html`<button class="nav-text press" onClick=${() => setPicked(view.map(m => m.id))}>全选</button>`
@@ -756,7 +779,8 @@ export function Conversation({ chatId, focusId = '' }) {
               ${line}
             </button>` : null;
         })()}
-        <div class="conv-body scroll" ref=${bodyRef}>
+        <div class="conv-main">
+        <div class="conv-body scroll" ref=${bodyRef} onScroll=${onScroll}>
           ${char.firstMessage && !msgs.length ? html`
             <${Bubble} msg=${greeting} char=${char} chat=${chat} frozen
               onRetry=${stable.onRetry} onSwipe=${stable.onSwipe}
@@ -781,6 +805,12 @@ export function Conversation({ chatId, focusId = '' }) {
               foldCount=${row.foldCount}/>`))}
           ${!msgs.length && !char.firstMessage ? html`
             <div class="conv-hint">发送第一条消息开始对话</div>` : null}
+        </div>
+
+        ${!atBottom && !selecting ? html`
+          <button class="to-bottom press" onClick=${toBottom} aria-label="回到最新">
+            <${Icon} name="chevronDown" size=${18}/>
+          </button>` : null}
         </div>
 
         ${recSec >= 0 ? html`
