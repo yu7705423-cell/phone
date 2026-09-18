@@ -29,6 +29,7 @@ export const watch = createStore({
   seconds: 0,         // 这一场看了多久
   saidAt: -1,         // 她上一次开口时片子播到哪儿
   said: 0,
+  awayAt: 0,          // 人离开播放页的时刻。0 表示人还在那一屏上
   error: '',
 });
 
@@ -60,7 +61,7 @@ export function start({ chatId, videoId }) {
     charId: (chat.characterIds || [])[0] || '',
     videoId,
     at: 0, duration: row.seconds || 0,
-    playing: false, seconds: 0, saidAt: -1, said: 0, error: '',
+    playing: false, seconds: 0, saidAt: -1, said: 0, awayAt: 0, error: '',
   });
   return row;
 }
@@ -70,6 +71,7 @@ export function attach(node) {
   el = node;
   clearInterval(tick);
   if (!el) return;
+  watch.set({ awayAt: 0 });
   tick = setInterval(() => {
     if (!el) return;
     const s = watch.get();
@@ -83,9 +85,41 @@ export function attach(node) {
   }, 1000);
 }
 
+/**
+ * 人离开了播放页。
+ *
+ * **这一场不就此结束**：中途回一条消息、翻一下资料，回来还要接着看。
+ * 但画面确实停了（video 元素跟着页面一起没了），所以状态要如实改成暂停，
+ * 并记下离开的时刻 —— prompt 里必须说清楚人不在那一屏上了。
+ *
+ * 一直不回来的那种由 sweep() 收场：不起定时器，谁来读谁顺手扫一眼。
+ */
 export function detach() {
   clearInterval(tick); tick = null;
   el = null;
+  if (watch.get().active) watch.set({ playing: false, awayAt: Date.now() });
+}
+
+// 离开多久就算这一场散了。填 0 表示一直留着，要用户自己点结束。
+const awayEnd = () => {
+  const n = Math.round(Number(settings.get().watchAwayEnd) ?? 15);
+  return Number.isFinite(n) && n >= 0 ? n : 15;
+};
+
+/**
+ * 人离开太久就替他收场。**不起定时器** —— 这一场只在被读的时候才有意义，
+ * 所以谁来读谁顺手扫一眼（context、due 都会先叫它）。
+ *
+ * 不收场的话，prompt 会一直说「你正在和对方一起看」，而进度冻在离开那一秒。
+ * 那和三天前的播放记录写成「正在听」是同一类错。
+ */
+export function sweep() {
+  const s = watch.get();
+  if (!s.active || !s.awayAt) return false;
+  const mins = awayEnd();
+  if (!mins || Date.now() - s.awayAt < mins * 60000) return false;
+  stop();
+  return true;
 }
 
 export function toggle(play) {
@@ -127,6 +161,7 @@ const lineCount = () => {
  * 间隔填 0 表示不自动开口，只有你说话她才回。
  */
 export function due() {
+  if (sweep()) return false;
   const s = watch.get();
   const gap = gapOf();
   if (!s.active || !s.playing || !gap) return false;
@@ -142,6 +177,7 @@ export function due() {
 
 /** 注入用的那一份。context/watch.js 读它。 */
 export function context() {
+  if (sweep()) return null;
   const s = watch.get();
   if (!s.active) return null;
   const row = current();
@@ -161,6 +197,7 @@ export function context() {
     outline: video.outlineSoFar(row, s.at),
     quiet: d.quiet,
     talky: d.talky,
+    away: !!s.awayAt,
     seen: !!characters.get(s.charId)?.watchedBefore,
   };
 }
@@ -189,7 +226,8 @@ export function stop() {
   }
   watch.set({
     active: false, chatId: '', charId: '', videoId: '',
-    at: 0, duration: 0, playing: false, seconds: 0, saidAt: -1, said: 0, error: '',
+    at: 0, duration: 0, playing: false, seconds: 0, saidAt: -1, said: 0,
+    awayAt: 0, error: '',
   });
   return record;
 }

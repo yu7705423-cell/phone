@@ -55,6 +55,7 @@ export const DEFAULT_SETTINGS = {
   musicFresh: 120,                // 播放记录超过这么多分钟就不再注入，0 为不限
   watchGap: 90,                   // 一起看时，她两次开口至少隔这么多秒。0 为只在你说话时才回
   watchLines: 8,                  // 每次给她看最近几句台词
+  watchAwayEnd: 15,               // 离开播放页这么多分钟后自动收场。0 为一直留着
   bondAuto: true,                 // S 级记忆有变动时自动重压关系底色
   coreAuto: true,                 // 导入角色卡时顺带生成核心设定
   memoryDepth: 1,                 // 本轮相关记忆插在倒数第几条之前，0 为留在设定区

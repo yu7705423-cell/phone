@@ -27,7 +27,8 @@ export function build() {
   lines.push(c.duration
     ? `当前进度 ${c.stamp}，全片 ${subtitle.stamp(c.duration)}。`
     : `当前进度 ${c.stamp}。`);
-  if (!c.playing) lines.push('画面此刻是暂停的。');
+  if (c.away) lines.push('对方暂时离开了播放页面，画面已暂停，进度停在上述时刻。');
+  else if (!c.playing) lines.push('画面此刻是暂停的。');
 
   lines.push(c.seen
     ? '你以前看过这部片，知道后面会发生什么，但不要说破。'

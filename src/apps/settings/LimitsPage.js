@@ -138,6 +138,13 @@ export function LimitsPage() {
           <${NumberInput} value=${s.watchGap} unit="秒" placeholder="只在你说话时回应"
             onChange=${v => set({ watchGap: v })}/>
         <//>
+        <${Field} label="离开播放页多久后结束"
+          desc="从一起看的播放页退出后，该场不会立即结束，以便中途处理别的事。
+            超过这个时长仍未回到播放页，则自动结束并记录。
+            填 0 表示一直保留，直到手动结束。">
+          <${NumberInput} value=${s.watchAwayEnd} unit="分钟" placeholder="一直保留"
+            onChange=${v => set({ watchAwayEnd: v })}/>
+        <//>
         <${Field} label="每次提供的台词条数"
           desc="注入到 prompt 中的最近台词数量。条数越多角色越清楚上下文，
             占用的 token 也越多。">

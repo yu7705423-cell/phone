@@ -2,7 +2,7 @@ import { html, useState } from '../../../lib.js';
 import { phone, useStore } from '../../../sdk/index.js';
 import { Sheet, Field, Input, Button, Icon, List, ListItem, Switch, toast } from '../../../ui/index.js';
 
-const { db, transfer, currency, place, call, gift, listen, music } = phone;
+const { db, transfer, currency, place, call, gift, listen, music, watch, subtitle } = phone;
 
 // 转账气泡。发出去的那一张不能自己点 —— 收不收是对方的事。
 export function TransferBubble({ msg, onSettle }) {
@@ -200,6 +200,33 @@ export function ListenLogSheet({ msg, onClose }) {
 }
 
 // 会话顶上的播放条。一起听是边聊边听，不该像通话那样把整页盖住。
+// 一起看那一场还开着的时候，会话顶上留一条。
+//
+// 没有它的话，人从播放页退出来，这一场在后台还开着，**界面上一点痕迹都没有**，
+// 只有 prompt 里还写着「你们正在看」。要么回得去，要么收得掉，不能只剩 prompt 知道。
+export function WatchBar({ chatId }) {
+  const s = useStore(watch.watch);
+  useStore(db.videos.store);
+  if (!s.active || s.chatId !== chatId) return null;
+  const row = watch.current();
+
+  return html`
+    <div class="listen-bar">
+      <button class="listen-key press" aria-label="回到播放页"
+        onClick=${() => phone.nav.push(`/watch/${chatId}`)}>
+        <${Icon} name="film" size=${16}/></button>
+      <div class="listen-main" onClick=${() => phone.nav.push(`/watch/${chatId}`)}>
+        <div class="listen-title ellipsis">${row?.title || '一起看'}</div>
+        <div class="listen-sub ellipsis">
+          ${s.awayAt ? '已暂停，点此回到播放页' : `看到 ${subtitle.stamp(s.at)}`}
+          ${` · 本次 ${watch.fmt(s.seconds)}`}
+        </div>
+      </div>
+      <button class="listen-key press" aria-label="结束一起看" onClick=${() => watch.stop()}>
+        <${Icon} name="close" size=${16}/></button>
+    </div>`;
+}
+
 export function ListenBar({ chatId }) {
   const s = useStore(listen.listen);
   useStore(db.songs.store);

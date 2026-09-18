@@ -14,7 +14,8 @@ import { TakeoutBubble, TakeoutSheet, MealSettleSheet, ShareSheet, MoreSheet } f
 import { TransferBubble, NoticeLine, TransferSheet, SettleSheet,
          LocationBubble, LocationSheet, CallBubble, CallLogSheet,
          GiftBubble, GiftSheet, UnwrapSheet,
-         ListenBubble, ListenLogSheet, ListenBar, WatchBubble } from './TransferBits.js';
+         ListenBubble, ListenLogSheet, ListenBar, WatchBubble,
+         WatchBar } from './TransferBits.js';
 
 // panel 这个名字在本文件里已经被「当前开着哪个面板」占了（见下面的 useState），
 // 所以模块换个名字进来 —— 同名会被局部变量盖掉，读出来是 null。
@@ -751,6 +752,7 @@ export function Conversation({ chatId, focusId = '' }) {
         : html`<${IconButton} name="more" onClick=${() => setMenu(true)} label="更多"/>`}>
       <div class="conv">
         <${ListenBar} chatId=${chatId}/>
+        <${WatchBar} chatId=${chatId}/>
         ${(() => {
           const banner = autoReply.bannerOf(chat);
           const left = pace.leftOf(chat);
