@@ -88,7 +88,7 @@ export function ready() { return neteaseReady(); }
 // 每一项单独跑、单独报，不用一个「通过 / 不通过」把话说死：
 // 多数实例是部分可用的（能搜歌，登不了），那也够用。
 
-const probeOne = async (url, ms = 8000) => {
+const probeOne = async (url, ms = 12000) => {
   const ctl = new AbortController();
   const t = setTimeout(() => ctl.abort(), ms);
   const at = Date.now();
@@ -108,6 +108,10 @@ const CHECKS = [
     id: 'reach', label: '连得上',
     desc: '地址通，而且允许这个页面跨域读取。两者缺一个，浏览器里都用不了',
     path: '/search?keywords=%E6%B5%8B%E8%AF%95&limit=1',
+    // 第一下给足时间：托管在 Hugging Face Spaces 一类平台上的实例闲置后
+    // 会睡过去，第一个请求要等它整个起来，几十秒是常事。
+    // 按八秒判超时，会把一个好实例判成死的。
+    ms: 60000,
     judge: r => (r.status === 0 ? [false, r.err] : r.ok ? [true, `${r.ms} 毫秒`] : [false, `返回 ${r.status}`]),
   },
   {
@@ -122,11 +126,39 @@ const CHECKS = [
     },
   },
   {
-    id: 'qr', label: '扫码登录',
-    desc: '登录之后才有个人主页、听歌排行、歌单同步',
+    id: 'qrkey', label: '取登录用的 key',
+    desc: '扫码登录的第一步。这一步不通，登录整条路都走不了',
     path: '/login/qr/key',
     judge: r => (r.status === 0 ? [false, r.err]
-      : r.body?.data?.unikey ? [true, '拿得到二维码'] : [false, `返回 ${r.status}`]),
+      : r.body?.data?.unikey ? [true, '拿得到'] : [false, `返回 ${r.status}`]),
+  },
+  {
+    id: 'qrimg', label: '生成二维码',
+    desc: '第二步。有的实例有 key 却生成不出图，那样扫不了码',
+    // key 现取一个：用假 key 去要图，有的实例会直接拒绝
+    path: null,
+    run: async b => {
+      const k = await probeOne(`${b}/login/qr/key?timestamp=${Date.now()}`);
+      const key = k.body?.data?.unikey;
+      if (!key) return { status: 0, err: '前一步没拿到 key' };
+      return probeOne(`${b}/login/qr/create?qrimg=true&key=${encodeURIComponent(key)}`);
+    },
+    judge: r => {
+      if (r.status === 0) return [false, r.err];
+      const img = r.body?.data?.qrimg;
+      return img && String(img).startsWith('data:') ? [true, '拿得到图'] : [false, `返回 ${r.status}，没有图`];
+    },
+  },
+  {
+    id: 'qrcheck', label: '轮询扫码状态',
+    desc: '第三步。每三秒问一次，扫完确认后由它返回 803 与 cookie',
+    path: '/login/qr/check?key=probe',
+    judge: r => {
+      if (r.status === 0) return [false, r.err];
+      // 拿一个不存在的 key 去问，回一个带 code 的结构就说明这个接口活着
+      return typeof r.body?.code === 'number'
+        ? [true, `活着，返回 ${r.body.code}`] : [false, `返回 ${r.status}`];
+    },
   },
   {
     id: 'cookie', label: '按次传 cookie',
@@ -161,7 +193,7 @@ export async function probe(baseUrl, onStep) {
   if (!b) throw new Error('请先填写地址');
   const out = [];
   for (const c of CHECKS) {
-    const r = await probeOne(b + c.path);
+    const r = c.run ? await c.run(b) : await probeOne(b + c.path, c.ms);
     const [pass, note] = c.judge(r);
     const row = { id: c.id, label: c.label, desc: c.desc, pass, note, ms: r.ms };
     out.push(row);

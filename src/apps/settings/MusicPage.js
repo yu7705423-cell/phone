@@ -45,7 +45,9 @@ export function MusicPage() {
       ${cfg.baseUrl ? html`
         <${List} title="这个地址能不能用">
           <${ListItem} title=${testing ? '测试中' : '测试这个地址'} multiline
-            subtitle="逐项检查连通、跨域、搜歌、扫码登录、cookie 传递与播放地址。仅从本机发起请求。"
+            subtitle=${testing
+              ? '首次访问的实例可能处于休眠状态，唤醒需要数十秒，请等待。'
+              : '逐项检查连通、跨域、搜歌、扫码登录三步、cookie 传递与播放地址。仅从本机发起请求。'}
             left=${testing ? html`<${Spinner} size=${16}/>` : html`<${Icon} name="compass" size=${18}/>`}
             arrow onClick=${() => !testing && probe()}/>
           ${(rows || []).map(r => html`
