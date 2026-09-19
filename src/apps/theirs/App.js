@@ -6,6 +6,9 @@ import { HomePage } from './pages/HomePage.js';
 import { ShelfPage } from './pages/ShelfPage.js';
 import { BodyPage } from './pages/BodyPage.js';
 import { DayPage } from './pages/DayPage.js';
+import { NotesPage } from './pages/NotesPage.js';
+import { BrowserPage } from './pages/BrowserPage.js';
+import { MakePage } from './pages/MakePage.js';
 
 // 角色手机。**拿起角色那台手机看一眼。**
 //
@@ -40,16 +43,17 @@ function Guard({ charId, children }) {
 }
 
 export default function TheirsApp({ route }) {
-  const m = String(route || '/').match(/^\/(home|shelf|body|day|lock)\/(.+)$/);
+  const m = String(route || '/').match(/^\/(home|shelf|body|day|notes|browser|make|lock)\/(.+)$/);
   if (m) {
     const [, page, charId] = m;
     // 锁屏本身单独一条路由：主屏上的「锁上」按它回到这儿
     if (page === 'lock') return html`<${LockPage} charId=${charId}/>`;
-    const inner = page === 'home' ? html`<${HomePage} charId=${charId}/>`
-      : page === 'shelf' ? html`<${ShelfPage} charId=${charId}/>`
-      : page === 'body' ? html`<${BodyPage} charId=${charId}/>`
-      : html`<${DayPage} charId=${charId}/>`;
-    return html`<${Guard} charId=${charId}>${inner}<//>`;
+    const PAGES = {
+      home: HomePage, shelf: ShelfPage, body: BodyPage, day: DayPage,
+      notes: NotesPage, browser: BrowserPage, make: MakePage,
+    };
+    const Inner = PAGES[page] || HomePage;
+    return html`<${Guard} charId=${charId}><${Inner} charId=${charId}/><//>`;
   }
   return html`<${PickPage}/>`;
 }

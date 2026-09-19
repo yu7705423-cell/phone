@@ -32,6 +32,8 @@ export function HomePage({ charId }) {
   }
 
   const books = shelf.listOf(charId);
+  const notes = theirs.notesOf(charId);
+  const visits = theirs.visitsOf(charId);
   const d = day.today(charId);
   const body = health.dayOf(charId);
   const bodyOn = health.charOn(charId);
@@ -51,6 +53,14 @@ export function HomePage({ charId }) {
       id: 'day', icon: 'calendar', label: '今天',
       sub: d ? `${(d.items || []).length} 项安排` : '今天还没有安排',
       to: `/day/${charId}`,
+    },
+    notes.length && {
+      id: 'notes', icon: 'notes', label: '备忘录',
+      sub: `${notes.length} 条`, to: `/notes/${charId}`,
+    },
+    visits.length && {
+      id: 'browser', icon: 'search', label: '浏览器',
+      sub: `${visits.length} 条记录`, to: `/browser/${charId}`,
     },
   ].filter(Boolean);
 
@@ -82,9 +92,16 @@ export function HomePage({ charId }) {
           </div>`
         : html`
           <div class="tp-empty">
-            这台手机上还没有内容。在角色卡中开启「今天」或「身体状态」，
-            或者为该角色添加书架，之后会出现在这里。
+            这台手机上还没有内容。可以依据该角色的设定生成，
+            也可以在角色卡中开启「今天」与「身体状态」，或为该角色添加书架。
           </div>`}
+
+        <div class="tp-make">
+          <button class="press" onClick=${() => nav.push(`/make/${charId}`)}>
+            <${Icon} name="sparkle" size=${15}/>
+            <span>${tiles.length ? '生成更多内容' : '生成这台手机里的内容'}</span>
+          </button>
+        </div>
       <//>
     <//>`;
 }

@@ -79,6 +79,46 @@ export const isOpen = charId => opened.has(charId);
 export const open = charId => opened.add(charId);
 export const relock = charId => opened.delete(charId);
 
+// ---- 备忘录与浏览记录 ----
+//
+// 两样都存在 phones 那一行里，各是一个数组。**追加不覆盖**：
+// 再生成一次是往后加，不是把上一次的抹掉 —— 抹掉的话「再来一次」
+// 就成了「重掷一次」，上一次里合意的那几条也跟着没了。
+
+const cap = (v, n) => String(v ?? '').trim().slice(0, n);
+
+export const notesOf = charId => get(charId)?.notes || [];
+
+export function addNotes(charId, rows) {
+  const clean = (rows || [])
+    .map(r => ({ title: cap(r?.title, 20), text: cap(r?.text, 400) }))
+    .filter(r => r.title || r.text);
+  if (!clean.length) return [];
+  const next = [...notesOf(charId), ...clean];
+  set(charId, { notes: next });
+  return clean;
+}
+
+export const removeNote = (charId, i) => set(charId, {
+  notes: notesOf(charId).filter((_, k) => k !== i),
+});
+
+export const visitsOf = charId => get(charId)?.visits || [];
+
+export function addVisits(charId, rows) {
+  const clean = (rows || [])
+    .map(r => ({ query: cap(r?.query, 40), site: cap(r?.site, 30) }))
+    .filter(r => r.query);
+  if (!clean.length) return [];
+  const next = [...clean, ...visitsOf(charId)];   // 新的在前，和真的浏览记录一样
+  set(charId, { visits: next });
+  return clean;
+}
+
+export const removeVisit = (charId, i) => set(charId, {
+  visits: visitsOf(charId).filter((_, k) => k !== i),
+});
+
 // ---- 那台手机里的会话 ----
 //
 // phoneChats 这个域已经建好、也登记进备份了，但**存取函数等聊天那一块再写**：

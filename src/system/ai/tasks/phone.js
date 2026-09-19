@@ -45,3 +45,63 @@ export async function makeLock(charId, { digits = 4 } = {}) {
   theirs.setLock(charId, { code, why: str(out?.why), hints });
   return { digits: n, hints: hints.length };
 }
+
+// ---- 一个 app 一次请求 ----
+//
+// **不把整台手机塞进一次请求里。** 一次要得太多，模型常常只写出前几项就收尾，
+// 后面那几个 app 空着，而且失败一次要从头再来。一个 app 一次，坏了只重来那一个。
+//
+// 每一次都把已经有的那些发过去，让它别重复 —— 这也是「再生成一次」
+// 能往后加而不是重掷的前提。
+
+/** 一个 app 一条：id、名字、生成函数。生成页照着这一份列。 */
+export const MAKERS = [
+  { id: 'notes', label: '备忘录', unit: '条', run: makeNotes },
+  { id: 'visits', label: '浏览记录', unit: '条', run: makeVisits },
+];
+
+export async function makeNotes(charId, { count = 6 } = {}) {
+  const char = characters.get(charId);
+  if (!char) throw new Error('角色不存在');
+  const n = Math.max(1, Math.round(count) || 0);
+  const have = theirs.notesOf(charId);
+
+  const out = await runJSONTask('phone.notes', {
+    system: fillTemplate(template('task.phone-notes'), {
+      charName: char.name || '该角色',
+      charPersona: personaOf(char),
+      count: n,
+      existing: have.map(x => `- ${x.title}`).join('\n') || '（还没有）',
+    }),
+    key: `phone-notes:${charId}:${Date.now()}`,
+    maxTokens: 400 + n * 120,
+  });
+
+  const rows = Array.isArray(out?.notes) ? out.notes : [];
+  const added = theirs.addNotes(charId, rows);
+  if (!added.length) throw new Error('这一次没有生成出内容，可以再试一次');
+  return added.length;
+}
+
+export async function makeVisits(charId, { count = 10 } = {}) {
+  const char = characters.get(charId);
+  if (!char) throw new Error('角色不存在');
+  const n = Math.max(1, Math.round(count) || 0);
+  const have = theirs.visitsOf(charId);
+
+  const out = await runJSONTask('phone.visits', {
+    system: fillTemplate(template('task.phone-visits'), {
+      charName: char.name || '该角色',
+      charPersona: personaOf(char),
+      count: n,
+      existing: have.map(x => `- ${x.query}`).join('\n') || '（还没有）',
+    }),
+    key: `phone-visits:${charId}:${Date.now()}`,
+    maxTokens: 300 + n * 40,
+  });
+
+  const rows = Array.isArray(out?.visits) ? out.visits : [];
+  const added = theirs.addVisits(charId, rows);
+  if (!added.length) throw new Error('这一次没有生成出内容，可以再试一次');
+  return added.length;
+}

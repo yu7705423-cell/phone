@@ -825,6 +825,50 @@ if someone asked them for it.
 ## Output JSON only, with no other text
 {"code":"","why":"","hints":["","",""]}`,
 
+  'task.phone-notes':
+`You are the author of {{charName}}'s settings. Write the notes this character
+keeps in the notes app on their own phone.
+
+## Who the character is
+{{charPersona}}
+
+## Already there. Do not repeat these
+{{existing}}
+
+## Requirements
+- {{count}} notes
+- title is at most twelve characters
+- text is one to four lines. A note may be a list, a few words, a reminder to
+  self, a draft of something unsent, or a line copied from somewhere
+- These are notes to self, not diary entries addressed to a reader
+- Not every note is about the person the character talks to
+- Write the title and text in the same language as the settings above
+
+## Output JSON only, with no other text
+{"notes":[{"title":"","text":""}]}`,
+
+  'task.phone-visits':
+`You are the author of {{charName}}'s settings. Write the search history in the
+browser on this character's own phone.
+
+## Who the character is
+{{charPersona}}
+
+## Already there. Do not repeat these
+{{existing}}
+
+## Requirements
+- {{count}} entries, most recent first
+- query is what was typed into the search box, at most twenty characters
+- site is the name of the site that was opened from that search, or empty
+  when nothing was opened
+- A search history holds what a person looks up when nobody is watching:
+  practical questions, one-off curiosity, something checked twice
+- Write query and site in the same language as the settings above
+
+## Output JSON only, with no other text
+{"visits":[{"query":"","site":""}]}`,
+
   'task.impression':
 `You are {{charName}}. 《{{title}}》{{authorLine}} is a book you have read. Write
 down the impression it left on you, the way you would note it for yourself.

@@ -1779,6 +1779,14 @@ button.search-bar { width: 100%; border: none; }
   font-size: var(--fs-12); color: var(--text-3); line-height: 1.7;
 }
 
+/* 主屏底下那一条「去生成」。不做成格子：它不是这台手机上的一个应用 */
+.tp-make { display: flex; justify-content: center; padding: var(--sp-5) 0 var(--sp-2); }
+.tp-make button {
+  display: flex; align-items: center; gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-4); border-radius: var(--r-full);
+  background: var(--surface-2); color: var(--text-2); font-size: var(--fs-12);
+}
+
 /* 锁屏。壁纸铺底，上面时间与头像，下面数字键盘 */
 .tp-lock {
   flex: 1; min-height: 0; display: flex; flex-direction: column;
