@@ -7,31 +7,121 @@ import { IconButton } from './basic.js';
 // 返回键在左上角，那是右手拇指最够不着的一个角。真机上谁也不去点它，
 // 都是从边上划。所以这个手势不是锦上添花，它才是主路。
 //
-// 只认**起手在左边缘 24 像素以内**的那一划，横向位移也要明显大于纵向 ——
-// 否则页面里任何一次斜着的滑动都会把人划出去。
-const EDGE = 24;
-const GO = 64;
+// **只认起手落在左边缘那一条里的。** 横着的手势在这个项目里已经有主了：
+// 主屏是一页一页翻的，列表里的长按靠 touchmove 取消，表情面板、头像池这些
+// 还横着滚。限制在边缘那一条里，谁都不抢。iOS 自己也是这么分的。
+//
+// **跟着手指走，松手再决定。** 从前是松手那一刻直接跳，中途看出不对也收不回来
+// —— 而这个项目里退出一页常常意味着那一屏的状态没了（写了一半的消息、
+// 选了一半的多选）。现在页面跟着手指平移，松手时没走够就弹回去。
+//
+// **退到哪儿由这一页自己的 onBack 决定，不是统一 nav.pop。** 一百多页里有七页
+// 的返回是「退出多选」「关掉预览」这种页内的事，统一处理会把它们一起退掉。
+//
+// 三处不接这一下：
+//   一、弹窗或底部浮层开着的时候（.overlay）。它们各有各的关法，而且盖在上面，
+//       底下这层跟着手指动会很怪。整屏浮层（.fullsheet）不在此列 ——
+//       它自带一个 Page，那一层自己接。
+//   二、起手落在横向滚得动的东西里。那一下是人家的。
+//   三、挂了 .no-edge-back 的地方。自己要用这个方向的页面写上它。
+//
+// 嵌套的两层 Page（整屏浮层盖在应用页上）只能有一层接：事件会往上冒，
+// 两层都接就是关掉浮层的同时把底下那页也退了。所以起手时认一下
+// 最近的那个 .page 是不是自己。
+
+const EDGE = 24;      // 起手必须落在最左边这么宽的一条里
+const OWN = 8;        // 横向先走够这么多，这一下才算归我
+const TAKE = 0.3;     // 松手时走过页宽的这个比例就算完成
+const FLING = 0.5;    // px/ms。甩得够快，没走够距离也算
+
+/** 从这个节点往上找到 stop 为止，路上有没有横着滚得动的容器。 */
+function scrollsSideways(node, stop) {
+  for (let n = node; n && n !== stop; n = n.parentElement) {
+    if (n.scrollWidth > n.clientWidth + 1) {
+      const ox = getComputedStyle(n).overflowX;
+      if (ox === 'auto' || ox === 'scroll') return true;
+    }
+  }
+  return false;
+}
+
+/** 这个元素上的过渡有多长。时长写在 tokens.css 里，这边只管读。 */
+function durOf(el) {
+  const raw = (getComputedStyle(el).transitionDuration || '0s').split(',')[0].trim();
+  const n = parseFloat(raw) || 0;
+  return raw.endsWith('ms') ? n : n * 1000;
+}
 
 function useSwipeBack(onBack) {
-  const t = useRef(null);
-  if (!onBack) return {};
-  return {
+  // hook 一律无条件调用，不能因为这一页没有返回就少调一个
+  const ref = useRef(null);
+  const g = useRef(null);
+
+  const settle = go => {
+    const el = ref.current;
+    g.current = null;
+    if (!el) return;
+    el.classList.remove('is-swiping');
+    el.classList.add('is-settling');
+    el.style.transform = go ? 'translateX(100%)' : 'translateX(0)';
+    setTimeout(() => {
+      el.classList.remove('is-settling');
+      el.style.transform = '';
+      if (go && onBack) onBack();
+    }, durOf(el));
+  };
+
+  const handlers = {
     onTouchStart: e => {
+      g.current = null;
+      if (!onBack || e.touches.length !== 1) return;
       const p = e.touches[0];
-      t.current = p && p.clientX <= EDGE ? { x: p.clientX, y: p.clientY } : null;
+      if (p.clientX > EDGE) return;
+      if (document.querySelector('.overlay')) return;
+      const t = e.target;
+      if (!t.closest || t.closest('.page') !== ref.current) return;
+      if (t.closest('.no-edge-back')) return;
+      if (scrollsSideways(t, ref.current)) return;
+      const now = performance.now();
+      g.current = { x: p.clientX, y: p.clientY, t: now, lx: p.clientX, lt: now, own: false };
     },
-    onTouchEnd: e => {
-      const s = t.current;
-      t.current = null;
+
+    onTouchMove: e => {
+      const s = g.current;
       if (!s) return;
-      const p = e.changedTouches[0];
+      const p = e.touches[0];
       if (!p) return;
       const dx = p.clientX - s.x;
-      const dy = Math.abs(p.clientY - s.y);
-      if (dx > GO && dx > dy * 1.5) onBack();
+      const dy = p.clientY - s.y;
+      if (!s.own) {
+        // 往回走、或者竖着走得更多，那是别人的手势，让开
+        if (dx < 0 || Math.abs(dy) > Math.abs(dx)) { g.current = null; return; }
+        if (dx < OWN) return;
+        s.own = true;
+        ref.current?.classList.add('is-swiping');
+      }
+      // 归我了才拦。拦早了会把正常的竖向滚动也吃掉
+      e.preventDefault();
+      s.lx = p.clientX;
+      s.lt = performance.now();
+      if (ref.current) ref.current.style.transform = `translateX(${Math.max(0, dx)}px)`;
     },
-    onTouchCancel: () => { t.current = null; },
+
+    onTouchEnd: () => {
+      const s = g.current;
+      if (!s) return;
+      if (!s.own) { g.current = null; return; }
+      const moved = Math.max(0, s.lx - s.x);
+      const speed = moved / Math.max(1, s.lt - s.t);
+      const width = ref.current?.clientWidth || 1;
+      settle(moved > width * TAKE || speed > FLING);
+    },
+
+    onTouchCancel: () => {
+      if (g.current?.own) settle(false); else g.current = null;
+    },
   };
+  return { ref, handlers };
 }
 
 // 所有页面必须包在 Page 里。滚动、安全区、导航栏、应用内 TabBar 由它统一处理。
@@ -47,7 +137,7 @@ export function Page({ title, onBack, right, tabs, children, noScroll,
   const swipe = useSwipeBack(onBack);
 
   return html`
-    <div class="page" ...${swipe}>
+    <div class="page" ref=${swipe.ref} ...${swipe.handlers}>
       ${(title || onBack || right) ? html`
         <div class="navbar">
           <div class="nav-left">

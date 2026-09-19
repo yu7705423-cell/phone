@@ -2,6 +2,14 @@
 
 /* ---- Page ---- */
 .page { height: 100%; display: flex; flex-direction: column; background: var(--bg); }
+/* 左边缘往右滑返回。逻辑在 ui/page.js */
+/* 跟着手指走的那一段：不要过渡，否则手指到哪儿它慢半拍 */
+.page.is-swiping { transition: none; will-change: transform; }
+/* 松手之后补完或者弹回去。page.js 按这条过渡的时长决定什么时候收尾 */
+.page.is-settling { transition: transform var(--dur) var(--ease); }
+/* 让出来的那一条是外壳底色。给这一页压一道阴影，看着才像一层浮起来往右挪，
+   而不是页面裂了一道缝 */
+.page.is-swiping, .page.is-settling { box-shadow: var(--shadow-3); }
 .page-body { flex: 1; min-height: 0; }
 /* 底下没有页签栏时，滚动区一直铺到屏幕底，最后一行会压在 Home Indicator 下面。
    有页签栏的那些不加 —— 页签栏自己已经把安全区让出来了。 */
