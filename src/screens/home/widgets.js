@@ -177,6 +177,7 @@ export const HEALTH_STATS = [
   { id: 'water', label: '喝水' },
   { id: 'weight', label: '体重' },
   { id: 'mood', label: '心情' },
+  { id: 'poop', label: '排便' },
 ];
 
 export const HEALTH_DEFAULT = { show: ['sleep', 'steps', 'water'] };
@@ -195,6 +196,7 @@ function healthValue(id, d) {
   if (id === 'water') return String(d.water || 0);
   if (id === 'weight') return d.weight ? String(health.toDisplay(d.weight)) : '—';
   if (id === 'mood') return health.moodOf(d.mood)?.label || '—';
+  if (id === 'poop') return String(d.poop || 0);
   return '—';
 }
 

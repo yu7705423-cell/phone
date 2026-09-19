@@ -60,7 +60,7 @@ export function SettingsPage() {
         <${List} title="系统健康数据">
           <${ListItem} title=${syncing ? '正在同步' : '从「健康」app 同步'} arrow multiline
             subtitle=${hkNote || '读取最近 30 天的睡眠、步数、体重与饮水，写进每日记录。'
-              + '心情、不适、备注与用药是手记的，同步不会改动。'
+              + '心情、不适、排便、备注与用药是手记的，同步不会改动。'
               + '首次使用会弹出系统授权，给哪几项由你在那张表上决定。'}
             left=${html`<${Icon} name="pulse" size=${18}/>`}
             onClick=${() => !syncing && syncHK()}/>
@@ -84,9 +84,15 @@ export function SettingsPage() {
           right=${html`<${Switch} checked=${s.healthCycleInject === true}
             onChange=${v => set({ healthCycleInject: v })}
             disabled=${s.healthInject !== true}/>`}/>
+        <${ListItem} title="排便也一并写进去" multiline
+          subtitle=${'单独一道开关。开启后只写当天的次数与记下的形态，不写别的。'
+            + '关闭则一个字都不写。'}
+          right=${html`<${Switch} checked=${s.healthPoopInject === true}
+            onChange=${v => set({ healthPoopInject: v })}
+            disabled=${s.healthInject !== true}/>`}/>
       <//>
       ${s.healthInject === true ? null : html`
-        <div class="settings-foot">上一项关闭时，经期开关不生效。</div>`}
+        <div class="settings-foot">第一项关闭时，经期与排便两个开关都不生效。</div>`}
 
       <${List} title="角色的身体状态">
         ${chars.map(c => html`

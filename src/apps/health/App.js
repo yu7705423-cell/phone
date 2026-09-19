@@ -1,6 +1,6 @@
 import { html, useState } from '../../lib.js';
 import { phone, useStore } from '../../sdk/index.js';
-import { Page, List, ListItem, Field, Input, Segmented, Icon, Button,
+import { Page, List, ListItem, Field, Input, NumberInput, Segmented, Icon, Button,
          Sheet, toast } from '../../ui/index.js';
 import { LogPage } from './pages/LogPage.js';
 import { CyclePage } from './pages/CyclePage.js';
@@ -79,6 +79,24 @@ function Today() {
                 onClick=${() => health.toggleSymptom(health.ME, date, sy.id)}>${sy.label}</button>`)}
           </div>
         <//>
+        <${Field} label="排便" desc="次数不设上限。没有就填 0，或者空着。">
+          <${NumberInput} value=${d.poop || 0} unit="次" min=${0}
+            placeholder="0"
+            onChange=${n => health.set(health.ME, date,
+              // 次数归零时把形态一并清掉，不然会剩下一个没有次数的形态
+              n > 0 ? { poop: n } : { poop: 0, poopForm: '' })}/>
+        <//>
+        ${d.poop > 0 ? html`
+          <${Field} label="形态"
+            desc="按布里斯托分型，从硬到稀七档。只记外观，不作任何判断。可留空。">
+            <div class="chip-row">
+              ${health.POOP_FORMS.map(f => html`
+                <button key=${f.id}
+                  class=${`chip${d.poopForm === f.id ? ' is-active' : ''}`}
+                  onClick=${() => health.set(health.ME, date,
+                    { poopForm: d.poopForm === f.id ? '' : f.id })}>${f.label}</button>`)}
+            </div>
+          <//>` : null}
         <${Field} label="另外记一句" desc="可留空。">
           <${Input} value=${d.note} placeholder="可留空"
             onInput=${v => health.set(health.ME, date, { note: v.slice(0, 200) })}/>

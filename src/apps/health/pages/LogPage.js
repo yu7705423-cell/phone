@@ -8,6 +8,7 @@ const FIELDS = [
   { id: 'weight', label: '体重', pick: r => r.weight, fmt: v => `${health.toDisplay(v)} ${health.unit()}` },
   { id: 'sleepMin', label: '睡眠', pick: r => r.sleepMin, fmt: v => health.fmtSleep(v) },
   { id: 'steps', label: '步数', pick: r => r.steps, fmt: v => v.toLocaleString() },
+  { id: 'poop', label: '排便', pick: r => r.poop, fmt: v => `${v} 次` },
 ];
 
 // 一条极简折线。黑白，跟着 currentColor 走，不引入任何色相（第 4 条）
@@ -80,6 +81,8 @@ export function LogPage() {
             r.steps ? `${r.steps.toLocaleString()} 步` : '',
             r.weight ? `${health.toDisplay(r.weight)} ${health.unit()}` : '',
             r.water ? `${r.water} 杯水` : '',
+            r.poop ? `排便 ${r.poop} 次${health.poopFormOf(r.poopForm)
+              ? `（${health.poopFormOf(r.poopForm).label}）` : ''}` : '',
             health.moodOf(r.mood)?.label,
             health.energyOf(r.energy)?.label,
             (r.symptoms || []).map(x => health.symptomOf(x)?.label).filter(Boolean).join('、'),

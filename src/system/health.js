@@ -42,9 +42,25 @@ export const SYMPTOMS = [
   { id: 'dizzy', label: '头晕' },
 ];
 
+// 排便。记两样：**次数**和**形态**。
+//
+// 形态按布里斯托分型那七档写，从硬到稀。**七档只描述外观，不下结论** ——
+// 这里不写「便秘」「腹泻」，那是判断，这个 app 不做判断（第 16 条）。
+// 看见「一颗颗硬球」之后想到什么，是你自己的事，也是角色按人设自己的事。
+export const POOP_FORMS = [
+  { id: 'b1', label: '一颗颗硬球' },
+  { id: 'b2', label: '块状凹凸' },
+  { id: 'b3', label: '表面有裂痕' },
+  { id: 'b4', label: '表面光滑' },
+  { id: 'b5', label: '软块' },
+  { id: 'b6', label: '糊状' },
+  { id: 'b7', label: '水样' },
+];
+
 export const moodOf = id => MOODS.find(m => m.id === id) || null;
 export const energyOf = id => ENERGY.find(e => e.id === id) || null;
 export const symptomOf = id => SYMPTOMS.find(s => s.id === id) || null;
+export const poopFormOf = id => POOP_FORMS.find(p => p.id === id) || null;
 
 const pad = n => String(n).padStart(2, '0');
 
@@ -69,6 +85,7 @@ export function daysBetween(a, b) {
 
 const blank = (who, date) => ({
   who, date, sleepMin: 0, sleepAt: '', steps: 0, weight: 0, water: 0,
+  poop: 0, poopForm: '',
   mood: '', energy: '', symptoms: [], note: '', took: [], source: 'manual',
 });
 

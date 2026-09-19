@@ -151,6 +151,8 @@ export const DEFAULT_SETTINGS = {
   healthInject: false,
   // 经期单独一道开关，上面那个开着也不代表这一项跟着出去
   healthCycleInject: false,
+  // 排便同样单独一道。和经期一个道理：比睡眠步数更私密，不跟着总开关走
+  healthPoopInject: false,
   medRemind: true,                // 用药到点提醒。本地通知，不调接口
 
   // 全屏看片默认转成横屏。片子是 16:9 的，竖着全屏等于白全屏。

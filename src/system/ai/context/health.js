@@ -16,7 +16,7 @@ import * as accounts from '../../accounts.js';
 export const meta = {
   id: 'health',
   label: '身体状况',
-  desc: '当天的睡眠、步数、体重、饮水、心情与不适。需在「健康 - 设置」中开启；经期另有一道开关',
+  desc: '当天的睡眠、步数、体重、饮水、心情与不适。需在「健康 - 设置」中开启；经期与排便另有各自的开关',
 };
 
 const listOf = ids => ids.map(x => health.symptomOf(x)?.label).filter(Boolean).join('、');
@@ -39,6 +39,14 @@ function mine() {
   if (d.energy) out.push(`Energy: ${health.energyOf(d.energy)?.label}.`);
   if ((d.symptoms || []).length) out.push(`Unwell: ${listOf(d.symptoms)}.`);
   if (d.note) out.push(`Also noted: ${d.note}`);
+
+  // 排便单独一道开关。写的也只是次数与形态这两个记下来的事实，
+  // 形态那一档的原话照抄，不翻译也不改写成结论（第 14、16 条）
+  if (settings.get().healthPoopInject === true && d.poop) {
+    const form = health.poopFormOf(d.poopForm);
+    out.push(`Bowel movements: ${d.poop} today`
+      + (form ? `, recorded form: ${form.label}.` : '.'));
+  }
 
   if (settings.get().healthCycleInject === true) {
     const open = health.openCycle();
