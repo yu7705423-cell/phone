@@ -157,6 +157,8 @@ export async function add({ title, author = '', kind = 'txt', text, chapters, co
     at: 0, lastAt: Date.now(),
   });
   texts.set(row.id, body);
+  // 各个角色书架上同名的占位，接上这本真书
+  import('./shelf.js').then(m => m.linkImported(row.id)).catch(() => {});
   return row;
 }
 
@@ -166,6 +168,7 @@ export function remove(id) {
   if (row.fileId) files.remove(row.fileId);
   if (row.cover) images.remove(row.cover);
   texts.delete(id);
+  import('./shelf.js').then(m => m.unlinkBook(id)).catch(() => {});
   return ebooks.remove(id);
 }
 

@@ -1402,3 +1402,24 @@ button.search-bar { width: 100%; border: none; }
   margin-bottom: var(--sp-2);
 }
 .rd-say-line:last-child { margin-bottom: 0; }
+
+/* ---- 角色的书架 ---- */
+.shelf-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: var(--sp-4); padding: var(--sp-4) var(--sp-5);
+}
+.shelf-item {
+  display: flex; flex-direction: column; gap: 6px;
+  background: none; border: 0; padding: 0; text-align: left;
+}
+.shelf-item.is-ghost { opacity: .55; }
+.shelf-cover {
+  width: 100%; aspect-ratio: 2 / 3; border-radius: var(--r-sm);
+  background: var(--surface-3); background-size: cover; background-position: center;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-3); box-shadow: var(--shadow-1);
+}
+.shelf-cover.mini { width: 30px; aspect-ratio: 2 / 3; border-radius: var(--r-xs); }
+.shelf-cover.has-image { color: transparent; }
+.shelf-name { font-size: var(--fs-13); color: var(--text); }
+.shelf-sub { font-size: var(--fs-11); color: var(--text-3); }

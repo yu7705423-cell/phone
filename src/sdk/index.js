@@ -67,6 +67,8 @@ import * as purgeApi from '../system/purge.js';
 import * as charpackApi from '../system/charpack.js';
 import * as bookApi from '../system/book.js';
 import * as readApi from '../system/read.js';
+import * as shelfApi from '../system/shelf.js';
+import * as booksearchApi from '../system/booksearch.js';
 import * as playerApi from '../system/player.js';
 import * as videoApi from '../system/video.js';
 import * as watchApi from '../system/watch.js';
@@ -214,6 +216,8 @@ export const phone = {
   charpack: charpackApi,
   book: bookApi,
   read: readApi,
+  shelf: shelfApi,
+  booksearch: booksearchApi,
   player: playerApi,
   video: videoApi,
   watch: watchApi,

@@ -27,7 +27,7 @@ const ROUTES = {
   music: ['/', '/library', '/list/1'],
   bill: ['/', '/books', '/accounts', '/rules'],
   theater: ['/', '/videos', '/books', '/settings', '/watch/:chat', '/book/:ebook',
-    '/read/:ebook', '/together/:chat/:ebook'],
+    '/read/:ebook', '/together/:chat/:ebook', '/shelf/:char'],
   settings: ['/', '/api', '/voice', '/image', '/embed', '/notify', '/music',
     '/appearance', '/storage', '/trace', '/vision', '/asr', '/limits', '/search', '/translate', '/memoryapi'],
 };
@@ -137,6 +137,9 @@ const ids = await page.evaluate(async () => {
       { title: '第二章 旅馆', start: 20, end: 44 }],
   });
   bookMod.setAt(ebk.id, 10);
+  const shelfMod = await import('/src/system/shelf.js');
+  shelfMod.add(a.id, { title: '雨城旧事', author: '某人' });
+  shelfMod.add(a.id, { title: '还没导入的那本', author: '别人' });
   const videoMod = await import('/src/system/video.js');
   videoMod.addVideo({ title: '一部片子', url: 'https://example.com/a.mp4',
     subtitle: '1\n00:00:01,000 --> 00:00:04,000\n第一句\n' });

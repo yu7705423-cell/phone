@@ -294,6 +294,16 @@ export function CharacterEdit({ id }) {
             onChange=${v => patch({ watchedBefore: v })}/>`}/>
       <//>
 
+      <${List} title="她的书架">
+        <${ListItem} title="个人书架" arrow multiline
+          subtitle=${(() => {
+            const n = (char.shelf || []).length;
+            return n ? `${n} 本。导入同名的书之后可以一起读` : '还没有。放上几本这个角色读过的书';
+          })()}
+          left=${html`<${Icon} name="book" size=${18}/>`}
+          onClick=${() => phone.intent.open('theater', { route: `/shelf/${id}` })}/>
+      <//>
+
       <${List} title="清除数据">
         <${ListItem} title="清空聊天记录" danger arrow multiline
           subtitle=${n.chats > 1

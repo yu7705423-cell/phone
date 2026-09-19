@@ -31,6 +31,8 @@ export const EMPTY_SERVICES = {
   // realIP：接口转交网易云当作请求来源。境外 IP 会被风控拦下（code -462），
   //   填一个中国大陆 IP 就绕开了。留空则不带。
   netease: { baseUrl: '', realIP: '', cookie: '', nickname: '', uid: '', sync: false, recentGap: 5 },
+  // 书目。只查书名作者封面这类元数据，不碰书的文件。两家都不要密钥
+  books: { provider: '' },
 };
 
 export function services() {
@@ -46,6 +48,7 @@ export function services() {
     translate: { ...EMPTY_SERVICES.translate, ...(s?.translate || {}) },
     search: { ...EMPTY_SERVICES.search, ...(s?.search || {}) },
     netease: { ...EMPTY_SERVICES.netease, ...(s?.netease || {}) },
+    books: { ...EMPTY_SERVICES.books, ...(s?.books || {}) },
   };
 }
 
@@ -225,3 +228,5 @@ export function migrateLegacy() {
     model: s.model, effort: s.effort, temperature: s.temperature,
   });
 }
+
+export function setBooks(patch) { write({ books: { ...services().books, ...patch } }); }
