@@ -29,6 +29,7 @@ const ROUTES = {
   theater: ['/', '/videos', '/books', '/settings', '/watch/:chat', '/book/:ebook',
     '/read/:ebook', '/together/:chat/:ebook', '/shelf/:char',
     '/reviews/book/:ebook', '/reviews/video/:video', '/para/book/:ebook/0', '/para/video/:video/1'],
+  album: ['/', '/album/:alb', '/photo/:pho', '/photo/:card'],
   health: ['/', '/log', '/cycle', '/meds', '/settings', '/char/:char'],
   settings: ['/', '/api', '/voice', '/image', '/embed', '/notify', '/music',
     '/appearance', '/storage', '/trace', '/vision', '/asr', '/limits', '/search', '/translate', '/memoryapi'],
@@ -137,6 +138,19 @@ const ids = await page.evaluate(async () => {
   const okd = rq.send({ chatId: chat.id, role: 'char', authorId: a.id, kind: rq.CARD, amount: 300 });
   rq.settle(okd.id, true);
 
+  // 相册：一本相册、一张图、一张卡片，三种都要有
+  const alb = await import('/src/system/album.js');
+  const book1 = alb.createAlbum('她发的图');
+  const blank = await (await fetch('data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==')).blob();
+  const imgId = await db.images.put(new File([blank], 'a.gif', { type: 'image/gif' }));
+  const pho = alb.saveImage({ imageId: imgId, albumId: book1.id,
+    from: { chatId: chat.id, charId: a.id, name: '甲', at: Date.now() } });
+  const cardPhoto = await alb.saveCard({
+    msgs: alb.freeze([{ id: 'm1', role: 'char', authorId: a.id, kind: 'text',
+      content: '这一条存进了相册。', createdAt: Date.now() }], { meName: '我' }),
+    css: '.bubble { border-radius: 2px }', title: '甲',
+  });
+
   // 健康。每一页都要有东西，空状态跑不出真问题
   const hl = await import('/src/system/health.js');
   const today = hl.dateKey();
@@ -177,7 +191,8 @@ const ids = await page.evaluate(async () => {
   db.reviews.create({ kind: 'book', subjectId: ebk.id, charId: a.id, title: '雨城旧事',
     text: '看完之后想起一件事。\n第二段。', at: 10, createdAt: Date.now() });
 
-  return { char: a.id, chat: chat.id, mem: mem.id, persona: me.id, book: bk.id, ebook: ebk.id, video: vid.id, lore: lore.id };
+  return { char: a.id, chat: chat.id, mem: mem.id, persona: me.id, book: bk.id, ebook: ebk.id, video: vid.id, lore: lore.id,
+    alb: book1.id, pho: pho.id, card: cardPhoto.id };
 });
 await page.waitForTimeout(400);
 

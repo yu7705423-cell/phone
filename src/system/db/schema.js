@@ -1,5 +1,5 @@
 export const DB_NAME = 'phone';
-export const DB_VERSION = 15;
+export const DB_VERSION = 16;
 
 // 每个数据域一个对象仓库。新增仓库时提升 DB_VERSION 并在 upgrade 里补建。
 export const STORES = [
@@ -13,6 +13,7 @@ export const STORES = [
   'books', 'entries',
   'ebooks', 'reviews', 'readnotes',
   'health', 'cycles', 'meds',
+  'albums', 'photos', 'shots',
   'images', 'files', 'kv',
 ];
 

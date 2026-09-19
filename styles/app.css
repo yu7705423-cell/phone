@@ -1708,3 +1708,33 @@ button.search-bar { width: 100%; border: none; }
   display: flex; justify-content: space-between;
   font-size: var(--fs-11); color: var(--text-3); padding-top: var(--sp-2);
 }
+
+/* ---- 相册 ---- */
+.ph-grid {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 3px; padding: 0 var(--sp-3) var(--sp-4);
+}
+.ph-cell { padding: 0; border: 0; background: none; min-width: 0; }
+.ph-tile {
+  width: 100%; aspect-ratio: 1 / 1; border-radius: var(--r-xs);
+  background-size: cover; background-position: center;
+  background-color: var(--surface-2);
+}
+.ph-tile.is-blank {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 4px; color: var(--text-3);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+.ph-tile.is-blank span { font-size: var(--fs-11); }
+
+.ph-stage {
+  display: flex; align-items: center; justify-content: center;
+  padding: var(--sp-4) var(--sp-3); background: var(--surface-2);
+}
+.ph-full { max-width: 100%; display: block; border-radius: var(--r-sm); }
+/* 卡片那一层：里面是 shadow root，外面只管给它一个白底和圆角 */
+.cardbox {
+  max-width: 100%; overflow: hidden;
+  border-radius: var(--r-sm); background: var(--surface);
+  box-shadow: var(--shadow-1);
+}

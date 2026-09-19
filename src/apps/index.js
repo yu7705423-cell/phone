@@ -11,9 +11,10 @@ import { manifest as music } from './music/manifest.js';
 import { manifest as bill } from './bill/manifest.js';
 import { manifest as theater } from './theater/manifest.js';
 import { manifest as healthApp } from './health/manifest.js';
+import { manifest as albumApp } from './album/manifest.js';
 import { manifest as settingsApp } from './settings/manifest.js';
 
 export function registerApps() {
   [chat, contact, lorebook, memory, space, daily, music, bill, theater,
-    healthApp, settingsApp].forEach(registerApp);
+    healthApp, albumApp, settingsApp].forEach(registerApp);
 }

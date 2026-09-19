@@ -122,6 +122,23 @@ export function MsgMenu({ msg, char, onClose, onRegenerate, onQuote, onMultiSele
     close();
   };
 
+  // 图片存进相册。存的是同一个 imageId，不再压一份 —— 库里一张就够，
+  // 所以从相册里删掉它时也不会动到消息上那一张（见 album.removePhoto）
+  const keep = () => {
+    try {
+      phone.album.saveImage({
+        imageId: fresh.imageId || fresh.stickerId,
+        from: {
+          chatId: fresh.chatId, charId: fresh.authorId,
+          name: fresh.role === 'user' ? '我' : (char?.name || ''),
+          at: fresh.createdAt,
+        },
+      });
+      toast('已存入相册', 'ok');
+    } catch (err) { toast(String(err.message || err), 'error'); }
+    close();
+  };
+
   const del = async () => {
     if (!await confirm({ title: '删除这条消息', message: '删除后不再进入上下文。', danger: true })) return;
     onDelete(msg.id);
@@ -152,7 +169,12 @@ export function MsgMenu({ msg, char, onClose, onRegenerate, onQuote, onMultiSele
             onClick=${() => { close(); onQuote(fresh); }}/>
           <${ListItem} title="复制" arrow
             left=${html`<${Icon} name="copy" size=${18}/>`} onClick=${copy}/>
-          <${ListItem} title="多选" subtitle="选择多条消息后一并删除" arrow multiline
+          ${!gone && (fresh.imageId || fresh.stickerId) ? html`
+            <${ListItem} title="保存到相册" arrow multiline
+              subtitle="存进相册，可在相册中归类。会话里这一条不受影响"
+              left=${html`<${Icon} name="camera" size=${18}/>`}
+              onClick=${keep}/>` : null}
+          <${ListItem} title="多选" subtitle="选择多条消息后一并删除，或存成一张图片" arrow multiline
             left=${html`<${Icon} name="check" size=${18}/>`}
             onClick=${() => { close(); onMultiSelect(fresh); }}/>
           <${ListItem} title="删除" danger arrow

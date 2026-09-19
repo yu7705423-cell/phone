@@ -36,9 +36,14 @@ export const readnotes  = makeCollection('readnotes', 'rn', { indexBy: 'chatId' 
 export const health     = makeCollection('health', 'hl', { indexBy: 'who' });
 export const cycles     = makeCollection('cycles', 'cy');
 export const meds       = makeCollection('meds', 'md');
+// 相册。照片按相册建索引 —— 翻某一本是最常做的事。
+// shots 存「存卡片那一刻的美化 CSS 原文」，按内容哈希去重，多张卡片共用一份
+export const albums     = makeCollection('albums', 'alb');
+export const photos     = makeCollection('photos', 'pho', { indexBy: 'albumId' });
+export const shots      = makeCollection('shots', 'sht');
 export const entries    = makeCollection('entries', 'en', { indexBy: 'bookId' });
 
-const COLLECTIONS = { characters, lorebooks, memories, chats, messages, moments, stickers, looks, personas, songs, playlists, videos, spaceItems, events, days, recipes, meals, books, entries, ebooks, reviews, readnotes, health, cycles, meds };
+const COLLECTIONS = { characters, lorebooks, memories, chats, messages, moments, stickers, looks, personas, songs, playlists, videos, spaceItems, events, days, recipes, meals, books, entries, ebooks, reviews, readnotes, health, cycles, meds, albums, photos, shots };
 
 // ---- kv: settings / persona / layout ----
 function makeKV(key, fallback, { deep = false } = {}) {
@@ -132,6 +137,7 @@ export const db = {
   characters, lorebooks, memories, chats, messages, moments, stickers, looks, personas,
   songs, playlists, videos, spaceItems, events, days, recipes, meals,
   books, entries, ebooks, reviews, readnotes, health, cycles, meds,
+  albums, photos, shots,
   images, files, settings, persona, layout,
   messagesOf, lastMessageOf, ready,
 };

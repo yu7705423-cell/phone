@@ -11,6 +11,7 @@ import { MsgMenu } from './MsgMenu.js';
 import { PactBubble, LetterBubble, LetterSheet, PactSheet } from './SpaceBits.js';
 import { DiceBubble, InnerVoice, DiceSheet } from './ExtrasBits.js';
 import { TakeoutBubble, TakeoutSheet, MealSettleSheet, ShareSheet, MoreSheet } from './MealBits.js';
+import { PhotoSource } from './PhotoSource.js';
 import { TransferBubble, NoticeLine, TransferSheet, SettleSheet,
          LocationBubble, LocationSheet, CallBubble, CallLogSheet,
          GiftBubble, GiftSheet, UnwrapSheet,
@@ -210,6 +211,7 @@ export function Conversation({ chatId, focusId = '' }) {
   const [busy, setBusy] = useState(false);
   const [menu, setMenu] = useState(false);
   const [panel, setPanel] = useState(null);      // menu | sticker | null
+  const [picking, setPicking] = useState(null);  // 'photo' 时在挑图片来源
   const [held, setHeld] = useState(null);        // 长按选中的那条
   const [picked, setPicked] = useState(null);    // null=不在多选；数组=已选的 id
   const [quoting, setQuoting] = useState(null);  // 这条要被引用
@@ -705,6 +707,29 @@ export function Conversation({ chatId, focusId = '' }) {
     setPicked(null);
   };
 
+  // 多选几条存成相册里的一张卡片。
+  //
+  // 存的是**冻起来的副本 + 当时那段美化 CSS 原文**，所以以后换了美化、
+  // 甚至把这段对话删了，这张卡片仍是当时的样子（见 system/album.js）。
+  // png 是顺带在后台画的：画不出来不影响卡片本身，所以不挡着用户。
+  const shotPicked = async () => {
+    if (!picked.length) return;
+    const order = view.filter(m => picked.includes(m.id));
+    const me = phone.accounts.current();
+    const frozen = phone.album.freeze(order, { meName: me?.name || '我', meAvatar: me?.avatar || null });
+    const css = phone.album.currentCss();
+    try {
+      const photo = await phone.album.saveCard({ msgs: frozen, css, title: char.name });
+      setPicked(null);
+      toast(`已存入相册，共 ${frozen.length} 条`, 'ok');
+      phone.cardshot.rasterCard({ msgs: frozen, css }).then(async blob => {
+        if (!blob) return;
+        const id = await db.images.put(new File([blob], 'card.png', { type: 'image/png' }));
+        phone.album.attachRaster(photo.id, id);
+      }).catch(() => { /* 画不出来就只留快照那一份 */ });
+    } catch (err) { toast(String(err.message || err), 'error'); }
+  };
+
   // 清空聊天记录与清空记忆在角色卡的「清除数据」里，这一页只管消息这一级。
   // 只打包这一个角色。整个库那一份是「设置 - 存储」里的完整备份。
   const exportChar = async () => {
@@ -743,7 +768,7 @@ export function Conversation({ chatId, focusId = '' }) {
   // 每一格干什么。哪些留在面板上、什么顺序，由 system/panel.js 里用户
   // 自己排的那一份决定，这里只负责「按下之后发生什么」。
   const TAP = {
-    photo: () => imgRef.current?.click(),
+    photo: () => setPicking('photo'),
     voice: startRec,
     transfer: () => setPaying(true),
     call: () => startCall(false),
@@ -836,6 +861,8 @@ export function Conversation({ chatId, focusId = '' }) {
             <span class="select-hint">
               ${picked.length ? '' : '点击消息进行选择'}
             </span>
+            <button class=${`nav-text press${picked.length ? '' : ' is-off'}`}
+              onClick=${shotPicked}>存为图片</button>
             <button class=${`nav-text press${picked.length ? ' is-danger' : ' is-off'}`}
               onClick=${deletePicked}>删除</button>
           </div>`
@@ -903,6 +930,19 @@ export function Conversation({ chatId, focusId = '' }) {
       <${ShareSheet} open=${sharing} chatId=${chatId} onClose=${() => setSharing(false)}/>
       <${MealSettleSheet} msg=${meal} onClose=${() => setMeal(null)}/>
       <${MoreSheet} open=${more} onClose=${() => setMore(false)} onTap=${runTap}/>
+      <${PhotoSource} open=${picking === 'photo'} onClose=${() => setPicking(null)}
+        onFile=${() => { setPicking(null); imgRef.current?.click(); }}
+        onPick=${async id => {
+          setPicking(null);
+          const q = draftQuote();
+          setQuoting(null);
+          db.messages.create({
+            chatId, role: 'user', authorId: 'me', kind: 'image',
+            imageId: id, content: '[图片]', status: 'done', media: 'done',
+            vision: 'off', ...q,
+          });
+          db.chats.update(chatId, { lastMessageAt: Date.now() });
+        }}/>
       <${TransferSheet} open=${paying} chatId=${chatId} onClose=${() => setPaying(false)}/>
       <${LocationSheet} open=${placing} chatId=${chatId} onClose=${() => setPlacing(false)}/>
       <${SettleSheet} msg=${settling} onClose=${() => setSettling(null)}/>
