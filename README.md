@@ -24,6 +24,17 @@ https://yu7705423-cell.github.io/phone/
 - iPhone Safari：分享按钮 → 添加到主屏幕
 - Android Chrome：右上角菜单 → 添加到主屏幕 / 安装应用
 
+## 装成 iPhone 上的 app
+
+Actions 里的「打包 ipa」会打出一只未签名的 `.ipa`，用 AltStore、Sideloadly 或
+TrollStore 自行签名安装。
+
+这只 app 只是一个铺满屏幕的 `WKWebView`，网页仍从上面那个网址载入，不打进包里 ——
+**改了代码在 app 里摇一摇选「重新载入」就是新的，不必重新打包安装。**
+
+比加到主屏幕多出来的，主要是本机数据不再受「七天未打开就清掉」那条约束。
+详见 `ios/README.md`。
+
 ## 在电脑上运行
 
 原生 ES Modules，不需要 npm install，不需要打包器。
@@ -63,6 +74,7 @@ index.html            入口
 vendor/               手工放入的第三方 ESM（preact + htm）
 styles/               设计令牌与全局样式
 scripts/              自检与脚手架
+ios/                  iOS 外壳，打未签名 ipa 用
 src/
   shell/              根容器、状态栏、Dock
   system/             内核：数据域、AI 引擎、注册表、导航
