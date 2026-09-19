@@ -1298,12 +1298,18 @@ button.search-bar { width: 100%; border: none; }
 .wt.is-full .wt-stage { container-type: size; }
 
 @media (orientation: portrait) {
-  .wt.is-full.is-landscape .wt-rot {
+  .wt.is-full.is-rot-l .wt-rot,
+  .wt.is-full.is-rot-r .wt-rot {
     inset: auto; top: 50%; left: 50%;
     width: 100cqh; height: 100cqw;
-    transform: translate(-50%, -50%) rotate(90deg);
   }
+  /* 手机向左转（左边朝下）时，画面要顺时针补回来 */
+  .wt.is-full.is-rot-l .wt-rot { transform: translate(-50%, -50%) rotate(90deg); }
+  .wt.is-full.is-rot-r .wt-rot { transform: translate(-50%, -50%) rotate(-90deg); }
 }
+
+/* 正用着的那个方向键点亮 */
+.wt-panel-bar .mu-ctl.is-on { color: var(--accent); }
 
 /* ---- 影片全屏 ----
    画面吃掉剩下的全部高度。**不用 vh**（第 1 条）：.wt 本来就是 height:100%

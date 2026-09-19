@@ -146,7 +146,15 @@ function Screen({ chatId, chat, char }) {
     generate();
   };
 
-  const land = db.settings.get().watchLandscape !== false;
+  // 往哪边转。老设置里只有「转不转」，按它折过来
+  const rot = (() => {
+    const cfg = db.settings.get();
+    if (cfg.watchRotate === undefined) return cfg.watchLandscape === false ? 0 : 90;
+    const v = Number(cfg.watchRotate);
+    return v === 90 || v === -90 ? v : 0;
+  })();
+  const land = rot !== 0;
+  const turn = v => db.settings.set({ watchRotate: rot === v ? 0 : v });
 
   const goFull = async () => {
     setFull(true); setPanel(false);
@@ -183,7 +191,7 @@ function Screen({ chatId, chat, char }) {
       onBack: nav.pop,
       right: html`<button class="nav-text press" onClick=${finish}>结束</button>`,
     }} noScroll>
-      <div class=${`wt${full ? ' is-full' : ''}${land ? ' is-landscape' : ''}`}>
+      <div class=${`wt${full ? ' is-full' : ''}${rot === 90 ? ' is-rot-l' : rot === -90 ? ' is-rot-r' : ''}`}>
         <div class="wt-stage">
           <div class="wt-rot">
           <video ref=${ref} class="wt-video" playsinline
@@ -222,10 +230,15 @@ function Screen({ chatId, chat, char }) {
                   disabled=${busy} onClick=${generate}>
                   <${Icon} name="message" size=${18}/>
                 </button>
-                <button class="mu-ctl press"
-                  aria-label=${land ? '改为竖屏' : '改为横屏'}
-                  onClick=${() => db.settings.set({ watchLandscape: !land })}>
-                  <${Icon} name="refresh" size=${18}/>
+                <button class=${`mu-ctl press${rot === 90 ? ' is-on' : ''}`}
+                  aria-label=${rot === 90 ? '转回竖屏' : '向左转'}
+                  onClick=${() => turn(90)}>
+                  <${Icon} name="rotateLeft" size=${18}/>
+                </button>
+                <button class=${`mu-ctl press${rot === -90 ? ' is-on' : ''}`}
+                  aria-label=${rot === -90 ? '转回竖屏' : '向右转'}
+                  onClick=${() => turn(-90)}>
+                  <${Icon} name="rotateRight" size=${18}/>
                 </button>
               </div>
               <div class="wt-panel-msgs">
