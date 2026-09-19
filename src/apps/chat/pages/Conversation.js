@@ -912,6 +912,10 @@ export function Conversation({ chatId, focusId = '' }) {
             subtitle=${proDesc}
             left=${html`<${Icon} name="bell" size=${18}/>`}
             onClick=${() => { setMenu(false); nav.push(`/proactive/${char.id}`); }}/>
+          <${ListItem} title="导出这个角色" arrow multiline
+            subtitle="打包与该角色相关的数据，可在另一台设备导入，或发给他人。整库备份在「设置 - 存储」"
+            left=${html`<${Icon} name="download" size=${18}/>`}
+            onClick=${() => { setMenu(false); nav.push(`/export/${char.id}`); }}/>
         <//>
 
         <${List} title="上下文">

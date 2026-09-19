@@ -8,7 +8,7 @@ import { ImportPage } from './ImportPage.js';
 import { Page, List, ListItem, Field, Input, Textarea, Avatar, Button,
          Icon, IconButton, Sheet, EmptyState, toast, confirm, prompt } from '../../ui/index.js';
 
-const { db, nav, images, accounts, charpack } = phone;
+const { db, nav, images, accounts } = phone;
 
 // 「这个人是谁」都在这儿：我的人设，和每个角色的人设。
 // 聊天里的角色卡只留「她在对话里怎么表现」那部分（语音、发图、主动找我、世界书）。
@@ -43,9 +43,6 @@ function AvatarPicker({ src, name, onPick, onNote }) {
 // 聊天 app 的联系人页读的是同一个字段，两边看到的分组一致。
 const UNGROUPED = '未分组';
 
-const fmtSize = b => b < 1024 ? `${b} B`
-  : b < 1048576 ? `${(b / 1024).toFixed(1)} KB`
-  : `${(b / 1048576).toFixed(1)} MB`;
 
 function groupsOf(chars) {
   const map = new Map();
@@ -438,10 +435,6 @@ function MePage({ id }) {
 
 function EditPage({ id }) {
   useStore(db.characters.store);
-  useStore(db.chats.store);
-  useStore(db.memories.store);
-  const [exporting, setExporting] = useState(false);
-  const [busy, setBusy] = useState(false);
   const char = db.characters.get(id);
   if (!char) {
     return html`<${Page} title="人设" onBack=${nav.pop}>
@@ -457,25 +450,6 @@ function EditPage({ id }) {
     db.characters.remove(id);
     nav.pop();
   };
-
-  // 打一个包带走。两档分开是因为想要的东西正好相反：
-  // 发给别人的那一档不该带上聊天记录，自己搬家的那一档非带不可。
-  const save = async history => {
-    setExporting(false);
-    setBusy(true);
-    try {
-      const blob = await charpack.build(id, { history });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = charpack.fileNameFor(char.name);
-      a.click();
-      setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-      toast(`已导出 ${fmtSize(blob.size)}`, 'ok', 4000);
-    } catch (err) {
-      toast('导出失败：' + (err.message || err), 'error', 5000);
-    } finally { setBusy(false); }
-  };
-  const sum = charpack.estimate(id);
 
   return html`
     <${Page} title="编辑资料" onBack=${nav.pop}>
@@ -543,39 +517,15 @@ function EditPage({ id }) {
               subtitle="角色小号由角色自行创建，无法手动添加。在会话的「主动发起对话」中开启相应开关后，对话累积到一定程度可能出现"/>`}
         <//>`}
 
-      <${List} title="导出">
-        <${ListItem} title=${busy ? '正在打包' : '导出这个角色'} arrow multiline
-          subtitle=${`打成一个压缩包，可在另一台设备导入，或发给他人。`
-            + `${sum.alts ? `含 ${sum.alts} 个小号。` : ''}`
-            + `${sum.books ? `含 ${sum.books} 本关联世界书。` : ''}`
-            + '接口配置与密钥不在其中。'}
-          left=${html`<${Icon} name="download" size=${18}/>`}
-          onClick=${() => !busy && setExporting(true)}/>
-      <//>
-
       <div class="settings-foot">
-        语音、发图、主动找我、关联世界书在会话右上角的「角色卡」里调。
+        语音、发图、主动找我、关联世界书在会话右上角的「角色卡」里调。<br/>
+        导出这个角色在会话右上角的「导出这个角色」里。
       </div>
 
       <div class="pad">
         <${Button} full variant="danger" onClick=${del}>删除这个角色<//>
       </div>
 
-      <${Sheet} open=${exporting} onClose=${() => setExporting(false)} title=${`导出 ${char.name}`}>
-        <${List} inset=${false}>
-          <${ListItem} title="完整导出" arrow multiline
-            subtitle=${`角色卡、聊天记录与记忆一并带走。`
-              + `${sum.chats} 段会话，${sum.messages} 条消息，${sum.memories} 条记忆，`
-              + `${sum.images} 张图片${sum.files ? `，${sum.files} 个音频` : ''}。用于换设备。`}
-            left=${html`<${Icon} name="download" size=${18}/>`}
-            onClick=${() => save(true)}/>
-          <${ListItem} title="仅角色卡" arrow multiline
-            subtitle=${`只带走人设、开场白、关联世界书与各类图片，`
-              + '不含聊天记录与记忆。用于发给他人。'}
-            left=${html`<${Icon} name="user" size=${18}/>`}
-            onClick=${() => save(false)}/>
-        <//>
-      <//>
     <//>`;
 }
 

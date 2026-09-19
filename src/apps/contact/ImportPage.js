@@ -100,7 +100,8 @@ export function ImportPage() {
       ` : html`
         <${List} title="角色包">
           <${ListItem} title="选择角色包" arrow multiline
-            subtitle="本项目导出的压缩包。原样装回去，不经过模型，也不消耗接口调用。"
+            subtitle=${'在会话右上角的「导出这个角色」中导出的压缩包，只含一个角色。'
+              + '原样装回去，不经过模型，也不消耗接口调用。'}
             left=${html`<${Icon} name="download" size=${18}/>`}
             onClick=${() => !busy && packRef.current?.click()}/>
         <//>
@@ -117,7 +118,8 @@ export function ImportPage() {
         </div>
         <div class="settings-foot">
           整理用的是聊天接口那个模型。<br/>
-          资料里没写的字段会留空，不会自己编。
+          资料里没写的字段会留空，不会自己编。<br/>
+          恢复包含全部角色、曲库与外观的整库备份，使用「设置 - 存储」中的导入。
         </div>
       `}
       <input type="file" accept=${ACCEPT} ref=${fileRef} onChange=${pick} style="display:none"/>
