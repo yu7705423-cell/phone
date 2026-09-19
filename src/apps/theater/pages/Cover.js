@@ -10,7 +10,9 @@ import { useThumb } from '../../../sdk/index.js';
 // 竖排不用 writing-mode：CJK 一个字一个 <text>，位置自己算，
 // 各家浏览器一致，长书名换第二列也好控制。
 
-const TINTS = 6;
+// 黑白两版：白底黑字、黑底白字。按书名定，同一本永远是同一版。
+// 不引入任何色相 —— tokens.css 第一行就写着连灰都不作填充色
+const TINTS = 2;
 
 export function tintOf(title) {
   const t = String(title || '');

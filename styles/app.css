@@ -1400,24 +1400,24 @@ button.search-bar { width: 100%; border: none; }
 .cv {
   flex: none; width: 100%; aspect-ratio: 2 / 3;
   border-radius: var(--r-sm); overflow: hidden;
-  box-shadow: var(--shadow-1); background: var(--surface-3);
+  background: var(--surface-2);
+  /* 白封面压在白列表上，靠发丝线与阴影站住，不靠灰底 */
+  box-shadow: 0 0 0 1px var(--border-2), var(--shadow-1);
 }
 .cv-mini { width: 30px; border-radius: var(--r-xs); }
 .cv-photo { width: 100%; height: 100%; background-size: cover; background-position: center; }
 .cv-drawn { display: block; width: 100%; height: 100%; }
 
 .cv-ground { fill: var(--cv-bg); }
-.cv-frame  { fill: none; stroke: var(--cv-ink); stroke-width: .5; opacity: .3; }
+.cv-frame  { fill: none; stroke: var(--cv-ink); stroke-width: .4; opacity: .45; }
 .cv-title  { fill: var(--cv-ink); font-family: var(--font-serif); }
-.cv-rule   { stroke: var(--cv-ink); stroke-width: .7; opacity: .45; }
-.cv-author { fill: var(--cv-ink); font-family: var(--font-serif); opacity: .6; }
+.cv-rule   { stroke: var(--cv-ink); stroke-width: .6; opacity: .55; }
+.cv-author { fill: var(--cv-ink); font-family: var(--font-serif); opacity: .62; }
 
-.cv-t1 { --cv-bg: var(--shelf-1); --cv-ink: var(--shelf-ink-1); }
-.cv-t2 { --cv-bg: var(--shelf-2); --cv-ink: var(--shelf-ink-2); }
-.cv-t3 { --cv-bg: var(--shelf-3); --cv-ink: var(--shelf-ink-3); }
-.cv-t4 { --cv-bg: var(--shelf-4); --cv-ink: var(--shelf-ink-4); }
-.cv-t5 { --cv-bg: var(--shelf-5); --cv-ink: var(--shelf-ink-5); }
-.cv-t6 { --cv-bg: var(--shelf-6); --cv-ink: var(--shelf-ink-6); }
+/* 黑白两版。底色与墨色直接取 --surface / --text，
+   暗色模式下这两个本来就是对调的，不必另写一套 */
+.cv-t1 { --cv-bg: var(--surface); --cv-ink: var(--text); }
+.cv-t2 { --cv-bg: var(--text);    --cv-ink: var(--surface); }
 
 /* ---- 角色的书架 ---- */
 .shelf-grid {

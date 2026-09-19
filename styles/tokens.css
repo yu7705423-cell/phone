@@ -45,14 +45,6 @@
   --capsule-border: transparent;
   --glass-blur:     18px;
 
-  /* 书架上没有封面的那几本，按书名取一种底色，再配一色墨。
-     低饱和，单色，和图标那一套同一个路子 */
-  --shelf-1: #E7E3DB;  --shelf-ink-1: #4A4236;
-  --shelf-2: #DFE4E3;  --shelf-ink-2: #36443F;
-  --shelf-3: #E5E0E7;  --shelf-ink-3: #443A4A;
-  --shelf-4: #E9E2DD;  --shelf-ink-4: #4C3D34;
-  --shelf-5: #DEE3E9;  --shelf-ink-5: #35414F;
-  --shelf-6: #E4E7DE;  --shelf-ink-6: #3D4736;
 
   /* 分组胶囊：极浅的灰底，不描边 */
   --group-fill: #F5F5F5;
@@ -177,13 +169,6 @@
 
   --group-fill: #121212;
   --group-line: rgba(255, 255, 255, .08);
-
-  --shelf-1: #2A2723;  --shelf-ink-1: #BFB4A2;
-  --shelf-2: #222827;  --shelf-ink-2: #9FB5AE;
-  --shelf-3: #272330;  --shelf-ink-3: #B2A4C0;
-  --shelf-4: #2B2622;  --shelf-ink-4: #C8AF9C;
-  --shelf-5: #212630;  --shelf-ink-5: #9FB0C8;
-  --shelf-6: #252A22;  --shelf-ink-6: #ACBB9C;
 
   --shadow-1: 0 1px 2px rgba(0, 0, 0, .5);
   --shadow-2: 0 4px 16px rgba(0, 0, 0, .6);
