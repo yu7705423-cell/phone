@@ -9,14 +9,30 @@ const { db, nav, shelf, health, day, clock, theirs } = phone;
 // **没有内容的那一格不画。** 角色卡上没开「今天」，这台手机上就没有「今天」
 // 这个 app —— 画一个点进去空着的格子，等于让人白点一次。
 
-function Wall({ char, children }) {
-  // 角色卡的封面当壁纸。没有就留底色，不去凑一张
-  const url = useImage(char.cover);
+function Wall({ char, own, children }) {
+  // 自己换过的优先；没换过就用角色卡的封面 —— 那张本来就是这个角色的画面。
+  // 两样都没有就留底色，不去凑一张
+  const url = useImage(own || char.cover);
   return html`
     <div class=${`tp-wall${url ? ' has-img' : ''}`}
       style=${url ? `background-image:url(${url})` : ''}>
       ${children}
     </div>`;
+}
+
+// 一格。图标与名称可以在「外观」里换掉，所以这里每一格都过一道覆盖
+function Cell({ charId, tile }) {
+  const over = theirs.iconOf(charId, tile.id);
+  const url = useImage(over.imageId);
+  return html`
+    <button class="tp-tile press" onClick=${() => nav.push(tile.to)}>
+      <span class=${`tp-ico${url ? ' has-img' : ''}`}
+        style=${url ? `background-image:url(${url})` : ''}>
+        ${url ? null : html`<${Icon} name=${over.icon || tile.icon} size=${22}/>`}
+      </span>
+      <b>${over.name || tile.label}</b>
+      <span class="tp-sub ellipsis">${tile.sub}</span>
+    </button>`;
 }
 
 export function HomePage({ charId }) {
@@ -88,7 +104,7 @@ export function HomePage({ charId }) {
         onClick=${() => { theirs.relock(charId); nav.replace(`/lock/${charId}`); }}>
         ${theirs.locked(charId) ? '锁上' : '设定密码'}
       </button>`}>
-      <${Wall} char=${char}>
+      <${Wall} char=${char} own=${theirs.wallpaperOf(charId)}>
         <div class="tp-top">
           <${Avatar} src=${char.avatar} name=${char.name} size=${56}/>
           <b>${char.name}</b>
@@ -97,12 +113,7 @@ export function HomePage({ charId }) {
 
         ${tiles.length ? html`
           <div class="tp-grid">
-            ${tiles.map(t => html`
-              <button key=${t.id} class="tp-tile press" onClick=${() => nav.push(t.to)}>
-                <span class="tp-ico"><${Icon} name=${t.icon} size=${22}/></span>
-                <b>${t.label}</b>
-                <span class="tp-sub ellipsis">${t.sub}</span>
-              </button>`)}
+            ${tiles.map(t => html`<${Cell} key=${t.id} charId=${charId} tile=${t}/>`)}
           </div>`
         : html`
           <div class="tp-empty">
@@ -114,6 +125,10 @@ export function HomePage({ charId }) {
           <button class="press" onClick=${() => nav.push(`/make/${charId}`)}>
             <${Icon} name="sparkle" size=${15}/>
             <span>${tiles.length ? '生成更多内容' : '生成这台手机里的内容'}</span>
+          </button>
+          <button class="press" onClick=${() => nav.push(`/look/${charId}`)}>
+            <${Icon} name="image" size=${15}/>
+            <span>外观</span>
           </button>
         </div>
       <//>

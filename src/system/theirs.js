@@ -1,4 +1,5 @@
-import { phones, phoneChats } from './db/index.js';
+import { phones, phoneChats, images } from './db/index.js';
+import { ICON_MAX, PHOTO_MAX } from './db/images.js';
 
 // 角色手机的数据层。
 //
@@ -118,6 +119,69 @@ export function addVisits(charId, rows) {
 export const removeVisit = (charId, i) => set(charId, {
   visits: visitsOf(charId).filter((_, k) => k !== i),
 });
+
+// ---- 这台手机长什么样 ----
+//
+// 图标与名称的那套动作和 system/look.js 里给主界面用的那套**形状一样**，
+// 所以界面可以直接复用 ui/IconPicker（它本来就收一个 service 对象，
+// 就是为了「改它的地方不止一处」）。区别只在存到哪儿：那边在 settings，
+// 这边在这台手机自己那一行上。
+//
+// 换下来的旧图当场删掉，不然改十次壁纸库里就躺着十张没人要的。
+
+export const iconOf = (charId, appId) => (get(charId)?.icons || {})[appId] || {};
+
+export function setIcon(charId, appId, patch) {
+  const all = get(charId)?.icons || {};
+  set(charId, { icons: { ...all, [appId]: { ...(all[appId] || {}), ...patch } } });
+}
+
+export function resetIcon(charId, appId) {
+  const all = { ...(get(charId)?.icons || {}) };
+  if (all[appId]?.imageId) images.remove(all[appId].imageId);
+  delete all[appId];
+  set(charId, { icons: all });
+}
+
+export async function setIconFile(charId, appId, file) {
+  const id = await images.putIcon(file, ICON_MAX);
+  const old = iconOf(charId, appId).imageId;
+  if (old) images.remove(old);
+  setIcon(charId, appId, { imageId: id });
+  return id;
+}
+
+// 链接同样落到本地，不做远程引用
+export async function setIconUrl(charId, appId, url) {
+  const res = await fetch(String(url || '').trim());
+  if (!res.ok) throw new Error(String(res.status));
+  const blob = await res.blob();
+  if (!/^image\//.test(blob.type)) throw new Error('这个链接不是图片');
+  return setIconFile(charId, appId, new File([blob], 'icon', { type: blob.type }));
+}
+
+export function clearIconImage(charId, appId) {
+  const old = iconOf(charId, appId).imageId;
+  if (old) images.remove(old);
+  setIcon(charId, appId, { imageId: null });
+}
+
+/** 壁纸。没设过就回落到角色卡的封面 —— 那张本来就是这个角色的画面。 */
+export const wallpaperOf = charId => get(charId)?.wallpaper || null;
+
+export async function setWallpaper(charId, file) {
+  const id = await images.put(file, PHOTO_MAX);
+  const old = wallpaperOf(charId);
+  if (old) images.remove(old);
+  set(charId, { wallpaper: id });
+  return id;
+}
+
+export function clearWallpaper(charId) {
+  const old = wallpaperOf(charId);
+  if (old) images.remove(old);
+  set(charId, { wallpaper: null });
+}
 
 // ---- 那台手机里的相册 ----
 //

@@ -1780,11 +1780,29 @@ button.search-bar { width: 100%; border: none; }
 }
 
 /* 主屏底下那一条「去生成」。不做成格子：它不是这台手机上的一个应用 */
-.tp-make { display: flex; justify-content: center; padding: var(--sp-5) 0 var(--sp-2); }
+.tp-make {
+  display: flex; justify-content: center; gap: var(--sp-2);
+  padding: var(--sp-5) 0 var(--sp-2);
+}
 .tp-make button {
   display: flex; align-items: center; gap: var(--sp-2);
   padding: var(--sp-2) var(--sp-4); border-radius: var(--r-full);
   background: var(--surface-2); color: var(--text-2); font-size: var(--fs-12);
+}
+
+/* 换成图片的图标，和换壁纸那一块的预览 */
+.tp-ico.has-img { background: center / cover no-repeat; }
+.tp-ico-img {
+  display: block; width: 28px; height: 28px; border-radius: var(--r-sm);
+  background: var(--surface-2) center / cover no-repeat;
+}
+.tp-wallpick {
+  display: flex; align-items: center; justify-content: center;
+  /* 固定像素，不用 vh —— 第 1 条：vh 只许出现在外壳那三条上 */
+  width: 100%; height: 240px;
+  border: 1px solid var(--border); border-radius: var(--r-md);
+  background: var(--surface-2) center / cover no-repeat;
+  color: var(--text-3); font-size: var(--fs-12);
 }
 
 /* 相册。一格一张，图在上描述在下 —— 没有图的那些只剩描述，
