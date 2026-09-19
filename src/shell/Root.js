@@ -16,6 +16,7 @@ import { applyLook, applyCustomCSS } from '../system/look.js';
 import { apply as applyFonts } from '../system/fonts.js';
 import { layout } from '../system/db/index.js';
 import { start as startProactive } from '../system/ai/proactive.js';
+import { start as startMedRemind } from '../system/medremind.js';
 import { installUnlock } from '../system/sound.js';
 import { installBridge } from '../system/push.js';
 import * as keepAlive from '../system/keepalive.js';
@@ -49,6 +50,9 @@ export function Root() {
   // 角色主动发消息的调度。跟着整个外壳的生命周期跑，
   // 所以不管当前开着哪个 app 都在数着时间。
   useEffect(() => startProactive(), []);
+
+  // 用药到点提醒。纯本地，一分钟看一眼
+  useEffect(() => startMedRemind(), []);
 
   // iOS 上 AudioContext 必须由一次真实触摸唤醒，越早挂上越好
   useEffect(() => { installUnlock(); }, []);

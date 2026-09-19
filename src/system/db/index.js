@@ -32,9 +32,13 @@ export const books      = makeCollection('books', 'bk');
 export const ebooks     = makeCollection('ebooks', 'ebk');
 export const reviews    = makeCollection('reviews', 'rev');
 export const readnotes  = makeCollection('readnotes', 'rn', { indexBy: 'chatId' });
+// 健康。每人每天一行，按「谁」建索引 —— 翻某个人的历史是最常做的事
+export const health     = makeCollection('health', 'hl', { indexBy: 'who' });
+export const cycles     = makeCollection('cycles', 'cy');
+export const meds       = makeCollection('meds', 'md');
 export const entries    = makeCollection('entries', 'en', { indexBy: 'bookId' });
 
-const COLLECTIONS = { characters, lorebooks, memories, chats, messages, moments, stickers, looks, personas, songs, playlists, videos, spaceItems, events, days, recipes, meals, books, entries, ebooks, reviews, readnotes };
+const COLLECTIONS = { characters, lorebooks, memories, chats, messages, moments, stickers, looks, personas, songs, playlists, videos, spaceItems, events, days, recipes, meals, books, entries, ebooks, reviews, readnotes, health, cycles, meds };
 
 // ---- kv: settings / persona / layout ----
 function makeKV(key, fallback, { deep = false } = {}) {
@@ -127,7 +131,7 @@ window.addEventListener('pagehide', () => { images.revokeAll(); files.revokeAll(
 export const db = {
   characters, lorebooks, memories, chats, messages, moments, stickers, looks, personas,
   songs, playlists, videos, spaceItems, events, days, recipes, meals,
-  books, entries, ebooks, reviews, readnotes,
+  books, entries, ebooks, reviews, readnotes, health, cycles, meds,
   images, files, settings, persona, layout,
   messagesOf, lastMessageOf, ready,
 };

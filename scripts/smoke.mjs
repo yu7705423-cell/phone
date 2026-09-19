@@ -29,6 +29,7 @@ const ROUTES = {
   theater: ['/', '/videos', '/books', '/settings', '/watch/:chat', '/book/:ebook',
     '/read/:ebook', '/together/:chat/:ebook', '/shelf/:char',
     '/reviews/book/:ebook', '/reviews/video/:video', '/para/book/:ebook/0', '/para/video/:video/1'],
+  health: ['/', '/log', '/cycle', '/meds', '/settings', '/char/:char'],
   settings: ['/', '/api', '/voice', '/image', '/embed', '/notify', '/music',
     '/appearance', '/storage', '/trace', '/vision', '/asr', '/limits', '/search', '/translate', '/memoryapi'],
 };
@@ -135,6 +136,21 @@ const ids = await page.evaluate(async () => {
   rq.send({ chatId: chat.id, role: 'char', authorId: a.id, kind: rq.SPEND, amount: 200, note: '买菜' });
   const okd = rq.send({ chatId: chat.id, role: 'char', authorId: a.id, kind: rq.CARD, amount: 300 });
   rq.settle(okd.id, true);
+
+  // 健康。每一页都要有东西，空状态跑不出真问题
+  const hl = await import('/src/system/health.js');
+  const today = hl.dateKey();
+  hl.set(hl.ME, today, { sleepMin: 450, sleepAt: '23:40', steps: 8200,
+    weight: 58.2, water: 3, mood: 'flat', energy: 'low', symptoms: ['headache'], note: '下午有点困' });
+  hl.set(hl.ME, hl.shiftDate(today, -1), { sleepMin: 400, steps: 6100, weight: 58.5 });
+  hl.set(hl.ME, hl.shiftDate(today, -2), { sleepMin: 500, steps: 9300, weight: 58.0 });
+  hl.startCycle(hl.shiftDate(today, -60));
+  hl.endCycle(hl.listCycles()[0].id, hl.shiftDate(today, -55));
+  hl.startCycle(hl.shiftDate(today, -32));
+  hl.endCycle(hl.listCycles()[0].id, hl.shiftDate(today, -27));
+  hl.addMed({ name: '维生素 D', dose: '一粒', times: ['08:00'] });
+  hl.setCharOn(a.id, true);
+  hl.set(a.id, today, { energy: 'low', mood: 'flat', symptoms: ['throat'], note: '嗓子有点哑' });
 
   // 一本书与一部片子，一起看那个 app 的几条路由要用
   const bookMod = await import('/src/system/book.js');

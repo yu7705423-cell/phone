@@ -1673,3 +1673,38 @@ button.search-bar { width: 100%; border: none; }
   font-size: var(--fs-11); color: var(--text-3);
   border-top: 1px solid var(--border);
 }
+
+/* ---- 健康 ---- */
+/* 四个大格子。数字要一眼看见，所以标题小、数值大 */
+.hl-grid {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-3); padding: var(--sp-4) var(--sp-5);
+}
+.hl-tile {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+  min-width: 0; padding: var(--sp-4);
+  border: 1px solid var(--border); border-radius: var(--r-md);
+  background: var(--surface); color: var(--text-3); text-align: left;
+}
+.hl-tile b {
+  font-size: var(--fs-20); font-weight: var(--fw-semi); color: var(--text);
+  font-variant-numeric: tabular-nums; line-height: 1.2;
+}
+.hl-tile span {
+  font-size: var(--fs-11); color: var(--text-3);
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* 趋势那一条。黑白，跟着 currentColor 走 */
+.hl-trend { padding: var(--sp-3) 0 var(--sp-2); }
+.hl-spark {
+  display: block; width: 100%; height: 44px;
+  fill: none; stroke: var(--text); stroke-width: 1.5;
+  stroke-linejoin: round; stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+.hl-spark path { vector-effect: non-scaling-stroke; }
+.hl-trend-foot {
+  display: flex; justify-content: space-between;
+  font-size: var(--fs-11); color: var(--text-3); padding-top: var(--sp-2);
+}

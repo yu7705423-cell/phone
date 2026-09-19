@@ -76,6 +76,7 @@ import * as readerApi from '../system/reader.js';
 import * as excerptApi from '../system/excerpt.js';
 import * as aheadApi from '../system/readahead.js';
 import * as paraApi from '../system/paracomment.js';
+import * as healthApi from '../system/health.js';
 import * as reviewApi from '../system/review.js';
 import * as booksearchApi from '../system/booksearch.js';
 import * as playerApi from '../system/player.js';
@@ -234,6 +235,7 @@ export const phone = {
   excerpt: excerptApi,
   ahead: aheadApi,
   para: paraApi,
+  health: healthApi,
   review: reviewApi,
   booksearch: booksearchApi,
   player: playerApi,
