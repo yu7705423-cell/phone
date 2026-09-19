@@ -496,3 +496,19 @@
   width: 46px; height: 32px; padding: 0; border: 0; background: none;
   border-radius: var(--r-sm); cursor: pointer;
 }
+
+/* ---- 健康挂件 ---- */
+/* 显示哪几项由用户挑，所以格子数不固定，按内容平铺 */
+.wg-hl {
+  display: flex; flex-wrap: wrap; gap: var(--sp-3) var(--sp-4);
+  margin-top: auto; margin-bottom: auto; min-width: 0;
+}
+.wg-hl-one { min-width: 0; }
+.wg-hl-one b {
+  display: block; font-size: var(--fs-22); font-weight: var(--fw-semi);
+  line-height: 1.1; letter-spacing: -.5px; font-variant-numeric: tabular-nums;
+}
+.wg-hl-one span { font-size: var(--fs-11); color: var(--text-3); }
+/* 一格高的时候只剩一行数字，标题栏让出去 */
+.wg-health.is-flat .wg-hl { gap: var(--sp-3); align-items: baseline; }
+.wg-health.is-flat .wg-hl-one b { font-size: var(--fs-18); }

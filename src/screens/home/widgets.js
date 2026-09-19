@@ -2,6 +2,7 @@ import { html } from '../../lib.js';
 import { Icon } from '../../icons/Icon.js';
 import { registerWidget } from '../../system/registry.js';
 import { chats, moments, memories, characters, lastMessageOf, persona } from '../../system/db/index.js';
+import * as health from '../../system/health.js';
 import { openApp } from '../../system/nav.js';
 import { useImage, useThumb } from '../../system/db/useImage.js';
 import { useFile } from '../../system/db/useFile.js';
@@ -159,6 +160,70 @@ registerWidget({
         <div class="wg-head"><${Icon} name="brain" size=${15}/><span>记忆</span></div>
         <div class="wg-stat-num">${all.length}</div>
         <div class="wg-row-sub">其中 ${auto} 条自动提取</div>
+      </div>`;
+  },
+});
+
+// ---- 健康 ----
+//
+// 摆在主界面上的东西是**一眼扫过去会被别人看见的**，所以显示哪几项由用户自己挑，
+// 默认不含体重 —— 那一项最不适合放在随手一瞥的地方。第 13 条同样的道理：
+// 代码不替用户做这个决定，只把默认值往保守了给。
+
+export const HEALTH_STATS = [
+  { id: 'sleep', label: '睡眠' },
+  { id: 'steps', label: '步数' },
+  { id: 'water', label: '喝水' },
+  { id: 'weight', label: '体重' },
+  { id: 'mood', label: '心情' },
+];
+
+export const HEALTH_DEFAULT = { show: ['sleep', 'steps', 'water'] };
+
+// 挂件上写不下「7 小时 30 分」，缩成 7h30
+const shortSleep = min => {
+  const m = Math.max(0, Math.round(min) || 0);
+  if (!m) return '—';
+  const h = Math.floor(m / 60);
+  return h ? `${h}h${m % 60 ? String(m % 60).padStart(2, '0') : ''}` : `${m}m`;
+};
+
+function healthValue(id, d) {
+  if (id === 'sleep') return shortSleep(d.sleepMin);
+  if (id === 'steps') return d.steps ? d.steps.toLocaleString() : '—';
+  if (id === 'water') return String(d.water || 0);
+  if (id === 'weight') return d.weight ? String(health.toDisplay(d.weight)) : '—';
+  if (id === 'mood') return health.moodOf(d.mood)?.label || '—';
+  return '—';
+}
+
+registerWidget({
+  id: 'health',
+  label: '健康',
+  sizes: [[2, 1], [2, 2], [4, 1], [4, 2]],
+  editable: true,
+  render(cell) {
+    const c = { ...HEALTH_DEFAULT, ...(cell?.config || {}) };
+    const d = health.today();
+    const picked = HEALTH_STATS.filter(x => (c.show || []).includes(x.id));
+    const flat = (cell?.h || 2) === 1;
+    const due = health.dueMeds();
+
+    return html`
+      <div class=${`wg wg-health${flat ? ' is-flat' : ''}`} onClick=${() => openApp('health')}>
+        ${flat ? null : html`
+          <div class="wg-head"><${Icon} name="pulse" size=${15}/><span>今天</span></div>`}
+        ${picked.length ? html`
+          <div class="wg-hl">
+            ${picked.map(x => html`
+              <div key=${x.id} class="wg-hl-one">
+                <b>${healthValue(x.id, d)}</b>
+                <span>${x.label}</span>
+              </div>`)}
+          </div>`
+        : html`<div class="wg-empty">尚未选择要显示的项目</div>`}
+        ${!flat && due.length ? html`
+          <div class="wg-row-sub">${due.map(m => m.name).join('、')} 还没有记上</div>` : null}
       </div>`;
   },
 });

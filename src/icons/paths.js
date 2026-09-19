@@ -72,6 +72,7 @@ export const PATHS = {
   bookmark: '<path d="M6 3h12v18l-6-4.5L6 21z"/>',
   film:     '<rect x="2.5" y="4.5" width="19" height="15" rx="2.5"/><path d="M8 4.5v15M16 4.5v15M2.5 12h19M2.5 8.2h5.5M2.5 15.8h5.5M16 8.2h5.5M16 15.8h5.5"/>',
   maximize: '<path d="M4 9V5.5A1.5 1.5 0 0 1 5.5 4H9M15 4h3.5A1.5 1.5 0 0 1 20 5.5V9M20 15v3.5a1.5 1.5 0 0 1-1.5 1.5H15M9 20H5.5A1.5 1.5 0 0 1 4 18.5V15"/>',
+  pulse:    '<path d="M2.8 12h3.6l2-5.2 3.4 10.4 2.2-6.4 1.6 1.2h5.6"/>',
   rotateLeft:  '<path d="M4.2 10.2A8 8 0 1 1 5 15.4"/><path d="M3.4 5.6v4.8h4.8"/>',
   rotateRight: '<path d="M19.8 10.2A8 8 0 1 0 19 15.4"/><path d="M20.6 5.6v4.8h-4.8"/>',
   moments:  '<path d="M19.6 9.2A7.7 7.7 0 1 1 14.6 4.3"/><path d="M16.9 6.6l2.8-2.8"/><circle cx="20.9" cy="7.1" r="1.1" fill="currentColor" stroke="none"/>',

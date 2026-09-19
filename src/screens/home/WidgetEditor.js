@@ -6,11 +6,12 @@ import { PHOTO_MAX } from '../../system/db/images.js';
 import { getWidget } from '../../system/registry.js';
 import { setCellConfig } from './layout.js';
 import { LINE_SIZES, PLAYER_DEFAULT, NOTE_DEFAULT, LOVE_DEFAULT,
-         CUSTOM_DEFAULT, CUSTOM_MAX_BYTES } from './widgets.js';
+         CUSTOM_DEFAULT, CUSTOM_MAX_BYTES,
+         HEALTH_STATS, HEALTH_DEFAULT } from './widgets.js';
 
 const DEFAULTS = {
   player: PLAYER_DEFAULT, note: NOTE_DEFAULT, photo: { line1: '' },
-  love: LOVE_DEFAULT, custom: CUSTOM_DEFAULT,
+  love: LOVE_DEFAULT, custom: CUSTOM_DEFAULT, health: HEALTH_DEFAULT,
 };
 
 const LANGS = [{ value: 'en', label: 'English' }, { value: 'zh', label: '中文' }];
@@ -72,6 +73,20 @@ export function WidgetEditor({ cell, onClose }) {
                 onClick=${() => { images.remove(c.cover); set({ cover: null }); }}>移除<//>` : null}
           </div>
           <input type="file" accept="image/*" ref=${fileRef} onChange=${pick} style="display:none"/>
+        <//>` : null}
+
+      ${live.ref === 'health' ? html`
+        <${Field} label="显示哪几项"
+          desc="点一下加上，再点去掉。主界面是会被旁人一眼看见的地方，默认不含体重。">
+          <div class="chip-row">
+            ${HEALTH_STATS.map(x => html`
+              <button key=${x.id}
+                class=${`chip${(c.show || []).includes(x.id) ? ' is-active' : ''}`}
+                onClick=${() => {
+                  const cur = c.show || [];
+                  set({ show: cur.includes(x.id) ? cur.filter(i => i !== x.id) : [...cur, x.id] });
+                }}>${x.label}</button>`)}
+          </div>
         <//>` : null}
 
       ${live.ref === 'player' ? html`
