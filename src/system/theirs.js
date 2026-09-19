@@ -247,6 +247,8 @@ export function addPhotos(charId, rows, albumId = '') {
       // 'you' 是用户发过来、角色自己存下的那张。界面上标一下，
       // 免得和生成出来的混在一起分不清哪张是真的
       from: r?.from === 'you' ? 'you' : '',
+      // 裁过的要标出来：你看到的这张和你发出去的那张不一样了
+      cropped: r?.cropped === true,
       at: Number(r?.at) || Date.now(),
     }))
     .filter(r => r.note || r.imageId);

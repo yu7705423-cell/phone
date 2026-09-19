@@ -23,7 +23,8 @@ function Shot({ photo, onOpen }) {
         : html`<span class="tp-shot-none"><${Icon} name="image" size=${18}/></span>`}
       <span class="tp-shot-note ellipsis">${photo.note || '没有描述'}</span>
       ${photo.from === 'you'
-        ? html`<span class="tp-shot-from">你发的</span>` : null}
+        ? html`<span class="tp-shot-from">${photo.cropped ? '你发的 · 已裁' : '你发的'}</span>`
+        : null}
     </button>`;
 }
 
@@ -141,8 +142,10 @@ export function AlbumPage({ charId }) {
 
       <div class="settings-foot">
         生成的照片只有一句描述，可以为某一张挂上真实图片。
-        标有「你发的」的是该角色从对话中存下的照片，图片即你当时发送的那一张，
-        描述是该角色自己写的。
+        标有「你发的」的是该角色从对话中存下的照片，描述是该角色自己写的。
+        标有「已裁」的，图片是按那句描述裁过的，与你发送的原图不同；
+        没有这个标记的就是原图。裁切需要识图接口，开关在「设置 - 用量与上限」，
+        默认关闭。
       </div>
 
       <${Sheet} open=${!!making} onClose=${() => setMaking(null)}

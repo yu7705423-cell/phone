@@ -933,6 +933,24 @@ line is the label you give it. Otherwise the line is all that is saved.
 The line is not a message. It is not sent and the other side does not see it.
 Write at most thirty characters, as you would label it for yourself.`,
 
+  'task.phone-crop':
+`Someone is keeping this photo and has written what they are keeping of it:
+
+{{note}}
+
+Give the rectangle of the photo that has to stay.
+
+## Requirements
+- x and y are the top left corner, w and h the width and height
+- All four are fractions of the whole photo, between 0 and 1
+- The rectangle must contain everything the line above says to keep, with a
+  little room around it
+- If the line does not point at one part of the photo, or you cannot tell
+  which part it means, return keep as false and leave the numbers at 0
+
+## Output JSON only, with no other text
+{"keep":true,"x":0,"y":0,"w":1,"h":1}`,
+
   'task.phone-album':
 `You are the author of {{charName}}'s settings. List the photos in the album
 on this character's own phone. Each entry is what one photo shows.

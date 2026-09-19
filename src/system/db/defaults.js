@@ -150,6 +150,10 @@ export const DEFAULT_SETTINGS = {
   // 见 ai/translate.js
   translateFormats: '',
 
+  // 角色把你发的照片存进自己相册时，按它写的那句话去裁。
+  // **会多打一次识图接口**，所以默认关（第 15 条，登记在 ai/cost.js）
+  cropKeptPhoto: false,
+
   weightUnit: 'kg',               // 体重一律按公斤存，这里只管显示
 
   // 让角色看到你的健康记录。默认关 —— 这是你的身体数据，不默认递出去

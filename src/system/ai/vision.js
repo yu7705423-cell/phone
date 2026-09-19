@@ -29,7 +29,14 @@ async function asError(res) {
 }
 
 // dataUrl 直接内联，不上传到任何中转存储 —— 图片只在这一次请求里出现
-export async function describe({ dataUrl, key }) {
+/**
+ * 拿一张图去问一句话。describe 是它的一个用法（问「这是什么」），
+ * 裁图那边问的是「该留哪一块」。
+ *
+ * 拆出来是因为这一层只有 prompt 不一样，其余（端点、鉴权、队列、取回文本）
+ * 一模一样 —— 复制一份迟早会有一处忘了同步。
+ */
+export async function ask({ dataUrl, prompt, key, maxTokens = 500 }) {
   const v = visionConfig();
   if (!visionReady()) throw new Error('尚未配置识图接口');
 
@@ -39,11 +46,11 @@ export async function describe({ dataUrl, key }) {
       headers: { 'content-type': 'application/json', authorization: `Bearer ${v.apiKey}` },
       body: JSON.stringify({
         model: v.model,
-        max_tokens: 500,
+        max_tokens: maxTokens,
         messages: [{
           role: 'user',
           content: [
-            { type: 'text', text: template('task.vision-describe') },
+            { type: 'text', text: prompt },
             { type: 'image_url', image_url: { url: dataUrl } },
           ],
         }],
@@ -58,9 +65,20 @@ export async function describe({ dataUrl, key }) {
   }, { retries: 1 });
 }
 
+/** 问「这张是什么」。原来那个用法，保持不变。 */
+export const describe = ({ dataUrl, key }) =>
+  ask({ dataUrl, prompt: template('task.vision-describe'), key });
+
 // 按消息里的图片 id 取图去识别
 export async function describeImage(imageId, key) {
   const blob = await images.blob(imageId);
   if (!blob) throw new Error('图片已不存在');
   return describe({ dataUrl: await toDataUrl(blob), key });
+}
+
+/** 按图片 id 问一句话。裁图那边要用。 */
+export async function askImage(imageId, prompt, key) {
+  const blob = await images.blob(imageId);
+  if (!blob) throw new Error('图片已不存在');
+  return ask({ dataUrl: await toDataUrl(blob), prompt, key, maxTokens: 200 });
 }

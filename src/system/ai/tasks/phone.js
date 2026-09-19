@@ -2,6 +2,8 @@ import { characters } from '../../db/index.js';
 import { fillTemplate, template } from '../templates.js';
 import { runJSONTask } from '../engine.js';
 import { relationsOf } from './card.js';
+import * as vision from '../vision.js';
+import { images, settings } from '../../db/index.js';
 import * as theirs from '../../theirs.js';
 
 // 生成角色手机里的东西。
@@ -45,6 +47,70 @@ export async function makeLock(charId, { digits = 4 } = {}) {
 
   theirs.setLock(charId, { code, why: str(out?.why), hints });
   return { digits: n, hints: hints.length };
+}
+
+// ---- 把角色说要留的那一块裁出来 ----
+//
+// 「为什么不能裁」：能裁。裁一张图是 canvas 五行代码的事。
+// **难的是知道裁哪儿** —— 聊天模型看不见那张照片，它写「只留你」的时候
+// 是在说一件它没看见的事。
+//
+// 所以要多问一次**识图接口**：把图和它那句话一起发过去，要一个框回来。
+// 这是一次额外的接口调用，所以按第 15 条登记在 ai/cost.js，**默认关着**。
+//
+// 三种情况都不裁，原图照存：没开这个开关、没配识图接口、模型说它看不出
+// 那句话指的是哪一块。**看不出就别乱裁** —— 裁错了的那张比没裁糟得多，
+// 原图还被换掉了。
+
+const clamp01 = v => Math.min(1, Math.max(0, Number(v) || 0));
+
+/** 按归一化的框裁一张图，落成新的一张。原图不动。 */
+async function cropTo(imageId, box) {
+  const blob = await images.blob(imageId);
+  if (!blob) throw new Error('图片已不存在');
+  const bmp = await createImageBitmap(blob);
+  const sx = Math.round(clamp01(box.x) * bmp.width);
+  const sy = Math.round(clamp01(box.y) * bmp.height);
+  const sw = Math.max(1, Math.round(clamp01(box.w) * bmp.width));
+  const sh = Math.max(1, Math.round(clamp01(box.h) * bmp.height));
+  // 框可能越界，收回图内
+  const w = Math.min(sw, bmp.width - sx);
+  const h = Math.min(sh, bmp.height - sy);
+  if (w < 8 || h < 8) throw new Error('这个范围太小了');
+
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  canvas.getContext('2d').drawImage(bmp, sx, sy, w, h, 0, 0, w, h);
+  bmp.close?.();
+  const out = await new Promise(res => canvas.toBlob(res, 'image/webp', 0.9))
+    || await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.9));
+  if (!out) throw new Error('裁不出来');
+  return images.put(new File([out], 'kept', { type: out.type }));
+}
+
+/**
+ * 角色说它要留哪一块，就裁哪一块。裁不成返回原来那个 id ——
+ * **裁这件事失败了不该连带着让这张照片存不进去。**
+ */
+export async function cropKept(imageId, note) {
+  if (!imageId || !note) return imageId;
+  if (settings.get().cropKeptPhoto !== true) return imageId;
+  if (!vision.isVisionReady()) return imageId;
+  try {
+    const raw = await vision.askImage(
+      imageId,
+      fillTemplate(template('task.phone-crop'), { note }),
+      `phone-crop:${imageId}:${Date.now()}`,
+    );
+    const box = JSON.parse(String(raw).replace(/^[^{]*/, '').replace(/[^}]*$/, ''));
+    if (!box || box.keep !== true) return imageId;
+    if (clamp01(box.w) >= 0.98 && clamp01(box.h) >= 0.98) return imageId;  // 等于没裁
+    return await cropTo(imageId, box);
+  } catch (err) {
+    console.warn('[phone] 这一张没裁成，存原图:', err.message || err);
+    return imageId;
+  }
 }
 
 // ---- 一个 app 一次请求 ----

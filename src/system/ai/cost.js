@@ -36,6 +36,13 @@ export const EXTRA_CALLS = [
     when: s => `每累计 ${s.autoSummarizeInterval} 条角色回复`,
   },
   {
+    id: 'cropKeptPhoto',
+    label: '角色存你发的照片时按它说的裁',
+    setting: 'cropKeptPhoto', off: false,
+    on: s => s.cropKeptPhoto === true,
+    when: '角色写了 [存图：…] 而你刚发过一张照片（走识图接口）',
+  },
+  {
     id: 'chatFallback',
     label: '主用接口失败时改用副用',
     setting: 'chatFallback', off: false,

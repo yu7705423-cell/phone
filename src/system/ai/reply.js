@@ -22,6 +22,7 @@ import * as translate from './translate.js';
 import * as ledger from '../ledger.js';
 import * as request from '../request.js';
 import * as theirs from '../theirs.js';
+import { cropKept } from './tasks/phone.js';
 
 // 角色回复里可以带这几种标记，由模型自己决定什么时候用。
 // 中英文冒号都认，方括号也认全角。
@@ -655,7 +656,15 @@ export function materialize(part, base, char) {
     // 用户刚发过来的那张图就是它要存的那张。**存的是同一个 id，不另拷一份**
     // —— 同一张图在库里躺两份没有意义，而且 purge 那边已经把相册算作引用了
     const imageId = justSent(base.chatId, base.turnId);
-    theirs.addPhotos(char.id, [{ note: part.note, imageId, from: imageId ? 'you' : '' }]);
+    const saved = theirs.addPhotos(char.id,
+      [{ note: part.note, imageId, from: imageId ? 'you' : '' }])[0];
+    // 裁在后台做：它要多问一次识图接口，不能让这一条消息等着。
+    // 裁不成就保持原图 —— 那一步失败不该连带着让这张照片存不进去
+    if (imageId && saved) {
+      cropKept(imageId, part.note).then(id => {
+        if (id && id !== imageId) theirs.updatePhoto(char.id, saved.id, { imageId: id, cropped: true });
+      }).catch(() => {});
+    }
     // 用 row 建，不自己拼字段：turnId 在里面，重新生成这一轮时它才跟着被清掉
     return messages.create({
       ...row, kind: 'notice',
