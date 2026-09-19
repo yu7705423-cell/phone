@@ -1420,14 +1420,18 @@ button.search-bar { width: 100%; border: none; }
 .cv-t2 { --cv-bg: var(--text);    --cv-ink: var(--surface); }
 
 /* ---- 角色的书架 ---- */
+/* minmax(0,1fr) 而不是 1fr：1fr 的下限是 auto，书名又带 .ellipsis（nowrap），
+   于是一本长书名的最小内容宽就把自己那一格撑开，旁边两格被压到看不见。
+   同样的道理，格子里每一层都要 min-width:0，否则下限照样往上顶。 */
 .shelf-grid {
-  display: grid; grid-template-columns: repeat(3, 1fr);
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--sp-4); padding: var(--sp-4) var(--sp-5);
 }
 .shelf-item {
-  display: flex; flex-direction: column; gap: 6px;
+  display: flex; flex-direction: column; gap: 6px; min-width: 0;
   background: none; border: 0; padding: 0; text-align: left;
 }
+.shelf-item > * { min-width: 0; max-width: 100%; }
 .shelf-item.is-ghost .cv { opacity: .62; }
 .shelf-name { font-size: var(--fs-13); color: var(--text); }
 .shelf-sub { font-size: var(--fs-11); color: var(--text-3); }
@@ -1445,44 +1449,25 @@ button.search-bar { width: 100%; border: none; }
 }
 .rd-say-line:last-child { margin-bottom: 0; }
 
-/* ---- 角色的书架 ---- */
-.shelf-grid {
-  display: grid; grid-template-columns: repeat(3, 1fr);
-  gap: var(--sp-4); padding: var(--sp-4) var(--sp-5);
-}
-.shelf-item {
-  display: flex; flex-direction: column; gap: 6px;
-  background: none; border: 0; padding: 0; text-align: left;
-}
-.shelf-item.is-ghost { opacity: .55; }
-.shelf-cover {
-  width: 100%; aspect-ratio: 2 / 3; border-radius: var(--r-sm);
-  background: var(--surface-3); background-size: cover; background-position: center;
-  display: flex; align-items: center; justify-content: center;
-  color: var(--text-3); box-shadow: var(--shadow-1);
-}
-.shelf-cover.mini { width: 30px; aspect-ratio: 2 / 3; border-radius: var(--r-xs); }
-.shelf-cover.has-image { color: transparent; }
-/* 没有封面的那几本：按书名取一种底色，把头两个字排上去，像本书的样子 */
-.shelf-cover.t1 { background-color: var(--shelf-1); }
-.shelf-cover.t2 { background-color: var(--shelf-2); }
-.shelf-cover.t3 { background-color: var(--shelf-3); }
-.shelf-cover.t4 { background-color: var(--shelf-4); }
-.shelf-cover.t5 { background-color: var(--shelf-5); }
-.shelf-cover.t6 { background-color: var(--shelf-6); }
-.shelf-initial {
-  font-family: var(--font-serif);
-  font-size: var(--fs-20); line-height: 1.15; color: var(--text-2);
-  writing-mode: vertical-rl; letter-spacing: 2px;
-  max-height: 80%; overflow: hidden;
-}
-.shelf-cover.mini .shelf-initial { font-size: var(--fs-12); letter-spacing: 0; }
-.shelf-name { font-size: var(--fs-13); color: var(--text); }
-.shelf-sub { font-size: var(--fs-11); color: var(--text-3); }
-
 /* 影评与书评 */
 .rv-when { font-size: var(--fs-12); color: var(--text-3); padding: var(--sp-2) 0 var(--sp-3); }
 .rv-p {
   margin: 0 0 var(--sp-4); text-indent: 2em;
   font-size: var(--fs-15); line-height: 1.85; color: var(--text);
+}
+
+/* ---- 一起看：顶部那两个大切换 ---- */
+/* 比 .segmented 高一档，也更靠上 —— 它是这一页的主导航，不是一个表单控件 */
+.top-switch {
+  display: flex; gap: 2px; padding: 3px; margin: 0 var(--sp-5) var(--sp-3);
+  background: var(--surface-2); border-radius: var(--r-md);
+}
+.top-switch-item {
+  flex: 1; height: 38px; border-radius: var(--r-sm);
+  font-size: var(--fs-15); font-weight: var(--fw-medium);
+  color: var(--text-2); background: none; border: 0;
+  transition: all var(--dur-fast) var(--ease);
+}
+.top-switch-item.is-active {
+  background: var(--surface); color: var(--text); box-shadow: var(--shadow-1);
 }

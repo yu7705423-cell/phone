@@ -21,13 +21,15 @@ export function tintOf(title) {
   return (h % TINTS) + 1;
 }
 
-const clean = t => String(t || '').replace(/[《》「」【】\s]/g, '');
+// 竖排要的是「一个字一格」，空格摘掉；横排的拉丁书名靠空格断词，摘了就连成一串
+const clean = t => String(t || '').replace(/[《》「」【】]/g, '').replace(/\s+/g, ' ').trim();
+const tight = t => clean(t).replace(/\s+/g, '');
 
 const CJK = /[\u3000-\u9fff\uf900-\ufaff]/;
 
 // 书名切成竖排的一到两列，每列最多七个字。再长就截断，封面不是简介
 function columns(title) {
-  const t = clean(title) || '无题';
+  const t = tight(title) || '无题';
   const per = 7;
   if (t.length <= per) return [t.split('')];
   return [t.slice(0, per).split(''), t.slice(per, per * 2).split('')];
@@ -48,6 +50,17 @@ function wrap(title, per = 11) {
   return lines.slice(0, 4);
 }
 
+// 正文从 x=11 起排，画布宽 60，边框内沿在 56.5 —— 右边能用的只有 45 个单位。
+// 按字数定字号会算漏大写字母，长书名就顶出框去，所以反过来由宽度定字号。
+const LATIN_X = 11;
+const LATIN_ROOM = 45;
+const AVG_GLYPH = 0.58;        // 这一档字号下拉丁字形的平均宽度，相对字号。往宽了估
+
+function latinSize(lines, max) {
+  const longest = lines.reduce((n, l) => Math.max(n, l.length), 0) || 1;
+  return Math.min(max, LATIN_ROOM / (longest * AVG_GLYPH));
+}
+
 // 字数少就排大一点。两个字的书名用小字排，封面会空得发虚
 const sizeFor = n => (n === 1 ? 14 : n === 2 ? 11.5 : n <= 4 ? 9 : 7.4);
 
@@ -58,10 +71,11 @@ const sizeFor = n => (n === 1 ? 14 : n === 2 ? 11.5 : n <= 4 ? 9 : 7.4);
 export function DrawnCover({ title, author = '', mini = false }) {
   const n = tintOf(title);
   const name = clean(title) || '无题';
+  const vertical = tight(title) || '无题';
   const zh = CJK.test(name);
   const body = zh
     ? (() => {
-      const cols = columns(name);
+      const cols = columns(vertical);
       const size = mini ? 10 : sizeFor(cols[0].length);
       const step = size * 1.16;
       return cols.map((chars, ci) => chars.map((ch, i) => html`
@@ -71,9 +85,9 @@ export function DrawnCover({ title, author = '', mini = false }) {
     })()
     : (() => {
       const lines = wrap(name, mini ? 8 : 11);
-      const size = mini ? 8 : lines.length > 2 ? 7 : 8.6;
+      const size = latinSize(lines, mini ? 8 : lines.length > 2 ? 7 : 8.6);
       return lines.map((ln, i) => html`
-        <text key=${i} class="cv-title" x="11" y=${22 + i * size * 1.25}
+        <text key=${i} class="cv-title" x=${LATIN_X} y=${22 + i * size * 1.25}
           font-size=${size} text-anchor="start">${ln}</text>`);
     })();
 
@@ -85,7 +99,7 @@ export function DrawnCover({ title, author = '', mini = false }) {
       ${body}
       <line x1="11" y1="72" x2="27" y2="72" class="cv-rule"/>
       ${author && !mini ? html`
-        <text class="cv-author" x="11" y="79.5" font-size="3.6">${clean(author).slice(0, 10)}</text>` : null}
+        <text class="cv-author" x="11" y="79.5" font-size="3.6">${clean(author).slice(0, 14)}</text>` : null}
     </svg>`;
 }
 
