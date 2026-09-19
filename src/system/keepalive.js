@@ -35,6 +35,7 @@ import { createStore } from './store.js';
 
 const WATCH_MS = 20000;
 const RETRY_MS = 800;
+const BEAT_MS = 5000;     // 心跳。只在内存里记一个时刻，不写库
 
 /**
  * want  用户要不要开
@@ -47,6 +48,12 @@ export const state = createStore({
   // 出了什么错。**界面要把它显示出来** —— 开关打开之后屏幕上什么都不变的话，
   // 坏没坏谁也看不出来
   note: '',
+  // 上一次切到后台回来时量到的：离开了多久、其间定时器停了多久。
+  // **这一项是为了把「音频在播」和「JS 还在跑」分开** ——
+  // iOS 的后台音频保住的是 app 进程，WKWebView 里的网页内容是另一回事，
+  // 系统可能照样把它冻住。真冻住了，这套保活对主动消息就没有意义，
+  // 而光看「正在运行」是看不出来的
+  away: null,   // { away, frozen }，单位毫秒
 });
 
 let el = null;
@@ -177,6 +184,7 @@ export async function start() {
   state.set({ want: true });
   const okd = await resume();
   startWatch();
+  startBeat();
   return okd;
 }
 
@@ -185,6 +193,7 @@ export function stop() {
   state.set({ want: false, needsTap: false });
   clearTimeout(retry);
   stopWatch();
+  stopBeat();
   if (native()) {
     callNative('stop').catch(() => {});
     state.set({ on: false, note: '' });
@@ -213,6 +222,59 @@ function startWatch() {
 
 function stopWatch() { clearInterval(watchdog); watchdog = null; }
 
+// ---- 心跳：后台期间定时器到底有没有在跑 ----
+//
+// 每 BEAT_MS 记一次「我还活着」。切回前台时拿「现在」减去最后一次心跳，
+// 就是定时器被冻住的时长；和「离开了多久」一比，答案很直接：
+//
+//   冻住 ≈ 离开   网页被整个冻住了，保活对主动消息没有意义
+//   冻住 ≈ 0      定时器一直在跑，问题不在这儿
+//
+// 只记在内存里。每五秒写一次库，为了一个诊断值把 IndexedDB 磨一遍不值。
+
+let beat = 0;
+let beater = null;
+let leftAt = 0;
+
+function startBeat() {
+  stopBeat();
+  beat = Date.now();
+  beater = setInterval(() => { beat = Date.now(); }, BEAT_MS);
+}
+function stopBeat() { clearInterval(beater); beater = null; }
+
+/** 切到后台。 */
+function onHide() { leftAt = Date.now(); beat = Date.now(); }
+
+/** 回到前台，算一笔账。 */
+function onShow() {
+  if (!leftAt) return;
+  const now = Date.now();
+  // 减掉一个心跳周期：最后那次心跳之后本来就还能再活 BEAT_MS 才算停
+  const frozen = Math.max(0, now - beat - BEAT_MS);
+  state.set({ away: { away: now - leftAt, frozen } });
+  leftAt = 0;
+  beat = now;
+}
+
+/** 那笔账翻成一句话。界面直接显示。 */
+export function awayText() {
+  const a = state.get().away;
+  if (!a || a.away < 15000) return '';       // 离开太短，量不出什么
+  const sec = ms => `${Math.round(ms / 1000)} 秒`;
+  if (a.frozen < 10000) {
+    return `上次切到后台 ${sec(a.away)}，其间定时器一直在跑`;
+  }
+  // 和**最多能量到多少**比，不是和总时长比。
+  // frozen 已经减掉了一个心跳周期，拿它去比 away 的话，离开时间短一点
+  // 就永远够不着门槛 —— 16 秒里冻住 11 秒（能量到的全部）也才 69%
+  if (a.frozen > Math.max(1, a.away - BEAT_MS) * 0.8) {
+    return `上次切到后台 ${sec(a.away)}，其间定时器停了 ${sec(a.frozen)}`
+      + ' —— 网页被系统冻住了，这台设备上保活对主动消息没有作用';
+  }
+  return `上次切到后台 ${sec(a.away)}，其间定时器停了 ${sec(a.frozen)}`;
+}
+
 /**
  * 挂上所有盯梢。返回一个清理函数。
  *
@@ -222,7 +284,8 @@ function stopWatch() { clearInterval(watchdog); watchdog = null; }
 export function install(getWant) {
   const onTap = () => { if (getWant() && !state.get().on) resume(); };
   const onVis = () => {
-    if (document.visibilityState !== 'visible') return;
+    if (document.visibilityState !== 'visible') { onHide(); return; }
+    onShow();
     if (native()) { if (getWant()) resume(); return; }
     if (getWant() && !sync()) resume();
   };
@@ -233,6 +296,7 @@ export function install(getWant) {
     window.removeEventListener('pointerdown', onTap);
     document.removeEventListener('visibilitychange', onVis);
     stopWatch();
+    stopBeat();
     clearTimeout(retry);
   };
 }

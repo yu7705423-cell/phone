@@ -164,7 +164,8 @@ function Home() {
             : `循环播放一段无声音频，让系统把本页当成正在播放的标签页，`
               + `切到后台后不那么快被冻结，主动消息更有机会按时发出。`)
             + `会持续占用少量电量，且在锁屏后通常仍会停止。`
-            + (ka.note ? `　当前：${ka.note}` : '')}
+            + (ka.note ? `　当前：${ka.note}` : '')
+            + (phone.keepAlive.awayText() ? `　${phone.keepAlive.awayText()}` : '')}
           right=${html`<${Switch} checked=${!!s.keepAlive}
             onChange=${v => db.settings.set({ keepAlive: v })}/>`}/>
       <//>
