@@ -3,6 +3,7 @@ import { Icon } from '../../icons/Icon.js';
 import { registerWidget } from '../../system/registry.js';
 import { chats, moments, memories, characters, lastMessageOf, persona } from '../../system/db/index.js';
 import * as health from '../../system/health.js';
+import * as album from '../../system/album.js';
 import { openApp } from '../../system/nav.js';
 import { useImage, useThumb } from '../../system/db/useImage.js';
 import { useFile } from '../../system/db/useFile.js';
@@ -224,6 +225,41 @@ registerWidget({
         : html`<div class="wg-empty">尚未选择要显示的项目</div>`}
         ${!flat && due.length ? html`
           <div class="wg-row-sub">${due.map(m => m.name).join('、')} 还没有记上</div>` : null}
+      </div>`;
+  },
+});
+
+// ---- 相册 ----
+//
+// 最近存的几张铺成一格。没有图的卡片（光栅没成的那些）不铺进来 ——
+// 挂件上放一块空白没有意义，宁可少一张。
+
+const albumTiles = n => album.allPhotos().filter(p => p.imageId).slice(0, n);
+
+function Shot({ id }) {
+  const url = useThumb(id);
+  return html`<span class="wg-shot" style=${url ? `background-image:url(${url})` : ''}></span>`;
+}
+
+registerWidget({
+  id: 'album',
+  label: '相册',
+  sizes: [[2, 2], [4, 2], [2, 1]],
+  render(cell) {
+    const flat = (cell?.h || 2) === 1;
+    const wide = (cell?.w || 2) >= 4;
+    const tiles = albumTiles(flat ? 3 : wide ? 8 : 4);
+    const total = album.allPhotos().length;
+    return html`
+      <div class=${`wg wg-album${flat ? ' is-flat' : ''}`} onClick=${() => openApp('album')}>
+        ${flat ? null : html`
+          <div class="wg-head"><${Icon} name="camera" size=${15}/><span>相册</span></div>`}
+        ${tiles.length ? html`
+          <div class=${`wg-shots${wide ? ' is-wide' : ''}`}>
+            ${tiles.map(p => html`<${Shot} key=${p.id} id=${p.imageId}/>`)}
+          </div>`
+        : html`<div class="wg-empty">还没有存过图片</div>`}
+        ${!flat && total ? html`<div class="wg-row-sub">共 ${total} 张</div>` : null}
       </div>`;
   },
 });

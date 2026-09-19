@@ -535,3 +535,15 @@
   font-size: var(--fs-13); font-weight: var(--fw-medium);
 }
 .ka-close { flex: none; border: 0; background: none; color: var(--text-3); padding: 2px; }
+
+/* ---- 相册挂件 ---- */
+.wg-shots {
+  display: grid; grid-template-columns: repeat(2, 1fr);
+  gap: 3px; margin-top: auto; margin-bottom: auto; min-width: 0;
+}
+.wg-shots.is-wide { grid-template-columns: repeat(4, 1fr); }
+.wg-shot {
+  display: block; aspect-ratio: 1 / 1; border-radius: var(--r-xs);
+  background: var(--surface-2); background-size: cover; background-position: center;
+}
+.wg-album.is-flat .wg-shots { grid-template-columns: repeat(3, 1fr); }
