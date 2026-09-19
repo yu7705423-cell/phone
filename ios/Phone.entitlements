@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- 读「健康」app 的数据要这一条。它是**签名时**才真正生效的：
+       这个项目发出去的是未签名的 ipa，各人自己签 ——
+       TrollStore 与付费开发者账号带得上，免费 Apple ID 多半带不上。
+       带不上时应用照常能用，只是同步那一项会显示系统给的拒绝原因。 -->
+  <key>com.apple.developer.healthkit</key>
+  <true/>
+  <key>com.apple.developer.healthkit.access</key>
+  <array/>
+</dict>
+</plist>

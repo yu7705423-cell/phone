@@ -15,6 +15,8 @@ final class ShellViewController: UIViewController {
     private var failure: FailureView?
     /// 每个下载存到哪儿。Progress 上那个 fileURL 不保证有值，自己记一份稳当些。
     private var downloadPaths: [ObjectIdentifier: URL] = [:]
+    /// 读「健康」的那座桥。网页那头是 system/healthkit.js
+    private let healthBridge = HealthBridge()
 
     // MARK: - 站点地址
 
@@ -95,11 +97,16 @@ final class ShellViewController: UIViewController {
             cfg.preferences.isElementFullscreenEnabled = true   // 读书与看片的全屏靠它
         }
 
-        // 告诉网页：这一层自己有原生的边缘手势，它那套让开，免得两边各退一级
+        // 告诉网页这一层能做什么。都在文档一开始就注入，网页第一帧就判得出：
+        //   phoneNativeBack  这层自己有原生的边缘手势，网页那套让开，免得两边各退一级
+        //   phoneHealth      这台设备读得到「健康」数据（能不能授权是另一回事，见 HealthBridge）
         cfg.userContentController.addUserScript(WKUserScript(
-            source: "window.phoneNativeBack = true;",
+            source: "window.phoneNativeBack = true;"
+                + "window.phoneHealth = \(HealthBridge.available);",
             injectionTime: .atDocumentStart,
             forMainFrameOnly: false))
+        cfg.userContentController.addScriptMessageHandler(
+            healthBridge, contentWorld: .page, name: "health")
 
         let w = WKWebView(frame: view.bounds, configuration: cfg)
         w.navigationDelegate = self

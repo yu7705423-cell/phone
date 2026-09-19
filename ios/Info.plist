@@ -74,6 +74,10 @@
   <string>用于选择头像、壁纸与聊天中发送的图片。</string>
   <key>NSPhotoLibraryAddUsageDescription</key>
   <string>用于将相册中的图片保存回系统相册。</string>
+  <!-- 只读不写，所以只要 Share（读取）这一条，不要 Update -->
+  <key>NSHealthShareUsageDescription</key>
+  <string>用于把「健康」中的睡眠、步数、体重与饮水同步到本应用的健康记录。</string>
+
   <key>NSLocalNetworkUsageDescription</key>
   <string>用于连接局域网内自行搭建的站点。</string>
 

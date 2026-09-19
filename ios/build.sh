@@ -86,8 +86,13 @@ icon AppIcon83.5x83.5@2x.png 167
 echo "已生成    8 个图标"
 
 # ---- 4. 压成 ipa ----
-# 不签名。签名由用户自己在 AltStore、Sideloadly 或 TrollStore 里做
-codesign --remove-signature "$APP" >/dev/null 2>&1 || true
+# 用 ad-hoc 签名把 entitlements 写进包里（`-s -` 不需要任何证书）。
+# 真正的签名仍然由用户自己在 AltStore、Sideloadly 或 TrollStore 里做 ——
+# 这一步只是把「这只 app 要读健康数据」这个声明放进去，
+# 重签的工具会照着它决定带不带得上那个权限。带不上也不影响其余功能。
+codesign --force --sign - --entitlements "$HERE/Phone.entitlements" \
+  --timestamp=none "$APP" >/dev/null 2>&1 \
+  || { echo "临时签名没成，改为不签名交出去"; codesign --remove-signature "$APP" >/dev/null 2>&1 || true; }
 IPA="$OUT/phone-unsigned-$VERSION.ipa"
 ( cd "$OUT" && zip -qry "$(basename "$IPA")" Payload )
 echo
