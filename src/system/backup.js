@@ -16,12 +16,20 @@ import { zip, unzip } from './zip.js';
 //
 // **哪些数据域进备份，只在这一处列。** 漏一个的后果是安静的：导出看着成功，
 // 恢复之后发现片库空了 —— 而那时候原始数据已经被覆盖掉了。
+//
+// 这件事已经发生过一次：一口气加了九个数据域（书库、影评、段评、健康、
+// 经期、用药、相册、照片、美化快照），这张表一个都没跟上，导出的备份
+// 换台设备恢复就全没了。所以现在由 scripts/check-backup.mjs 盯着 ——
+// 库里注册了而这里没列的，自检直接报错。
 
 const COLLECTIONS = [
   'characters', 'lorebooks', 'memories', 'chats', 'messages', 'moments',
   'stickers', 'looks', 'personas', 'songs', 'playlists', 'videos',
   'spaceItems', 'events', 'days', 'recipes', 'meals',
   'books', 'entries',
+  'ebooks', 'reviews', 'readnotes',
+  'health', 'cycles', 'meds',
+  'albums', 'photos', 'shots',
 ];
 
 const FORMAT = 'mini-phone-backup';

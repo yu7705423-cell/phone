@@ -15,6 +15,7 @@ import { PacePage } from './pages/PacePage.js';
 import { BondPage } from './pages/BondPage.js';
 import { TranslatePage } from './pages/TranslatePage.js';
 import { TemplatesPage } from './pages/TemplatesPage.js';
+import { CapsPage } from './pages/CapsPage.js';
 import { StickerManager } from './pages/StickerManager.js';
 import { ProactivePage } from './pages/ProactivePage.js';
 import { SearchPage } from './pages/SearchPage.js';
@@ -88,6 +89,7 @@ export default function ChatApp({ route }) {
   const tr = route?.match(/^\/translate\/(.+)$/);
   if (tr) return html`<${TranslatePage} chatId=${tr[1]}/>`;
   if (route === '/templates') return html`<${TemplatesPage}/>`;
+  if (route === '/caps') return html`<${CapsPage}/>`;
   if (route === '/moments') return html`<${Tabs} initial="moments"/>`;
   return html`<${Tabs}/>`;
 }

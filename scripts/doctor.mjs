@@ -10,6 +10,7 @@ import { check as longpress } from './check-longpress.mjs';
 import { check as dead } from './check-dead.mjs';
 import { check as promptTone } from './check-prompt-tone.mjs';
 import { check as calls } from './check-calls.mjs';
+import { check as backupAll } from './check-backup.mjs';
 
 console.log('小手机 自检\n');
 let failed = 0;
@@ -22,6 +23,7 @@ failed += report('设计令牌', tokens());
 failed += report('长按禁选', longpress());
 failed += report('提示词是书面语', promptTone());
 failed += report('接口调用次数', calls());
+failed += report('备份完整性', backupAll());
 failed += report('死导出', dead());
 failed += report('构建号', build());
 console.log(failed ? `\n${failed} 项未通过` : '\n全部通过');

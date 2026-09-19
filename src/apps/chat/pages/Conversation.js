@@ -980,7 +980,7 @@ export function Conversation({ chatId, focusId = '' }) {
               left=${html`<${Icon} name="music" size=${18}/>`}
               onClick=${pullMusic}/>` : null}
           <${ListItem} title=${packing ? '正在打包' : '导出这个角色'} arrow multiline
-            subtitle="打包该角色及其相关数据，可在另一台设备导入。整库备份在「设置 - 存储」"
+            subtitle="打包该角色及其相关数据。导入在「联系」右上角的「导入角色」中。整库备份在「设置 - 存储」"
             left=${packing
               ? html`<${Spinner} size=${16}/>`
               : html`<${Icon} name="download" size=${18}/>`}
@@ -1060,6 +1060,15 @@ export function Conversation({ chatId, focusId = '' }) {
           <${ListItem} title="表情包" subtitle=${`共 ${db.stickers.count()} 个，所有角色共用`} arrow multiline
             left=${html`<${Icon} name="image" size=${18}/>`}
             onClick=${() => { setMenu(false); nav.push('/stickers'); }}/>
+          <${ListItem} title="能力开关" arrow multiline
+            subtitle=${(() => {
+              const list = ai.caps.switchable();
+              const off = ai.caps.offSet(settings);
+              const n = list.length - list.filter(c => off.has(c.id)).length;
+              return `已开启 ${n} / ${list.length} 项。关闭的不会写进 prompt`;
+            })()}
+            left=${html`<${Icon} name="filter" size=${18}/>`}
+            onClick=${() => { setMenu(false); nav.push('/caps'); }}/>
           <${ListItem} title="Prompt 模板" subtitle="骨架与各任务的提示词" arrow multiline
             left=${html`<${Icon} name="sparkle" size=${18}/>`}
             onClick=${() => { setMenu(false); nav.push('/templates'); }}/>

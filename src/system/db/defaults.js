@@ -163,6 +163,10 @@ export const DEFAULT_SETTINGS = {
   // 只存**改过的那几条**。把整套抄进来会让 DEFAULT_TEMPLATES 彻底失效：
   // template() 优先读这里，于是代码里改了默认值，老库一个字都吃不到。
   // 见 CLAUDE.md 第 11 条 —— 代码里那份是回落，不是初始值。
+  // 用户自己关掉的能力（id 清单）。空 = 一样都没关。
+  // 关掉的那几样一个字都不进 prompt，见 ai/capabilities.js
+  capsOff: [],
+
   promptTemplates: {},
 };
 

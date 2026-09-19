@@ -14,6 +14,7 @@ import { images } from '../system/db/images.js';
 import { useStore, uid } from '../system/store.js';
 import { useImage, useThumb } from '../system/db/useImage.js';
 import * as engine from '../system/ai/engine.js';
+import * as capsApi from '../system/ai/capabilities.js';
 import * as queue from '../system/ai/queue.js';
 import * as memoryCtx from '../system/ai/context/memory.js';
 import * as bondApi from '../system/bond.js';
@@ -173,6 +174,7 @@ export const phone = {
     vision: visionApi,
     asr: asrApi,
     translate: translateApi,
+    caps: capsApi,
     cost: costApi,
     reply: replyApi,
     repair: repairApi,

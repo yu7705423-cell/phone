@@ -57,9 +57,21 @@ function stickerNames(char, limit) {
 const hasPending = (msgs, kind, field, value) =>
   msgs.some(m => m.kind === kind && m[field] === value);
 
+// 时间戳与译文是**协议**，不是「想用再用」的功能：关掉它们，模型写出来的
+// 那几行本地就解析不出来。所以它们不进那张开关表（见 switchable）。
+export const PROTOCOL = new Set(['time', 'translate']);
+
+/** 用户能自己关掉的那些。协议那两样不在里面。 */
+export const switchable = () => CAPS.filter(c => !PROTOCOL.has(c.id));
+
+/** 关掉了哪几样。存的是 id 清单，没有就是一样都没关。 */
+export const offSet = settings =>
+  new Set(Array.isArray(settings?.capsOff) ? settings.capsOff : []);
+
 export const CAPS = [
   {
     id: 'image',
+    label: '发图片',
     on: ({ char }) => isImageReady() && char.canSendImage !== false,
     hot: ({ msgs }) => usedRecently(msgs, /^image$|[[【](图片|照片)/),
     line: () => 'Send an image: write a line on its own, [图片：a description of the image]',
@@ -67,6 +79,7 @@ export const CAPS = [
   },
   {
     id: 'voice',
+    label: '发语音',
     on: ({ char }) => isVoiceReady() && !!char.voiceId && char.canSendVoice !== false,
     hot: ({ msgs }) => usedRecently(msgs, /^voice$|[[【]语音/),
     line: () => 'Send a voice message: write a line on its own, [语音：what you say]',
@@ -74,6 +87,7 @@ export const CAPS = [
   },
   {
     id: 'sticker',
+    label: '发表情',
     // 表情和别的不一样：名字单子本身就是内容，一个不给就等于没这个功能。
     // 所以它常驻，只是冷着的时候少列几个。
     on: ({ char }) => !!stickerNames(char, 1),
@@ -85,6 +99,7 @@ export const CAPS = [
   },
   {
     id: 'quote',
+    label: '引用消息',
     on: ({ msgs }) => msgs.length >= 2,
     hot: ({ msgs }) => usedRecently(msgs, /[[【](引用|回复)/),
     line: () => 'Quote: write a line on its own, [引用：a short excerpt of that message],'
@@ -93,6 +108,7 @@ export const CAPS = [
   },
   {
     id: 'transfer',
+    label: '转账',
     on: ({ char }) => char.canTransfer !== false,
     hot: ({ msgs }) => usedRecently(msgs, /^transfer$|[[【]转账/)
       || hasPending(msgs, 'transfer', 'transfer', TR_PENDING),
@@ -106,6 +122,7 @@ export const CAPS = [
   },
   {
     id: 'gift',
+    label: '送礼物',
     on: ({ char }) => char.canSendGift !== false,
     hot: ({ msgs }) => usedRecently(msgs, /^gift$|[[【]礼物/)
       || hasPending(msgs, 'gift', 'gift', GIFT_PENDING),
@@ -115,6 +132,7 @@ export const CAPS = [
   },
   {
     id: 'listen',
+    label: '一起听与点歌',
     // 曲库是空的就没什么可听的，提了反而让它点一首不存在的歌
     on: ({ char }) => char.canListen !== false && allSongs().length > 0,
     // 正在一起听就必须是热的：那三条「别当鉴赏课」的规矩是这个功能的全部要害
@@ -126,6 +144,7 @@ export const CAPS = [
   },
   {
     id: 'ring',
+    label: '通话',
     on: ({ char }) => char.canCall !== false,
     hot: ({ msgs }) => usedRecently(msgs, /^call$|[[【](视频)?(去电|来电)/),
     line: () => 'Call: write a line on its own, [去电]; for video, write [视频去电]',
@@ -133,6 +152,7 @@ export const CAPS = [
   },
   {
     id: 'location',
+    label: '共享位置',
     on: ({ char }) => char.canSendLocation !== false,
     hot: ({ msgs }) => usedRecently(msgs, /^location$|[[【](位置|定位)/),
     line: () => 'Share your location: write a line on its own, [位置：place name, address]',
@@ -143,6 +163,7 @@ export const CAPS = [
   {
     // 这段对话没绑账本就一个字都不提：共同账户、亲属卡都无处可落
     id: 'joint',
+    label: '共同账户与亲属卡',
     on: ({ chat }) => !!chat && !!ledger.bookOfChat(chat.id),
     // 有一条申请挂着就必须是热的：它得知道怎么批、怎么驳
     hot: ({ msgs }) => usedRecently(msgs, /^request$|[[【](申请|亲属卡|开通共同账户)/)
@@ -154,6 +175,7 @@ export const CAPS = [
   },
   {
     id: 'pact',
+    label: '约定',
     on: ({ char }) => char.canPact !== false,
     // 还欠着约定就必须是热的：它得知道「完成」怎么写，才标得掉
     hot: ({ msgs }) => usedRecently(msgs, /^pact$|[[【]约定/)
@@ -164,6 +186,7 @@ export const CAPS = [
   },
   {
     id: 'letter',
+    label: '写信',
     on: ({ char }) => char.canWriteLetter !== false,
     hot: ({ msgs }) => usedRecently(msgs, /^letter$|[[【]信[:：]/),
     line: () => 'Write a letter: write a line on its own, [信：salutation | body]',
@@ -171,6 +194,7 @@ export const CAPS = [
   },
   {
     id: 'watch',
+    label: '一起看',
     // 这一场开着才有这回事。没开的时候一个字都不提 ——
     // 「你可以暂停」对着没在放的画面说，只会让它凭空去暂停。
     on: ({ chat }) => !!chat && watchStore.inChat(chat.id),
@@ -179,6 +203,7 @@ export const CAPS = [
   },
   {
     id: 'agenda',
+    label: '日程事项',
     // 今天没排日程就别提这回事。排了就常驻 —— 「你今天」那一段已经在上面了，
     // 不告诉它怎么标完成，那几条事项就只能一直挂着。
     on: ({ char }) => !!dayStore.brief(char.id),
@@ -187,6 +212,7 @@ export const CAPS = [
   },
   {
     id: 'takeout',
+    label: '外卖与请客',
     on: ({ char }) => char.canTakeout !== false,
     // 挂着一单没处理的就必须是热的：它得知道「收下」「不要」怎么写
     hot: ({ msgs }) => usedRecently(msgs, /^takeout$|[[【](外卖|请客|代付)/)
@@ -197,6 +223,7 @@ export const CAPS = [
   },
   {
     id: 'pat',
+    label: '拍一拍',
     on: ({ char }) => char.canPat !== false,
     hot: ({ msgs }) => usedRecently(msgs, /拍了拍|[[【]拍/),
     line: () => 'Nudge: write a line on its own, [拍一拍]',
@@ -204,6 +231,7 @@ export const CAPS = [
   },
   {
     id: 'dice',
+    label: '骰子',
     on: ({ char }) => char.canDice !== false,
     hot: ({ msgs }) => usedRecently(msgs, /^dice$|[[【]骰子/),
     line: () => 'Roll a die: write a line on its own, [骰子]; the system rolls it,'
@@ -212,6 +240,7 @@ export const CAPS = [
   },
   {
     id: 'avatar',
+    label: '换头像',
     // 库是空的就没什么可换，提了反而让它点一张不存在的
     on: ({ char }) => !!avatarLib.poolNames(char),
     hot: ({ msgs }) => usedRecently(msgs, /[[【]换头像/),
@@ -221,6 +250,7 @@ export const CAPS = [
   },
   {
     id: 'inner',
+    label: '心声',
     // 心声是每一轮的义务，不是「想用再用」的功能，冷着注入等于关掉它。
     // 「单独生成」那一档不走这儿 —— 那一档是另一次调用，不必在这儿交代写法。
     on: ({ chat }) => extras.innerMode(chat) === extras.INNER_INLINE,
@@ -229,6 +259,7 @@ export const CAPS = [
   },
   {
     id: 'time',
+    label: '时间戳',
     // 每轮开头都要写的那一行。这不是「想用再用」的功能，冷着注入等于关掉它
     on: () => clock.stampOn(),
     always: true,
@@ -236,6 +267,7 @@ export const CAPS = [
   },
   {
     id: 'translate',
+    label: '译文',
     // 同理：每条消息都要跟一行译文。
     // 配了单独的翻译接口就不走这条路了 —— 那边只拿到原文与翻译规则，
     // 这边一个字都不必提，提了反而是让聊天模型再翻一遍（见 ai/translate.js）。
@@ -256,7 +288,12 @@ export function capabilityBlock(raw) {
   const lines = [];
   const details = [];
 
+  // 用户自己关掉的那几样，一个字都不注入 —— 关了却还在 prompt 里躺着，
+  // 就成了「界面上说关了，模型那边照样看得见」
+  const off = offSet(ctx.settings);
+
   for (const cap of CAPS) {
+    if (off.has(cap.id) && !PROTOCOL.has(cap.id)) continue;
     if (!cap.on(ctx)) continue;
     const hot = !lean || cap.always || (cap.hot ? cap.hot(ctx) : false);
     if (hot || !cap.line) details.push(cap.detail({ ...ctx, hot }));
