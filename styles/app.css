@@ -1735,6 +1735,50 @@ button.search-bar { width: 100%; border: none; }
   font-size: var(--fs-11); color: var(--text-3); padding-top: var(--sp-2);
 }
 
+/* ---- 角色手机 ---- */
+/* 一块主屏：壁纸铺底，上面一行是这台手机的主人，下面是图标网格 */
+.tp-wall {
+  flex: 1; min-height: 0; overflow-y: auto;
+  display: flex; flex-direction: column;
+  padding: var(--sp-5) var(--sp-5) var(--sp-6);
+  background-size: cover; background-position: center;
+}
+.tp-wall.has-img { position: relative; }
+/* 壁纸上压一层，不然浅色壁纸上的字读不出来 */
+.tp-wall.has-img::before {
+  content: ''; position: absolute; inset: 0;
+  background: var(--scrim); pointer-events: none;
+}
+.tp-wall > * { position: relative; }
+.tp-top {
+  display: flex; flex-direction: column; align-items: center; gap: var(--sp-2);
+  padding: var(--sp-5) 0 var(--sp-6);
+}
+.tp-top b { font-size: var(--fs-17); font-weight: var(--fw-semi); color: var(--text); }
+.tp-top span { font-size: var(--fs-12); color: var(--text-3); font-variant-numeric: tabular-nums; }
+.tp-grid {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-3);
+}
+.tp-tile {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+  min-width: 0; padding: var(--sp-4);
+  border: 1px solid var(--border); border-radius: var(--r-md);
+  background: var(--surface); text-align: left;
+}
+.tp-ico {
+  display: flex; align-items: center; justify-content: center;
+  width: 38px; height: 38px; margin-bottom: var(--sp-2);
+  border-radius: var(--r-md);
+  background: var(--surface-2); color: var(--text-2);
+}
+.tp-tile b { font-size: var(--fs-14); font-weight: var(--fw-semi); color: var(--text); }
+.tp-sub { font-size: var(--fs-11); color: var(--text-3); max-width: 100%; }
+.tp-empty {
+  padding: var(--sp-6) var(--sp-4); text-align: center;
+  font-size: var(--fs-12); color: var(--text-3); line-height: 1.7;
+}
+
 /* ---- 相册 ---- */
 .ph-grid {
   display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));

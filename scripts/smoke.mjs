@@ -24,6 +24,8 @@ const ROUTES = {
     '/log/:chat/gift', '/log/:chat/location', '/log/:chat/listen', '/log/:chat/call'],
   daily: ['/', '/gen', '/cell/env/good', '/cell/social/bad', '/cell/luck/plain',
     '/today', '/today/:char', '/food', '/food/', '/food/%E6%88%90%E9%83%BD'],
+  theirs: ['/', '/home/:char', '/shelf/:char', '/body/:char', '/day/:char',
+    '/home/nope', '/shelf/nope', '/body/nope', '/day/nope'],
   music: ['/', '/library', '/list/1'],
   bill: ['/', '/books', '/accounts', '/rules'],
   theater: ['/', '/videos', '/books', '/settings', '/watch/:chat', '/book/:ebook',
