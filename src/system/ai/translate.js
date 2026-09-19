@@ -1,6 +1,7 @@
 import { runJSONWithPreset } from './engine.js';
 import { template, fillTemplate } from './templates.js';
 import { translateConfig, translateMode, translateFilled } from './services.js';
+import { settings } from '../db/index.js';
 
 // 单独的翻译接口。
 //
@@ -64,6 +65,82 @@ export async function run(texts, opts = {}) {
 
   const rows = Array.isArray(r?.lines) ? r.lines : [];
   return list.map((_, i) => String(rows[i] ?? '').trim());
+}
+
+// ---- 行内译文：原文和译文写在同一行 ----
+//
+// 内置骨架让模型把译文单独写成一行 `[译文：…]`，reply.js 按那个形状剥。
+// 但**用自己模板的人不会照着那个写**：有人要「原文（译文）」，有人要
+// 「原文｜译文」，各人一个样。那些行现在整行当正文渲染出去，译文收不进
+// 气泡里，看着就是翻译没生效。
+//
+// 所以让用户自己描述那个形状，一行一个，写多少条都行（第 13 条不设上限）。
+// **默认一条都没有** —— 这套拆分是有代价的：一句正常的「他笑了（大概吧）」
+// 也符合「原文（译文）」的样子，开着就会被拆开。只有自己知道模板长什么样的人
+// 才该开它，所以不替任何人默认打开。
+
+/** 模板里这两个记号代表原文与译文。其余字符原样匹配。 */
+export const SLOT_SRC = '{原文}';
+export const SLOT_OUT = '{译文}';
+
+export const FORMAT_PRESETS = [
+  `${SLOT_SRC}（${SLOT_OUT}）`,
+  `${SLOT_SRC}(${SLOT_OUT})`,
+  `${SLOT_SRC}｜${SLOT_OUT}`,
+  `${SLOT_SRC} | ${SLOT_OUT}`,
+  `${SLOT_SRC} / ${SLOT_OUT}`,
+  `${SLOT_SRC}【${SLOT_OUT}】`,
+];
+// 预设只是常见的那几种，按一下填进去省得手打。**不是上限** ——
+// 任何形状都可以自己写，包括用破折号分隔的那种（那一条没做成预设：
+// check-prompt-tone 全库扫破折号插入语，为一条预设去给检查开后门不值）。
+
+const esc = t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/**
+ * 一条模板编译成正则。两个记号各要且只要出现一次，否则不认这条。
+ *
+ * 两个捕获组都用贪婪的 `(.+)`：这样「他笑了（大概吧）（He smiled）」会拆成
+ * 原文「他笑了（大概吧）」、译文「He smiled」—— 最后那一个括号才是译文，
+ * 和人读到的一样。
+ */
+export function compileFormat(tpl) {
+  const t = String(tpl || '').trim();
+  if (!t) return null;
+  const parts = t.split(SLOT_SRC);
+  if (parts.length !== 2) return null;
+  const [head, rest] = parts;
+  const tail = rest.split(SLOT_OUT);
+  if (tail.length !== 2) return null;
+  const [mid, end] = tail;
+  try {
+    return new RegExp(`^${esc(head)}(.+)${esc(mid)}(.+)${esc(end)}$`);
+  } catch { return null; }
+}
+
+/** 用户配的那几条，一行一个。空行与写坏的那几条自动跳过。 */
+export const formats = () => String(settings.get().translateFormats || '')
+  .split('\n').map(x => x.trim()).filter(Boolean);
+
+export const compiled = () => formats().map(compileFormat).filter(Boolean);
+
+/**
+ * 这一行是不是「原文 + 译文」写在一起的。是就拆开，不是就返回 null。
+ *
+ * 一条都没配时直接返回 null —— 不猜，不拿括号当默认规则。
+ */
+export function splitInline(line, list = compiled()) {
+  const t = String(line || '').trim();
+  if (!t || !list.length) return null;
+  for (const re of list) {
+    const m = t.match(re);
+    if (!m) continue;
+    const text = String(m[1] || '').trim();
+    const translation = String(m[2] || '').trim();
+    // 两边都得有东西。空的那一半说明这一行只是碰巧长得像
+    if (text && translation) return { text, translation };
+  }
+  return null;
 }
 
 /** 设置页的连接测试。只翻一句，不动别的。 */

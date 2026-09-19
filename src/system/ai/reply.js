@@ -225,6 +225,8 @@ export function splitReply(raw) {
   let last = 0;
   // 读到的引用行先记着，挂到紧随其后的那一条上
   let pendingQuote = null;
+  // 行内译文那几条正则整轮编译一次，不要每行都重来
+  const inlineForms = translate.compiled();
 
   const push = part => {
     if (pendingQuote) { part.quote = pendingQuote; pendingQuote = null; }
@@ -291,6 +293,16 @@ export function splitReply(raw) {
       if (tr) {
         const prev = parts[parts.length - 1];
         if (prev) prev.translation = tr[1].trim();
+        return;
+      }
+
+      // 到这儿还没被任何标记认走，才轮到行内译文：用户自己配的那几个形状
+      // （原文（译文）、原文｜译文 之类）。**放在最后** —— 前面那些标记的
+      // 形状更确定，让它先抢会把引用、心声这类整行吞掉。
+      // 一条都没配时 splitInline 直接返回 null，不猜。
+      const inline = translate.splitInline(t, inlineForms);
+      if (inline) {
+        push({ type: 'text', text: inline.text, translation: inline.translation });
         return;
       }
 

@@ -1,6 +1,6 @@
 import { html, useState } from '../../lib.js';
 import { phone, useStore } from '../../sdk/index.js';
-import { Page, List, ListItem, Field, Input, Button, Segmented, toast } from '../../ui/index.js';
+import { Page, List, ListItem, Field, Input, Textarea, Button, Segmented, toast } from '../../ui/index.js';
 import { ApiSource } from './ApiSource.js';
 
 const { db, nav, ai } = phone;
@@ -27,6 +27,14 @@ export function TranslateApiPage() {
   const set = patch => svc.setTranslate(patch);
   const mode = v.mode === 'api' ? 'api' : 'inline';
 
+  // 行内译文。用自己模板的人写的形状五花八门，让他自己描述一遍
+  const [probe, setProbe] = useState('');
+  const forms = String(db.settings.get().translateFormats || '');
+  const setForms = v => db.settings.set({ translateFormats: v });
+  const addForm = tpl => setForms(forms.trim() ? `${forms.trim()}\n${tpl}` : tpl);
+  const split = probe.trim() ? ai.translate.splitInline(probe) : null;
+  const bad = ai.translate.formats().filter(f => !ai.translate.compileFormat(f));
+
   const run = async () => {
     setTesting(true);
     setResult('');
@@ -50,6 +58,45 @@ export function TranslateApiPage() {
           <${Segmented} value=${mode} items=${MODES} onChange=${m => set({ mode: m })}/>
         <//>
       </div>
+
+      ${mode === 'api' ? null : html`
+      <div class="pad-x">
+        <${Field} label="行内译文的形状"
+          desc=${'内置模板让角色把译文单独写成一行。如果你自己改过提示词，'
+            + '让原文与译文写在同一行，在这里描述那个形状，一行一种，可以写多种。'
+            + `用 ${ai.translate.SLOT_SRC} 与 ${ai.translate.SLOT_OUT} 表示两段内容，`
+            + '其余字符按原样匹配。留空则不作此项识别。'}>
+          <${Textarea} value=${forms} rows=${3}
+            placeholder=${ai.translate.FORMAT_PRESETS[0]}
+            onInput=${setForms}/>
+        <//>
+        <div class="chip-row">
+          ${ai.translate.FORMAT_PRESETS.map(t => html`
+            <button key=${t} class="chip" onClick=${() => addForm(t)}>${t}</button>`)}
+        </div>
+        ${bad.length ? html`
+          <div class="settings-foot">
+            以下几行无法识别，已忽略：${bad.join('、')}。
+            每行需要恰好各出现一次 ${ai.translate.SLOT_SRC} 与 ${ai.translate.SLOT_OUT}。
+          </div>` : null}
+
+        <${Field} label="试一试"
+          desc="粘贴角色实际回复中的一行，确认是否按预期拆分。">
+          <${Input} value=${probe} placeholder="他说（He said）"
+            onInput=${setProbe}/>
+        <//>
+        ${probe.trim() ? html`
+          <div class="settings-foot">
+            ${split
+              ? html`原文：${split.text}<br/>译文：${split.translation}`
+              : '这一行不符合上面任何一种形状，将按正文原样显示。'}
+          </div>` : null}
+      </div>
+      <div class="settings-foot">
+        识别出来的译文收在气泡里，与单独一行的写法一致：点原文展开。<br/>
+        这项识别有代价：一句正常的「他笑了（大概吧）」同样符合「原文（译文）」的
+        形状，也会被拆开。只在确实改过提示词时填写。
+      </div>`}
 
       ${mode !== 'api' ? null : html`
       <${ApiSource} cfg=${v} set=${set}/>
