@@ -3,8 +3,9 @@ import { Sheet, List, ListItem, Icon, Button, Input, Field, toast } from '../../
 import { listWidgets } from '../../system/registry.js';
 import { listAppLooks } from '../../system/look.js';
 import { layout } from '../../system/db/index.js';
-import { placeAt, placeAtXY, clearCell, newFolder, newFolderAuto, setFolder, putInFolder, takeOut } from './layout.js';
+import { placeAt, placeAtXY, clearCell, putInFolder, takeOut } from './layout.js';
 import { IconSheet } from './IconSheet.js';
+import { FolderEdit } from './FolderEdit.js';
 
 const sizeLabel = (w, h) => `${w} x ${h}`;
 
@@ -17,24 +18,10 @@ function foldersNow() {
   return out;
 }
 
-// 多选一串 app。新建文件夹和改文件夹用的是同一个
-function AppPicker({ apps, picked, onToggle }) {
-  return html`
-    <${List} inset=${false}>
-      ${apps.map(a => html`
-        <${ListItem} key=${a.id} title=${a.name}
-          left=${html`<div class="icon-chip"><${Icon} name=${a.icon} size=${17}/></div>`}
-          right=${picked.includes(a.id)
-            ? html`<${Icon} name="check" size=${17}/>` : null}
-          onClick=${() => onToggle(a.id)}/>`)}
-    <//>`;
-}
-
 // 整理模式下点任意位置：换内容、交换、移除
 export function CellEditor({ cell, pageIdx, onClose, onSwapFrom }) {
   const [tab, setTab] = useState('root');
-  const [picked, setPickedApps] = useState([]);
-  const [name, setName] = useState('');
+  const [folderEdit, setFolderEdit] = useState(null);   // { cell } | { at, preset }
   const [editingIcon, setEditingIcon] = useState(null);
   if (!cell) return null;
 
@@ -43,26 +30,11 @@ export function CellEditor({ cell, pageIdx, onClose, onSwapFrom }) {
   const isSlot = !!cell.slot;
   const isFolder = cell.kind === 'folder';
 
-  const close = () => { setTab('root'); setPickedApps([]); setName(''); onClose(); };
+  const close = () => { setTab('root'); setFolderEdit(null); onClose(); };
 
   const put = next => {
     const r = isSlot ? placeAtXY(pageIdx, cell.x, cell.y, next)
                      : placeAt(pageIdx, cell.id, next);
-    if (!r.ok) { toast(r.reason, 'error'); return; }
-    close();
-  };
-
-  const toggle = id => setPickedApps(p =>
-    p.includes(id) ? p.filter(x => x !== id) : [...p, id]);
-
-  const makeFolder = () => {
-    const r = newFolder(pageIdx, cell.x, cell.y, picked, name || '文件夹');
-    if (!r.ok) { toast(r.reason, 'error'); return; }
-    close();
-  };
-
-  const saveFolder = () => {
-    const r = setFolder(cell.id, { name: name || cell.name, apps: picked });
     if (!r.ok) { toast(r.reason, 'error'); return; }
     close();
   };
@@ -73,17 +45,12 @@ export function CellEditor({ cell, pageIdx, onClose, onSwapFrom }) {
     close();
   };
 
-  const openFolderEdit = () => {
-    setPickedApps([...(cell.apps || [])]);
-    setName(cell.name || '');
-    setTab('folder-edit');
-  };
+  const openFolderEdit = () => setFolderEdit({ cell });
   // app 格上新建：这个 app 先替你勾上，多半就是为了把它收起来才点的
-  const openFolderNew = () => {
-    setPickedApps(cell.kind === 'app' && cell.ref ? [cell.ref] : []);
-    setName('');
-    setTab('folder-new');
-  };
+  const openFolderNew = () => setFolderEdit({
+    at: { pageIdx, x: cell.x, y: cell.y },
+    preset: cell.kind === 'app' && cell.ref ? [cell.ref] : [],
+  });
 
   const body =
     tab === 'widget' ? html`
@@ -101,20 +68,6 @@ export function CellEditor({ cell, pageIdx, onClose, onSwapFrom }) {
             left=${html`<div class="icon-chip"><${Icon} name=${a.icon} size=${17}/></div>`}
             onClick=${() => put({ kind: 'app', ref: a.id, w: 1, h: 1 })}/>`)}
       <//>`
-    : tab === 'folder-new' || tab === 'folder-edit' ? html`
-      <div class="pad-x">
-        <${Field} label="名称">
-          <${Input} value=${name} placeholder="文件夹"
-            onInput=${v => setName(v)}/>
-        <//>
-        <${Field} label=${`装进来的应用 · 已选 ${picked.length}`}
-          desc="选中的应用将从当前位置移入该文件夹。全部取消选择即删除该文件夹。"/>
-      </div>
-      <${AppPicker} apps=${apps} picked=${picked} onToggle=${toggle}/>
-      <div class="pad">
-        <${Button} full onClick=${tab === 'folder-new' ? makeFolder : saveFolder}>
-          ${tab === 'folder-new' ? '创建' : '保存'}<//>
-      </div>`
     : tab === 'into' ? html`
       <${List} inset=${false}>
         ${foldersNow().map(f => html`
@@ -171,13 +124,15 @@ export function CellEditor({ cell, pageIdx, onClose, onSwapFrom }) {
       <//>`;
 
   const title = tab === 'widget' ? '选一个小组件' : tab === 'app' ? '选一个应用'
-    : tab === 'folder-new' ? '新建文件夹' : tab === 'folder-edit' ? '编辑文件夹'
     : tab === 'into' ? '装进哪个文件夹' : tab === 'out' ? '取出一个应用'
     : isFolder ? (cell.name || '文件夹') : (isSlot ? '这个空位' : '这个位置');
 
   return html`
     <${Sheet} open=${true} onClose=${close} title=${title} height=${tab === 'root' ? null : '72%'}>
       <${IconSheet} appId=${editingIcon} onClose=${() => setEditingIcon(null)}/>
+      <${FolderEdit} open=${!!folderEdit} cell=${folderEdit?.cell}
+        at=${folderEdit?.at} preset=${folderEdit?.preset || []}
+        onClose=${() => { setFolderEdit(null); close(); }}/>
       ${tab !== 'root' ? html`
         <div class="pad-b">
           <${Button} size="sm" variant="ghost" icon="chevronLeft"

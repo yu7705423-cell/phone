@@ -1,14 +1,16 @@
 import { html, useRef, useState } from '../../lib.js';
-import { Sheet } from '../../ui/index.js';
+import { Sheet, Button } from '../../ui/index.js';
 import { appLook } from '../../system/look.js';
 import { openApp } from '../../system/nav.js';
 import { AppTile } from './AppTile.js';
 import { IconSheet } from './IconSheet.js';
+import { FolderEdit } from './FolderEdit.js';
 
 // 打开的文件夹。一层浮层，点里面的图标就进那个 app，长按改它的图标与名称。
 // 不做「文件夹里再套文件夹」：主界面一共几十个图标，套两层只会更难找。
 export function FolderView({ cell, onClose }) {
   const [editing, setEditing] = useState(null);
+  const [renaming, setRenaming] = useState(false);
   const timer = useRef(null);
   const fired = useRef(false);
   if (!cell) return null;
@@ -38,8 +40,14 @@ export function FolderView({ cell, onClose }) {
             <span class="app-name ellipsis">${a.name}</span>
           </button>`)}
       </div>
-      <div class="settings-foot">长按图标可更改它的图标与名称。</div>
+      <div class="pad">
+        <${Button} full variant="ghost" icon="edit"
+          onClick=${() => setRenaming(true)}>改名称与内容<//>
+      </div>
+      <div class="settings-foot">长按其中的图标可更改它的图标与名称。</div>
       <${IconSheet} appId=${editing} onClose=${() => setEditing(null)}/>
+      <${FolderEdit} open=${renaming} cell=${cell}
+        onClose=${() => { setRenaming(false); onClose(); }}/>
     <//>`;
 }
 

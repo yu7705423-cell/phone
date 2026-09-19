@@ -14,6 +14,7 @@ import { rowsOf, setPage, movePicked, healAndSave, addPage, removePage, freeSlot
 import { editState, setEdit, setPicked, clearPicked } from './editState.js';
 import { AppTile } from './AppTile.js';
 import { FolderView, FolderTile } from './FolderView.js';
+import { FolderEdit } from './FolderEdit.js';
 import { toast } from '../../ui/overlay.js';
 
 function unreadFor(appId) {
@@ -23,13 +24,29 @@ function unreadFor(appId) {
     .reduce((n, c) => n + (c.unread || 0), 0);
 }
 
-function Cell({ cell, edit, onPick, picked, onEditWidget, onOpenFolder }) {
+function Cell({ cell, edit, onPick, picked, onEditWidget, onOpenFolder, onEditFolder }) {
+  const hold = useRef(null);
+  const fired = useRef(false);
   const style = `grid-column:${cell.x + 1}/span ${cell.w};grid-row:${cell.y + 1}/span ${cell.h}`;
 
   if (cell.kind === 'folder') {
+    // 长按直接改名与增减内容。外层那个长按是「进整理模式」，这里先截下来
+    const start = () => {
+      clearTimeout(hold.current);
+      fired.current = false;
+      hold.current = setTimeout(() => { fired.current = true; onEditFolder(cell); }, 550);
+    };
+    const end = () => clearTimeout(hold.current);
+    const tap = () => {
+      if (fired.current) { fired.current = false; return; }
+      if (edit) onPick(cell); else onOpenFolder(cell);
+    };
     return html`
-      <div class=${`cell cell-app${edit ? ' is-edit' : ''}${picked ? ' is-picked' : ''}`} style=${style}
-        onClick=${() => edit ? onPick(cell) : onOpenFolder(cell)}>
+      <div class=${`cell cell-app no-callout${edit ? ' is-edit' : ''}${picked ? ' is-picked' : ''}`}
+        style=${style} onClick=${tap}
+        onContextMenu=${e => { e.preventDefault(); onEditFolder(cell); }}
+        onMouseDown=${start} onMouseUp=${end} onMouseLeave=${end}
+        onTouchStart=${start} onTouchEnd=${end} onTouchMove=${end} onTouchCancel=${end}>
         <${FolderTile} cell=${cell}/>
         <span class="app-name ellipsis">${cell.name || '文件夹'}</span>
       </div>`;
@@ -69,6 +86,7 @@ export function HomeScreen() {
   const [editingWidget, setEditingWidget] = useState(null);
   const [editingCell, setEditingCell] = useState(null);
   const [openFolder, setOpenFolder] = useState(null);
+  const [editFolder, setEditFolder] = useState(null);
   const pressTimer = useRef(null);
   const touch = useRef(null);
   // 长按松手时浏览器还会补一次 click，会把刚进入的整理模式立刻弹出菜单。
@@ -181,7 +199,7 @@ export function HomeScreen() {
           <${Cell} key=${c.id} cell=${c} edit=${edit}
             picked=${picked?.type === 'cell' && picked.id === c.id}
             onPick=${onPick} onEditWidget=${setEditingWidget}
-            onOpenFolder=${setOpenFolder}/>`)}
+            onOpenFolder=${setOpenFolder} onEditFolder=${f => { endPress(); setEditFolder(f); }}/>`)}
         ${edit ? slots.map(sl => html`
           <div key=${`${sl.x},${sl.y}`} class="cell cell-slot"
             style=${`grid-column:${sl.x + 1};grid-row:${sl.y + 1}`}
@@ -214,6 +232,8 @@ export function HomeScreen() {
         </div>` : null}
 
       <${FolderView} cell=${openFolder} onClose=${() => setOpenFolder(null)}/>
+      <${FolderEdit} open=${!!editFolder} cell=${editFolder}
+        onClose=${() => setEditFolder(null)}/>
       <${WidgetEditor} cell=${editingWidget} onClose=${() => setEditingWidget(null)}/>
       <${CellEditor} cell=${editingCell} pageIdx=${idx}
         onClose=${() => setEditingCell(null)}
