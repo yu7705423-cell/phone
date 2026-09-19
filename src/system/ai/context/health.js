@@ -21,6 +21,24 @@ export const meta = {
 
 const listOf = ids => ids.map(x => health.symptomOf(x)?.label).filter(Boolean).join('、');
 
+/**
+ * 排便那几条。一次一行，各写自己的时间与形态；两样都没填就只算进次数。
+ * 时间与形态都可能是空的，空的那一项不写，不拿「未知」去占位。
+ */
+function poopLines(d) {
+  const list = d.poops || [];
+  if (!list.length) return [];
+  const bits = list.map(e => {
+    const at = health.poopTime(e);
+    const form = health.poopFormOf(e.form);
+    if (at && form) return `${at} (${form.label})`;
+    if (at) return at;
+    if (form) return `time not recorded (${form.label})`;
+    return 'time not recorded';
+  });
+  return [`Bowel movements today: ${list.length} — ${bits.join('; ')}.`];
+}
+
 function mine() {
   if (settings.get().healthInject !== true) return [];
   const d = health.today(health.ME);
@@ -40,13 +58,9 @@ function mine() {
   if ((d.symptoms || []).length) out.push(`Unwell: ${listOf(d.symptoms)}.`);
   if (d.note) out.push(`Also noted: ${d.note}`);
 
-  // 排便单独一道开关。写的也只是次数与形态这两个记下来的事实，
+  // 排便单独一道开关。写的只是记下来的事实：几次、各自什么时候、什么样。
   // 形态那一档的原话照抄，不翻译也不改写成结论（第 14、16 条）
-  if (settings.get().healthPoopInject === true && d.poop) {
-    const form = health.poopFormOf(d.poopForm);
-    out.push(`Bowel movements: ${d.poop} today`
-      + (form ? `, recorded form: ${form.label}.` : '.'));
-  }
+  if (settings.get().healthPoopInject === true) out.push(...poopLines(d));
 
   if (settings.get().healthCycleInject === true) {
     const open = health.openCycle();
@@ -69,6 +83,9 @@ function theirs(char) {
   if (d.mood) out.push(`Mood: ${health.moodOf(d.mood)?.label}.`);
   if ((d.symptoms || []).length) out.push(`Unwell: ${listOf(d.symptoms)}.`);
   if (d.sleepMin) out.push(`Slept ${health.fmtSleep(d.sleepMin)}.`);
+  // 角色这一份是用户替它设定的，不是谁的隐私，所以跟着角色卡上那个开关走，
+  // 不再另设一道（用户自己那份才需要 healthPoopInject）
+  out.push(...poopLines(d));
   if (d.note) out.push(`Also: ${d.note}`);
   return out.length ? ['## Your own body today', ...out] : [];
 }

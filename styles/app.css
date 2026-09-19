@@ -1695,6 +1695,20 @@ button.search-bar { width: 100%; border: none; }
   max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 
+/* 排便一次一条。每条上面一行是序号、时间、删除，下面一行是形态 */
+.hl-poop {
+  padding: var(--sp-3) 0;
+  border-bottom: 1px solid var(--border);
+}
+.hl-poop:first-child { padding-top: var(--sp-2); }
+.hl-poop-head { display: flex; align-items: center; gap: var(--sp-3); }
+.hl-poop-no {
+  flex: none; font-size: var(--fs-12); color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+.hl-poop-head input { flex: 1; min-width: 0; }
+.hl-poop-head button { flex: none; color: var(--text-3); }
+
 /* 趋势那一条。黑白，跟着 currentColor 走 */
 .hl-trend { padding: var(--sp-3) 0 var(--sp-2); }
 .hl-spark {

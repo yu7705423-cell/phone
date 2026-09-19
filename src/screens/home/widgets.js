@@ -196,7 +196,7 @@ function healthValue(id, d) {
   if (id === 'water') return String(d.water || 0);
   if (id === 'weight') return d.weight ? String(health.toDisplay(d.weight)) : '—';
   if (id === 'mood') return health.moodOf(d.mood)?.label || '—';
-  if (id === 'poop') return String(d.poop || 0);
+  if (id === 'poop') return String((d.poops || []).length);
   return '—';
 }
 

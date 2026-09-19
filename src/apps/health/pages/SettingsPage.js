@@ -85,8 +85,8 @@ export function SettingsPage() {
             onChange=${v => set({ healthCycleInject: v })}
             disabled=${s.healthInject !== true}/>`}/>
         <${ListItem} title="排便也一并写进去" multiline
-          subtitle=${'单独一道开关。开启后只写当天的次数与记下的形态，不写别的。'
-            + '关闭则一个字都不写。'}
+          subtitle=${'单独一道开关。开启后只写当天的次数，以及每次的时间与形态，'
+            + '没填的那一项不写。关闭则一个字都不写。'}
           right=${html`<${Switch} checked=${s.healthPoopInject === true}
             onChange=${v => set({ healthPoopInject: v })}
             disabled=${s.healthInject !== true}/>`}/>

@@ -2,6 +2,7 @@ import { html } from '../../../lib.js';
 import { phone, useStore } from '../../../sdk/index.js';
 import { Page, List, ListItem, Field, Input, Segmented, Icon,
          EmptyState } from '../../../ui/index.js';
+import { PoopField } from '../parts.js';
 
 const { db, nav, health } = phone;
 
@@ -48,6 +49,7 @@ export function CharPage({ charId }) {
             placeholder="可留空"
             onInput=${v => set({ sleepMin: Math.max(0, Number(v) || 0) })}/>
         <//>
+        <${PoopField} who=${charId} date=${date} list=${d.poops} mine=${false}/>
         <${Field} label="另外记一句" desc="可留空。会一并写进上下文。">
           <${Input} value=${d.note} placeholder="可留空"
             onInput=${v => set({ note: v.slice(0, 200) })}/>

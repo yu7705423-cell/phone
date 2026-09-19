@@ -42,7 +42,11 @@ export const SYMPTOMS = [
   { id: 'dizzy', label: '头晕' },
 ];
 
-// 排便。记两样：**次数**和**形态**。
+// 排便。**一次一条**，每条带自己的时间与形态。
+//
+// 从前记的是「一天几次 + 一个形态」。一天里两次的样子常常不一样，那样记
+// 等于把它们抹平了，加上时间之后更是没处放 —— 一个形态配三个时间，
+// 谁也说不清是哪一次。
 //
 // 形态按布里斯托分型那七档写，从硬到稀。**七档只描述外观，不下结论** ——
 // 这里不写「便秘」「腹泻」，那是判断，这个 app 不做判断（第 16 条）。
@@ -85,13 +89,29 @@ export function daysBetween(a, b) {
 
 const blank = (who, date) => ({
   who, date, sleepMin: 0, sleepAt: '', steps: 0, weight: 0, water: 0,
-  poop: 0, poopForm: '',
+  poops: [],
   mood: '', energy: '', symptoms: [], note: '', took: [], source: 'manual',
 });
 
+/**
+ * 旧行折进新结构：「几次 + 一个形态」摊成几条，形态落在第一条上
+ * —— 原来那一个形态本来也没说是哪一次。
+ *
+ * **在读的时候转，不写一条迁移。** 迁移只管得到本机现有的行；
+ * 从旧备份恢复回来的行不会再走一遍迁移，那时候这一段仍然要顶得住。
+ * 读的入口只有下面这两个，都从这儿过。
+ */
+function withPoops(r) {
+  if (Array.isArray(r.poops)) return r;
+  const n = Math.max(0, Math.round(r.poop) || 0);
+  return { ...r, poops: Array.from({ length: n },
+    (_, i) => ({ at: '', form: i === 0 ? String(r.poopForm || '') : '' })) };
+}
+
 /** 某人某天那一行。没有就给一张空的，不落库。 */
 export function dayOf(who, date = dateKey()) {
-  return health.byIndex(who).find(r => r.date === date) || blank(who, date);
+  const got = health.byIndex(who).find(r => r.date === date);
+  return got ? withPoops(got) : blank(who, date);
 }
 
 export const today = (who = ME) => dayOf(who, dateKey());
@@ -105,13 +125,53 @@ export function set(who, date, patch) {
 /** 最近 n 天，新的在前。空着的那几天不补，翻历史看的是记过的那些。 */
 export const recent = (who = ME, n = 30) => health.byIndex(who)
   .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
-  .slice(0, n);
+  .slice(0, n)
+  .map(withPoops);
 
 /** 喝水点一下加一杯。**不设上限**（第 13 条），想喝多少是你的事。 */
 export const addWater = (who = ME, n = 1) => {
   const d = today(who);
   return set(who, d.date, { water: Math.max(0, (d.water || 0) + n) });
 };
+
+// ---- 记一次排便 ----
+//
+// 时间默认填当下 —— 多数人是刚上完就记。记不得的清掉就是，条目照样在。
+// 输入的时候只挡掉数字与冒号以外的字符，不在每一次按键上较真格式；
+// 拼不成 HH:MM 的，poopTime 读出来是空的，不会被写进上下文。
+
+const hhmm = (at = clock.now()) => {
+  const d = new Date(at);
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+
+/**
+ * 这一条的时间，正规成 HH:MM。填了一半、或者根本不是个时刻，一律当没填。
+ * 时与分都要在真实范围内：`1:99` 不是时间，不能就这么写进上下文。
+ */
+export const poopTime = e => {
+  const m = String(e?.at || '').trim().match(/^(\d{1,2}):(\d{2})$/);
+  if (!m) return '';
+  const h = Number(m[1]);
+  const min = Number(m[2]);
+  return h < 24 && min < 60 ? `${pad(h)}:${m[2]}` : '';
+};
+
+const writePoops = (who, date, list) => set(who, date, { poops: list });
+
+/** 追加一条。**不设上限**（第 13 条）。 */
+export const addPoop = (who, date) =>
+  writePoops(who, date, [...dayOf(who, date).poops, { at: hhmm(), form: '' }]);
+
+export const updatePoop = (who, date, i, patch) => writePoops(who, date,
+  dayOf(who, date).poops.map((e, k) => (k === i ? {
+    ...e, ...patch,
+    ...(patch.at === undefined ? {}
+      : { at: String(patch.at).replace(/[^\d:]/g, '').slice(0, 5) }),
+  } : e)));
+
+export const removePoop = (who, date, i) =>
+  writePoops(who, date, dayOf(who, date).poops.filter((_, k) => k !== i));
 
 export function toggleSymptom(who, date, id) {
   const d = dayOf(who, date);
@@ -201,11 +261,10 @@ export function takeMed(medId, date = dateKey()) {
 
 /** 今天还没吃、而且时间已经到了的那几样。提醒按它发。 */
 export function dueMeds(at = clock.now()) {
-  const now = new Date(at);
-  const hhmm = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  const nowHM = hhmm(at);
   const took = today(ME).took || [];
   return activeMeds().filter(m => !took.includes(m.id)
-    && (m.times || []).some(t => t <= hhmm));
+    && (m.times || []).some(t => t <= nowHM));
 }
 
 // ---- 角色那一份 ----
