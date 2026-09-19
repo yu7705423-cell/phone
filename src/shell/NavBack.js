@@ -1,8 +1,7 @@
 import { html, useRef } from '../lib.js';
 import { Icon } from '../icons/Icon.js';
-import { nav, back, goHome, setSwitcher } from '../system/nav.js';
-import { closeTopOverlay } from '../ui/overlay.js';
-import { topBack } from '../ui/page.js';
+import { goHome, setSwitcher } from '../system/nav.js';
+import { goBack } from './goback.js';
 
 // 左上角那个悬浮返回键。和底部横条二选一，在「设置 - 主题」里换。
 //
@@ -34,13 +33,10 @@ export function NavBack({ screen }) {
   const tap = () => {
     // 长按已经把事办了，抬手那一下不要再办一次
     if (held.current) { held.current = false; return; }
-    // 多任务盖在最上面，先关它 —— 和 nav.back 里的优先级一致，
-    // 否则这一下会退掉底下那一页
-    if (nav.get().switcher) { setSwitcher(false); return; }
+    // 主界面没有上一级可退，那里这个键管多任务
     if (screen === 'home') { setSwitcher(true); return; }
-    if (closeTopOverlay()) return;
-    const fn = topBack();
-    if (fn) fn(); else back();
+    // 其余一律交给那一份共用的优先级，见 shell/goback.js
+    goBack();
   };
 
   const home = screen === 'home';

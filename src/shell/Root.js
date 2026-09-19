@@ -22,6 +22,7 @@ import { installBridge } from '../system/push.js';
 import * as keepAlive from '../system/keepalive.js';
 import { KeepAliveBanner } from './KeepAliveBanner.js';
 import { NavBack } from './NavBack.js';
+import * as goback from './goback.js';
 
 export function Root() {
   const s = useStore(nav);
@@ -66,6 +67,12 @@ export function Root() {
 
   // 系统通知：点了要能跳回来，页面不在前台时改由系统弹
   useEffect(() => { installBridge(); }, []);
+
+  // 把「返回上一级」挂到 window 上，给原生外壳调。iOS 的 WKWebView 里，
+  // 屏幕最左边那一条触摸先归系统的边缘手势判，交到网页手里时
+  // touchstart 的 clientX 往往已经划出去几十像素，网页自己那套判定
+  // 根本不会开始。ipa 那层改用原生手势，识别完回调这个
+  useEffect(() => goback.install(), []);
 
   // 保活。开着就放无声音频；没有过真实触摸时浏览器会拦下来，等第一次点击补一次
   useEffect(() => {

@@ -29,7 +29,12 @@ import { IconButton } from './basic.js';
 // 两层都接就是关掉浮层的同时把底下那页也退了。所以起手时认一下
 // 最近的那个 .page 是不是自己。
 
-const EDGE = 24;      // 起手必须落在最左边这么宽的一条里
+// 起手必须落在最左边这么宽的一条里。
+// 原来是 24，照着 iOS 自己那条定的。但在 iOS 上这一条是**系统先看**的：
+// 从最左边起手的触摸先归系统的边缘手势判，交到网页手里时往往已经划出去
+// 几十像素，clientX 早就不在 24 以内，这套判定根本不会开始。
+// 放宽到 40 能救回一部分；ipa 里则整套让给原生手势（见下面 phoneNativeBack）。
+const EDGE = 40;
 const OWN = 8;        // 横向先走够这么多，这一下才算归我
 const TAKE = 0.3;     // 松手时走过页宽的这个比例就算完成
 const FLING = 0.5;    // px/ms。甩得够快，没走够距离也算
@@ -74,6 +79,9 @@ function useSwipeBack(onBack) {
   const handlers = {
     onTouchStart: e => {
       g.current = null;
+      // 外壳自己有原生的边缘手势时让开，免得两边各退一级。
+      // ios/Sources/ShellViewController.swift 在文档一开始就注入这个标记
+      if (window.phoneNativeBack) return;
       if (!onBack || e.touches.length !== 1) return;
       const p = e.touches[0];
       if (p.clientX > EDGE) return;

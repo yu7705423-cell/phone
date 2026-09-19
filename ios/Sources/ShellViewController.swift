@@ -95,6 +95,12 @@ final class ShellViewController: UIViewController {
             cfg.preferences.isElementFullscreenEnabled = true   // 读书与看片的全屏靠它
         }
 
+        // 告诉网页：这一层自己有原生的边缘手势，它那套让开，免得两边各退一级
+        cfg.userContentController.addUserScript(WKUserScript(
+            source: "window.phoneNativeBack = true;",
+            injectionTime: .atDocumentStart,
+            forMainFrameOnly: false))
+
         let w = WKWebView(frame: view.bounds, configuration: cfg)
         w.navigationDelegate = self
         w.uiDelegate = self
@@ -110,6 +116,35 @@ final class ShellViewController: UIViewController {
         w.scrollView.pinchGestureRecognizer?.isEnabled = false
         view.addSubview(w)
         web = w
+        installEdgeBack(on: w)
+    }
+
+    /// 从屏幕左边缘往右滑，退回上一级。
+    ///
+    /// **为什么不让网页自己做。** 网页那边也写了一套（ui/page.js 的 useSwipeBack），
+    /// 在桌面浏览器里好好的，到 iOS 上不动 —— 屏幕最左边那一条触摸先归系统的
+    /// 边缘手势判，等 WebKit 把 touchstart 交到网页手里，手指常常已经划出去
+    /// 几十个点，起手位置早就不在边缘那一条里，那套判定根本不会开始。
+    ///
+    /// UIScreenEdgePanGestureRecognizer 就是系统为这件事准备的，不跟 WebKit 抢。
+    /// 前进后退那套系统手势已经关掉了（allowsBackForwardNavigationGestures），
+    /// 这里不会和它打架。
+    private func installEdgeBack(on w: WKWebView) {
+        let g = UIScreenEdgePanGestureRecognizer(target: self, action: #selector(onEdgePan(_:)))
+        g.edges = .left
+        g.delegate = self
+        w.addGestureRecognizer(g)
+    }
+
+    @objc private func onEdgePan(_ g: UIScreenEdgePanGestureRecognizer) {
+        guard g.state == .ended else { return }
+        let moved = g.translation(in: view).x
+        let speed = g.velocity(in: view).x
+        // 走过三成屏宽，或者甩得够快。和网页那套的判定对齐
+        guard moved > view.bounds.width * 0.3 || speed > 800 else { return }
+        // 退到哪儿由网页决定：有浮层先关浮层，这一页有自己的返回就用它。
+        // 那一份优先级在 shell/goback.js，只定义一次
+        web.evaluateJavaScript("window.phoneBack && window.phoneBack()")
     }
 
     private func load() {
@@ -226,6 +261,17 @@ final class ShellViewController: UIViewController {
     private func hideFailure() {
         failure?.removeFromSuperview()
         failure = nil
+    }
+}
+
+// MARK: - 手势
+
+extension ShellViewController: UIGestureRecognizerDelegate {
+    // 边缘手势和 WebView 自己那些（滚动、长按、选择）可以同时在，
+    // 互相不吃掉 —— 边缘那一条本来也不会和正经滚动重叠
+    func gestureRecognizer(_ g: UIGestureRecognizer,
+                           shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool {
+        true
     }
 }
 
