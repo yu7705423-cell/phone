@@ -117,9 +117,11 @@ export function StoragePage() {
         <${ListItem} title="图片" subtitle=${`${db.images.count()} 张`}
           left=${html`<${Icon} name="image" size=${18}/>`}
           right=${html`<span>${fmtBytes(db.images.totalBytes())}</span>`}/>
-        <${ListItem} title="音频与视频" subtitle=${`${phone.files.count()} 个文件`}
+        <${ListItem} title="音频与视频" arrow multiline
+          subtitle=${`${phone.files.count()} 个文件。按原样保存，未经压缩，点此逐个查看与删除`}
           left=${html`<${Icon} name="film" size=${18}/>`}
-          right=${html`<span>${backup.sizeText(phone.files.totalBytes())}</span>`}/>
+          right=${html`<span>${backup.sizeText(phone.files.totalBytes())}</span>`}
+          onClick=${() => nav.push('/storage/files')}/>
         ${Object.entries(counts).map(([k, v]) => html`
           <${ListItem} key=${k} title=${k} right=${html`<span>${v}</span>`}/>`)}
       <//>
@@ -127,6 +129,10 @@ export function StoragePage() {
       <${List} title="维护">
         <${ListItem} title="清理无引用图片" subtitle="删除未被任何角色或动态引用的图片" arrow
           left=${html`<${Icon} name="filter" size=${18}/>`} onClick=${cleanOrphans}/>
+        <${ListItem} title="占地方的文件" arrow multiline
+          subtitle="音频、视频、字体与书籍正文，按占用从大到小列出，可逐个删除"
+          left=${html`<${Icon} name="film" size=${18}/>`}
+          onClick=${() => nav.push('/storage/files')}/>
       <//>
 
       <${List} title="备份">

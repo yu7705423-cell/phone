@@ -2,6 +2,7 @@ import { html } from '../../lib.js';
 import { phone, useStore } from '../../sdk/index.js';
 import { Page, List, ListItem, Icon, Switch, toast } from '../../ui/index.js';
 import { ApiPage } from './ApiPage.js';
+import { FilesPage } from './FilesPage.js';
 import { VoicePage } from './VoicePage.js';
 import { ImagePage } from './ImagePage.js';
 import { AppearancePage } from './AppearancePage.js';
@@ -202,6 +203,7 @@ export default function SettingsApp({ route }) {
   if (route === '/image') return html`<${ImagePage}/>`;
   if (route === "/appearance") return html`<${AppearancePage}/>`;
   if (route === '/storage') return html`<${StoragePage}/>`;
+  if (route === '/storage/files') return html`<${FilesPage}/>`;
   if (route === '/trace') return html`<${TracePage}/>`;
   return html`<${Home}/>`;
 }

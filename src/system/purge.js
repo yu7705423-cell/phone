@@ -1,5 +1,5 @@
 import { chats, characters, memories, messages, messagesOf, moments, personas, stickers,
-         settings, layout, images, files } from './db/index.js';
+         settings, layout, images, files, videos, songs, ebooks } from './db/index.js';
 import { allImageIds } from './looks.js';
 
 // 把一个角色身上的东西清干净。
@@ -87,4 +87,67 @@ export function usedImageIds() {
 export function orphanImageIds() {
   const used = usedImageIds();
   return images.ids().filter(id => !used.has(id));
+}
+
+// ---- files 域：谁在用哪一个 ----
+//
+// 音视频、字体、书的正文都存在 files 域，而且是**原样存的**（图片进来时会
+// 转成 WebP 压一道，这些不会）。所以占地方的大头在这儿，一个没转码的片子
+// 几百兆就进去了。
+//
+// 存储页原来只给一个总数「音频与视频 X GB」，看不到是哪几个、各多大、
+// 还在不在用 —— 想清理都不知道从哪下手。下面这一份就是为了那一页。
+//
+// **和 usedImageIds 同一个道理：漏一处就是删一批。** 往 files 里存东西的
+// 地方都要在这里留一行。目前六处：
+//
+//   videos.fileId          视频库里的片子
+//   songs.audioId          音乐库里的歌
+//   messages.audioId       会话里的语音
+//   ebooks.fileId          书的正文
+//   settings.fonts[].fileId    自己传的字体
+//   settings.notify.soundFileId 自己传的提示音
+
+/** 每个 file 是被谁用着的。返回 Map<fileId, {kind, label}>。 */
+export function fileUsers() {
+  const by = new Map();
+  const put = (id, kind, label) => { if (id && !by.has(id)) by.set(id, { kind, label }); };
+
+  videos.all().forEach(v => put(v.fileId, 'video', v.title || '未命名视频'));
+  songs.all().forEach(g => put(g.audioId, 'song', g.title || '未命名歌曲'));
+  ebooks.all().forEach(b => put(b.fileId, 'book', b.title || '未命名书籍'));
+
+  // 语音消息。标上是哪个会话的，删之前看得出要紧不要紧
+  messages.all().forEach(m => {
+    if (!m.audioId) return;
+    const chat = chats.get(m.chatId);
+    const who = (chat?.characterIds || [])
+      .map(id => characters.get(id)?.name).filter(Boolean).join('、');
+    put(m.audioId, 'voice', who ? `与${who}的语音` : '会话中的语音');
+  });
+
+  const s = settings.get();
+  (s.fonts || []).forEach(f => put(f.fileId, 'font', f.name || '自定义字体'));
+  put((s.notify || {}).soundFileId, 'sound', '自定义提示音');
+
+  return by;
+}
+
+export const FILE_KINDS = {
+  video: '视频', song: '歌曲', voice: '语音', book: '书籍',
+  font: '字体', sound: '提示音',
+};
+
+/**
+ * files 域里每个文件一行，**大的在前**。界面照这个列。
+ *
+ * 没人引用的那些 use 为 null —— 它们是删起来最安全的一批。
+ * 不另给一个「列出无引用的」函数：从这一份里筛一下就是，
+ * 两个函数各算一遍迟早会算出两个不一样的答案。
+ */
+export function fileReport() {
+  const by = fileUsers();
+  return files.list()
+    .map(f => ({ ...f, use: by.get(f.id) || null }))
+    .sort((a, b) => (b.bytes || 0) - (a.bytes || 0));
 }

@@ -68,6 +68,8 @@ export const files = {
   totalBytes() { return [...meta.values()].reduce((a, b) => a + (b.bytes || 0), 0); },
   count() { return meta.size; },
   ids() { return [...meta.keys()]; },
+  /** 每个文件一行：id 与那三项。存储页要按大小列出来，光有 ids 不够 */
+  list() { return [...meta.entries()].map(([id, m]) => ({ id, ...m })); },
   revokeAll() { urls.forEach(u => URL.revokeObjectURL(u)); urls.clear(); },
 };
 
