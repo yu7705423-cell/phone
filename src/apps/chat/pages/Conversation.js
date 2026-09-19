@@ -1,7 +1,7 @@
 import { html, useState, useEffect, useLayoutEffect, useRef, useMemo, memo } from '../../../lib.js';
 import { phone, useStore, useImage } from '../../../sdk/index.js';
 import { Page, Avatar, Icon, IconButton, FullSheet, List, ListItem,
-         EmptyState, toast, confirm, prompt } from '../../../ui/index.js';
+         EmptyState, Spinner, toast, confirm, prompt } from '../../../ui/index.js';
 import { splitBubbles, quoteOf } from '../helpers.js';
 import { StickerPanel, StickerSuggest } from './StickerPanel.js';
 import { StickerImg } from './StickerBits.js';
@@ -213,6 +213,7 @@ export function Conversation({ chatId, focusId = '' }) {
   const [paying, setPaying] = useState(false);   // 转账面板开着
   const [settling, setSettling] = useState(null);// 正在处理的那一笔
   const [asking, setAsking] = useState(false);   // 申请面板开着
+  const [packing, setPacking] = useState(false); // 正在打这个角色的包
   const [voting, setVoting] = useState(null);    // 正在表态的那一条申请
   const [placing, setPlacing] = useState(false); // 发位置的面板开着
   const [callLog, setCallLog] = useState(null);  // 正在看的那通电话
@@ -703,6 +704,24 @@ export function Conversation({ chatId, focusId = '' }) {
   // 「清空聊天记录」「清空记忆」都在角色卡的「清除数据」里，菜单上面那一行
   // 进得去。同一件事只留一个入口（CLAUDE.md 第 5 条），而那两件事本来就该
   // 挨在一起选。这一页留的是消息这一级的：挑几条删掉。
+  // 把这个角色打包带走。**只有这一个角色**，以及与它相关的东西 ——
+  // 所有角色、曲库、外观那一份是「设置 - 存储」里的完整备份，两件事。
+  const exportChar = async () => {
+    setPacking(true);
+    try {
+      const blob = await phone.charpack.build(char.id, { history: true });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = phone.charpack.fileNameFor(char.name);
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+      setMenu(false);
+      toast(`已导出 ${phone.backup.sizeText(blob.size)}`, 'ok', 4000);
+    } catch (err) {
+      toast('导出失败：' + (err.message || err), 'error', 5000);
+    } finally { setPacking(false); }
+  };
+
   const summarize = async () => {
     setMenu(false);
     try {
@@ -912,10 +931,19 @@ export function Conversation({ chatId, focusId = '' }) {
             subtitle=${proDesc}
             left=${html`<${Icon} name="bell" size=${18}/>`}
             onClick=${() => { setMenu(false); nav.push(`/proactive/${char.id}`); }}/>
-          <${ListItem} title="导出这个角色" arrow multiline
-            subtitle="打包与该角色相关的数据，可在另一台设备导入，或发给他人。整库备份在「设置 - 存储」"
-            left=${html`<${Icon} name="download" size=${18}/>`}
-            onClick=${() => { setMenu(false); nav.push(`/export/${char.id}`); }}/>
+          <${ListItem} title=${packing ? '正在打包' : '导出这个角色'} arrow multiline
+            subtitle=${(() => {
+              const s2 = phone.charpack.estimate(char.id);
+              return `角色卡${s2.alts ? `、${s2.alts} 个小号` : ''}`
+                + `${s2.books ? `、${s2.books} 本关联世界书` : ''}`
+                + `，以及与该角色的 ${s2.chats} 段会话、${s2.messages} 条消息、`
+                + `${s2.memories} 条记忆与 ${s2.images} 张图片。`
+                + '其他角色不在其中，整库备份在「设置 - 存储」';
+            })()}
+            left=${packing
+              ? html`<${Spinner} size=${16}/>`
+              : html`<${Icon} name="download" size=${18}/>`}
+            onClick=${() => !packing && exportChar()}/>
         <//>
 
         <${List} title="上下文">

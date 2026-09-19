@@ -17,7 +17,6 @@ import { TranslatePage } from './pages/TranslatePage.js';
 import { TemplatesPage } from './pages/TemplatesPage.js';
 import { StickerManager } from './pages/StickerManager.js';
 import { ProactivePage } from './pages/ProactivePage.js';
-import { ExportPage } from './pages/ExportPage.js';
 import { SearchPage } from './pages/SearchPage.js';
 import { ListenPage } from './pages/ListenPage.js';
 import { WatchPage } from './pages/WatchPage.js';
@@ -80,8 +79,6 @@ export default function ChatApp({ route }) {
   const pro = route?.match(/^\/proactive\/(.+)$/);
   if (pro) return html`<${ProactivePage} charId=${pro[1]}/>`;
 
-  const exp = route?.match(/^\/export\/(.+)$/);
-  if (exp) return html`<${ExportPage} charId=${exp[1]}/>`;
 
   if (route === '/stickers') return html`<${StickerManager}/>`;
   if (route === '/context') return html`<${ContextPage}/>`;

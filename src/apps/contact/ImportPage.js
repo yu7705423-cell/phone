@@ -100,7 +100,7 @@ export function ImportPage() {
       ` : html`
         <${List} title="角色包">
           <${ListItem} title="选择角色包" arrow multiline
-            subtitle=${'在会话右上角的「导出这个角色」中导出的压缩包，只含一个角色。'
+            subtitle=${'在会话右上角的「导出这个角色」中导出的压缩包，只含一个角色及其相关数据。'
               + '原样装回去，不经过模型，也不消耗接口调用。'}
             left=${html`<${Icon} name="download" size=${18}/>`}
             onClick=${() => !busy && packRef.current?.click()}/>
