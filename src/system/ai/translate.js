@@ -78,6 +78,20 @@ export async function run(texts, opts = {}) {
 // **默认一条都没有** —— 这套拆分是有代价的：一句正常的「他笑了（大概吧）」
 // 也符合「原文（译文）」的样子，开着就会被拆开。只有自己知道模板长什么样的人
 // 才该开它，所以不替任何人默认打开。
+//
+// ---- 两类形状 ----
+//
+// **同一行**：模板里两个记号都有，例如 `{原文}（{译文}）`。整行拆成两半。
+//
+// **各占一行**：模板里只有 `{译文}`，例如 `（{译文}）`。这一整行都是译文，
+// 挂到上面那一条上。说日语的角色常常这么写：
+//
+//     写真の日付がバラバラなんだよ
+//     （照片的日期全是乱的）
+//
+// 内置骨架那条 `[译文：…]` 是带标签的，上面这种没有标签，所以要另外描述。
+// 这一类比同一行那类更容易误伤 —— 「（她笑了笑）」这种整行的动作描写
+// 长得一模一样。界面上写清楚了。
 
 /** 模板里这两个记号代表原文与译文。其余字符原样匹配。 */
 export const SLOT_SRC = '{原文}';
@@ -90,6 +104,8 @@ export const FORMAT_PRESETS = [
   `${SLOT_SRC} | ${SLOT_OUT}`,
   `${SLOT_SRC} / ${SLOT_OUT}`,
   `${SLOT_SRC}【${SLOT_OUT}】`,
+  `（${SLOT_OUT}）`,
+  `(${SLOT_OUT})`,
 ];
 // 预设只是常见的那几种，按一下填进去省得手打。**不是上限** ——
 // 任何形状都可以自己写，包括用破折号分隔的那种（那一条没做成预设：
@@ -98,23 +114,35 @@ export const FORMAT_PRESETS = [
 const esc = t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 /**
- * 一条模板编译成正则。两个记号各要且只要出现一次，否则不认这条。
+ * 一条模板编译成 { kind, re }。认不出来的返回 null。
  *
- * 两个捕获组都用贪婪的 `(.+)`：这样「他笑了（大概吧）（He smiled）」会拆成
+ *   pair  两个记号都有，整行拆成原文与译文
+ *   line  只有 {译文}，整行都是译文，挂到上面那一条上
+ *
+ * 只有 {原文} 的不认：那等于「一整行都是原文」，也就是什么都没说。
+ *
+ * 捕获组都用贪婪的 `(.+)`：这样「他笑了（大概吧）（He smiled）」会拆成
  * 原文「他笑了（大概吧）」、译文「He smiled」—— 最后那一个括号才是译文，
  * 和人读到的一样。
  */
 export function compileFormat(tpl) {
   const t = String(tpl || '').trim();
   if (!t) return null;
-  const parts = t.split(SLOT_SRC);
-  if (parts.length !== 2) return null;
-  const [head, rest] = parts;
-  const tail = rest.split(SLOT_OUT);
-  if (tail.length !== 2) return null;
-  const [mid, end] = tail;
+  const hasSrc = t.split(SLOT_SRC).length === 2;
+  const outParts = t.split(SLOT_OUT);
+  if (outParts.length !== 2) return null;          // {译文} 必须恰好一个
+
   try {
-    return new RegExp(`^${esc(head)}(.+)${esc(mid)}(.+)${esc(end)}$`);
+    if (!hasSrc) {
+      if (t.includes(SLOT_SRC)) return null;       // {原文} 出现了但不止一次
+      const [head, end] = outParts;
+      return { kind: 'line', re: new RegExp(`^${esc(head)}(.+)${esc(end)}$`) };
+    }
+    const [head, rest] = t.split(SLOT_SRC);
+    const tail = rest.split(SLOT_OUT);
+    if (tail.length !== 2) return null;            // {译文} 在 {原文} 前面
+    const [mid, end] = tail;
+    return { kind: 'pair', re: new RegExp(`^${esc(head)}(.+)${esc(mid)}(.+)${esc(end)}$`) };
   } catch { return null; }
 }
 
@@ -122,15 +150,23 @@ export function compileFormat(tpl) {
 export const formats = () => String(settings.get().translateFormats || '')
   .split('\n').map(x => x.trim()).filter(Boolean);
 
-export const compiled = () => formats().map(compileFormat).filter(Boolean);
+/** 编译好的两类。整轮回复编译一次，不要每行都重来。 */
+export function compiled() {
+  const all = formats().map(compileFormat).filter(Boolean);
+  return {
+    pairs: all.filter(x => x.kind === 'pair').map(x => x.re),
+    lines: all.filter(x => x.kind === 'line').map(x => x.re),
+  };
+}
 
 /**
  * 这一行是不是「原文 + 译文」写在一起的。是就拆开，不是就返回 null。
  *
  * 一条都没配时直接返回 null —— 不猜，不拿括号当默认规则。
  */
-export function splitInline(line, list = compiled()) {
+export function splitInline(line, forms = compiled()) {
   const t = String(line || '').trim();
+  const list = forms?.pairs || [];
   if (!t || !list.length) return null;
   for (const re of list) {
     const m = t.match(re);
@@ -139,6 +175,22 @@ export function splitInline(line, list = compiled()) {
     const translation = String(m[2] || '').trim();
     // 两边都得有东西。空的那一半说明这一行只是碰巧长得像
     if (text && translation) return { text, translation };
+  }
+  return null;
+}
+
+/**
+ * 这一整行是不是一句译文（没有标签的那种，例如 `（照片的日期全是乱的）`）。
+ * 是就返回译文正文，挂到上面那一条上；不是就返回 null。
+ */
+export function transLine(line, forms = compiled()) {
+  const t = String(line || '').trim();
+  const list = forms?.lines || [];
+  if (!t || !list.length) return null;
+  for (const re of list) {
+    const m = t.match(re);
+    const got = m && String(m[1] || '').trim();
+    if (got) return got;
   }
   return null;
 }

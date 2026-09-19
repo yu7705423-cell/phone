@@ -105,10 +105,15 @@ const TRANS_LINE = /^[[【(（]?\s*(?:译文|翻译|译|translation)\s*[:：]\s*
 // 标签说掉就掉。两种都得认 —— 认不出来那一行就当正文渲染出去了，
 // 而且它挡在最前面，后面那行引用标记也跟着剥不掉，整条消息全乱。
 const INNER_LINE = /^[[【(（]?\s*(?:心声|内心|inner)\s*[:：]\s*(.+?)[\]】)）]?\s*$/i;
-const STAMP_LINE = /^[[【(（]?\s*(?:时间|time)\s*[:：]\s*([^\n\]】)）]+)[\]】)）]?\s*$/i;
+// 标签认三种写法：简体「时间」、日文与繁体的「時間」、英文 time。
+// **角色说什么语言，标记就跟着变成什么语言** —— 说日语的角色写的是
+// [時間：…]，认不出来那一行就当正文渲染出去了，而且它挡在最前面，
+// 后面那行引用标记也跟着剥不掉，整条消息全乱。
+const STAMP_LINE = /^[[【(（]?\s*(?:时间|時間|time)\s*[:：]\s*([^\n\]】)）]+)[\]】)）]?\s*$/i;
 const BRACKETED = /^[[【(（]\s*([^\n\]】)）]+?)\s*[\]】)）]\s*$/;
-// 只由数字和时间用字构成，且确实带着钟点或日期的样子
-const TIMEISH = /^[\d\s:：\-/.年月日时分秒周一二三四五六天上下午aApPmM]+$/;
+// 只由数字和时间用字构成，且确实带着钟点或日期的样子。
+// 日文那几个字（時 分 曜 午前午後）也算进来，同上：标签说掉就掉的时候靠这一条
+const TIMEISH = /^[\d\s:：\-/.年月日时分秒時曜周一二三四五六天上下午前後aApPmM]+$/;
 const isTimeStamp = t => /[:：]/.test(t) || /\d{4}[-/.]\d/.test(t);
 
 // 整行就是一个时间戳的，不管在第几行都摘掉。
@@ -293,6 +298,16 @@ export function splitReply(raw) {
       if (tr) {
         const prev = parts[parts.length - 1];
         if (prev) prev.translation = tr[1].trim();
+        return;
+      }
+
+      // 用户自己配的「整行都是译文」那一类，例如 `（照片的日期全是乱的）`。
+      // 和上面那条一样挂到上面那一条上 —— 只是它没有标签，所以得靠配置认。
+      // 前面没有正文的丢掉：一句没有原文的译文挂不到任何地方
+      const tline = translate.transLine(t, inlineForms);
+      if (tline) {
+        const prev = parts[parts.length - 1];
+        if (prev) prev.translation = tline;
         return;
       }
 

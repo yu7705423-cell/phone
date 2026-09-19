@@ -32,7 +32,10 @@ export function TranslateApiPage() {
   const forms = String(db.settings.get().translateFormats || '');
   const setForms = v => db.settings.set({ translateFormats: v });
   const addForm = tpl => setForms(forms.trim() ? `${forms.trim()}\n${tpl}` : tpl);
-  const split = probe.trim() ? ai.translate.splitInline(probe) : null;
+  // 编好的那几条正则。名字不要和上面那个 forms（文本框里的原文）撞
+  const shapes = ai.translate.compiled();
+  const split = probe.trim() ? ai.translate.splitInline(probe, shapes) : null;
+  const tline = probe.trim() && !split ? ai.translate.transLine(probe, shapes) : null;
   const bad = ai.translate.formats().filter(f => !ai.translate.compileFormat(f));
 
   const run = async () => {
@@ -62,10 +65,12 @@ export function TranslateApiPage() {
       ${mode === 'api' ? null : html`
       <div class="pad-x">
         <${Field} label="行内译文的形状"
-          desc=${'内置模板让角色把译文单独写成一行。如果你自己改过提示词，'
-            + '让原文与译文写在同一行，在这里描述那个形状，一行一种，可以写多种。'
-            + `用 ${ai.translate.SLOT_SRC} 与 ${ai.translate.SLOT_OUT} 表示两段内容，`
-            + '其余字符按原样匹配。留空则不作此项识别。'}>
+          desc=${'内置模板让角色把译文写成带标签的一行。如果你自己改过提示词，'
+            + '在这里描述实际的形状，一行一种，可以写多种。其余字符按原样匹配，'
+            + '留空则不作此项识别。两种写法：'
+            + `同一行填 ${ai.translate.SLOT_SRC}${ai.translate.SLOT_OUT} 两个记号；`
+            + `译文单独成行只填 ${ai.translate.SLOT_OUT} 一个记号，该行整行视为译文，`
+            + '归入上一条消息。'}>
           <${Textarea} value=${forms} rows=${3}
             placeholder=${ai.translate.FORMAT_PRESETS[0]}
             onInput=${setForms}/>
@@ -87,15 +92,16 @@ export function TranslateApiPage() {
         <//>
         ${probe.trim() ? html`
           <div class="settings-foot">
-            ${split
-              ? html`原文：${split.text}<br/>译文：${split.translation}`
+            ${split ? html`原文：${split.text}<br/>译文：${split.translation}`
+              : tline ? html`整行为译文：${tline}<br/>将归入上一条消息`
               : '这一行不符合上面任何一种形状，将按正文原样显示。'}
           </div>` : null}
       </div>
       <div class="settings-foot">
         识别出来的译文收在气泡里，与单独一行的写法一致：点原文展开。<br/>
         这项识别有代价：一句正常的「他笑了（大概吧）」同样符合「原文（译文）」的
-        形状，也会被拆开。只在确实改过提示词时填写。
+        形状，也会被拆开。「译文单独成行」那一类代价更大：整行的动作描写
+        「（她笑了笑）」与它完全相同，也会被归为译文。只在确实改过提示词时填写。
       </div>`}
 
       ${mode !== 'api' ? null : html`
