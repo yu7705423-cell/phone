@@ -32,7 +32,7 @@ export const EMPTY_SERVICES = {
   //   填一个中国大陆 IP 就绕开了。留空则不带。
   netease: { baseUrl: '', realIP: '', cookie: '', nickname: '', uid: '', sync: false, recentGap: 5 },
   // 书目。只查书名作者封面这类元数据，不碰书的文件。两家都不要密钥
-  books: { provider: '' },
+  books: { provider: '', apiKey: '' },
 };
 
 export function services() {

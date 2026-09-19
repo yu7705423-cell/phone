@@ -25,11 +25,33 @@ const https = u => String(u || '').replace(/^http:\/\//i, 'https://');
 function urlFor(provider, q, limit) {
   const query = encodeURIComponent(String(q || '').trim());
   if (provider === 'google') {
-    return `https://www.googleapis.com/books/v1/volumes?q=${query}&maxResults=${limit}`;
+    // 不带密钥时按出口 IP 限流，共用出口的手机网络很容易撞上 429。
+    // 密钥是免费的，填了就按密钥计额度
+    const key = String(config().apiKey || '').trim();
+    return `https://www.googleapis.com/books/v1/volumes?q=${query}&maxResults=${limit}`
+      + (key ? `&key=${encodeURIComponent(key)}` : '');
   }
-  return 'https://openlibrary.org/search.json'
-    + `?q=${query}&limit=${limit}&fields=title,author_name,first_publish_year,cover_i`;
+  // 不再带 fields：那个参数挑剔，写法稍有出入就是 422，而不带它返回的
+  // 完整记录里本来就有要用的那几项
+  return `https://openlibrary.org/search.json?q=${query}&limit=${limit}`;
 }
+
+// 接口说了什么。状态码之外的那句话才是能照着改的东西
+function said(r) {
+  const b = r.body;
+  const msg = b?.error?.message || b?.error || b?.message || b?.detail || '';
+  const text = String(typeof msg === 'string' ? msg : JSON.stringify(msg) || r.raw || '')
+    .replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+  return text ? text.slice(0, 120) + (text.length > 120 ? '…' : '') : '';
+}
+
+// 这个状态码是怎么回事。说人话，并且说清楚下一步该干什么
+const WHY = {
+  429: '请求过于频繁，被接口限流',
+  422: '接口不接受这次查询的写法',
+  403: '接口拒绝了这次请求',
+  404: '这个地址不存在',
+};
 
 function parse(provider, body) {
   if (provider === 'google') {
@@ -72,7 +94,10 @@ export async function search(q, { limit = 10, provider = config().provider } = {
   if (!String(q || '').trim()) return [];
   const r = await ask(urlFor(provider, q, limit));
   if (r.status === 0) throw new Error(r.err);
-  if (!r.ok) throw new Error(`书目接口返回 ${r.status}`);
+  if (!r.ok) {
+    const why = WHY[r.status] || `接口返回 ${r.status}`;
+    throw new Error(`${why}${said(r) ? `：${said(r)}` : ''}`);
+  }
   return parse(provider, r.body);
 }
 
@@ -82,20 +107,30 @@ export async function probe(provider = config().provider, onStep) {
   const step = row => { out.push(row); if (onStep) onStep(row, out); return row; };
 
   const r = await ask(urlFor(provider, '雨', 3));
+  // **收到任何一个状态码，都说明地址通、跨域也放行了。**
+  // 422、429 是接口在回话，不是连不上 —— 判成连不上，人就会去查网络，
+  // 而真正要改的是下一项。
   const reach = step({
     id: 'reach', label: '连得上',
     desc: '地址通，而且允许这个页面跨域读取。两者缺一个，浏览器里都用不了',
-    pass: r.status !== 0 && r.ok,
-    note: r.status === 0 ? r.err : r.ok ? `${r.ms} 毫秒` : `返回 ${r.status}`,
+    pass: r.status !== 0,
+    note: r.status === 0 ? r.err
+      : r.ok ? `${r.ms} 毫秒`
+      : `${r.ms} 毫秒。接口回了 ${r.status}`,
   });
   if (!reach.pass) return out;
 
-  const rows = parse(provider, r.body);
+  const rows = r.ok ? parse(provider, r.body) : [];
+  const why = WHY[r.status] || (r.ok ? '' : `接口返回 ${r.status}`);
   step({
     id: 'search', label: '查得到书',
-    desc: '用一个常见的字查一下，能不能返回书名与作者',
+    desc: r.status === 429
+      ? '被限流时换一家，或给 Google Books 填一个免费密钥'
+      : '用一个常见的字查一下，能不能返回书名与作者',
     pass: rows.length > 0,
-    note: rows.length ? `查到 ${rows.length} 本，例如《${rows[0].title}》` : '没有结果',
+    note: rows.length ? `查到 ${rows.length} 本，例如《${rows[0].title}》`
+      : r.ok ? '接口通，但没有结果'
+      : `${why}${said(r) ? `：${said(r)}` : ''}`,
   });
 
   const withCover = rows.find(b => b.coverUrl);

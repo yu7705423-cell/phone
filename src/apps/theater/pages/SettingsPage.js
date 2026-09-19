@@ -1,6 +1,6 @@
 import { html, useState } from '../../../lib.js';
 import { phone, useStore } from '../../../sdk/index.js';
-import { Page, Field, NumberInput, List, ListItem, Icon, Spinner, toast } from '../../../ui/index.js';
+import { Page, Field, Input, NumberInput, List, ListItem, Icon, Spinner, toast } from '../../../ui/index.js';
 
 const { db, nav, booksearch } = phone;
 
@@ -72,6 +72,16 @@ export function SettingsPage() {
             onClick=${() => { svc.setBooks({ provider: p.id }); setRows(null); }}/>`)}
       <//>
 
+      ${cfg.provider === 'google' ? html`
+        <div class="pad-x">
+          <${Field} label="Google Books 密钥"
+            desc="可以留空。留空时按出口 IP 限流，共用出口的手机网络容易返回 429。
+              在 Google Cloud 控制台启用 Books API 后可免费申请一个，填入后按密钥计额度。">
+            <${Input} value=${cfg.apiKey || ''} placeholder="留空也能用"
+              onInput=${v => { svc.setBooks({ apiKey: v.trim() }); setRows(null); }}/>
+          <//>
+        </div>` : null}
+
       ${cfg.provider ? html`
         <${List} title="这个接口能不能用">
           <${ListItem} title=${testing ? '测试中' : '测试这个接口'} multiline
@@ -87,9 +97,10 @@ export function SettingsPage() {
           <div class="settings-foot">
             ${rows.every(r => r.pass)
               ? '各项均可用。'
-              : rows[0].pass
-                ? '接口通，但未能取得完整结果。仍可添加书籍，封面可能缺失。'
-                : '这个接口在本机用不了：服务不通，或它不允许本页面跨域读取。可改用另一个，或选择不使用。'}
+              : !rows[0].pass
+                ? '这个接口在本机用不了：服务不通，或它不允许本页面跨域读取。可改用另一个，或选择不使用。'
+                : '接口通，但这次没能查到书。可改用另一家，或不使用接口 —— '
+                  + '添加书籍时仍可直接填写书名，并粘贴一个封面地址。'}
             <br/>书目接口只查询书名、作者与封面，不提供书的文件。书需要你自己导入。
           </div>` : null}` : null}
 

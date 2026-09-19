@@ -25,6 +25,8 @@ function Shelf({ item, onTap }) {
 // 查一本书，把书名作者封面填好。查不到也能手填。
 function AddSheet({ open, charId, onClose }) {
   const [q, setQ] = useState('');
+  const [author, setAuthor] = useState('');
+  const [cover, setCover] = useState('');
   const [rows, setRows] = useState(null);
   const [busy, setBusy] = useState(false);
 
@@ -40,7 +42,7 @@ function AddSheet({ open, charId, onClose }) {
     try {
       shelf.add(charId, { title: it.title, author: it.author, coverUrl: it.coverUrl });
       toast(`已放上《${it.title}》`, 'ok');
-      setQ(''); setRows(null); onClose();
+      setQ(''); setAuthor(''); setCover(''); setRows(null); onClose();
     } catch (err) { toast(String(err.message || err), 'error'); }
   };
 
@@ -51,16 +53,25 @@ function AddSheet({ open, charId, onClose }) {
       <div class="pad-x">
         <${Field} label="书名"
           desc=${booksearch.ready()
-            ? '查到之后连封面一起放上。查不到也可以直接添加，那一格就只有书名。'
-            : '尚未选择书目接口，将直接添加，没有封面。可在这个应用的设置中选择。'}>
+            ? '查到之后连封面一起放上。查不到也可以自己填，下面两栏都可以留空。'
+            : '尚未选择书目接口。自己填也一样，下面两栏都可以留空。'}>
           <${Input} value=${q} placeholder="输入书名" onInput=${v => setQ(v)}/>
         <//>
-        <div class="batch-acts">
-          ${booksearch.ready() ? html`
+        ${booksearch.ready() ? html`
+          <div class="batch-acts">
             <${Button} disabled=${busy || !q.trim()} onClick=${go}>
-              ${busy ? html`<${Spinner} size=${15}/> 正在查` : '查一下'}<//>` : null}
-          <${Button} variant="ghost" disabled=${!q.trim()}
-            onClick=${() => take({ title: q.trim(), author: '', coverUrl: '' })}>直接添加<//>
+              ${busy ? html`<${Spinner} size=${15}/> 正在查` : '查一下'}<//>
+          </div>` : null}
+        <${Field} label="作者"><${Input} value=${author} placeholder="可留空"
+          onInput=${v => setAuthor(v)}/><//>
+        <${Field} label="封面地址"
+          desc="任意一张图片的网址。书目接口查不到、或者不使用接口时，粘一个进来也一样有封面。">
+          <${Input} value=${cover} placeholder="https://… 可留空"
+            onInput=${v => setCover(v.trim())}/>
+        <//>
+        <div class="pad-b">
+          <${Button} full variant="ghost" disabled=${!q.trim()}
+            onClick=${() => take({ title: q.trim(), author, coverUrl: cover })}>放上书架<//>
         </div>
       </div>
 
