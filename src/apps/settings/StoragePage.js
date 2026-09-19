@@ -1,6 +1,6 @@
 import { html, useState, useRef, useEffect } from '../../lib.js';
 import { phone, useStore } from '../../sdk/index.js';
-import { Page, List, ListItem, Button, Icon, Sheet, toast, confirm } from '../../ui/index.js';
+import { Page, List, ListItem, Button, Icon, Sheet, toast, confirm, Switch } from '../../ui/index.js';
 
 const { db, nav, backup } = phone;
 
@@ -14,6 +14,8 @@ export function StoragePage() {
   const [busy, setBusy] = useState(false);
   const [work, setWork] = useState(null);
   const [picking, setPicking] = useState(false);
+  // 接口与密钥进不进这份文件。**默认不进** —— 备份是会被发出去的东西
+  const [keys, setKeys] = useState(false);
   const [room, setRoom] = useState(null);      // 浏览器还剩多少地方
   const fileRef = useRef(null);
 
@@ -36,7 +38,7 @@ export function StoragePage() {
     setWork({ text: media ? '正在打包' : '正在导出', pct: 0 });
     try {
       const blob = await backup.build({
-        media,
+        media, keys,
         onProgress: pct => setWork({ text: media ? '正在打包' : '正在导出', pct }),
       });
       const day = new Date().toISOString().slice(0, 10);
@@ -160,18 +162,29 @@ export function StoragePage() {
 
       <${Sheet} open=${picking} onClose=${() => setPicking(false)} title="导出备份">
         <${List} inset=${false}>
+          <${ListItem} title="包含接口地址、密钥与预设" multiline
+            subtitle=${keys
+              ? '这份文件里将包含全部接口配置与密钥。恢复后无需重新填写，'
+                + '但不要将它发给别人或上传到公开位置。'
+              : '默认不包含。恢复到另一台设备后，七套接口需要重新填写。'}
+            right=${html`<${Switch} checked=${keys} onChange=${setKeys}/>`}/>
+        <//>
+        <${List} inset=${false}>
           <${ListItem} title="完整备份" multiline arrow
             subtitle=${`包含图片、音频与视频，约 ${backup.sizeText(
               db.images.totalBytes() + phone.files.totalBytes())}。打包需要一些时间`}
             left=${html`<${Icon} name="database" size=${18}/>`}
             onClick=${() => exportAll(true)}/>
           <${ListItem} title="仅数据" multiline arrow
-            subtitle="角色卡、世界书、记忆、会话与设置。体积小，但头像与照片不在其中"
+            subtitle=${'角色卡、世界书、记忆、会话与设置。体积小，但头像与照片不在其中'
+              + (keys ? '。含接口密钥' : '')}
             left=${html`<${Icon} name="notes" size=${18}/>`}
             onClick=${() => exportAll(false)}/>
         <//>
         <div class="settings-foot">
-          完整备份为 ZIP，其中的图片与文件按原编号存放，恢复后引用不会错位。
+          完整备份为 ZIP，其中的图片与文件按原编号存放，恢复后引用不会错位。<br/>
+          恢复时：备份里带了接口配置就用备份里的，没带则保留本机现有的配置，
+          不会被清空。
         </div>
       <//>
 

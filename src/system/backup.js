@@ -61,17 +61,28 @@ export function estimate() {
  * 打一份备份出来。
  *
  * media 为 false 时只导 JSON —— 想发给别人看看角色卡、或者只要一份小的
- * 存着，都用这一档。密钥一律不进备份，那是这台设备的事。
+ * 存着，都用这一档。
+ *
+ * ---- 接口与密钥 ----
+ *
+ * **默认不进备份。** 备份是会被发出去的东西：发给别人看角色卡、放进网盘、
+ * 用外面的工具处理一遍再导回来。密钥跟着走一圈，等于把它交出去了。
+ *
+ * 但换台设备恢复之后七套接口全要重填一遍，这个代价也是真的。所以给一个
+ * 明确的开关（keys），**默认关**，界面上写清楚这份文件里会有什么。
+ * 第 13 条的意思：不替用户做决定，把账摆出来。
  */
-export async function build({ media = true, onProgress } = {}) {
+export async function build({ media = true, keys = false, onProgress } = {}) {
+  const s = db.settings.get();
   const data = {
     _format: FORMAT,
     _version: VERSION,
     _data: DATA_VERSION,
     _media: !!media,
+    _keys: !!keys,
     exportedAt: new Date().toISOString(),
     persona: db.persona.get(),
-    settings: { ...db.settings.get(), services: undefined, apiKey: '' },
+    settings: keys ? { ...s } : { ...s, services: undefined, apiKey: '' },
     layout: db.layout.get(),
   };
   // Float32Array 进 JSON 之前要换个写法，见 system/typed.js
@@ -175,8 +186,14 @@ export async function restore(file, { onProgress } = {}) {
   if (data.persona) db.persona.replace({ ...db.persona.get(), ...data.persona });
   if (data.settings) {
     const now = db.settings.get();
-    // 接口配置留着这台设备自己的：备份里本来就没有，覆盖过去只会把它清空
-    db.settings.replace({ ...now, ...data.settings, services: now.services, apiKey: now.apiKey });
+    // 备份里带了接口就用备份里的，没带就留着这台设备自己的 ——
+    // 没带的时候覆盖过去只会把本机那套清空
+    const hasKeys = !!data.settings.services;
+    db.settings.replace({
+      ...now, ...data.settings,
+      services: hasKeys ? data.settings.services : now.services,
+      apiKey: hasKeys ? (data.settings.apiKey || '') : now.apiKey,
+    });
   }
   if (data.layout) db.layout.replace(data.layout);
 
