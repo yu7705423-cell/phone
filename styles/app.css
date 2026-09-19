@@ -886,7 +886,7 @@ button.search-bar { width: 100%; border: none; }
 .call-line { margin-bottom: var(--sp-4); }
 .call-line.is-mine { text-align: right; }
 .call-who { display: block; font-size: var(--fs-12); color: var(--text-3); margin-bottom: 2px; }
-.call-text { font-size: var(--fs-16); line-height: 1.65; }
+.call-text { font-size: var(--fs-17); line-height: 1.65; }
 
 .call-heard {
   flex: none; min-height: 22px; text-align: center;
@@ -991,7 +991,7 @@ button.search-bar { width: 100%; border: none; }
 /* 礼物气泡。拆开之前只有封面那一行 */
 .bubble-gift { min-width: 168px; max-width: 232px; padding: var(--sp-3) var(--sp-4) 0; }
 .bubble-gift .tr-top { display: flex; align-items: center; gap: var(--sp-3); min-width: 0; }
-.gift-cover { font-size: var(--fs-16); font-weight: var(--fw-medium); }
+.gift-cover { font-size: var(--fs-17); font-weight: var(--fw-medium); }
 .gift-inner { font-size: var(--fs-12); opacity: .7; margin-top: 2px; }
 .bubble-gift.is-done { opacity: .62; }
 .face-preview {
@@ -1024,7 +1024,7 @@ button.search-bar { width: 100%; border: none; }
 }
 .sp-row:last-child { border-bottom: none; }
 .sp-row-body { flex: 1; min-width: 0; }
-.sp-row-name { font-size: var(--fs-16); font-weight: var(--fw-medium); }
+.sp-row-name { font-size: var(--fs-17); font-weight: var(--fw-medium); }
 .sp-row-sub { font-size: var(--fs-12); color: var(--text-3); margin-top: 2px; }
 
 .sp-head { padding: var(--sp-6) var(--sp-4) var(--sp-4); text-align: center; }
@@ -1059,7 +1059,7 @@ button.search-bar { width: 100%; border: none; }
   display: flex; align-items: center; gap: var(--sp-3); min-width: 0;
 }
 .pact-title { font-size: var(--fs-15); font-weight: var(--fw-medium); line-height: 1.45; }
-.letter-title { font-size: var(--fs-16); font-weight: var(--fw-medium); }
+.letter-title { font-size: var(--fs-17); font-weight: var(--fw-medium); }
 .bubble-pact.is-done { opacity: .62; }
 .bubble-pact.is-done .pact-title { text-decoration: line-through; }
 
@@ -1360,3 +1360,32 @@ button.search-bar { width: 100%; border: none; }
 .bl-req-title { font-size: var(--fs-15); }
 .bl-pend { display: flex; flex-direction: column; align-items: flex-end; gap: var(--sp-2); }
 .bl-pend-act { display: flex; gap: var(--sp-2); }
+
+/* ---- 书 ---- */
+.bk-cover {
+  flex: none; border-radius: var(--r-xs); overflow: hidden;
+  background: var(--surface-3); background-size: cover; background-position: center;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-3); box-shadow: var(--shadow-1);
+}
+.bk-cover.has-image { color: transparent; }
+
+.rd { display: flex; flex-direction: column; height: 100%; }
+.rd-body { flex: 1; padding: var(--sp-4) var(--sp-5) var(--sp-5); }
+.rd-chapter {
+  font-size: var(--fs-13); color: var(--text-3);
+  padding-bottom: var(--sp-3); margin-bottom: var(--sp-3);
+  border-bottom: 1px solid var(--border);
+}
+.rd-p {
+  margin: 0 0 var(--sp-4); text-indent: 2em;
+  font-size: var(--fs-17); line-height: 1.9; color: var(--text);
+}
+.rd-bar {
+  flex: none; display: flex; align-items: center; justify-content: space-between;
+  gap: var(--sp-4); padding: var(--sp-3) var(--sp-5);
+  border-top: 1px solid var(--border); background: var(--surface);
+}
+.rd-meta { text-align: center; display: flex; flex-direction: column; gap: 2px; }
+.rd-meta > span:first-child { font-size: var(--fs-14); font-weight: var(--fw-semi); }
+.rd-sub { font-size: var(--fs-11); color: var(--text-3); }

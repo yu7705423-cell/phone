@@ -65,6 +65,7 @@ import * as listenApi from '../system/listen.js';
 import * as neteaseApi from '../system/netease.js';
 import * as purgeApi from '../system/purge.js';
 import * as charpackApi from '../system/charpack.js';
+import * as bookApi from '../system/book.js';
 import * as playerApi from '../system/player.js';
 import * as videoApi from '../system/video.js';
 import * as watchApi from '../system/watch.js';
@@ -210,6 +211,7 @@ export const phone = {
   netease: neteaseApi,
   purge: purgeApi,
   charpack: charpackApi,
+  book: bookApi,
   player: playerApi,
   video: videoApi,
   watch: watchApi,

@@ -26,7 +26,7 @@ const ROUTES = {
     '/today', '/today/:char', '/food', '/food/', '/food/%E6%88%90%E9%83%BD'],
   music: ['/', '/library', '/list/1'],
   bill: ['/', '/books', '/accounts', '/rules'],
-  theater: ['/', '/videos', '/watch/:chat'],
+  theater: ['/', '/videos', '/books', '/watch/:chat', '/book/:ebook', '/read/:ebook'],
   settings: ['/', '/api', '/voice', '/image', '/embed', '/notify', '/music',
     '/appearance', '/storage', '/trace', '/vision', '/asr', '/limits', '/search', '/translate', '/memoryapi'],
 };
@@ -127,7 +127,20 @@ const ids = await page.evaluate(async () => {
   const okd = rq.send({ chatId: chat.id, role: 'char', authorId: a.id, kind: rq.CARD, amount: 300 });
   rq.settle(okd.id, true);
 
-  return { char: a.id, chat: chat.id, mem: mem.id, persona: me.id, book: bk.id };
+  // 一本书与一部片子，一起看那个 app 的几条路由要用
+  const bookMod = await import('/src/system/book.js');
+  const ebk = await bookMod.add({
+    title: '雨城旧事', author: '某人', kind: 'txt',
+    text: '第一章 到站\n天还没亮，车就停了。\n\n第二章 旅馆\n老板娘说只剩一间。',
+    chapters: [{ title: '第一章 到站', start: 0, end: 20 },
+      { title: '第二章 旅馆', start: 20, end: 44 }],
+  });
+  bookMod.setAt(ebk.id, 10);
+  const videoMod = await import('/src/system/video.js');
+  videoMod.addVideo({ title: '一部片子', url: 'https://example.com/a.mp4',
+    subtitle: '1\n00:00:01,000 --> 00:00:04,000\n第一句\n' });
+
+  return { char: a.id, chat: chat.id, mem: mem.id, persona: me.id, book: bk.id, ebook: ebk.id };
 });
 await page.waitForTimeout(400);
 
