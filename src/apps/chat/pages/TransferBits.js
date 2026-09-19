@@ -195,6 +195,18 @@ export function ReadBubble({ msg }) {
     </div>`;
 }
 
+// 书摘卡片。自己读书时摘的一小段，发过来的一条消息
+export function ExcerptBubble({ msg }) {
+  return html`
+    <div class="xc-card">
+      <div class="xc-from">
+        摘自《${msg.bookTitle || '一本书'}》${msg.bookAuthor ? ` · ${msg.bookAuthor}` : ''}
+      </div>
+      <p class="xc-quote">${msg.quote || ''}</p>
+      ${msg.note ? html`<p class="xc-note">${msg.note}</p>` : null}
+    </div>`;
+}
+
 export function ListenLogSheet({ msg, onClose }) {
   if (!msg) return null;
   const tracks = (msg.trackIds || []).map(id => db.songs.get(id)).filter(Boolean);

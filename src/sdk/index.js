@@ -69,6 +69,8 @@ import * as charpackApi from '../system/charpack.js';
 import * as bookApi from '../system/book.js';
 import * as readApi from '../system/read.js';
 import * as shelfApi from '../system/shelf.js';
+import * as readerApi from '../system/reader.js';
+import * as excerptApi from '../system/excerpt.js';
 import * as reviewApi from '../system/review.js';
 import * as booksearchApi from '../system/booksearch.js';
 import * as playerApi from '../system/player.js';
@@ -220,6 +222,8 @@ export const phone = {
   book: bookApi,
   read: readApi,
   shelf: shelfApi,
+  reader: readerApi,
+  excerpt: excerptApi,
   review: reviewApi,
   booksearch: booksearchApi,
   player: playerApi,

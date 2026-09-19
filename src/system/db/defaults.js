@@ -121,6 +121,9 @@ export const DEFAULT_SETTINGS = {
   memoryDedupeList: 0,            // 总结时发多少条已有记忆过去，0 = 全部
   memoryImportChunk: 6000,        // 记忆导入一次喂多少字，0 = 不切，一次发完
 
+  // 阅读器外观。和全局主题分开 —— 读书时的纸色字体不该跟着 app 皮肤走
+  reader: {},
+
   // 群聊
   groupMode: 'per-character',     // per-character | single-call
   groupSpeakersPerTurn: 2,

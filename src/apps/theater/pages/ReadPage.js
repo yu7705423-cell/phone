@@ -1,20 +1,37 @@
 import { html, useState, useEffect, useRef } from '../../../lib.js';
-import { phone, useStore } from '../../../sdk/index.js';
-import { Page, List, ListItem, Icon, Button, Sheet, Spinner, EmptyState, toast } from '../../../ui/index.js';
+import { phone, useStore, useImage } from '../../../sdk/index.js';
+import { Page, List, ListItem, Icon, IconButton, Button, Sheet, Spinner,
+         EmptyState, toast } from '../../../ui/index.js';
+import { ReaderSettings } from './ReaderSettings.js';
+import { ExcerptSheet } from './ExcerptSheet.js';
 
-const { db, nav, book, review } = phone;
+const { db, nav, book, review, reader } = phone;
 
 const PAGE = book.PAGE;
+const OUT_MS = 170;
+const IN_MS = 190;
 
 // 一页一页地翻，按字数走。不做滚动式连续阅读：那样「读到哪儿了」
 // 只能靠滚动位置猜，换个字号就对不上，角色那边也说不清人看到哪一段。
+//
+// 外观（纸色、字体、字号、翻页方式、全屏）存在 system/reader.js，
+// 和全局主题分开 —— 读书时想要的那一套和 app 的皮肤本来就不是一回事。
 export function ReadPage({ bookId }) {
   useStore(db.ebooks.store);
+  useStore(db.settings.store);
   const row = db.ebooks.get(bookId);
   const [text, setText] = useState(() => book.peekText(bookId));
   const [at, setAt] = useState(row?.at || 0);
   const [toc, setToc] = useState(false);
+  const [cfgOpen, setCfgOpen] = useState(false);
+  const [excerpting, setExcerpting] = useState(false);
+  const [anim, setAnim] = useState('');
+  const [bare, setBare] = useState(false);     // 全屏时把顶栏收起来
   const bodyRef = useRef(null);
+  const timers = useRef([]);
+
+  const cfg = reader.get();
+  const bgUrl = useImage(cfg.bgImage);
 
   useEffect(() => {
     let alive = true;
@@ -27,6 +44,13 @@ export function ReadPage({ bookId }) {
     if (bodyRef.current) bodyRef.current.scrollTop = 0;
     book.setAt(bookId, at);
   }, [at, bookId]);
+
+  useEffect(() => { reader.applyFont(cfg); }, [cfg.fontUrl, cfg.fontFamily]);
+
+  // 进全屏就先把顶栏收起来；关掉全屏要让它回来，否则顶栏再也唤不出
+  useEffect(() => { setBare(cfg.fullscreen); }, [cfg.fullscreen]);
+
+  useEffect(() => () => timers.current.forEach(clearTimeout), []);
 
   if (!row) {
     return html`<${Page} title="阅读" onBack=${nav.pop}>
@@ -45,29 +69,70 @@ export function ReadPage({ bookId }) {
 
   const jump = to => setAt(Math.max(0, Math.min(text.length - 1, to)));
 
+  // 翻页动画：旧的一页先出去，换页，新的一页再进来。
+  // 动画期间不接新的翻页请求，否则连点会让页码和位移对不上。
+  const turn = dir => {
+    if (anim) return;
+    const to = at + dir * PAGE;
+    if (to < 0 || to > text.length - 1) return;
+    if (cfg.effect === 'instant') { jump(to); return; }
+    const way = dir > 0 ? 'fwd' : 'back';
+    setAnim(`fx-${cfg.effect} is-out is-${way}`);
+    timers.current.push(setTimeout(() => {
+      jump(to);
+      setAnim(`fx-${cfg.effect} is-in is-${way}`);
+      timers.current.push(setTimeout(() => setAnim(''), IN_MS));
+    }, OUT_MS));
+  };
+
+  // 点左三分之一向前，右三分之一向后，中间呼出或收起顶栏
+  const onTap = e => {
+    if (!cfg.tapTurn) return;
+    const box = e.currentTarget.getBoundingClientRect();
+    const x = (e.clientX - box.left) / box.width;
+    if (x < 0.33) turn(-1);
+    else if (x > 0.67) turn(1);
+    else if (cfg.fullscreen) setBare(v => !v);
+  };
+
+  const immersive = cfg.fullscreen && bare;
+  const chrome = immersive ? {} : {
+    title: row.title,
+    onBack: nav.pop,
+    right: html`
+      <div class="nav-acts">
+        <${IconButton} name="notes" label="书摘" onClick=${() => setExcerpting(true)}/>
+        <${IconButton} name="settings" label="阅读设置" onClick=${() => setCfgOpen(true)}/>
+        <button class="nav-text press" onClick=${() => setToc(true)}>目录</button>
+      </div>`,
+  };
+
   return html`
-    <${Page} title=${row.title} onBack=${nav.pop} noScroll
-      right=${html`<button class="nav-text press" onClick=${() => setToc(true)}>目录</button>`}>
-      <div class="rd">
-        <div class="rd-body scroll" ref=${bodyRef}>
-          ${chapter ? html`<div class="rd-chapter">${chapter.title}</div>` : null}
-          ${page.split('\n').filter(l => l.trim()).map((p, i) => html`
-            <p key=${i} class="rd-p">${p}</p>`)}
+    <${Page} ...${chrome} noScroll>
+      <div class=${`rd rd-paper-${cfg.paper}${immersive ? ' is-bare' : ''}`}
+        style=${reader.varsOf(cfg, bgUrl)}>
+        <div class="rd-tap" onClick=${onTap}>
+          <div class=${`rd-body scroll ${anim}`} ref=${bodyRef}>
+            ${chapter ? html`<div class="rd-chapter">${chapter.title}</div>` : null}
+            ${page.split('\n').filter(l => l.trim()).map((p, i) => html`
+              <p key=${i} class="rd-p">${p}</p>`)}
+          </div>
         </div>
 
-        <div class="rd-bar">
-          <button class="mu-ctl press" disabled=${!canPrev} aria-label="上一页"
-            onClick=${() => jump(at - PAGE)}><${Icon} name="chevronLeft" size=${19}/></button>
-          <div class="rd-meta">
-            <span>${pct}%</span>
-            <span class="rd-sub">
-              ${(at + 1).toLocaleString()} – ${(at + page.length).toLocaleString()}
-              / ${text.length.toLocaleString()} 字
-            </span>
-          </div>
-          <button class="mu-ctl press" disabled=${!canNext} aria-label="下一页"
-            onClick=${() => jump(at + PAGE)}><${Icon} name="chevronRight" size=${19}/></button>
-        </div>
+        ${immersive ? null : html`
+          <div class="rd-bar">
+            <button class="mu-ctl press" disabled=${!canPrev} aria-label="上一页"
+              onClick=${() => turn(-1)}><${Icon} name="chevronLeft" size=${19}/></button>
+            <div class="rd-meta">
+              <span>${pct}%</span>
+              <span class="rd-sub">
+                ${(at + 1).toLocaleString()} – ${(at + page.length).toLocaleString()}
+                / ${text.length.toLocaleString()} 字
+              </span>
+            </div>
+            <button class="mu-ctl press" disabled=${!canNext} aria-label="下一页"
+              onClick=${() => turn(1)}><${Icon} name="chevronRight" size=${19}/></button>
+          </div>`}
       </div>
 
       <${Sheet} open=${toc} onClose=${() => setToc(false)} title="目录" height="76%">
@@ -79,6 +144,10 @@ export function ReadPage({ bookId }) {
               onClick=${() => { jump(c.start); setToc(false); }}/>`)}
         <//>
       <//>
+
+      <${ReaderSettings} open=${cfgOpen} onClose=${() => setCfgOpen(false)}/>
+      <${ExcerptSheet} open=${excerpting} bookId=${bookId} at=${at}
+        onClose=${() => setExcerpting(false)}/>
     <//>`;
 }
 

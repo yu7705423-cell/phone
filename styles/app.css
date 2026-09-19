@@ -1436,18 +1436,6 @@ button.search-bar { width: 100%; border: none; }
 .shelf-name { font-size: var(--fs-13); color: var(--text); }
 .shelf-sub { font-size: var(--fs-11); color: var(--text-3); }
 
-/* 一起读时她说的那几句。压在正文和翻页条之间，不遮正文 */
-.rd-say {
-  flex: none; max-height: 9em; overflow-y: auto;
-  padding: var(--sp-3) var(--sp-5);
-  border-top: 1px solid var(--border); background: var(--surface-2);
-}
-.rd-say-who { font-size: var(--fs-11); color: var(--text-3); margin-bottom: 4px; }
-.rd-say-line {
-  font-size: var(--fs-14); line-height: 1.7; color: var(--text);
-  margin-bottom: var(--sp-2);
-}
-.rd-say-line:last-child { margin-bottom: 0; }
 
 /* 影评与书评 */
 .rv-when { font-size: var(--fs-12); color: var(--text-3); padding: var(--sp-2) 0 var(--sp-3); }
@@ -1470,4 +1458,98 @@ button.search-bar { width: 100%; border: none; }
 }
 .top-switch-item.is-active {
   background: var(--surface); color: var(--text); box-shadow: var(--shadow-1);
+}
+
+/* ---- 阅读器外观 ----
+   纸色、字号、字体走 --rd-* 变量，由 system/reader.js 按用户设置生成。
+   它们只作用在 .rd 里面，不碰 app 的主题。 */
+.rd {
+  --rd-bg: var(--surface);
+  --rd-ink: var(--text);
+  --rd-fs: var(--fs-17);
+  --rd-lh: 1.9;
+  --rd-font: var(--font-serif);
+  background: var(--rd-bg);
+  background-image: var(--rd-bg-image, none);
+  background-size: cover; background-position: center;
+}
+.rd-paper-paper { --rd-bg: var(--rd-paper-bg); --rd-ink: var(--rd-paper-ink); }
+.rd-paper-sepia { --rd-bg: var(--rd-sepia-bg); --rd-ink: var(--rd-sepia-ink); }
+.rd-paper-night { --rd-bg: var(--rd-night-bg); --rd-ink: var(--rd-night-ink); }
+
+.rd .rd-p {
+  font-size: var(--rd-fs); line-height: var(--rd-lh);
+  color: var(--rd-ink); font-family: var(--rd-font);
+}
+.rd .rd-chapter { color: var(--rd-ink); opacity: .62; border-bottom-color: currentColor; }
+.rd-paper-theme .rd-chapter { border-bottom-color: var(--border); }
+
+/* 点区盖住整块正文。左右各三分之一翻页，中间在全屏时收放顶栏 */
+.rd-tap { flex: 1; display: flex; min-height: 0; }
+.rd-tap > .rd-body { flex: 1; }
+
+/* 全屏：顶栏和翻页条都不在，正文自己留出安全区 */
+.rd.is-bare .rd-body { padding-top: calc(var(--sp-6) + env(safe-area-inset-top)); }
+.rd.is-bare { padding-bottom: env(safe-area-inset-bottom); }
+
+/* 翻页动画。旧的一页先出去，换页，新的一页再进来 —— 同一份正文做变换，
+   不复制第二份 DOM。四种都是这一条路子。 */
+.rd-body.is-out { animation: rd-out var(--rd-out) var(--ease) both; }
+.rd-body.is-in  { animation: rd-in var(--rd-in) var(--ease) both; }
+.rd-body { --rd-out: 170ms; --rd-in: 190ms; --rd-from: 0; --rd-to: 0; }
+
+.fx-slide.is-out.is-fwd  { --rd-to: -18%; }
+.fx-slide.is-out.is-back { --rd-to: 18%; }
+.fx-slide.is-in.is-fwd   { --rd-from: 18%; }
+.fx-slide.is-in.is-back  { --rd-from: -18%; }
+.fx-slide.is-out { animation-name: rd-out-x; }
+.fx-slide.is-in  { animation-name: rd-in-x; }
+
+.fx-vertical.is-out.is-fwd  { --rd-to: -12%; }
+.fx-vertical.is-out.is-back { --rd-to: 12%; }
+.fx-vertical.is-in.is-fwd   { --rd-from: 12%; }
+.fx-vertical.is-in.is-back  { --rd-from: -12%; }
+.fx-vertical.is-out { animation-name: rd-out-y; }
+.fx-vertical.is-in  { animation-name: rd-in-y; }
+
+@keyframes rd-out   { from { opacity: 1; } to { opacity: 0; } }
+@keyframes rd-in    { from { opacity: 0; } to { opacity: 1; } }
+@keyframes rd-out-x { from { opacity: 1; transform: none; }
+                      to { opacity: 0; transform: translateX(var(--rd-to)); } }
+@keyframes rd-in-x  { from { opacity: 0; transform: translateX(var(--rd-from)); }
+                      to { opacity: 1; transform: none; } }
+@keyframes rd-out-y { from { opacity: 1; transform: none; }
+                      to { opacity: 0; transform: translateY(var(--rd-to)); } }
+@keyframes rd-in-y  { from { opacity: 0; transform: translateY(var(--rd-from)); }
+                      to { opacity: 1; transform: none; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .rd-body.is-out, .rd-body.is-in { animation-duration: 1ms; }
+}
+
+/* 顶栏上并排的几个动作 */
+.nav-acts { display: flex; align-items: center; gap: var(--sp-1); }
+
+/* 取色器 + 手填色值 */
+.rd-color { display: flex; align-items: center; gap: var(--sp-3); }
+.rd-color .rd-swatch {
+  flex: none; width: 34px; height: 34px; padding: 0;
+  border: 1px solid var(--border); border-radius: var(--r-xs); background: none;
+}
+.rd-color > *:nth-child(2) { flex: 1; }
+
+/* ---- 书摘卡片 ---- */
+.xc-card {
+  border: 1px solid var(--border); border-radius: var(--r-md);
+  background: var(--surface); padding: var(--sp-4); max-width: 17em;
+}
+.xc-from { font-size: var(--fs-11); color: var(--text-3); margin-bottom: var(--sp-2); }
+.xc-quote {
+  font-family: var(--font-serif); font-size: var(--fs-15); line-height: 1.8;
+  color: var(--text); border-left: 2px solid var(--border-2);
+  padding-left: var(--sp-3); margin: 0;
+}
+.xc-note {
+  margin: var(--sp-3) 0 0; font-size: var(--fs-13);
+  color: var(--text-2); line-height: 1.6;
 }

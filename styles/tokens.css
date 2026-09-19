@@ -198,3 +198,14 @@
   --capsule-border: rgba(255, 255, 255, .16);
   --wg-solid:       rgba(0, 0, 0, .62);
 }
+
+/* ---- 阅读纸色 ----
+   只在阅读器里用。这里是全项目唯一允许出现色相的地方：
+   整个 app 是黑白的，但读书时的纸色是内容的一部分，用户自己挑，
+   和全局主题分开（见 system/reader.js 开头那段）。
+   自定义那一档不在这里，它由用户填的值直接写成内联变量。 */
+:root {
+  --rd-paper-bg:  #ffffff;  --rd-paper-ink:  #1a1a1a;
+  --rd-sepia-bg:  #f4ecd8;  --rd-sepia-ink:  #4a3f35;
+  --rd-night-bg:  #16181c;  --rd-night-ink:  #b9bcc2;
+}

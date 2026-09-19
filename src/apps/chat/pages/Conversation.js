@@ -14,7 +14,7 @@ import { TakeoutBubble, TakeoutSheet, MealSettleSheet, ShareSheet, MoreSheet } f
 import { TransferBubble, NoticeLine, TransferSheet, SettleSheet,
          LocationBubble, LocationSheet, CallBubble, CallLogSheet,
          GiftBubble, GiftSheet, UnwrapSheet,
-         ListenBubble, ListenLogSheet, ListenBar, WatchBubble, ReadBubble,
+         ListenBubble, ListenLogSheet, ListenBar, WatchBubble, ReadBubble, ExcerptBubble,
          WatchBar, RequestBubble, RequestSheet, VoteSheet } from './TransferBits.js';
 
 // panel 这个名字在本文件里已经被「当前开着哪个面板」占了（见下面的 useState），
@@ -130,6 +130,8 @@ const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, onSwipe,
           ? html`<${WatchBubble} msg=${msg}/>`
           : msg.kind === 'read'
           ? html`<${ReadBubble} msg=${msg}/>`
+          : msg.kind === 'excerpt'
+          ? html`<${ExcerptBubble} msg=${msg}/>`
           : msg.kind === 'pact'
           ? html`<${PactBubble} msg=${msg} onFinish=${selecting ? null : onOpenLog}/>`
           : msg.kind === 'letter'
