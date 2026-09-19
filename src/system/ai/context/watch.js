@@ -1,4 +1,5 @@
 import * as watchStore from '../../watch.js';
+import * as readStore from '../../read.js';
 import * as subtitle from '../../subtitle.js';
 
 // 「你们正在看」那一段。
@@ -16,13 +17,34 @@ import * as subtitle from '../../subtitle.js';
 
 export const meta = {
   id: 'watch',
-  label: '正在一起看',
-  desc: '片名、进度、已看过的剧情提纲与最近的台词。仅在一起看进行中注入',
+  label: '正在一起看 / 一起读',
+  desc: '片名或书名、进度、已看过的剧情提纲、最近的台词或这一页的原文。仅在进行中注入',
 };
+
+// 一起读那一段。和上面共用一个槽位：两者同时只可能开着一个
+function buildRead() {
+  const c = readStore.context();
+  if (!c) return '';
+  const lines = [`You are reading 《${c.title}》 together with the other party.`];
+  if (c.author) lines.push(`Written by ${c.author}.`);
+  lines.push(c.chapter
+    ? `They are on ${c.chapter}, ${c.percent}% into the book.`
+    : `They are ${c.percent}% into the book.`);
+  if (c.away) lines.push('The other party has left the reading page.');
+  lines.push('You know only what has been read so far; do not mention anything that'
+    + ' comes later in the book.');
+  if (c.page) {
+    lines.push('', '[这一页]', c.page);
+  } else {
+    lines.push('', 'The text on the page is not being shown to you. You know only the'
+      + ' title and the position.');
+  }
+  return `\n\n[你们正在读]\n${lines.join('\n')}`;
+}
 
 export function build() {
   const c = watchStore.context();
-  if (!c) return '';
+  if (!c) return buildRead();
 
   const lines = [`You are watching 《${c.title}》 together with the other party.`];
   lines.push(c.duration

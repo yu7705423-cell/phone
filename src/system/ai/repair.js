@@ -117,7 +117,7 @@ function describe(parts) {
 // 也不给「修格式」伸手。一处定义，MsgMenu 那边引这一份，别再各抄一遍。
 export const STRUCTURED = new Set([
   'sticker', 'typing', 'notice',
-  'transfer', 'gift', 'location', 'call', 'listen', 'pact', 'letter',
+  'transfer', 'gift', 'location', 'call', 'listen', 'read', 'pact', 'letter',
   'takeout', 'dice',
 ]);
 

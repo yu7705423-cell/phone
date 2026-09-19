@@ -185,6 +185,16 @@ export function WatchBubble({ msg }) {
     </div>`;
 }
 
+// 一起读留下的那一条。和 WatchBubble 同一个样子
+export function ReadBubble({ msg }) {
+  const [first, second] = String(msg.content || '').split('\n');
+  return html`
+    <div class="bubble bubble-call">
+      <${Icon} name="book" size=${18}/>
+      <span>${(first || '').replace(/^\[|\]$/g, '')}${second ? `　${second}` : ''}</span>
+    </div>`;
+}
+
 export function ListenLogSheet({ msg, onClose }) {
   if (!msg) return null;
   const tracks = (msg.trackIds || []).map(id => db.songs.get(id)).filter(Boolean);

@@ -5,8 +5,10 @@ import { VideosPage } from './pages/VideosPage.js';
 import { WatchPage } from './pages/WatchPage.js';
 import { BooksPage } from './pages/BooksPage.js';
 import { ReadPage, BookPage } from './pages/ReadPage.js';
+import { TogetherPage } from './pages/TogetherPage.js';
+import { SettingsPage } from './pages/SettingsPage.js';
 
-const { db, nav, video, watch, book } = phone;
+const { db, nav, video, watch, book, read } = phone;
 
 // 一起看。片库、播放，以及正在进行的那一场。
 //
@@ -18,7 +20,11 @@ function Home() {
   useStore(db.ebooks.store);
   useStore(db.chats.store);
   useStore(watch.watch);
+  useStore(read.read);
   const s = watch.watch.get();
+  const rs = read.read.get();
+  const readChat = rs.active ? db.chats.get(rs.chatId) : null;
+  const readChar = readChat ? db.characters.get((readChat.characterIds || [])[0]) : null;
   const live = s.active ? db.chats.get(s.chatId) : null;
   const liveChar = live ? db.characters.get((live.characterIds || [])[0]) : null;
   const row = s.active ? db.videos.get(s.videoId) : null;
@@ -36,6 +42,14 @@ function Home() {
             subtitle=${`和 ${liveChar?.name || '某个角色'} · ${s.playing ? '播放中' : '已暂停'}`}
             left=${html`<${Icon} name="film" size=${18}/>`}
             onClick=${() => nav.push(`/watch/${s.chatId}`)}/>
+        <//>` : null}
+
+      ${rs.active && readChat ? html`
+        <${List} title="正在读">
+          <${ListItem} title=${db.ebooks.get(rs.bookId)?.title || '一本书'} arrow multiline
+            subtitle=${`和 ${readChar?.name || '某个角色'} · 已翻 ${rs.pages} 页`}
+            left=${html`<${Icon} name="book" size=${18}/>`}
+            onClick=${() => nav.push(`/together/${rs.chatId}/${rs.bookId}`)}/>
         <//>` : null}
 
       <${List} title="片库与书库">
@@ -71,8 +85,15 @@ function Home() {
         <${EmptyState} icon="film" title="还没有片子，也没有书"
           desc="片库里添加一个播放地址或本机视频文件，书库里导入 txt 或 epub。"/>`}
 
+      <${List}>
+        <${ListItem} title="一起看与一起读" arrow multiline
+          subtitle="她自行开口的间隔、每次给她看多少内容、离开之后多久收场"
+          left=${html`<${Icon} name="settings" size=${18}/>`}
+          onClick=${() => nav.push('/settings')}/>
+      <//>
+
       <div class="settings-foot">
-        在会话的输入面板中点「一起看」，即可与该角色开始一场。
+        影片在会话的输入面板中点「一起看」开场；书在书里点「和角色一起读」开场。
       </div>
     <//>`;
 }
@@ -84,6 +105,9 @@ export default function TheaterApp({ route }) {
   if (bk) return html`<${BookPage} bookId=${bk[1]}/>`;
   const rd = route?.match(/^\/read\/(.+)$/);
   if (rd) return html`<${ReadPage} bookId=${rd[1]}/>`;
+  const tg = route?.match(/^\/together\/([^/]+)\/(.+)$/);
+  if (tg) return html`<${TogetherPage} chatId=${tg[1]} bookId=${tg[2]}/>`;
+  if (route === '/settings') return html`<${SettingsPage}/>`;
   const w = route?.match(/^\/watch\/(.+)$/);
   if (w) return html`<${WatchPage} chatId=${w[1]}/>`;
   return html`<${Home}/>`;

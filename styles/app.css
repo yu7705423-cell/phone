@@ -1389,3 +1389,16 @@ button.search-bar { width: 100%; border: none; }
 .rd-meta { text-align: center; display: flex; flex-direction: column; gap: 2px; }
 .rd-meta > span:first-child { font-size: var(--fs-14); font-weight: var(--fw-semi); }
 .rd-sub { font-size: var(--fs-11); color: var(--text-3); }
+
+/* 一起读时她说的那几句。压在正文和翻页条之间，不遮正文 */
+.rd-say {
+  flex: none; max-height: 9em; overflow-y: auto;
+  padding: var(--sp-3) var(--sp-5);
+  border-top: 1px solid var(--border); background: var(--surface-2);
+}
+.rd-say-who { font-size: var(--fs-11); color: var(--text-3); margin-bottom: 4px; }
+.rd-say-line {
+  font-size: var(--fs-14); line-height: 1.7; color: var(--text);
+  margin-bottom: var(--sp-2);
+}
+.rd-say-line:last-child { margin-bottom: 0; }

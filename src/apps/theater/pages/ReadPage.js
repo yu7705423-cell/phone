@@ -4,7 +4,7 @@ import { Page, List, ListItem, Icon, Button, Sheet, Spinner, EmptyState, toast }
 
 const { db, nav, book } = phone;
 
-const PAGE = 2400;
+const PAGE = book.PAGE;
 
 // 一页一页地翻，按字数走。不做滚动式连续阅读：那样「读到哪儿了」
 // 只能靠滚动位置猜，换个字号就对不上，角色那边也说不清人看到哪一段。

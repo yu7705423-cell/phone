@@ -10,6 +10,10 @@ import { unzip } from './zip.js';
 const texts = new Map();   // bookId -> 正文
 const MAX_BYTES = 80 * 1024 * 1024;
 
+// 一页多少字。阅读页、一起读、进度都按它算 —— 分成两个数，
+// 屏幕上写着 100% 而记录里写着 60%，用户只会当成 bug
+export const PAGE = 2400;
+
 export { ebooks };
 
 export const all = () => ebooks.all().sort((a, b) => (b.lastAt || 0) - (a.lastAt || 0));
@@ -187,8 +191,9 @@ export function setAt(id, at) {
   ebooks.update(id, { at: next, lastAt: Date.now() });
 }
 
+// 「读到百分之多少」= 当前这一页读完为止，和屏幕上那个数是同一个口径
 export const percentOf = row =>
-  (!row?.chars ? 0 : Math.min(100, Math.round((row.at || 0) / row.chars * 100)));
+  (!row?.chars ? 0 : Math.min(100, Math.round(((row.at || 0) + PAGE) / row.chars * 100)));
 
 /** 这个位置落在第几章。 */
 export function chapterAt(row, at = row?.at || 0) {
