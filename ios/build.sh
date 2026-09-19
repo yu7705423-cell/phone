@@ -90,9 +90,18 @@ echo "已生成    8 个图标"
 # 真正的签名仍然由用户自己在 AltStore、Sideloadly 或 TrollStore 里做 ——
 # 这一步只是把「这只 app 要读健康数据」这个声明放进去，
 # 重签的工具会照着它决定带不带得上那个权限。带不上也不影响其余功能。
-codesign --force --sign - --entitlements "$HERE/Phone.entitlements" \
-  --timestamp=none "$APP" >/dev/null 2>&1 \
-  || { echo "临时签名没成，改为不签名交出去"; codesign --remove-signature "$APP" >/dev/null 2>&1 || true; }
+if codesign --force --sign - --entitlements "$HERE/Phone.entitlements" \
+  --timestamp=none "$APP" >/dev/null 2>&1; then
+  # 光签成不算数，要确认那几条真的写进去了 —— 签完不看等于没签
+  if codesign -d --entitlements - --xml "$APP" 2>/dev/null | grep -q 'healthkit'; then
+    echo "权限声明  已写入（healthkit）。能不能真拿到取决于重签时用的账号"
+  else
+    echo "权限声明  没写进去。健康同步在这个包里用不了，其余功能不受影响"
+  fi
+else
+  echo "权限声明  临时签名没成，改为不签名交出去。健康同步用不了，其余不受影响"
+  codesign --remove-signature "$APP" >/dev/null 2>&1 || true
+fi
 IPA="$OUT/phone-unsigned-$VERSION.ipa"
 ( cd "$OUT" && zip -qry "$(basename "$IPA")" Payload )
 echo
