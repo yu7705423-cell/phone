@@ -16,11 +16,15 @@ export function PoopField({ who, date, list, mine = true }) {
   const add = () => health.addPoop(who, date);
   const upd = (i, patch) => health.updatePoop(who, date, i, patch);
 
+  // 空着的时候把形态那一句也说了 —— 还没记过的人需要知道那七档是什么；
+  // 记过之后七档就摆在眼前，再说一遍是废话
+  const desc = (mine
+    ? '每次记一条。时间默认填当下，可以改，也可以清空。形态可以不填。'
+    : '为该角色设定今天的情况。每次一条，时间与形态都可以留空。')
+    + (list.length ? '' : '形态按布里斯托分型，从硬到稀七档，只记外观，不作任何判断。');
+
   return html`
-    <${Field} label="排便"
-      desc=${mine
-        ? '每次记一条。时间默认填当下，可以改，也可以清空。形态可以不填。'
-        : '为该角色设定今天的情况。每次一条，时间与形态都可以留空。'}>
+    <${Field} label="排便" desc=${desc}>
       ${list.map((e, i) => html`
         <div class="hl-poop" key=${i}>
           <div class="hl-poop-head">
@@ -44,9 +48,5 @@ export function PoopField({ who, date, list, mine = true }) {
       <div class=${list.length ? 'pad-t' : ''}>
         <${Button} full variant="ghost" icon="plus" onClick=${add}>记一次<//>
       </div>
-      ${list.length ? null : html`
-        <div class="settings-foot">
-          形态按布里斯托分型，从硬到稀七档。只记外观，不作任何判断。
-        </div>`}
     <//>`;
 }

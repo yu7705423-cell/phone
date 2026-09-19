@@ -1695,6 +1695,18 @@ button.search-bar { width: 100%; border: none; }
   max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 
+/* 加减那一格。数字仍然是一眼看见的那个，两个键靠右，不抢它的位置 */
+.hl-tile-count { text-align: left; }
+.hl-count { display: flex; align-items: center; gap: var(--sp-2); width: 100%; }
+.hl-count b { flex: 1; min-width: 0; }
+.hl-count-acts { flex: none; display: flex; gap: var(--sp-1); }
+.hl-count-acts button {
+  display: flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; border-radius: var(--r-full);
+  background: var(--surface-2); color: var(--text-2);
+}
+.hl-count-acts button:disabled { opacity: .35; }
+
 /* 排便一次一条。每条上面一行是序号、时间、删除，下面一行是形态 */
 .hl-poop {
   padding: var(--sp-3) 0;

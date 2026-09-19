@@ -56,11 +56,23 @@ function Today() {
           <b>${d.weight ? `${health.toDisplay(d.weight)}` : '—'}</b>
           <span>体重 ${u}</span>
         </button>
-        <button class="hl-tile press" onClick=${() => health.addWater()}>
+        <div class="hl-tile hl-tile-count">
           <${Icon} name="cup" size=${17}/>
-          <b>${d.water || 0}</b>
-          <span>喝水 · 点一下加一杯</span>
-        </button>
+          <div class="hl-count">
+            <b>${d.water || 0}</b>
+            <span class="hl-count-acts">
+              <button class="press" aria-label="少一杯" disabled=${!d.water}
+                onClick=${() => health.addWater(health.ME, -1)}>
+                <${Icon} name="minus" size=${15}/>
+              </button>
+              <button class="press" aria-label="多一杯"
+                onClick=${() => health.addWater()}>
+                <${Icon} name="plus" size=${15}/>
+              </button>
+            </span>
+          </div>
+          <span>喝水</span>
+        </div>
       </div>
 
       <div class="pad-x">
