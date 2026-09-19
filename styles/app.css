@@ -1553,3 +1553,24 @@ button.search-bar { width: 100%; border: none; }
   margin: var(--sp-3) 0 0; font-size: var(--fs-13);
   color: var(--text-2); line-height: 1.6;
 }
+
+/* ---- 一起读：预读批注的标记 ----
+   正文下面一行浅浅的横线，点开才是她的话。不点就只是一条线，不打断阅读。 */
+.rd-marks { flex: none; padding: 0 var(--sp-5) var(--sp-3); }
+.rd-mark {
+  display: flex; align-items: center; gap: var(--sp-3);
+  width: 100%; padding: var(--sp-2) 0; background: none; border: 0;
+}
+.rd-mark-rule { flex: 1; height: 1px; background: var(--border-2); }
+.rd-mark-hint { flex: none; font-size: var(--fs-11); color: var(--text-3); }
+.rd-mark-open {
+  padding: var(--sp-3); border-radius: var(--r-sm);
+  background: var(--surface-2); border: 1px solid var(--border);
+}
+
+/* 她说的话默认收着，点一下才展开 */
+.rd-say-head {
+  display: flex; align-items: center; justify-content: space-between;
+  width: 100%; padding: 0; background: none; border: 0; color: var(--text-3);
+}
+.rd-say.is-folded { padding-top: var(--sp-2); padding-bottom: var(--sp-2); }

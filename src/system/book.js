@@ -169,6 +169,8 @@ export function remove(id) {
   if (row.cover) images.remove(row.cover);
   texts.delete(id);
   import('./shelf.js').then(m => m.unlinkBook(id)).catch(() => {});
+  // 书没了，跟着它的预读批注也留不住。动态引入避开循环依赖
+  import('./readnotes.js').then(m => m.dropBook(id)).catch(() => {});
   return ebooks.remove(id);
 }
 

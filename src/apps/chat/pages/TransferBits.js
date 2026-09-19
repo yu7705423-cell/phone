@@ -36,9 +36,31 @@ export function TransferSheet({ open, chatId, onClose }) {
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
   const [picking, setPicking] = useState(false);
+  const [conv, setConv] = useState(false);
+  const [from, setFrom] = useState('CNY');
+  const [src, setSrc] = useState('');
+  const [rateText, setRateText] = useState('');
   const cur = currency.current();
 
-  const close = () => { setAmount(''); setNote(''); setPicking(false); onClose(); };
+  // 换算只发生在输入这一步：填你习惯的那种钱，按汇率折成这段对话的币种。
+  // 落库的一律是折算之后的数 —— 一段对话里两个人用的是同一种钱。
+  const saved = currency.rateOf(from, cur.code);
+  const rate = rateText !== '' ? Number(rateText) : saved;
+  const out = rate > 0 && Number(src) > 0
+    ? currency.round(Number(src) * rate, cur.code) : null;
+
+  const useIt = () => {
+    if (out === null) return;
+    if (rateText !== '' && Number(rateText) > 0) currency.setRate(from, cur.code, rateText);
+    setAmount(String(out));
+    setConv(false); setSrc(''); setRateText('');
+  };
+
+  const close = () => {
+    setAmount(''); setNote(''); setPicking(false);
+    setConv(false); setSrc(''); setRateText('');
+    onClose();
+  };
   const submit = () => {
     try {
       transfer.send({ chatId, role: 'user', authorId: 'me', amount, note });
@@ -58,7 +80,37 @@ export function TransferSheet({ open, chatId, onClose }) {
       <${List} inset=${false}>
         <${ListItem} title="币种" subtitle=${`${cur.name}${cur.symbol ? ` · ${cur.symbol}` : ''}`}
           arrow onClick=${() => setPicking(true)}/>
+        <${ListItem} title="按汇率换算" multiline
+          subtitle=${`填另一种货币的金额，折成${cur.name}填进上面的金额栏`}
+          right=${html`<${Switch} checked=${conv} onChange=${setConv}/>`}/>
       <//>
+
+      ${conv ? html`
+        <div class="pad-x">
+          <${Field} label="原币种">
+            <div class="chip-row">
+              ${currency.LIST.filter(c => c.code !== 'none' && c.code !== cur.code).map(c => html`
+                <button key=${c.code} class=${`chip${from === c.code ? ' is-active' : ''}`}
+                  onClick=${() => { setFrom(c.code); setRateText(''); }}>${c.name}</button>`)}
+            </div>
+          <//>
+          <${Field} label=${`${currency.get(from).name}金额`}>
+            <${Input} value=${src} type="number" inputmode="decimal"
+              placeholder="0" onInput=${setSrc}/>
+          <//>
+          <${Field} label="汇率"
+            desc=${`1 ${currency.get(from).name}折合多少${cur.name}。`
+              + (saved ? '这一对已经填过，可以直接改。' : '自行填写，不联网获取。')}>
+            <${Input} value=${rateText !== '' ? rateText : (saved ?? '')} type="number"
+              inputmode="decimal" placeholder="例如 20.5"
+              onInput=${v => setRateText(v)}/>
+          <//>
+          <div class="pad-b">
+            <${Button} full variant="ghost" disabled=${out === null} onClick=${useIt}>
+              ${out === null ? '填写金额与汇率' : `折合 ${currency.display(out, cur.code)}，填入金额`}
+            <//>
+          </div>
+        </div>` : null}
       <${Field} label="留言" desc="可以不写。">
         <${Input} value=${note} placeholder="留言" maxlength=${40} onInput=${setNote}/>
       <//>
@@ -67,7 +119,8 @@ export function TransferSheet({ open, chatId, onClose }) {
       </div>
       <div class="settings-foot">
         转账后由对方决定收下或退回。在此之前可以长按该消息将其删除。<br/>
-        币种仅影响此后发出的转账，已发出的保持原样。不进行汇率换算。
+        币种仅影响此后发出的转账，已发出的保持原样。
+        换算只在填写金额时进行，存下的是折算之后的数额。
       </div>
 
       <${Sheet} open=${picking} onClose=${() => setPicking(false)} title="币种" height="68%">
@@ -78,6 +131,14 @@ export function TransferSheet({ open, chatId, onClose }) {
               right=${c.code === cur.code ? html`<${Icon} name="check" size=${16}/>` : null}
               onClick=${() => { currency.set(c.code); setPicking(false); }}/>`)}
         <//>
+        ${currency.pairs().length ? html`
+          <${List} title="已填写的汇率" inset=${false}>
+            ${currency.pairs().map(r => html`
+              <${ListItem} key=${r.key} title=${`${r.fromName} 折 ${r.toName}`}
+                subtitle=${`1 : ${r.rate}`}
+                right=${html`<button class="nav-text press"
+                  onClick=${() => currency.dropRate(r.key)}>删除</button>`}/>`)}
+          <//>` : null}
       <//>
     <//>`;
 }

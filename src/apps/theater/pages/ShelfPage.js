@@ -6,6 +6,7 @@ import { BookCover } from './Cover.js';
 
 const { db, nav, shelf, booksearch, review, ai } = phone;
 const gen = ai.shelfBatch;
+const impression = ai.impression;
 
 // 书架上那一格。接上了真书就能点开去读，没接上就只是个封面。
 function Shelf({ item, onTap }) {
@@ -137,6 +138,69 @@ function GenSheet({ open, char, onClose, onDone }) {
     <//>`;
 }
 
+// 书架上某一本的读后感。角色在遇到你之前就读过它，这是它留下的印象。
+// 和一起读完写的书评不是一回事：那本书多半只是个占位，模型手里没有正文。
+function ImpressionSheet({ open, charId, item, charName, onClose }) {
+  const [busy, setBusy] = useState(false);
+  const [draft, setDraft] = useState(null);
+
+  const run = async () => {
+    if (!ai.isConfigured()) { toast('尚未配置聊天接口', 'error', 4000); return; }
+    setBusy(true);
+    try { setDraft(await impression.generate(charId, item.id)); }
+    catch (err) { toast(String(err.message || err), 'error', 6000); }
+    finally { setBusy(false); }
+  };
+
+  const keep = () => {
+    impression.save(charId, item.id, draft);
+    setDraft(null); toast('已记下', 'ok'); onClose();
+  };
+
+  const drop = async () => {
+    if (!await confirm({ title: '删除这一篇读后感', danger: true })) return;
+    impression.clear(charId, item.id);
+    onClose();
+  };
+
+  if (!open || !item) return null;
+  const saved = item.impression || '';
+
+  return html`
+    <${Sheet} open=${true} onClose=${() => { setDraft(null); onClose(); }}
+      title=${`《${item.title}》的读后感`} height="78%">
+      <div class="pad-x">
+        ${draft ? html`
+          <div class="hint-box">这是刚生成的一篇。保存之后会覆盖原有的那一篇。</div>
+          ${draft.split('\n').filter(l => l.trim()).map((l, i) => html`
+            <p key=${i} class="rv-p">${l}</p>`)}
+          <div class="batch-acts pad-b">
+            <${Button} onClick=${keep}>保存<//>
+            <${Button} variant="ghost" disabled=${busy} onClick=${run}>再写一篇<//>
+            <${Button} variant="ghost" onClick=${() => setDraft(null)}>不要<//>
+          </div>`
+        : saved ? html`
+          ${saved.split('\n').filter(l => l.trim()).map((l, i) => html`
+            <p key=${i} class="rv-p">${l}</p>`)}
+          <div class="batch-acts pad-b">
+            <${Button} variant="ghost" disabled=${busy} onClick=${run}>
+              ${busy ? html`<${Spinner} size=${15}/> 正在写` : '重新生成'}<//>
+            <${Button} variant="ghost" danger onClick=${drop}>删除<//>
+          </div>`
+        : html`
+          <div class="hint-box">
+            读取${charName}的人设，写下这本书留给它的印象。
+            书架上的书多半只是占位，模型手里没有正文，所以只写印象，不复述内容。
+            生成一次调用一次接口。
+          </div>
+          <div class="pad-b">
+            <${Button} full disabled=${busy} onClick=${run}>
+              ${busy ? html`<${Spinner} size=${15}/> 正在写` : '生成读后感'}<//>
+          </div>`}
+      </div>
+    <//>`;
+}
+
 export function ShelfPage({ charId }) {
   useStore(db.characters.store);
   useStore(db.ebooks.store);
@@ -146,6 +210,7 @@ export function ShelfPage({ charId }) {
   const [held, setHeld] = useState(null);
   const [linking, setLinking] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [impressing, setImpressing] = useState(null);
   const [rows, setRows] = useState(null);
   const [off, setOff] = useState(new Set());
   const coverRef = useRef(null);
@@ -268,6 +333,8 @@ export function ShelfPage({ charId }) {
         </div>` : null}
 
       <${AddSheet} open=${adding} charId=${charId} onClose=${() => setAdding(false)}/>
+      <${ImpressionSheet} open=${!!impressing} charId=${charId} item=${impressing}
+        charName=${char.name} onClose=${() => setImpressing(null)}/>
       <${GenSheet} open=${generating} char=${char}
         onClose=${() => setGenerating(false)}
         onDone=${r => { setGenerating(false); setOff(new Set()); setRows(r); }}/>
@@ -289,6 +356,12 @@ export function ShelfPage({ charId }) {
                 subtitle="书名不同也可以手动接上"
                 left=${html`<${Icon} name="layers" size=${18}/>`}
                 onClick=${() => setLinking(true)}/>`}
+            <${ListItem} title="读后感" arrow multiline
+              subtitle=${held.impression
+                ? held.impression.split('\n').find(l => l.trim())?.slice(0, 30) + '…'
+                : '让角色写下这本书留给它的印象。生成一次调用一次接口'}
+              left=${html`<${Icon} name="notes" size=${18}/>`}
+              onClick=${() => { const it = held; setHeld(null); setImpressing(it); }}/>
             <${ListItem} title="换封面" arrow multiline
               subtitle="从相册选一张。不换也有封面，按书名生成"
               left=${html`<${Icon} name="image" size=${18}/>`}

@@ -1,8 +1,9 @@
 import { html, useState, useEffect, useRef } from '../../../lib.js';
 import { phone, useStore } from '../../../sdk/index.js';
-import { Page, List, ListItem, Icon, Sheet, Spinner, EmptyState, toast, confirm } from '../../../ui/index.js';
+import { Page, List, ListItem, Icon, IconButton, Sheet, Spinner, EmptyState, toast, confirm } from '../../../ui/index.js';
 
-const { db, nav, book, read, ai } = phone;
+const { db, nav, book, read, ai, readnotes } = phone;
+const notesTask = ai.readNotes;
 
 const PAGE = book.PAGE;
 
@@ -11,6 +12,8 @@ export function TogetherPage({ chatId, bookId }) {
   useStore(db.ebooks.store);
   useStore(db.messages.store);
   useStore(read.read);
+  useStore(db.readnotes.store);
+  useStore(db.settings.store);
   const s = read.read.get();
   const row = db.ebooks.get(bookId);
   const chat = db.chats.get(chatId);
@@ -18,9 +21,13 @@ export function TogetherPage({ chatId, bookId }) {
 
   const [text, setText] = useState(() => book.peekText(bookId));
   const [busy, setBusy] = useState(false);
+  const [noting, setNoting] = useState(false);
   const [toc, setToc] = useState(false);
+  const [open, setOpen] = useState(false);       // 她说的话默认收着
+  const [shown, setShown] = useState(() => new Set());
   const bodyRef = useRef(null);
   const started = useRef(false);
+  const auto = useRef(null);
 
   useEffect(() => {
     let alive = true;
@@ -38,6 +45,8 @@ export function TogetherPage({ chatId, bookId }) {
   }, [chatId, bookId, !!row, !!chat]);
 
   useEffect(() => { read.back(); }, []);
+
+  useEffect(() => () => clearTimeout(auto.current), []);
 
   if (!row || !chat || !char) {
     return html`<${Page} title="一起读" onBack=${nav.pop}>
@@ -68,11 +77,27 @@ export function TogetherPage({ chatId, bookId }) {
     finally { setBusy(false); }
   };
 
+  // 预读批注。一次把后面几页交给她，按页标出想说的话 —— 比一页一调省得多。
+  const makeNotes = async () => {
+    if (noting || !ai.isConfigured()) return;
+    setNoting(true);
+    try {
+      const r = await notesTask.generate({ chatId, bookId, at });
+      toast(r.added ? `批了 ${r.pages} 页，留下 ${r.added} 处` : `批了 ${r.pages} 页，这几页她没有话说`,
+        r.added ? 'ok' : 'plain', 4000);
+    } catch (err) { toast(String(err.message || err), 'error', 5000); }
+    finally { setNoting(false); }
+  };
+
   const turn = to => {
     const next = Math.max(0, Math.min(text.length - 1, to));
     read.setAt(next);
     if (bodyRef.current) bodyRef.current.scrollTop = 0;
-    if (read.due()) speak();
+    // 自动预读：翻到还没批过的地方就批一批。默认关着（第 15 条）
+    if (db.settings.get().readNotesAuto && next > readnotes.coveredTo(chatId, bookId)) {
+      clearTimeout(auto.current);
+      auto.current = setTimeout(makeNotes, 400);
+    } else if (read.due()) speak();
   };
 
   const finish = async () => {
@@ -81,12 +106,20 @@ export function TogetherPage({ chatId, bookId }) {
     nav.pop();
   };
 
+  // 这一页上她留下的批注。空文本那种是用来记「批到哪儿」的，不显示
+  const marks = readnotes.inPage(chatId, bookId, at, PAGE).filter(n => n.text);
+
   // 她刚说的那几句
   const said = db.messagesOf(chatId).filter(m => m.role === 'char' && m.kind === 'text').slice(-2);
 
   return html`
     <${Page} title=${`和 ${char.name} 一起读`} onBack=${nav.pop} noScroll
-      right=${html`<button class="nav-text press" onClick=${finish}>结束</button>`}>
+      right=${html`
+        <div class="nav-acts">
+          <${IconButton} name=${noting ? 'clock' : 'notes'} label="预读批注"
+            onClick=${makeNotes}/>
+          <button class="nav-text press" onClick=${finish}>结束</button>
+        </div>`}>
       <div class="rd">
         <div class="rd-body scroll" ref=${bodyRef}>
           ${chapter ? html`<div class="rd-chapter">${chapter.title}</div>` : null}
@@ -94,10 +127,30 @@ export function TogetherPage({ chatId, bookId }) {
             <p key=${i} class="rd-p">${p}</p>`)}
         </div>
 
+        ${marks.length ? html`
+          <div class="rd-marks">
+            ${marks.map(n => (shown.has(n.id) ? html`
+              <div key=${n.id} class="rd-mark-open">
+                <div class="rd-say-who">${char.name}</div>
+                <div class="rd-say-line">${n.text}</div>
+              </div>`
+            : html`
+              <button key=${n.id} class="rd-mark press"
+                onClick=${() => { readnotes.markSeen(n.id); setShown(v => new Set(v).add(n.id)); }}>
+                <span class="rd-mark-rule"></span>
+                <span class="rd-mark-hint">${char.name}在这一页留了一句</span>
+                <span class="rd-mark-rule"></span>
+              </button>`))}
+          </div>` : null}
+
         ${said.length ? html`
-          <div class="rd-say">
-            <div class="rd-say-who">${char.name}</div>
-            ${said.map(m => html`<div key=${m.id} class="rd-say-line">${m.content}</div>`)}
+          <div class=${`rd-say${open ? '' : ' is-folded'}`}>
+            <button class="rd-say-head press" onClick=${() => setOpen(v => !v)}>
+              <span class="rd-say-who">${char.name} · ${said.length} 句</span>
+              <${Icon} name=${open ? 'chevronDown' : 'chevronUp'} size=${15}/>
+            </button>
+            ${open ? said.map(m => html`
+              <div key=${m.id} class="rd-say-line">${m.content}</div>`) : null}
           </div>` : null}
 
         <div class="rd-bar">

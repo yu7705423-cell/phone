@@ -1,7 +1,13 @@
 import { settings } from './db/index.js';
 
-// 货币。只影响显示和角色写金额时的量级，不做任何汇率换算 ——
-// 一段对话里两个人用的是同一种钱，换算没有意义。
+// 货币。币种影响显示和角色写金额时的量级。
+//
+// 一段对话里两个人用的是同一种钱，所以**存进去的一律是这段对话的币种**。
+// 换算只发生在输入那一步：你习惯按人民币想，对方那边记的是日元，
+// 于是填人民币、按汇率折过去，落库的是折算之后的数。
+//
+// 汇率**自己填**，不联网去取。取汇率要么要接口要么要爬页面，
+// 都得联网、都会失败，而这件事本来不需要联网 —— 你心里那个数才是你要用的数。
 //
 // 小数位是跟着币种走的：日元韩元本来就不写小数，写成 88.00 一眼就假。
 export const LIST = [
@@ -54,3 +60,66 @@ export function label() {
   const c = current();
   return c.code === 'none' ? '' : `${c.name}（${c.symbol || c.code}）`;
 }
+
+
+// ---- 汇率 ----
+//
+// 一对币种一个数：`rates['CNY>JPY'] = 20.5` 表示 1 人民币折 20.5 日元。
+// 反向不单独存，取的时候取倒数 —— 两个方向分开存，改了一边忘了另一边，
+// 折出来的数就对不上。
+
+const pairKey = (from, to) => `${get(from).code}>${get(to).code}`;
+
+const table = () => settings.get().rates || {};
+
+/** 1 单位 from 折多少 to。没填过返回 null，界面据此提示去填。 */
+export function rateOf(from, to) {
+  const a = get(from).code;
+  const b = get(to).code;
+  if (a === b) return 1;
+  const t = table();
+  const direct = Number(t[pairKey(a, b)]);
+  if (Number.isFinite(direct) && direct > 0) return direct;
+  const back = Number(t[pairKey(b, a)]);
+  if (Number.isFinite(back) && back > 0) return 1 / back;
+  return null;
+}
+
+export function setRate(from, to, v) {
+  const n = Number(v);
+  const a = get(from).code;
+  const b = get(to).code;
+  if (a === b) return;
+  const next = { ...table() };
+  const key = pairKey(a, b);
+  if (Number.isFinite(n) && n > 0) {
+    next[key] = n;
+    delete next[pairKey(b, a)];   // 只留一个方向，免得两边打架
+  } else {
+    delete next[key];
+  }
+  settings.set({ rates: next });
+}
+
+/** 按汇率折过去，并收到目标币种该有的小数位上。填了汇率才算得出来。 */
+export function convert(n, from, to) {
+  const r = rateOf(from, to);
+  if (r === null) return null;
+  const v = Number(n) * r;
+  return Number.isFinite(v) ? round(v, to) : null;
+}
+
+/** 填过汇率的那几对，设置里列出来。 */
+export const pairs = () => Object.entries(table())
+  .filter(([, v]) => Number(v) > 0)
+  .map(([k, v]) => {
+    const [from, to] = k.split('>');
+    return { key: k, from, to, rate: Number(v),
+      fromName: get(from).name, toName: get(to).name };
+  });
+
+export const dropRate = key => {
+  const next = { ...table() };
+  delete next[key];
+  settings.set({ rates: next });
+};

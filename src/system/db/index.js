@@ -31,9 +31,10 @@ export const meals      = makeCollection('meals', 'ml', { indexBy: 'charId' });
 export const books      = makeCollection('books', 'bk');
 export const ebooks     = makeCollection('ebooks', 'ebk');
 export const reviews    = makeCollection('reviews', 'rev');
+export const readnotes  = makeCollection('readnotes', 'rn', { indexBy: 'chatId' });
 export const entries    = makeCollection('entries', 'en', { indexBy: 'bookId' });
 
-const COLLECTIONS = { characters, lorebooks, memories, chats, messages, moments, stickers, looks, personas, songs, playlists, videos, spaceItems, events, days, recipes, meals, books, entries, ebooks, reviews };
+const COLLECTIONS = { characters, lorebooks, memories, chats, messages, moments, stickers, looks, personas, songs, playlists, videos, spaceItems, events, days, recipes, meals, books, entries, ebooks, reviews, readnotes };
 
 // ---- kv: settings / persona / layout ----
 function makeKV(key, fallback, { deep = false } = {}) {
@@ -117,7 +118,7 @@ window.addEventListener('pagehide', () => { images.revokeAll(); files.revokeAll(
 export const db = {
   characters, lorebooks, memories, chats, messages, moments, stickers, looks, personas,
   songs, playlists, videos, spaceItems, events, days, recipes, meals,
-  books, entries, ebooks, reviews,
+  books, entries, ebooks, reviews, readnotes,
   images, files, settings, persona, layout,
   messagesOf, lastMessageOf, ready,
 };

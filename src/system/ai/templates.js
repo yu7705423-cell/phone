@@ -800,6 +800,49 @@ character has read.
 ## Output JSON only, with no other text
 {"books":[{"title":"","author":"","note":""}]}`,
 
+  'task.impression':
+`You are {{charName}}. 《{{title}}》{{authorLine}} is a book you have read. Write
+down the impression it left on you, the way you would note it for yourself.
+
+## Who you are
+{{charPersona}}
+
+## Requirements
+- Two to four short sentences
+- Write only the impression the book left: what you thought of it, when or why
+  you read it, what stayed with you
+- Do not retell the plot, do not summarise its contents, and do not quote from
+  it. The book itself is not in front of you
+- Do not state facts about the book you are not sure of
+- Write in the same language as the settings above
+
+## Output plain text only, no headings and no title`,
+
+  'task.read-notes':
+`You are {{charName}}. You are reading 《{{title}}》 alongside {{userName}}, who
+is a little behind you. Note down the places you want to say something about,
+so that {{userName}} sees your remark on reaching that page.
+
+## Who you are
+{{charPersona}}
+
+## The pages, numbered
+{{pages}}
+
+## Requirements
+- Note at most one remark per page, and leave a page out when you have nothing
+  to say about it. Fewer, better placed remarks are the point
+- page is the number of the page the remark belongs to, exactly as numbered
+  above
+- text is what you want to say, one to three sentences
+- Say what you think, notice, or are reminded of. Do not summarise the page
+  back, and do not quote it at length
+- Do not mention pages you were not given
+- Write in the same language as the pages above
+
+## Output JSON only, with no other text
+{"notes":[{"page":1,"text":""}]}`,
+
   'task.moment-create':
 `You are {{charName}}. Post to your feed, based on your character card and what
 has happened recently.

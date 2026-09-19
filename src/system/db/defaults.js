@@ -124,6 +124,14 @@ export const DEFAULT_SETTINGS = {
   // 阅读器外观。和全局主题分开 —— 读书时的纸色字体不该跟着 app 皮肤走
   reader: {},
 
+  // 汇率自己填，不联网取。'CNY>JPY': 20.5 表示 1 人民币折 20.5 日元
+  rates: {},
+
+  // 预读批注：一次把后面几页交给角色，它按页标出想说的话。
+  // 自动那一档会多打一次接口，所以默认关着（第 15 条）。
+  readNotesAuto: false,
+  readNotesPages: 6,              // 一次批几页。0 = 一直批到书末
+
   // 群聊
   groupMode: 'per-character',     // per-character | single-call
   groupSpeakersPerTurn: 2,

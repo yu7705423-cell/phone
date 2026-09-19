@@ -59,6 +59,8 @@ import * as foodApi from '../system/food.js';
 import * as dayTask from '../system/ai/tasks/day.js';
 import * as recipeBatch from '../system/ai/tasks/recipe-batch.js';
 import * as shelfBatch from '../system/ai/tasks/shelf-batch.js';
+import * as impression from '../system/ai/tasks/shelf-impression.js';
+import * as readNotes from '../system/ai/tasks/read-notes.js';
 import * as drawApi from '../system/draw.js';
 import * as eventBatch from '../system/ai/tasks/event-batch.js';
 import * as musicApi from '../system/music.js';
@@ -71,6 +73,7 @@ import * as readApi from '../system/read.js';
 import * as shelfApi from '../system/shelf.js';
 import * as readerApi from '../system/reader.js';
 import * as excerptApi from '../system/excerpt.js';
+import * as notesApi from '../system/readnotes.js';
 import * as reviewApi from '../system/review.js';
 import * as booksearchApi from '../system/booksearch.js';
 import * as playerApi from '../system/player.js';
@@ -176,6 +179,8 @@ export const phone = {
     inner: innerTask,
     recipeBatch,
     shelfBatch,
+    impression,
+    readNotes,
     runWithPreset: engine.runWithPreset,
 
     queue: {
@@ -224,6 +229,7 @@ export const phone = {
   shelf: shelfApi,
   reader: readerApi,
   excerpt: excerptApi,
+  readnotes: notesApi,
   review: reviewApi,
   booksearch: booksearchApi,
   player: playerApi,
