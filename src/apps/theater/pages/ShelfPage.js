@@ -1,32 +1,17 @@
 import { html, useState, useRef } from '../../../lib.js';
-import { phone, useStore, useThumb } from '../../../sdk/index.js';
+import { phone, useStore } from '../../../sdk/index.js';
 import { Page, List, ListItem, Field, Input, Button, Icon, Sheet, Spinner,
          EmptyState, toast, confirm, prompt } from '../../../ui/index.js';
+import { BookCover } from './Cover.js';
 
 const { db, nav, shelf, booksearch } = phone;
 
-// 没有封面时按书名取一种底色。同一本书永远是同一种，换设备也一样
-function tintOf(title) {
-  const t = String(title || '');
-  let h = 0;
-  for (let i = 0; i < t.length; i++) h = (h * 31 + t.charCodeAt(i)) >>> 0;
-  return `t${(h % 6) + 1}`;
-}
-const initialOf = title => String(title || '书').replace(/[《》「」【】\s]/g, '').slice(0, 4);
-
 // 书架上那一格。接上了真书就能点开去读，没接上就只是个封面。
-// 封面按这个顺序找：自己传的，填的地址，接上的那本书自带的（epub 里那张），
-// 都没有就按书名生成一张。最后这一档保证书架永远像个书架，不是一排灰方块
 function Shelf({ item, onTap }) {
-  const mine = useThumb(item.cover);
-  const fromBook = useThumb(item.book?.cover);
-  const src = mine || item.coverUrl || fromBook || '';
   return html`
     <button class=${`shelf-item press${item.real ? '' : ' is-ghost'}`} onClick=${() => onTap(item)}>
-      <div class=${`shelf-cover ${src ? 'has-image' : tintOf(item.title)}`}
-        style=${src ? `background-image:url(${src})` : ''}>
-        ${src ? null : html`<span class="shelf-initial">${initialOf(item.title)}</span>`}
-      </div>
+      <${BookCover} title=${item.title} author=${item.author}
+        cover=${item.cover} coverUrl=${item.coverUrl} bookCover=${item.book?.cover}/>
       <div class="shelf-name ellipsis">${item.title}</div>
       <div class="shelf-sub ellipsis">
         ${item.real ? `已导入 · ${item.percent}%` : (item.author || '未导入')}
@@ -99,11 +84,7 @@ function AddSheet({ open, charId, onClose }) {
           ${rows.map((b, i) => html`
             <${ListItem} key=${i} title=${b.title} arrow multiline
               subtitle=${[b.author, b.year].filter(Boolean).join(' · ') || '没有作者信息'}
-              left=${b.coverUrl
-                ? html`<div class="shelf-cover mini has-image"
-                    style=${`background-image:url(${b.coverUrl})`}></div>`
-                : html`<div class=${`shelf-cover mini ${tintOf(b.title)}`}>
-                    <span class="shelf-initial">${initialOf(b.title)}</span></div>`}
+              left=${html`<${BookCover} mini title=${b.title} coverUrl=${b.coverUrl}/>`}
               onClick=${() => take(b)}/>`)}
         <//>`
       : html`<div class="settings-foot">没有查到。可以直接添加，那一格就只有书名。</div>`) : null}
