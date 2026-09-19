@@ -19,7 +19,7 @@ const ROUTES = {
   contact: ['/', '/import', '/me', '/me/:persona', '/char/:char',
     '/edit/:char', '/profile/:char', '/net/:char', '/npc/:char'],
   memory: ['/', '/import', '/edit/:mem'],
-  lorebook: ['/', '/preview', '/map'],
+  lorebook: ['/', '/preview', '/map', '/book/:lore', '/entry/:lore/e1'],
   space: ['/', '/space/:chat', '/days/:chat', '/pacts/:chat', '/mail/:chat',
     '/log/:chat/gift', '/log/:chat/location', '/log/:chat/listen', '/log/:chat/call'],
   daily: ['/', '/gen', '/cell/env/good', '/cell/social/bad', '/cell/luck/plain',
@@ -62,7 +62,14 @@ const ids = await page.evaluate(async () => {
   const chat = db.chats.create({ characterIds: [a.id], personaId: me.id, lastMessageAt: Date.now() });
   db.messages.create({ chatId: chat.id, role: 'user', kind: 'text', content: '嗨', status: 'done' });
   const mem = db.memories.create({ scope: `character:${a.id}`, content: '一条记忆', category: 'fact', rank: 'A', keywords: [], personaId: me.id });
-  db.lorebooks.create({ name: '一本世界书', entries: [] });
+  const lore = db.lorebooks.create({ name: '一本世界书', description: '', global: false, entries: [
+    { id: 'e1', comment: '雨城', keys: ['雨城'], secondaryKeys: [], content: '常年下雨的城市。',
+      enabled: true, constant: false, priority: 100, order: 0,
+      part: 'before', depth: 0, caseSensitive: false, probability: 100 },
+    { id: 'e2', comment: '常驻', keys: [], secondaryKeys: [], content: '这一条始终注入。',
+      enabled: true, constant: true, priority: 100, order: 1,
+      part: 'after', depth: 2, caseSensitive: false, probability: 100 },
+  ] });
 
   // 事件库也要有几条，空库只走空状态
   const events = await import('/src/system/events.js');
@@ -147,7 +154,7 @@ const ids = await page.evaluate(async () => {
   db.reviews.create({ kind: 'book', subjectId: ebk.id, charId: a.id, title: '雨城旧事',
     text: '看完之后想起一件事。\n第二段。', at: 10, createdAt: Date.now() });
 
-  return { char: a.id, chat: chat.id, mem: mem.id, persona: me.id, book: bk.id, ebook: ebk.id, video: vid.id };
+  return { char: a.id, chat: chat.id, mem: mem.id, persona: me.id, book: bk.id, ebook: ebk.id, video: vid.id, lore: lore.id };
 });
 await page.waitForTimeout(400);
 
