@@ -1,19 +1,31 @@
-import { html, useState } from '../../../lib.js';
+import { html, useState, useRef } from '../../../lib.js';
 import { phone, useStore, useThumb } from '../../../sdk/index.js';
 import { Page, List, ListItem, Field, Input, Button, Icon, Sheet, Spinner,
-         EmptyState, toast, confirm } from '../../../ui/index.js';
+         EmptyState, toast, confirm, prompt } from '../../../ui/index.js';
 
 const { db, nav, shelf, booksearch } = phone;
 
+// 没有封面时按书名取一种底色。同一本书永远是同一种，换设备也一样
+function tintOf(title) {
+  const t = String(title || '');
+  let h = 0;
+  for (let i = 0; i < t.length; i++) h = (h * 31 + t.charCodeAt(i)) >>> 0;
+  return `t${(h % 6) + 1}`;
+}
+const initialOf = title => String(title || '书').replace(/[《》「」【】\s]/g, '').slice(0, 4);
+
 // 书架上那一格。接上了真书就能点开去读，没接上就只是个封面。
+// 封面按这个顺序找：自己传的，填的地址，接上的那本书自带的（epub 里那张），
+// 都没有就按书名生成一张。最后这一档保证书架永远像个书架，不是一排灰方块
 function Shelf({ item, onTap }) {
-  const local = useThumb(item.cover);
-  const src = local || item.coverUrl || '';
+  const mine = useThumb(item.cover);
+  const fromBook = useThumb(item.book?.cover);
+  const src = mine || item.coverUrl || fromBook || '';
   return html`
     <button class=${`shelf-item press${item.real ? '' : ' is-ghost'}`} onClick=${() => onTap(item)}>
-      <div class=${`shelf-cover${src ? ' has-image' : ''}`}
+      <div class=${`shelf-cover ${src ? 'has-image' : tintOf(item.title)}`}
         style=${src ? `background-image:url(${src})` : ''}>
-        ${src ? null : html`<${Icon} name="book" size=${20}/>`}
+        ${src ? null : html`<span class="shelf-initial">${initialOf(item.title)}</span>`}
       </div>
       <div class="shelf-name ellipsis">${item.title}</div>
       <div class="shelf-sub ellipsis">
@@ -90,7 +102,8 @@ function AddSheet({ open, charId, onClose }) {
               left=${b.coverUrl
                 ? html`<div class="shelf-cover mini has-image"
                     style=${`background-image:url(${b.coverUrl})`}></div>`
-                : html`<div class="shelf-cover mini"><${Icon} name="book" size=${14}/></div>`}
+                : html`<div class=${`shelf-cover mini ${tintOf(b.title)}`}>
+                    <span class="shelf-initial">${initialOf(b.title)}</span></div>`}
               onClick=${() => take(b)}/>`)}
         <//>`
       : html`<div class="settings-foot">没有查到。可以直接添加，那一格就只有书名。</div>`) : null}
@@ -104,12 +117,40 @@ export function ShelfPage({ charId }) {
   const [adding, setAdding] = useState(false);
   const [held, setHeld] = useState(null);
   const [linking, setLinking] = useState(false);
+  const coverRef = useRef(null);
 
   if (!char) {
     return html`<${Page} title="书架" onBack=${nav.pop}>
       <${EmptyState} title="这个角色已经不在了"/><//>`;
   }
   const items = shelf.listOf(charId);
+
+  const pickCover = async e => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file || !held) return;
+    try {
+      const id = await db.images.put(file, 512);
+      if (held.cover) db.images.remove(held.cover);
+      shelf.setEntry(charId, held.id, { cover: id, coverUrl: '' });
+      setHeld(null);
+      toast('已更换封面', 'ok');
+    } catch (err) { toast('图片处理失败：' + (err.message || err), 'error', 4000); }
+  };
+
+  const pasteCover = async () => {
+    const url = await prompt({ title: '封面地址', placeholder: 'https://…' });
+    if (!url) return;
+    if (held.cover) db.images.remove(held.cover);
+    shelf.setEntry(charId, held.id, { coverUrl: String(url).trim(), cover: null });
+    setHeld(null);
+  };
+
+  const clearCover = () => {
+    if (held.cover) db.images.remove(held.cover);
+    shelf.setEntry(charId, held.id, { cover: null, coverUrl: '' });
+    setHeld(null);
+  };
 
   const drop = async it => {
     setHeld(null);
@@ -134,10 +175,13 @@ export function ShelfPage({ charId }) {
       ${items.length ? html`
         <div class="settings-foot">
           浅色的那几本还没有导入，点开只会看到简介。在书库中导入同名的书之后，
-          它们会自动接上，可以阅读，也可以与该角色一起读。
+          它们会自动接上，可以阅读，也可以与该角色一起读。<br/>
+          封面按这个顺序取：自己选的图片，填写的图片地址，
+          已接上那本书自带的封面，以上都没有时按书名生成一张。
         </div>` : null}
 
       <${AddSheet} open=${adding} charId=${charId} onClose=${() => setAdding(false)}/>
+      <input type="file" accept="image/*" ref=${coverRef} onChange=${pickCover} style="display:none"/>
 
       <${Sheet} open=${!!held} onClose=${() => setHeld(null)} title=${held?.title || ''}>
         ${held ? html`
@@ -155,6 +199,19 @@ export function ShelfPage({ charId }) {
                 subtitle="书名不同也可以手动接上"
                 left=${html`<${Icon} name="layers" size=${18}/>`}
                 onClick=${() => setLinking(true)}/>`}
+            <${ListItem} title="换封面" arrow multiline
+              subtitle="从相册选一张。不换也有封面，按书名生成"
+              left=${html`<${Icon} name="image" size=${18}/>`}
+              onClick=${() => coverRef.current?.click()}/>
+            <${ListItem} title="粘一个封面地址" arrow multiline
+              subtitle=${held.coverUrl || '任意图片的网址'}
+              left=${html`<${Icon} name="layers" size=${18}/>`}
+              onClick=${pasteCover}/>
+            ${held.cover || held.coverUrl ? html`
+              <${ListItem} title="去掉封面" arrow multiline
+                subtitle="改回按书名生成的那一张"
+                left=${html`<${Icon} name="close" size=${18}/>`}
+                onClick=${clearCover}/>` : null}
             <${ListItem} title="从书架上拿掉" danger arrow
               left=${html`<${Icon} name="trash" size=${18}/>`}
               onClick=${() => drop(held)}/>

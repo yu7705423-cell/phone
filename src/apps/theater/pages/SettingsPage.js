@@ -58,9 +58,16 @@ export function SettingsPage() {
       </div>
 
       <div class="list-title">书目接口</div>
+      <div class="pad-x">
+        <div class="hint-box">
+          这一项只用来在添加书籍时顺手查到作者与封面，是可选的。
+          不使用也一样：封面可以从相册选、可以粘一个地址，
+          都不做则按书名生成一张。
+        </div>
+      </div>
       <${List}>
         <${ListItem} title="不使用" multiline
-          subtitle="书架上的书只有你自己填的书名与作者，没有封面"
+          subtitle="添加书籍时自己填书名与作者，封面自己选或按书名生成"
           right=${!cfg.provider ? html`<${Icon} name="check" size=${17}/>` : null}
           onClick=${() => { svc.setBooks({ provider: '' }); setRows(null); }}/>
         ${booksearch.PROVIDERS.map(p => html`

@@ -1421,5 +1421,19 @@ button.search-bar { width: 100%; border: none; }
 }
 .shelf-cover.mini { width: 30px; aspect-ratio: 2 / 3; border-radius: var(--r-xs); }
 .shelf-cover.has-image { color: transparent; }
+/* 没有封面的那几本：按书名取一种底色，把头两个字排上去，像本书的样子 */
+.shelf-cover.t1 { background-color: var(--shelf-1); }
+.shelf-cover.t2 { background-color: var(--shelf-2); }
+.shelf-cover.t3 { background-color: var(--shelf-3); }
+.shelf-cover.t4 { background-color: var(--shelf-4); }
+.shelf-cover.t5 { background-color: var(--shelf-5); }
+.shelf-cover.t6 { background-color: var(--shelf-6); }
+.shelf-initial {
+  font-family: var(--font-serif);
+  font-size: var(--fs-20); line-height: 1.15; color: var(--text-2);
+  writing-mode: vertical-rl; letter-spacing: 2px;
+  max-height: 80%; overflow: hidden;
+}
+.shelf-cover.mini .shelf-initial { font-size: var(--fs-12); letter-spacing: 0; }
 .shelf-name { font-size: var(--fs-13); color: var(--text); }
 .shelf-sub { font-size: var(--fs-11); color: var(--text-3); }

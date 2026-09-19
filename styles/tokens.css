@@ -45,6 +45,14 @@
   --capsule-border: transparent;
   --glass-blur:     18px;
 
+  /* 书架上没有封面的那几本，按书名取一种。低饱和，别抢正文 */
+  --shelf-1: #E6E2DA;
+  --shelf-2: #DEE3E2;
+  --shelf-3: #E4DFE6;
+  --shelf-4: #E8E1DC;
+  --shelf-5: #DDE2E8;
+  --shelf-6: #E3E6DD;
+
   /* 分组胶囊：极浅的灰底，不描边 */
   --group-fill: #F5F5F5;
   --group-line: rgba(0, 0, 0, .07);
@@ -168,6 +176,13 @@
 
   --group-fill: #121212;
   --group-line: rgba(255, 255, 255, .08);
+
+  --shelf-1: #2A2723;
+  --shelf-2: #222827;
+  --shelf-3: #272330;
+  --shelf-4: #2B2622;
+  --shelf-5: #212630;
+  --shelf-6: #252A22;
 
   --shadow-1: 0 1px 2px rgba(0, 0, 0, .5);
   --shadow-2: 0 4px 16px rgba(0, 0, 0, .6);
