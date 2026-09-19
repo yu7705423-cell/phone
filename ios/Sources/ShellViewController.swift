@@ -17,6 +17,10 @@ final class ShellViewController: UIViewController {
     private var downloadPaths: [ObjectIdentifier: URL] = [:]
     /// 读「健康」的那座桥。网页那头是 system/healthkit.js
     private let healthBridge = HealthBridge()
+    /// 发系统通知的那座桥。网页那头是 system/push.js
+    private let notifyBridge = NotifyBridge()
+    /// 保活。网页那头是 system/keepalive.js
+    private let keepAliveBridge = KeepAliveBridge()
 
     // MARK: - 站点地址
 
@@ -100,13 +104,23 @@ final class ShellViewController: UIViewController {
         // 告诉网页这一层能做什么。都在文档一开始就注入，网页第一帧就判得出：
         //   phoneNativeBack  这层自己有原生的边缘手势，网页那套让开，免得两边各退一级
         //   phoneHealth      这台设备读得到「健康」数据（能不能授权是另一回事，见 HealthBridge）
+        //   phoneNotify      系统通知走这一层。WKWebView 自己没有 Notification，
+        //                    网页那套在这儿一律「不支持」，见 NotifyBridge
+        //   phoneKeepAlive   保活也走这一层。零音量的网页音频在 app 里占不到音频焦点，
+        //                    见 KeepAliveBridge
         cfg.userContentController.addUserScript(WKUserScript(
             source: "window.phoneNativeBack = true;"
+                + "window.phoneNotify = true;"
+                + "window.phoneKeepAlive = true;"
                 + "window.phoneHealth = \(HealthBridge.available);",
             injectionTime: .atDocumentStart,
             forMainFrameOnly: false))
         cfg.userContentController.addScriptMessageHandler(
             healthBridge, contentWorld: .page, name: "health")
+        cfg.userContentController.addScriptMessageHandler(
+            notifyBridge, contentWorld: .page, name: "notify")
+        cfg.userContentController.addScriptMessageHandler(
+            keepAliveBridge, contentWorld: .page, name: "keepalive")
 
         let w = WKWebView(frame: view.bounds, configuration: cfg)
         w.navigationDelegate = self
@@ -123,6 +137,8 @@ final class ShellViewController: UIViewController {
         w.scrollView.pinchGestureRecognizer?.isEnabled = false
         view.addSubview(w)
         web = w
+        // 点开通知要回跳到某一页，那一下得有地方喊
+        notifyBridge.web = w
         installEdgeBack(on: w)
     }
 

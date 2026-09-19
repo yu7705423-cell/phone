@@ -1,0 +1,117 @@
+import Foundation
+import UserNotifications
+import WebKit
+
+// 系统通知。
+//
+// **网页在这里要不到。** WKWebView 没有 Notification，也没有 Service Worker 的
+// showNotification —— 那两样在 iOS 上只给 Safari 和「添加到主屏幕」的 PWA。
+// 装成 app 之后网页那套一律报「这个浏览器不支持」，于是通知整个没了。
+//
+// 所以由这一层发。用的是**本地通知**（UNUserNotificationCenter），
+// 不是 Web Push：
+//
+//   - **不需要任何 entitlement。** 和 HealthKit 不一样，各人怎么签都发得出来。
+//   - 不需要服务器。网页那边算出「该提醒了」就叫这里发一条。
+//   - 代价是 app 被系统彻底结束之后就没人算了。真要那种，仍然得有台服务器。
+//
+// 点开通知回到哪儿由网页决定：这里把 route 与 appId 原样带回去交给
+// window.phoneNotifyOpen，和网页自己那条点击回跳走同一个出口。
+
+final class NotifyBridge: NSObject {
+
+    private let center = UNUserNotificationCenter.current()
+    /// 回调网页用。ShellViewController 建好 WKWebView 之后塞进来
+    weak var web: WKWebView?
+
+    override init() {
+        super.init()
+        center.delegate = self
+    }
+
+    // MARK: - 三个动作
+
+    private func status() async -> [String: Any] {
+        let s = await center.notificationSettings()
+        switch s.authorizationStatus {
+        case .authorized, .provisional, .ephemeral: return ["permission": "granted"]
+        case .denied: return ["permission": "denied"]
+        default: return ["permission": "default"]
+        }
+    }
+
+    private func request() async -> [String: Any] {
+        do {
+            let got = try await center.requestAuthorization(options: [.alert, .sound, .badge])
+            // 用户在系统那张表上点了「不允许」，这不是错误，如实回去
+            return got ? ["permission": "granted"] : ["permission": "denied"]
+        } catch {
+            return ["error": "系统没有授权：\(error.localizedDescription)"]
+        }
+    }
+
+    /// 立刻发一条。tag 当标识符：同一个 tag 会顶掉前一条，这一点和网页那边一致。
+    private func show(_ body: [String: Any]) async -> [String: Any] {
+        let c = UNMutableNotificationContent()
+        c.title = (body["title"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? "小手机"
+        c.body = body["body"] as? String ?? ""
+        c.sound = .default
+        var info: [String: Any] = [:]
+        if let r = body["route"] as? String { info["route"] = r }
+        if let a = body["appId"] as? String { info["appId"] = a }
+        c.userInfo = info
+
+        let id = (body["tag"] as? String).flatMap { $0.isEmpty ? nil : $0 }
+            ?? "phone-\(Int(Date().timeIntervalSince1970 * 1000))"
+        // trigger 为 nil 就是马上发
+        let req = UNNotificationRequest(identifier: id, content: c, trigger: nil)
+        do {
+            try await center.add(req)
+            return ["shown": true]
+        } catch {
+            return ["error": "发不出去：\(error.localizedDescription)"]
+        }
+    }
+}
+
+// MARK: - 点开之后回到网页
+
+extension NotifyBridge: UNUserNotificationCenterDelegate {
+
+    /// app 正在前台时收到自己发的通知。**不弹系统横幅** ——
+    /// 网页在前台有自己那条横幅，两条一起出来是重的。
+    /// 网页那边本来也只在页面不可见时才叫这里发，这里再兜一道。
+    func userNotificationCenter(_ c: UNUserNotificationCenter,
+                                willPresent n: UNNotification) async
+        -> UNNotificationPresentationOptions { [] }
+
+    func userNotificationCenter(_ c: UNUserNotificationCenter,
+                                didReceive r: UNNotificationResponse) async {
+        let info = r.notification.request.content.userInfo
+        let payload: [String: Any] = [
+            "appId": info["appId"] as? String ?? "",
+            "route": info["route"] as? String ?? "",
+        ]
+        guard let data = try? JSONSerialization.data(withJSONObject: payload),
+              let json = String(data: data, encoding: .utf8) else { return }
+        await MainActor.run {
+            web?.evaluateJavaScript("window.phoneNotifyOpen && window.phoneNotifyOpen(\(json))")
+        }
+    }
+}
+
+// MARK: - 网页那头调过来
+
+extension NotifyBridge: WKScriptMessageHandlerWithReply {
+    func userContentController(_ c: WKUserContentController,
+                               didReceive message: WKScriptMessage,
+                               replyHandler: @escaping (Any?, String?) -> Void) {
+        let body = message.body as? [String: Any] ?? [:]
+        switch body["action"] as? String ?? "" {
+        case "status":  Task { replyHandler(await status(), nil) }
+        case "request": Task { replyHandler(await request(), nil) }
+        case "show":    Task { replyHandler(await show(body), nil) }
+        default:        replyHandler(["error": "不认识的动作"], nil)
+        }
+    }
+}

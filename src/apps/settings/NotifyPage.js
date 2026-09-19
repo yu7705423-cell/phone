@@ -146,10 +146,17 @@ export function NotifyPage() {
             : html`<${Button} size="sm" variant="ghost" disabled=${busy}
                 onClick=${askPerm}>去授权<//>`}/>
         <${ListItem} title="试一条系统通知" arrow multiline
-          subtitle="经由 Service Worker 发送，与应用内横幅是两套独立机制。"
+          subtitle=${push.native()
+            ? '由外壳发送，与应用内横幅是两套独立机制。'
+            : '经由 Service Worker 发送，与应用内横幅是两套独立机制。'}
           left=${html`<${Icon} name="bell" size=${18}/>`}
           onClick=${busy ? null : testSystem}/>
       <//>
+      ${push.native() ? html`
+        <div class="settings-foot">
+          当前为已安装的应用，系统通知由外壳发送，不经过浏览器，
+          也不需要签名时附带任何额外权限。
+        </div>` : null}
       ${!push.standalone() ? html`
         <div class="settings-foot">
           现在是在浏览器标签页里。iOS 只给「添加到主屏幕」之后的 PWA 发系统通知，
@@ -180,6 +187,11 @@ export function NotifyPage() {
         <${Button} full disabled=${busy} onClick=${test}>试一条应用内横幅<//>
       </div>
 
+      ${push.native() ? html`
+        <div class="settings-foot">
+          Web Push 需要浏览器的 Push API，已安装的应用里没有这一项，因此不显示。
+          应用被系统完全结束之后的通知仍然需要一台服务器，那一条这里做不到。
+        </div>` : html`
       <${List} title="Web Push">
         <${ListItem} title="订阅状态" multiline
           subtitle=${sub ? '已订阅。将订阅信息提供给服务端即可推送' : '未订阅'}
@@ -204,7 +216,7 @@ export function NotifyPage() {
           onClick=${doSubscribe}>${sub ? '重新订阅' : '订阅'}<//>
         <${Button} size="sm" variant="ghost" disabled=${!sub} onClick=${copySub}>复制订阅<//>
         <${Button} size="sm" variant="ghost" disabled=${!sub} onClick=${drop}>退订<//>
-      </div>
+      </div>`}
 
       <div class="settings-foot">
         「试一条应用内横幅」会回到主界面，横幅从顶上掉下来，同时响一声。<br/>

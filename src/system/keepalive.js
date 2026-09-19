@@ -21,6 +21,17 @@ import { createStore } from './store.js';
 //
 // 自动续不上的时候（浏览器要求先有一次真实触摸），才弹条让用户点一下 ——
 // 那一下既是许可也是手势，是唯一能可靠恢复的办法。
+//
+// ---- 装成 ipa 之后由外壳自己放 ----
+//
+// **零音量那一招在 app 里不灵。** WKWebView 不会为一个音量为零的元素去占
+// 音频焦点，系统那边压根不认为这只 app 在放音频，后台照停 —— 外壳把
+// AVAudioSession 配好也没用，因为根本没人在放。
+//
+// 所以外壳自己放一段极轻的噪声（ios/Sources/KeepAliveBridge.swift），
+// 并在文档一开始注入 window.phoneKeepAlive。**有那座桥就一律走桥**：
+// 下面那个 <audio> 元素、手势补救、needsTap 横幅全都用不上了 ——
+// 原生播放不需要用户手势，断了直接续。
 
 const WATCH_MS = 20000;
 const RETRY_MS = 800;
@@ -36,6 +47,32 @@ let el = null;
 let watchdog = null;
 let retry = null;
 let wired = false;
+
+// ---- 外壳那条路 ----
+
+const BRIDGE = () => window.webkit?.messageHandlers?.keepalive;
+
+/** 外壳有没有这座桥。有就一律走它。 */
+export const native = () => !!(window.phoneKeepAlive && BRIDGE());
+
+async function callNative(action) {
+  const got = await BRIDGE().postMessage({ action });
+  if (got && got.error) throw new Error(String(got.error));
+  return got || {};
+}
+
+/** 走外壳时的续播。原生不需要用户手势，所以 needsTap 永远立不起来。 */
+async function nativeResume() {
+  try {
+    const got = await callNative('start');
+    state.set({ on: got.on === true, needsTap: false });
+    return got.on === true;
+  } catch {
+    // 原生这一层开不起来是真开不起来，点一下也没用，不要去骗用户点
+    state.set({ on: false, needsTap: false });
+    return false;
+  }
+}
 
 // 一段 1 秒的无声 wav，直接内联，不占一次网络请求
 function silentWav() {
@@ -93,6 +130,7 @@ function onStopped() {
  */
 export async function resume() {
   if (!state.get().want) return false;
+  if (native()) return nativeResume();
   const a = ensure();
   try {
     await a.play();
@@ -116,6 +154,11 @@ export function stop() {
   state.set({ want: false, needsTap: false });
   clearTimeout(retry);
   stopWatch();
+  if (native()) {
+    callNative('stop').catch(() => {});
+    state.set({ on: false });
+    return;
+  }
   if (el) { el.pause(); el.currentTime = 0; }
   sync(false);
 }
@@ -123,8 +166,15 @@ export function stop() {
 function startWatch() {
   stopWatch();
   // 事件不一定每次都来（被系统冻住那种就没有），所以还得自己巡一遍
-  watchdog = setInterval(() => {
+  watchdog = setInterval(async () => {
     if (!state.get().want) return;
+    // 走外壳时以那边的播放器为准；来一通电话就会被按停，巡到了就续上
+    if (native()) {
+      const got = await callNative('status').catch(() => ({ on: false }));
+      state.set({ on: got.on === true });
+      if (!got.on) nativeResume();
+      return;
+    }
     if (!sync()) resume();
   }, WATCH_MS);
 }
@@ -141,9 +191,11 @@ export function install(getWant) {
   const onTap = () => { if (getWant() && !state.get().on) resume(); };
   const onVis = () => {
     if (document.visibilityState !== 'visible') return;
+    if (native()) { if (getWant()) resume(); return; }
     if (getWant() && !sync()) resume();
   };
-  window.addEventListener('pointerdown', onTap);
+  // 手势补救只对网页那条路有意义。原生不需要手势，挂着只是白跑
+  if (!native()) window.addEventListener('pointerdown', onTap);
   document.addEventListener('visibilitychange', onVis);
   return () => {
     window.removeEventListener('pointerdown', onTap);

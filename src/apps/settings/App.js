@@ -154,7 +154,9 @@ function Home() {
       <${List} title="后台">
         <${ListItem} title="保活" multiline
           left=${html`<${Icon} name="power" size=${18}/>`}
-          subtitle=${`循环播放一段无声音频，让系统把本页当成正在播放的标签页，`
+          subtitle=${(phone.keepAlive.native()
+            ? `由外壳持续播放一段极轻的音频，让系统把本应用当成正在播放，`
+            : `循环播放一段无声音频，让系统把本页当成正在播放的标签页，`)
             + `切到后台后不那么快被冻结，主动消息更有机会按时发出。`
             + `会持续占用少量电量，且在锁屏后通常仍会停止。`}
           right=${html`<${Switch} checked=${!!s.keepAlive}

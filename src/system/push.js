@@ -7,23 +7,68 @@ import { shownBody } from './notify.js';
 // 说明：真要在「app 完全关着」的时候把手机叫醒，必须有一台服务器替你发推送，
 // 这是 Web Push 的设计，前端绕不过去。这里把订阅、VAPID、点击回跳都做好，
 // 接上服务器只差把订阅对象交给它。
+//
+// ---- 装成 ipa 之后走的是另一条路 ----
+//
+// **WKWebView 没有 Notification，也没有 Service Worker 的 showNotification。**
+// 那两样在 iOS 上只给 Safari 和「添加到主屏幕」的 PWA。所以装成 app 之后
+// 网页这套一律报「这个浏览器不支持」，通知整个没了。
+//
+// 外壳因此自己发本地通知（ios/Sources/NotifyBridge.swift），并在文档一开始
+// 注入 window.phoneNotify。**有那座桥就一律走桥**，下面每个动作都先问一句。
+// 本地通知不需要 entitlement，各人怎么签都发得出来；代价是 app 被系统
+// 彻底结束之后没人算「该提醒了」，那种仍然要靠服务器推。
+
+const NATIVE = () => window.webkit?.messageHandlers?.notify;
+
+/** 外壳有没有这座桥。 */
+export const native = () => !!(window.phoneNotify && NATIVE());
+
+async function callNative(action, payload = {}) {
+  const got = await NATIVE().postMessage({ action, ...payload });
+  if (got && got.error) throw new Error(String(got.error));
+  return got || {};
+}
+
+// 原生那边问状态是异步的，而 permission() 到处都在同步地用。
+// 所以记一份，开机时与每次问过之后刷新。还没问到就当「还没问过」
+let nativePerm = 'default';
 
 export const supported = () =>
-  'serviceWorker' in navigator && 'Notification' in window;
+  native() || ('serviceWorker' in navigator && 'Notification' in window);
 
-export const pushSupported = () => supported() && 'PushManager' in window;
+export const pushSupported = () => !native()
+  && 'serviceWorker' in navigator && 'Notification' in window && 'PushManager' in window;
 
-// iOS 只给「添加到主屏幕」之后的 PWA 发通知，标签页里申请了也没用
-export const standalone = () =>
-  window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+// iOS 只给「添加到主屏幕」之后的 PWA 发通知，标签页里申请了也没用。
+// 装成 ipa 的时候不看这个 —— 那一层不是浏览器
+export const standalone = () => native()
+  || window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
 
-export const permission = () =>
-  ('Notification' in window) ? Notification.permission : 'unsupported';
+export const permission = () => {
+  if (native()) return nativePerm;
+  return ('Notification' in window) ? Notification.permission : 'unsupported';
+};
+
+/** 跟原生那边对一次状态。开机时走一遍，界面上那一行才写得对。 */
+export async function refresh() {
+  if (!native()) return permission();
+  try {
+    const got = await callNative('status');
+    nativePerm = got.permission || 'default';
+  } catch { /* 问不到就维持原样，不要把它当成被拒 */ }
+  return nativePerm;
+}
 
 let reg = null;
 
+// 下面三个都是 Service Worker 那条路专用的。装成 ipa 时**根本没有
+// navigator.serviceWorker**，supported() 却因为有原生桥而为真 ——
+// 所以这里另外挡一道，不然一进通知设置页就是一个 TypeError
+const swPath = () => !native() && 'serviceWorker' in navigator && 'Notification' in window;
+
 export async function register() {
-  if (!supported()) throw new Error('这个浏览器没有 Service Worker 或通知能力');
+  if (!swPath()) throw new Error('这个浏览器没有 Service Worker 或通知能力');
   reg = await navigator.serviceWorker.register('sw.js');
   await navigator.serviceWorker.ready;
   return reg;
@@ -31,13 +76,21 @@ export async function register() {
 
 export async function registration() {
   if (reg) return reg;
-  if (!supported()) return null;
+  if (!swPath()) return null;
   reg = await navigator.serviceWorker.getRegistration();
   return reg;
 }
 
 // 必须由一次真实点击触发，否则 Safari 直接拒
 export async function ask() {
+  if (native()) {
+    const got = await callNative('request');
+    nativePerm = got.permission || 'default';
+    if (nativePerm !== 'granted') {
+      throw new Error('通知被拒了。到系统「设置 - 通知 - 小手机」里重新打开');
+    }
+    return nativePerm;
+  }
   if (!supported()) throw new Error('这个浏览器不支持通知');
   await register();
   const p = await Notification.requestPermission();
@@ -53,6 +106,10 @@ export async function ask() {
 // 一轮五条落下来通知中心里只剩最后一条，看起来就是「只弹了一条」。
 export async function show({ title, body, route, appId, icon, tag }) {
   if (permission() !== 'granted') throw new Error('还没有通知权限');
+  if (native()) {
+    await callNative('show', { title, body, route: route || '', appId: appId || '', tag: tag || '' });
+    return;
+  }
   const r = await registration() || await register();
   await r.showNotification(title || '小手机', {
     body: body || '',
@@ -128,6 +185,13 @@ export async function unsubscribe() {
 
 // 点系统通知回到这边，交给 intents 统一跳转，和横幅、锁屏那条路一样
 export function installClickBridge() {
+  // 原生那边点开通知之后喊这个。和下面 SW 那条走同一个出口
+  if (native()) {
+    window.phoneNotifyOpen = d => {
+      if (d && d.appId) openIntent(d.appId, d.route ? { route: d.route } : null);
+    };
+    return;
+  }
   if (!('serviceWorker' in navigator)) return;
   navigator.serviceWorker.addEventListener('message', e => {
     const d = e.data || {};
@@ -145,6 +209,8 @@ export function shouldUseSystem() {
 
 export function installBridge() {
   installClickBridge();
+  // 原生那边的授权状态是异步问来的，开机时对一次，界面上那一行才写得对
+  refresh();
   busOn(EVENTS.notify, item => {
     if (!shouldUseSystem()) return;
     show({
