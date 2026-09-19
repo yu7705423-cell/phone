@@ -30,9 +30,10 @@ export const meals      = makeCollection('meals', 'ml', { indexBy: 'charId' });
 // 记账。账本很少，账户内嵌在账本里；流水很多，按账本建索引。
 export const books      = makeCollection('books', 'bk');
 export const ebooks     = makeCollection('ebooks', 'ebk');
+export const reviews    = makeCollection('reviews', 'rev');
 export const entries    = makeCollection('entries', 'en', { indexBy: 'bookId' });
 
-const COLLECTIONS = { characters, lorebooks, memories, chats, messages, moments, stickers, looks, personas, songs, playlists, videos, spaceItems, events, days, recipes, meals, books, entries, ebooks };
+const COLLECTIONS = { characters, lorebooks, memories, chats, messages, moments, stickers, looks, personas, songs, playlists, videos, spaceItems, events, days, recipes, meals, books, entries, ebooks, reviews };
 
 // ---- kv: settings / persona / layout ----
 function makeKV(key, fallback, { deep = false } = {}) {
@@ -116,7 +117,7 @@ window.addEventListener('pagehide', () => { images.revokeAll(); files.revokeAll(
 export const db = {
   characters, lorebooks, memories, chats, messages, moments, stickers, looks, personas,
   songs, playlists, videos, spaceItems, events, days, recipes, meals,
-  books, entries, ebooks,
+  books, entries, ebooks, reviews,
   images, files, settings, persona, layout,
   messagesOf, lastMessageOf, ready,
 };

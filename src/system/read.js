@@ -127,6 +127,11 @@ export function stop() {
       status: 'done',
     });
   }
+  if (record) {
+    import('./review.js')
+      .then(m => m.writeOnFinish({ kind: m.BOOK, subjectId: s.bookId, charId: s.charId, at: s.at }))
+      .catch(() => {});
+  }
   read.set({ active: false, chatId: '', charId: '', bookId: '', at: 0, pages: 0,
     saidPage: -1, said: 0, awayAt: 0 });
   return record;

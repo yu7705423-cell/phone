@@ -3,7 +3,7 @@ import { phone, useStore } from '../../../sdk/index.js';
 import { Page, Field, Input, Textarea, Button, Icon, Sheet, List, ListItem,
          NumberInput, EmptyState, toast, confirm } from '../../../ui/index.js';
 
-const { db, nav, video, subtitle, ffmpeg, ai } = phone;
+const { db, nav, video, subtitle, ffmpeg, ai, review } = phone;
 
 // 片库。和曲库同一套：片子要么一个地址，要么一个本机文件。
 //
@@ -207,6 +207,7 @@ function EditSheet({ open, row, onClose }) {
 
 export function VideosPage() {
   useStore(db.videos.store);
+  useStore(db.reviews.store);
   const [editing, setEditing] = useState(undefined);
   const [busy, setBusy] = useState('');
 
@@ -243,6 +244,8 @@ export function VideosPage() {
                   n ? `字幕 ${n} 句` : '没有字幕',
                   video.offsetOf(row) ? `偏移 ${video.offsetOf(row) > 0 ? '+' : ''}${video.offsetOf(row)} 秒` : '',
                   segs ? `提纲 ${segs} 段` : '未生成提纲',
+                  review.countFor(review.VIDEO, row.id)
+                    ? `影评 ${review.countFor(review.VIDEO, row.id)} 篇` : '',
                 ].filter(Boolean).join(' · ')}
                 left=${html`<${Icon} name="film" size=${18}/>`}
                 right=${html`
@@ -251,6 +254,8 @@ export function VideosPage() {
                       onClick=${() => outline(row)}>${busy === row.id
                         ? '生成中'
                         : ai.watchOutline.hasOutline(row) ? '重新生成' : '生成提纲'}</button>` : null}
+                    <button class="nav-text press"
+                      onClick=${() => nav.push(`/reviews/video/${row.id}`)}>影评</button>
                     <button class="nav-text press" onClick=${() => setEditing(row)}>编辑</button>
                     <button class="nav-text press" onClick=${() => drop(row)}>移除</button>
                   </span>`}/>`;

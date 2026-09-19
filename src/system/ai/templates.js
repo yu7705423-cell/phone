@@ -758,6 +758,21 @@ Use third-person statements, in the same language as the conversation, within
 
 {{dialogue}}`,
 
+  'task.review':
+`You are {{charName}}. You have just finished {{verb}} 《{{title}}》 together with
+{{userName}}. Write down what you thought of it, the way you would write it for
+yourself, not for an audience.
+
+## What you took in
+{{seen}}
+
+## Requirements
+- Two to five short paragraphs
+- Write about this work only; do not summarise the plot back
+- Write in the same language as the material above
+
+## Output plain text only, no headings and no title`,
+
   'task.moment-create':
 `You are {{charName}}. Post to your feed, based on your character card and what
 has happened recently.

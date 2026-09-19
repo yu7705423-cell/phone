@@ -4,7 +4,7 @@ import { Page, List, ListItem, Field, Input, Button, Icon, Sheet, Spinner,
          EmptyState, toast, confirm, prompt } from '../../../ui/index.js';
 import { BookCover } from './Cover.js';
 
-const { db, nav, shelf, booksearch } = phone;
+const { db, nav, shelf, booksearch, review } = phone;
 
 // 书架上那一格。接上了真书就能点开去读，没接上就只是个封面。
 function Shelf({ item, onTap }) {
@@ -94,6 +94,7 @@ function AddSheet({ open, charId, onClose }) {
 export function ShelfPage({ charId }) {
   useStore(db.characters.store);
   useStore(db.ebooks.store);
+  useStore(db.reviews.store);
   const char = db.characters.get(charId);
   const [adding, setAdding] = useState(false);
   const [held, setHeld] = useState(null);
@@ -105,6 +106,7 @@ export function ShelfPage({ charId }) {
       <${EmptyState} title="这个角色已经不在了"/><//>`;
   }
   const items = shelf.listOf(charId);
+  const wrote = review.listByChar(charId);
 
   const pickCover = async e => {
     const file = e.target.files?.[0];
@@ -152,6 +154,15 @@ export function ShelfPage({ charId }) {
           desc="放上几本这个角色读过的书。书架上的书默认只是封面，你导入同名的书之后才能读。"
           action=${html`<${Button} size="sm" icon="plus"
             onClick=${() => setAdding(true)}>添加书籍<//>`}/>`}
+
+      ${wrote.length ? html`
+        <${List} title=${`${char.name} 写过的 · ${wrote.length} 篇`}>
+          ${wrote.slice(0, 6).map(r => html`
+            <${ListItem} key=${r.id} title=${r.title} arrow multiline
+              subtitle=${String(r.text || '').split('\n').find(l => l.trim())?.slice(0, 40) || ''}
+              left=${html`<${Icon} name=${r.kind === review.BOOK ? 'book' : 'film'} size=${18}/>`}
+              onClick=${() => nav.push(`/reviews/${r.kind}/${r.subjectId}`)}/>`)}
+        <//>` : null}
 
       ${items.length ? html`
         <div class="settings-foot">

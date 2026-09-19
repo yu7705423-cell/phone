@@ -1,6 +1,6 @@
 import { html, useState } from '../../../lib.js';
 import { phone, useStore } from '../../../sdk/index.js';
-import { Page, Field, Input, NumberInput, List, ListItem, Icon, Spinner, toast } from '../../../ui/index.js';
+import { Page, Field, Input, NumberInput, List, ListItem, Switch, Icon, Spinner, toast } from '../../../ui/index.js';
 
 const { db, nav, booksearch } = phone;
 
@@ -110,6 +110,15 @@ export function SettingsPage() {
                   + '添加书籍时仍可直接填写书名，并粘贴一个封面地址。'}
             <br/>书目接口只查询书名、作者与封面，不提供书的文件。书需要你自己导入。
           </div>` : null}` : null}
+
+      <div class="list-title">影评与书评</div>
+      <${List}>
+        <${ListItem} title="收场时自动写一篇" multiline
+          subtitle=${`一起看或一起读结束时，让角色按看过或读过的内容写一篇，`
+            + `各多调用一次模型接口。关闭后仍可在片子或书的「影评 / 书评」中手动写。`}
+          right=${html`<${Switch} checked=${s.reviewAuto === true}
+            onChange=${v => set({ reviewAuto: v })}/>`}/>
+      <//>
 
       <div class="list-title">两者共用</div>
       <div class="pad-x pad-b">

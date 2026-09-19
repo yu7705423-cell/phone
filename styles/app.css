@@ -1479,3 +1479,10 @@ button.search-bar { width: 100%; border: none; }
 .shelf-cover.mini .shelf-initial { font-size: var(--fs-12); letter-spacing: 0; }
 .shelf-name { font-size: var(--fs-13); color: var(--text); }
 .shelf-sub { font-size: var(--fs-11); color: var(--text-3); }
+
+/* 影评与书评 */
+.rv-when { font-size: var(--fs-12); color: var(--text-3); padding: var(--sp-2) 0 var(--sp-3); }
+.rv-p {
+  margin: 0 0 var(--sp-4); text-indent: 2em;
+  font-size: var(--fs-15); line-height: 1.85; color: var(--text);
+}

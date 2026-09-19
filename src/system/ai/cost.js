@@ -57,6 +57,13 @@ export const EXTRA_CALLS = [
     when: '每一轮各取一次查询向量（走向量接口，不是聊天接口）',
   },
   {
+    id: 'reviewAuto',
+    label: '看完自动写一篇评',
+    setting: 'reviewAuto', off: false,
+    on: s => s.reviewAuto === true,
+    when: '一起看或一起读收场时，各多写一篇',
+  },
+  {
     id: 'translate',
     label: '单独的翻译接口',
     setting: null,

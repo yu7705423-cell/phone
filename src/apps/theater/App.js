@@ -8,6 +8,7 @@ import { ReadPage, BookPage } from './pages/ReadPage.js';
 import { TogetherPage } from './pages/TogetherPage.js';
 import { SettingsPage } from './pages/SettingsPage.js';
 import { ShelfPage } from './pages/ShelfPage.js';
+import { ReviewsPage } from './pages/ReviewsPage.js';
 
 const { db, nav, video, watch, book, read, shelf } = phone;
 
@@ -137,6 +138,8 @@ export default function TheaterApp({ route }) {
   if (route === '/settings') return html`<${SettingsPage}/>`;
   const sh = route?.match(/^\/shelf\/(.+)$/);
   if (sh) return html`<${ShelfPage} charId=${sh[1]}/>`;
+  const rv = route?.match(/^\/reviews\/(video|book)\/(.+)$/);
+  if (rv) return html`<${ReviewsPage} kind=${rv[1]} subjectId=${rv[2]}/>`;
   const w = route?.match(/^\/watch\/(.+)$/);
   if (w) return html`<${WatchPage} chatId=${w[1]}/>`;
   return html`<${Home}/>`;

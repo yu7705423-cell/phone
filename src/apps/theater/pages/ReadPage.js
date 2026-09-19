@@ -2,7 +2,7 @@ import { html, useState, useEffect, useRef } from '../../../lib.js';
 import { phone, useStore } from '../../../sdk/index.js';
 import { Page, List, ListItem, Icon, Button, Sheet, Spinner, EmptyState, toast } from '../../../ui/index.js';
 
-const { db, nav, book } = phone;
+const { db, nav, book, review } = phone;
 
 const PAGE = book.PAGE;
 
@@ -86,6 +86,7 @@ export function ReadPage({ bookId }) {
 export function BookPage({ bookId }) {
   useStore(db.ebooks.store);
   useStore(db.chats.store);
+  useStore(db.reviews.store);
   const row = db.ebooks.get(bookId);
   const [picking, setPicking] = useState(false);
   if (!row) {
@@ -109,6 +110,15 @@ export function BookPage({ bookId }) {
           subtitle="选一个角色，边读边聊。角色看得到你正读到的那一段"
           left=${html`<${Icon} name="users" size=${18}/>`}
           onClick=${() => setPicking(true)}/>
+      <//>
+
+      <${List} title=${`书评 · ${review.countFor(review.BOOK, row.id)} 篇`}>
+        <${ListItem} title="角色写的书评" arrow multiline
+          subtitle=${review.countFor(review.BOOK, row.id)
+            ? '每写一篇都留着，重读之后再写不会冲掉旧的'
+            : '让角色按你读到的内容写一篇。写一篇调用一次接口'}
+          left=${html`<${Icon} name="notes" size=${18}/>`}
+          onClick=${() => nav.push(`/reviews/book/${row.id}`)}/>
       <//>
 
       <${List} title="这本书">

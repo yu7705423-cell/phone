@@ -224,6 +224,12 @@ export function stop() {
       status: 'done',
     });
   }
+  // 看完自动写一篇。多一次调用，默认关着，开关登记在 ai/cost.js
+  if (record) {
+    import('./review.js')
+      .then(m => m.writeOnFinish({ kind: m.VIDEO, subjectId: s.videoId, charId: s.charId, at: s.at }))
+      .catch(() => {});
+  }
   watch.set({
     active: false, chatId: '', charId: '', videoId: '',
     at: 0, duration: 0, playing: false, seconds: 0, saidAt: -1, said: 0,
