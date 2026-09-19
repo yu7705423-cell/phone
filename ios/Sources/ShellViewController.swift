@@ -126,27 +126,32 @@ final class ShellViewController: UIViewController {
         installEdgeBack(on: w)
     }
 
-    /// 从屏幕左边缘往右滑，退回上一级。
+    /// 从屏幕边缘往里滑，退回上一级。**左右两边都装一个。**
     ///
     /// **为什么不让网页自己做。** 网页那边也写了一套（ui/page.js 的 useSwipeBack），
-    /// 在桌面浏览器里好好的，到 iOS 上不动 —— 屏幕最左边那一条触摸先归系统的
+    /// 在桌面浏览器里好好的，到 iOS 上不动 —— 屏幕边上那一条触摸先归系统的
     /// 边缘手势判，等 WebKit 把 touchstart 交到网页手里，手指常常已经划出去
     /// 几十个点，起手位置早就不在边缘那一条里，那套判定根本不会开始。
     ///
     /// UIScreenEdgePanGestureRecognizer 就是系统为这件事准备的，不跟 WebKit 抢。
     /// 前进后退那套系统手势已经关掉了（allowsBackForwardNavigationGestures），
-    /// 这里不会和它打架。
+    /// 这里不会和它打架。右边那一条在 iPhone 上没有别的用处（通知中心、
+    /// 控制中心在上边，Home Indicator 在下边），这只 app 也只竖屏跑。
     private func installEdgeBack(on w: WKWebView) {
-        let g = UIScreenEdgePanGestureRecognizer(target: self, action: #selector(onEdgePan(_:)))
-        g.edges = .left
-        g.delegate = self
-        w.addGestureRecognizer(g)
+        for edge in [UIRectEdge.left, .right] {
+            let g = UIScreenEdgePanGestureRecognizer(target: self, action: #selector(onEdgePan(_:)))
+            g.edges = edge
+            g.delegate = self
+            w.addGestureRecognizer(g)
+        }
     }
 
     @objc private func onEdgePan(_ g: UIScreenEdgePanGestureRecognizer) {
         guard g.state == .ended else { return }
-        let moved = g.translation(in: view).x
-        let speed = g.velocity(in: view).x
+        // 从右边缘起手的话手指是往左走的，位移和速度都是负的，折过来再比
+        let dir: CGFloat = g.edges == .right ? -1 : 1
+        let moved = g.translation(in: view).x * dir
+        let speed = g.velocity(in: view).x * dir
         // 走过三成屏宽，或者甩得够快。和网页那套的判定对齐
         guard moved > view.bounds.width * 0.3 || speed > 800 else { return }
         // 退到哪儿由网页决定：有浮层先关浮层，这一页有自己的返回就用它。

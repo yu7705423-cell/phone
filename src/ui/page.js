@@ -2,12 +2,17 @@ import { html, useEffect, useRef } from '../lib.js';
 import { Icon } from '../icons/Icon.js';
 import { IconButton } from './basic.js';
 
-// 从左边缘往右一划就是返回。
+// 从边缘往里一划就是返回。**左右两边都认**：左边往右、右边往左，都是退一级。
 //
 // 返回键在左上角，那是右手拇指最够不着的一个角。真机上谁也不去点它，
 // 都是从边上划。所以这个手势不是锦上添花，它才是主路。
 //
-// **只认起手落在左边缘那一条里的。** 横着的手势在这个项目里已经有主了：
+// **为什么右边那条也要认。** 右手单手握着的时候，拇指要横穿整个屏幕才够得着
+// 左边那一条，而右边那条就在拇指底下。这个项目里没有「前进」这回事，
+// 右边那条空着也是空着。安卓的全面屏手势两边都认，是同一个道理。
+// 页面朝手指走的那个方向让开，松手后从同一边滑出去。
+//
+// **只认起手落在边缘那一条里的。** 横着的手势在这个项目里已经有主了：
 // 主屏是一页一页翻的，列表里的长按靠 touchmove 取消，表情面板、头像池这些
 // 还横着滚。限制在边缘那一条里，谁都不抢。iOS 自己也是这么分的。
 //
@@ -29,11 +34,12 @@ import { IconButton } from './basic.js';
 // 两层都接就是关掉浮层的同时把底下那页也退了。所以起手时认一下
 // 最近的那个 .page 是不是自己。
 
-// 起手必须落在最左边这么宽的一条里。
+// 起手必须落在左右任一边缘这么宽的一条里。
 // 原来是 24，照着 iOS 自己那条定的。但在 iOS 上这一条是**系统先看**的：
 // 从最左边起手的触摸先归系统的边缘手势判，交到网页手里时往往已经划出去
 // 几十像素，clientX 早就不在 24 以内，这套判定根本不会开始。
 // 放宽到 40 能救回一部分；ipa 里则整套让给原生手势（见下面 phoneNativeBack）。
+// 右边那条是同一个宽度，理由也一样。
 const EDGE = 40;
 const OWN = 8;        // 横向先走够这么多，这一下才算归我
 const TAKE = 0.3;     // 松手时走过页宽的这个比例就算完成
@@ -62,13 +68,16 @@ function useSwipeBack(onBack) {
   const ref = useRef(null);
   const g = useRef(null);
 
-  const settle = go => {
+  // dir 是这一下该往哪边走：从左边缘起手是 +1（页面往右让开），
+  // 从右边缘起手是 -1。整套判定都拿 dir 折算成「朝该走的方向走了多少」，
+  // 下面就不必两边各写一遍
+  const settle = (go, dir) => {
     const el = ref.current;
     g.current = null;
     if (!el) return;
     el.classList.remove('is-swiping');
     el.classList.add('is-settling');
-    el.style.transform = go ? 'translateX(100%)' : 'translateX(0)';
+    el.style.transform = go ? `translateX(${dir * 100}%)` : 'translateX(0)';
     setTimeout(() => {
       el.classList.remove('is-settling');
       el.style.transform = '';
@@ -84,14 +93,16 @@ function useSwipeBack(onBack) {
       if (window.phoneNativeBack) return;
       if (!onBack || e.touches.length !== 1) return;
       const p = e.touches[0];
-      if (p.clientX > EDGE) return;
+      const wide = ref.current?.clientWidth || window.innerWidth || 0;
+      const dir = p.clientX <= EDGE ? 1 : (wide && p.clientX >= wide - EDGE ? -1 : 0);
+      if (!dir) return;
       if (document.querySelector('.overlay')) return;
       const t = e.target;
       if (!t.closest || t.closest('.page') !== ref.current) return;
       if (t.closest('.no-edge-back')) return;
       if (scrollsSideways(t, ref.current)) return;
       const now = performance.now();
-      g.current = { x: p.clientX, y: p.clientY, t: now, lx: p.clientX, lt: now, own: false };
+      g.current = { x: p.clientX, y: p.clientY, t: now, lx: p.clientX, lt: now, own: false, dir };
     },
 
     onTouchMove: e => {
@@ -99,7 +110,8 @@ function useSwipeBack(onBack) {
       if (!s) return;
       const p = e.touches[0];
       if (!p) return;
-      const dx = p.clientX - s.x;
+      // 一律折算成「朝该走的方向走了多少」，从右边缘起手时手指往左走也是正的
+      const dx = (p.clientX - s.x) * s.dir;
       const dy = p.clientY - s.y;
       if (!s.own) {
         // 往回走、或者竖着走得更多，那是别人的手势，让开
@@ -112,21 +124,22 @@ function useSwipeBack(onBack) {
       e.preventDefault();
       s.lx = p.clientX;
       s.lt = performance.now();
-      if (ref.current) ref.current.style.transform = `translateX(${Math.max(0, dx)}px)`;
+      if (ref.current) ref.current.style.transform = `translateX(${s.dir * Math.max(0, dx)}px)`;
     },
 
     onTouchEnd: () => {
       const s = g.current;
       if (!s) return;
       if (!s.own) { g.current = null; return; }
-      const moved = Math.max(0, s.lx - s.x);
+      const moved = Math.max(0, (s.lx - s.x) * s.dir);
       const speed = moved / Math.max(1, s.lt - s.t);
       const width = ref.current?.clientWidth || 1;
-      settle(moved > width * TAKE || speed > FLING);
+      settle(moved > width * TAKE || speed > FLING, s.dir);
     },
 
     onTouchCancel: () => {
-      if (g.current?.own) settle(false); else g.current = null;
+      const s = g.current;
+      if (s?.own) settle(false, s.dir); else g.current = null;
     },
   };
   return { ref, handlers };
