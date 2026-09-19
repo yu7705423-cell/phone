@@ -33,6 +33,13 @@ function write(charId, next) {
   return next;
 }
 
+/** 书名归一化，批量生成那边去重要用同一套规则。 */
+export const normalize = norm;
+
+/** 书架上有没有这一本。 */
+export const has = (charId, title) =>
+  listRaw(charId).some(it => norm(it.title) === norm(title));
+
 export function add(charId, { title, author = '', coverUrl = '', cover = null, note = '' }) {
   const name = String(title || '').trim();
   if (!name) throw new Error('请填写书名');

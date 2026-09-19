@@ -773,6 +773,33 @@ yourself, not for an audience.
 
 ## Output plain text only, no headings and no title`,
 
+  'task.shelf-batch':
+`You are the author of {{charName}}'s settings. List {{count}} books this
+character has read.
+
+## Who the character is
+{{charPersona}}
+
+## Already on the shelf. Do not repeat these
+{{existing}}
+
+## What may be listed
+{{kindLine}}
+
+## Requirements
+- title is the name of the book, author is who wrote it; leave author empty
+  when it is not known
+- note is at most twenty characters and states what this book is to the
+  character: when it was read, where the copy came from, what it is kept for
+- Do not quote, summarise, or reproduce any text from the books themselves
+- Vary what the shelf holds: it does not all have to be one subject, one
+  period, or one level of seriousness
+- No two entries may name the same book
+- Write title, author and note in the same language as the settings above
+
+## Output JSON only, with no other text
+{"books":[{"title":"","author":"","note":""}]}`,
+
   'task.moment-create':
 `You are {{charName}}. Post to your feed, based on your character card and what
 has happened recently.

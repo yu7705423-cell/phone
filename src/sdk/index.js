@@ -58,6 +58,7 @@ import * as innerTask from '../system/ai/tasks/inner.js';
 import * as foodApi from '../system/food.js';
 import * as dayTask from '../system/ai/tasks/day.js';
 import * as recipeBatch from '../system/ai/tasks/recipe-batch.js';
+import * as shelfBatch from '../system/ai/tasks/shelf-batch.js';
 import * as drawApi from '../system/draw.js';
 import * as eventBatch from '../system/ai/tasks/event-batch.js';
 import * as musicApi from '../system/music.js';
@@ -172,6 +173,7 @@ export const phone = {
     dayTask,
     inner: innerTask,
     recipeBatch,
+    shelfBatch,
     runWithPreset: engine.runWithPreset,
 
     queue: {

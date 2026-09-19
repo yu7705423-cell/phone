@@ -1,10 +1,11 @@
 import { html, useState, useRef } from '../../../lib.js';
 import { phone, useStore } from '../../../sdk/index.js';
-import { Page, List, ListItem, Field, Input, Button, Icon, Sheet, Spinner,
-         EmptyState, toast, confirm, prompt } from '../../../ui/index.js';
+import { Page, List, ListItem, Field, Input, NumberInput, Segmented, Button, Icon,
+         Sheet, Spinner, EmptyState, toast, confirm, prompt } from '../../../ui/index.js';
 import { BookCover } from './Cover.js';
 
-const { db, nav, shelf, booksearch, review } = phone;
+const { db, nav, shelf, booksearch, review, ai } = phone;
+const gen = ai.shelfBatch;
 
 // 书架上那一格。接上了真书就能点开去读，没接上就只是个封面。
 function Shelf({ item, onTap }) {
@@ -91,6 +92,51 @@ function AddSheet({ open, charId, onClose }) {
     <//>`;
 }
 
+// 按角色设定生成一批书目。一次调用一批，和聊天无关。
+function GenSheet({ open, char, onClose, onDone }) {
+  const [count, setCount] = useState(8);
+  const [kind, setKind] = useState(gen.REAL);
+  const [busy, setBusy] = useState(false);
+
+  const run = async () => {
+    if (!ai.isConfigured()) { toast('尚未配置聊天接口', 'error', 4000); return; }
+    setBusy(true);
+    try {
+      const rows = await gen.generate(char.id, { count, kind });
+      if (!rows.length) { toast('模型给出的书目与书架上已有的重复，已全部排除', 'plain', 4000); return; }
+      onDone(rows);
+    } catch (err) { toast(String(err.message || err), 'error', 6000); }
+    finally { setBusy(false); }
+  };
+
+  if (!open) return null;
+  return html`
+    <${Sheet} open=${true} onClose=${onClose} title="按角色设定生成">
+      <div class="pad-x">
+        <div class="hint-box">
+          读取该角色的人设，列出这个角色读过的书。生成的是书名、作者与一句备注，
+          放上书架后仍是占位，导入同名的书之后才能阅读。
+          每次生成调用一次接口，与聊天互不相干。
+        </div>
+        <${Field} label="这一批生成几本"
+          desc="不设上限。填得越多，这一次调用消耗越多。与书架上已有的重复的会自动排除。">
+          <${NumberInput} value=${count} placeholder="8" onChange=${v => setCount(v)}/>
+        <//>
+        <${Field} label="书目范围"
+          desc=${kind === gen.REAL
+            ? '只列现实中存在的书。'
+            : '现实中存在的书与该角色所在世界里才有的书都可以列出，由角色设定决定。'}>
+          <${Segmented} value=${kind} onChange=${setKind}
+            items=${gen.KINDS.map(k => ({ value: k.id, label: k.label }))}/>
+        <//>
+        <div class="pad-b">
+          <${Button} full disabled=${busy || !count} onClick=${run}>
+            ${busy ? html`<${Spinner} size=${15}/> 正在生成` : `生成 ${count || 0} 本`}<//>
+        </div>
+      </div>
+    <//>`;
+}
+
 export function ShelfPage({ charId }) {
   useStore(db.characters.store);
   useStore(db.ebooks.store);
@@ -99,6 +145,9 @@ export function ShelfPage({ charId }) {
   const [adding, setAdding] = useState(false);
   const [held, setHeld] = useState(null);
   const [linking, setLinking] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [rows, setRows] = useState(null);
+  const [off, setOff] = useState(new Set());
   const coverRef = useRef(null);
 
   if (!char) {
@@ -107,6 +156,45 @@ export function ShelfPage({ charId }) {
   }
   const items = shelf.listOf(charId);
   const wrote = review.listByChar(charId);
+
+  const save = () => {
+    const keep = rows.filter((_, i) => !off.has(i));
+    if (!keep.length) { toast('尚未勾选任何书目'); return; }
+    const made = gen.keep(charId, keep);
+    toast(`已放上 ${made.length} 本`, 'ok');
+    setRows(null); setOff(new Set());
+  };
+
+  if (rows) {
+    const kept = rows.length - off.size;
+    return html`
+      <${Page} title="确认放上书架" onBack=${() => { setRows(null); setOff(new Set()); }}
+        right=${html`<button class="nav-text press" onClick=${save}>保存 ${kept}</button>`}>
+        <div class="pad-x pad-t">
+          <div class="hint-box">
+            已排除与书架上重复的书目。取消勾选的不会放上书架。
+            放上之后仍然是占位，导入同名的书之后才能阅读。
+          </div>
+        </div>
+        <${List}>
+          ${rows.map((b, i) => html`
+            <${ListItem} key=${i} title=${b.title} multiline
+              subtitle=${[b.author, b.note].filter(Boolean).join(' · ') || '没有作者信息'}
+              left=${html`
+                <span class=${`pick-dot${off.has(i) ? '' : ' is-on'}`}>
+                  ${off.has(i) ? null : html`<${Icon} name="check" size=${11}/>`}
+                </span>`}
+              onClick=${() => setOff(prev => {
+                const next = new Set(prev);
+                if (next.has(i)) next.delete(i); else next.add(i);
+                return next;
+              })}/>`)}
+        <//>
+        <div class="pad">
+          <${Button} full onClick=${save}>放上勾选的 ${kept} 本<//>
+        </div>
+      <//>`;
+  }
 
   const pickCover = async e => {
     const file = e.target.files?.[0];
@@ -155,6 +243,13 @@ export function ShelfPage({ charId }) {
           action=${html`<${Button} size="sm" icon="plus"
             onClick=${() => setAdding(true)}>添加书籍<//>`}/>`}
 
+      <${List} title="补充书架">
+        <${ListItem} title="按角色设定生成" arrow multiline
+          subtitle="读取该角色的人设，列出这个角色读过的书。生成一次调用一次接口，结果确认后才放上书架"
+          left=${html`<${Icon} name="sparkle" size=${18}/>`}
+          onClick=${() => setGenerating(true)}/>
+      <//>
+
       ${wrote.length ? html`
         <${List} title=${`${char.name} 写过的 · ${wrote.length} 篇`}>
           ${wrote.slice(0, 6).map(r => html`
@@ -173,6 +268,9 @@ export function ShelfPage({ charId }) {
         </div>` : null}
 
       <${AddSheet} open=${adding} charId=${charId} onClose=${() => setAdding(false)}/>
+      <${GenSheet} open=${generating} char=${char}
+        onClose=${() => setGenerating(false)}
+        onDone=${r => { setGenerating(false); setOff(new Set()); setRows(r); }}/>
       <input type="file" accept="image/*" ref=${coverRef} onChange=${pickCover} style="display:none"/>
 
       <${Sheet} open=${!!held} onClose=${() => setHeld(null)} title=${held?.title || ''}>
