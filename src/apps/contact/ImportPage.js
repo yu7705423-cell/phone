@@ -1,17 +1,49 @@
 import { html, useState, useRef } from '../../lib.js';
 import { phone } from '../../sdk/index.js';
-import { Page, List, ListItem, Field, Button, Icon, Spinner, toast } from '../../ui/index.js';
+import { Page, List, ListItem, Field, Button, Icon, Spinner, toast, confirm } from '../../ui/index.js';
 
-const { db, nav, ai } = phone;
+const { db, nav, ai, charpack } = phone;
 const card = ai.card;
 const ACCEPT = '.txt,.md,.docx';
 
-// 把一份 txt / docx 资料读成一张角色卡。
-// 先解析给你看，确认了再建角色。
+// 导入一个角色。两条路，放在同一页：
+//
+//   角色包  本项目自己导出的那个压缩包。原样装回去，不经过模型，也不花钱。
+//   资料    别处写好的 txt / docx，交给模型整理成一张角色卡。
+//
+// 角色包排在前面：它是无损的那一条，能用就该先用它。
 export function ImportPage() {
   const [busy, setBusy] = useState(false);
   const [got, setGot] = useState(null);
   const fileRef = useRef(null);
+  const packRef = useRef(null);
+
+  // 角色包。先读出来看一眼再装 —— read 只解包不动库
+  const pickPack = async e => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setBusy(true);
+    try {
+      const pack = await charpack.read(file);
+      const lines = [
+        pack.history
+          ? `含 ${pack.chats} 段会话、${pack.messages} 条消息、${pack.memories} 条记忆`
+          : '只含角色卡，不含聊天记录与记忆',
+        pack.alts ? `含 ${pack.alts} 个小号` : '',
+        pack.books ? `含 ${pack.books} 本关联世界书，本机已有同名的保持不变` : '',
+        pack.exists ? '本机已有同一个角色，将另建一个副本，原有的不受影响' : '',
+        pack.history ? '会话与记忆将归入当前账号名下' : '',
+      ].filter(Boolean);
+      if (!await confirm({ title: `导入「${pack.name}」`, okText: '导入',
+        message: lines.join('。') + '。' })) return;
+      const got2 = await charpack.install(pack);
+      toast(`已导入 ${pack.name}${got2.copied ? '（副本）' : ''}`, 'ok', 4000);
+      nav.replace(`/char/${got2.charId}`);
+    } catch (err) {
+      toast(String(err.message || err), 'error', 6000);
+    } finally { setBusy(false); }
+  };
 
   const pick = async e => {
     const file = e.target.files?.[0];
@@ -51,7 +83,7 @@ export function ImportPage() {
   ].filter(([, v]) => v) : [];
 
   return html`
-    <${Page} title="导入角色卡" onBack=${nav.pop}>
+    <${Page} title="导入角色" onBack=${nav.pop}>
       ${got ? html`
         <div class="hint-box">
           以下为解析结果。未填写的字段保持为空，不会补充内容。
@@ -66,7 +98,15 @@ export function ImportPage() {
           <${Button} variant="ghost" onClick=${() => setGot(null)}>换一份<//>
         </div>
       ` : html`
-        <div class="pad-x pad-t">
+        <${List} title="角色包">
+          <${ListItem} title="选择角色包" arrow multiline
+            subtitle="本项目导出的压缩包。原样装回去，不经过模型，也不消耗接口调用。"
+            left=${html`<${Icon} name="download" size=${18}/>`}
+            onClick=${() => !busy && packRef.current?.click()}/>
+        <//>
+
+        <div class="list-title">从资料整理</div>
+        <div class="pad-x">
           <${Field} label="选一个文件"
             desc="支持 txt、md、docx。直接粘贴整段资料即可，无需排版。">
             <${Button} full variant="ghost" icon="upload" disabled=${busy}
@@ -81,5 +121,6 @@ export function ImportPage() {
         </div>
       `}
       <input type="file" accept=${ACCEPT} ref=${fileRef} onChange=${pick} style="display:none"/>
+      <input type="file" accept=".zip" ref=${packRef} onChange=${pickPack} style="display:none"/>
     <//>`;
 }
