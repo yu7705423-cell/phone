@@ -117,29 +117,63 @@ const INNER_LINE = /^[[【(（]?\s*(?:心声|内心|inner)\s*[:：]\s*(.+?)[\]�
 // **角色说什么语言，标记就跟着变成什么语言** —— 说日语的角色写的是
 // [時間：…]，认不出来那一行就当正文渲染出去了，而且它挡在最前面，
 // 后面那行引用标记也跟着剥不掉，整条消息全乱。
-const STAMP_LINE = /^[[【(（]?\s*(?:时间|時間|time)\s*[:：]\s*([^\n\]】)）]+)[\]】)）]?\s*$/i;
-const BRACKETED = /^[[【(（]\s*([^\n\]】)）]+?)\s*[\]】)）]\s*$/;
 // 只由数字和时间用字构成，且确实带着钟点或日期的样子。
-// 日文那几个字（時 分 曜 午前午後）也算进来，同上：标签说掉就掉的时候靠这一条
+// 日文那几个字（時 分 曜 午前午後）也算进来：标签说掉就掉的时候靠这一条
 const TIMEISH = /^[\d\s:：\-/.年月日时分秒時曜周一二三四五六天上下午前後aApPmM]+$/;
 const isTimeStamp = t => /[:：]/.test(t) || /\d{4}[-/.]\d/.test(t);
+const STAMP_LABEL = /^(?:时间|時間|time)\s*[:：]\s*(.*)$/i;
 
-// 整行就是一个时间戳的，不管在第几行都摘掉。
-// 模型常常每条都写一遍，那样白白多花 token 也没有额外信息 ——
-// 一轮回复就是一个时刻，留第一个就够。
+// 括号里那一段是不是一个时刻。带标签的（时间：…）与光秃秃的（14:30）都算。
+// 返回时刻本身，不是的返回空。
+function stampBody(inner) {
+  const t = String(inner || '').trim();
+  if (!t || t.length > 40) return '';
+  const m = t.match(STAMP_LABEL);
+  const body = (m ? m[1] : t).trim();
+  if (!body || !/\d/.test(body) || !TIMEISH.test(body) || !isTimeStamp(body)) return '';
+  return body;
+}
+
+// 带标签的，四种括号都认：[时间：…] 【時間：…】（time: …）(时间：…)
+const STAMP_LABELLED = /[[【(（]\s*(?:时间|時間|time)\s*[:：][^\n\]】)）]{0,40}[\]】)）]/gi;
+// 光秃秃的，**只认方括号**：[2026-01-01 周三 14:30] 【14:30】
+// 圆括号不认 —— 「(14:30)」在正文里也可能是人自己写的，方括号那两种不会
+const STAMP_BARE = /[[【]\s*([^\n\]】]{1,40}?)\s*[\]】]/g;
+
+/**
+ * 把时刻从正文里摘掉，只留第一个记在消息上。
+ *
+ * **不是只摘整行。** 从前这里按行匹配，整行就是一个时间戳才摘得掉；
+ * 模型常常把它和第一句话写在同一行（`[時間：04:06]写真の日付が…`），
+ * 那样整行匹配不上，时间戳就当正文渲染出去了 —— 这是用户实际撞见的样子。
+ *
+ * 现在是**行内摘**：一行里所有长得像时刻的括号都拿掉，剩下的才是正文。
+ * 摘完空掉的那一行整行丢掉，所以「整行就是一个时间戳」自然也包含在内，
+ * 不必再写第二套规则。
+ */
 function stripStamps(raw) {
   const stamps = [];
   const kept = [];
+  const take = body => { if (body && !stamps.length) stamps.push(body); };
+
   for (const line of String(raw || '').split('\n')) {
-    const t = line.trim();
-    const labelled = t.match(STAMP_LINE);
-    if (labelled) { stamps.push(labelled[1].trim()); continue; }
-    const bare = t.match(BRACKETED);
-    if (bare && /\d/.test(bare[1]) && TIMEISH.test(bare[1]) && isTimeStamp(bare[1])) {
-      stamps.push(bare[1].trim());
-      continue;
-    }
-    kept.push(line);
+    const cleaned = line
+      .replace(STAMP_LABELLED, whole => {
+        const body = stampBody(whole.slice(1, -1));
+        // 带标签却不像时刻（[时间：等一下]）就留着，那是它说的话
+        if (!body) return whole;
+        take(body);
+        return '';
+      })
+      .replace(STAMP_BARE, (whole, inner) => {
+        const body = stampBody(inner);
+        if (!body) return whole;
+        take(body);
+        return '';
+      })
+      .trim();
+    // 整行只有一个时刻，摘完就空了，这一行不留
+    if (cleaned) kept.push(cleaned);
   }
   return { text: kept.join('\n'), stamp: stamps[0] || '' };
 }
