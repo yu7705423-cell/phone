@@ -42,8 +42,14 @@ export const albums     = makeCollection('albums', 'alb');
 export const photos     = makeCollection('photos', 'pho', { indexBy: 'albumId' });
 export const shots      = makeCollection('shots', 'sht');
 export const entries    = makeCollection('entries', 'en', { indexBy: 'bookId' });
+// 角色手机。一个角色一台，锁屏密码、壁纸、图标、备忘录、浏览记录都在这一行里
+// —— 那几样都不多，摊成几个域只会多几处要记得登记进备份的地方。
+export const phones     = makeCollection('phones', 'ph', { indexBy: 'charId' });
+// 那台手机里的聊天。一条会话一行，消息内嵌 —— 生成出来的会话就几十句，
+// 不值得再开一个消息域；而且「进去之后再生成」改的正好是一整行。
+export const phoneChats = makeCollection('phoneChats', 'pc', { indexBy: 'charId' });
 
-const COLLECTIONS = { characters, lorebooks, memories, chats, messages, moments, stickers, looks, personas, songs, playlists, videos, spaceItems, events, days, recipes, meals, books, entries, ebooks, reviews, readnotes, health, cycles, meds, albums, photos, shots };
+const COLLECTIONS = { characters, lorebooks, memories, chats, messages, moments, stickers, looks, personas, songs, playlists, videos, spaceItems, events, days, recipes, meals, books, entries, ebooks, reviews, readnotes, health, cycles, meds, albums, photos, shots, phones, phoneChats };
 
 // ---- kv: settings / persona / layout ----
 function makeKV(key, fallback, { deep = false } = {}) {
@@ -137,7 +143,7 @@ export const db = {
   characters, lorebooks, memories, chats, messages, moments, stickers, looks, personas,
   songs, playlists, videos, spaceItems, events, days, recipes, meals,
   books, entries, ebooks, reviews, readnotes, health, cycles, meds,
-  albums, photos, shots,
+  albums, photos, shots, phones, phoneChats,
   images, files, settings, persona, layout,
   messagesOf, lastMessageOf, ready,
 };

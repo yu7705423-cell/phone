@@ -31,6 +31,7 @@ const COLLECTIONS = [
   'ebooks', 'reviews', 'readnotes',
   'health', 'cycles', 'meds',
   'albums', 'photos', 'shots',
+  'phones', 'phoneChats',
 ];
 
 const FORMAT = 'mini-phone-backup';

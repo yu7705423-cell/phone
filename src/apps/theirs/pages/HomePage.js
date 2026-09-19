@@ -2,7 +2,7 @@ import { html } from '../../../lib.js';
 import { phone, useStore, useImage } from '../../../sdk/index.js';
 import { Page, Icon, Avatar, EmptyState } from '../../../ui/index.js';
 
-const { db, nav, shelf, health, day, clock } = phone;
+const { db, nav, shelf, health, day, clock, theirs } = phone;
 
 // 那一块主屏。图标网格，和真的主界面一个意思：进来先看见有什么，再点进去。
 //
@@ -23,6 +23,7 @@ export function HomePage({ charId }) {
   useStore(db.characters.store);
   useStore(db.health.store);
   useStore(db.days.store);
+  useStore(db.phones.store);
 
   const char = db.characters.get(charId);
   if (!char) {
@@ -58,7 +59,11 @@ export function HomePage({ charId }) {
   const weekday = day.weekdayOf(char);
 
   return html`
-    <${Page} title=${char.name} onBack=${nav.pop} noScroll>
+    <${Page} title=${char.name} onBack=${nav.pop} noScroll
+      right=${html`<button class="nav-text press"
+        onClick=${() => { theirs.relock(charId); nav.replace(`/lock/${charId}`); }}>
+        ${theirs.locked(charId) ? '锁上' : '设定密码'}
+      </button>`}>
       <${Wall} char=${char}>
         <div class="tp-top">
           <${Avatar} src=${char.avatar} name=${char.name} size=${56}/>

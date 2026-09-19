@@ -2,7 +2,7 @@ import { html } from '../../../lib.js';
 import { phone, useStore } from '../../../sdk/index.js';
 import { Page, List, ListItem, Avatar, EmptyState } from '../../../ui/index.js';
 
-const { db, nav, shelf, health, day } = phone;
+const { db, nav, shelf, health, day, theirs } = phone;
 
 // 先挑一个角色。一台手机只属于一个人，所以这一步绕不过去。
 //
@@ -12,11 +12,13 @@ export function PickPage() {
   useStore(db.characters.store);
   useStore(db.health.store);
   useStore(db.days.store);
+  useStore(db.phones.store);
 
   const chars = db.characters.all().filter(c => !c.isNpc && !c.parentId);
 
   const bitsOf = c => {
     const out = [];
+    if (theirs.locked(c.id)) out.push(theirs.isOpen(c.id) ? '已解锁' : '锁屏已设定');
     const books = shelf.listOf(c.id).length;
     if (books) out.push(`书架 ${books} 本`);
     if (health.charOn(c.id)) out.push('身体状态');

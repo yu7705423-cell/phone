@@ -1,4 +1,6 @@
-import { html } from '../../lib.js';
+import { html, useState } from '../../lib.js';
+import { phone } from '../../sdk/index.js';
+import { LockPage } from './pages/LockPage.js';
 import { PickPage } from './pages/PickPage.js';
 import { HomePage } from './pages/HomePage.js';
 import { ShelfPage } from './pages/ShelfPage.js';
@@ -27,14 +29,27 @@ import { DayPage } from './pages/DayPage.js';
 // 叫「角色手机」不叫「TA 的手机」：第 7 条，界面文案用书面语，
 // 而且角色一律称「角色」。
 
+// 锁着就先过锁屏。**每一页都要挡** —— 只挡主屏的话，从别处直接跳
+// /body/xxx 就绕过去了，那道锁等于没有。
+function Guard({ charId, children }) {
+  // hook 一律无条件调用。解开之后 open 记在内存里（见 system/theirs.js），
+  // 这里只是为了让那一下能触发一次重渲染
+  const [, bump] = useState(0);
+  if (!phone.theirs.locked(charId) || phone.theirs.isOpen(charId)) return children;
+  return html`<${LockPage} charId=${charId} onOpen=${() => bump(n => n + 1)}/>`;
+}
+
 export default function TheirsApp({ route }) {
-  const m = String(route || '/').match(/^\/(home|shelf|body|day)\/(.+)$/);
+  const m = String(route || '/').match(/^\/(home|shelf|body|day|lock)\/(.+)$/);
   if (m) {
     const [, page, charId] = m;
-    if (page === 'home') return html`<${HomePage} charId=${charId}/>`;
-    if (page === 'shelf') return html`<${ShelfPage} charId=${charId}/>`;
-    if (page === 'body') return html`<${BodyPage} charId=${charId}/>`;
-    if (page === 'day') return html`<${DayPage} charId=${charId}/>`;
+    // 锁屏本身单独一条路由：主屏上的「锁上」按它回到这儿
+    if (page === 'lock') return html`<${LockPage} charId=${charId}/>`;
+    const inner = page === 'home' ? html`<${HomePage} charId=${charId}/>`
+      : page === 'shelf' ? html`<${ShelfPage} charId=${charId}/>`
+      : page === 'body' ? html`<${BodyPage} charId=${charId}/>`
+      : html`<${DayPage} charId=${charId}/>`;
+    return html`<${Guard} charId=${charId}>${inner}<//>`;
   }
   return html`<${PickPage}/>`;
 }

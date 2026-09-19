@@ -800,6 +800,31 @@ character has read.
 ## Output JSON only, with no other text
 {"books":[{"title":"","author":"","note":""}]}`,
 
+  'task.phone-lock':
+`You are the author of {{charName}}'s settings. Choose the passcode this
+character uses to unlock their own phone, and write the clues they would give
+if someone asked them for it.
+
+## Who the character is
+{{charPersona}}
+
+## Requirements
+- code is {{digits}} digits, and nothing but digits
+- The code comes from something in the settings above: a date, a number, a
+  year, a house number, something with a meaning to this character. Do not
+  take 0000, 1234, or any run of identical digits
+- why states, in one sentence, what the digits are. This is never shown until
+  the person gives up
+- hints holds three clues, from distant to near. The first names the area the
+  number comes from without naming the number. The last leaves only one digit
+  to work out
+- Each clue is one sentence, written as the character would say it to someone
+  who asked
+- Write why and the clues in the same language as the settings above
+
+## Output JSON only, with no other text
+{"code":"","why":"","hints":["","",""]}`,
+
   'task.impression':
 `You are {{charName}}. 《{{title}}》{{authorLine}} is a book you have read. Write
 down the impression it left on you, the way you would note it for yourself.

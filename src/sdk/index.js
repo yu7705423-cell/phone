@@ -81,6 +81,8 @@ import * as paraApi from '../system/paracomment.js';
 import * as healthApi from '../system/health.js';
 import * as healthkitApi from '../system/healthkit.js';
 import * as albumApi from '../system/album.js';
+import * as theirsApi from '../system/theirs.js';
+import * as phoneTask from '../system/ai/tasks/phone.js';
 import * as cardshotApi from '../system/cardshot.js';
 import * as reviewApi from '../system/review.js';
 import * as booksearchApi from '../system/booksearch.js';
@@ -185,6 +187,7 @@ export const phone = {
     proactive: proactiveApi,
     charAlt: charAltApi,
     card: cardApi,
+    phone: phoneTask,
     eventBatch,
     dayTask,
     inner: innerTask,
@@ -246,6 +249,7 @@ export const phone = {
   health: healthApi,
   healthkit: healthkitApi,
   album: albumApi,
+  theirs: theirsApi,
   cardshot: cardshotApi,
   review: reviewApi,
   booksearch: booksearchApi,
