@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleDevelopmentRegion</key>
+  <string>zh_CN</string>
+  <key>CFBundleExecutable</key>
+  <string>Phone</string>
+  <key>CFBundleIdentifier</key>
+  <string>com.example.xiaoshouji</string>
+  <key>CFBundleInfoDictionaryVersion</key>
+  <string>6.0</string>
+  <key>CFBundleName</key>
+  <string>Phone</string>
+  <key>CFBundleDisplayName</key>
+  <string>小手机</string>
+  <key>CFBundlePackageType</key>
+  <string>APPL</string>
+  <key>CFBundleShortVersionString</key>
+  <string>1.0.0</string>
+  <key>CFBundleVersion</key>
+  <string>1</string>
+  <key>CFBundleSupportedPlatforms</key>
+  <array><string>iPhoneOS</string></array>
+  <key>MinimumOSVersion</key>
+  <string>15.0</string>
+  <key>LSRequiresIPhoneOS</key>
+  <true/>
+  <key>UIDeviceFamily</key>
+  <array><integer>1</integer><integer>2</integer></array>
+  <key>UIRequiredDeviceCapabilities</key>
+  <array><string>arm64</string></array>
+
+  <!-- 空字典即可，系统会给一块纯背景色的启动页，不需要 Storyboard -->
+  <key>UILaunchScreen</key>
+  <dict/>
+
+  <!-- 只竖屏。横着看的那一套由网页自己用 CSS 旋转，交给系统转会变成转两次 -->
+  <key>UISupportedInterfaceOrientations</key>
+  <array><string>UIInterfaceOrientationPortrait</string></array>
+  <key>UISupportedInterfaceOrientations~ipad</key>
+  <array><string>UIInterfaceOrientationPortrait</string></array>
+  <key>UIViewControllerBasedStatusBarAppearance</key>
+  <true/>
+  <key>UIApplicationSupportsIndirectInputEvents</key>
+  <true/>
+
+  <!-- 保活那段无声音频要在后台继续跑，主动消息的定时器才有机会照常触发 -->
+  <key>UIBackgroundModes</key>
+  <array><string>audio</string></array>
+
+  <!-- 站点地址。打包脚本会改写这里，运行时也可以在外壳设置里覆盖 -->
+  <key>PhoneSiteURL</key>
+  <string>https://yu7705423-cell.github.io/phone/</string>
+
+  <!-- 站点在这份名单里，WebKit 才不会按七天未访问清掉 IndexedDB。
+       打包脚本按 PhoneSiteURL 的主机名改写这里。最多十个。 -->
+  <key>WKAppBoundDomains</key>
+  <array><string>yu7705423-cell.github.io</string></array>
+
+  <!-- 允许指向局域网内自己起的静态服务器（http://192.168.x.x:8000 这种）。
+       公网地址仍然必须是 https。 -->
+  <key>NSAppTransportSecurity</key>
+  <dict>
+    <key>NSAllowsLocalNetworking</key>
+    <true/>
+  </dict>
+
+  <key>NSCameraUsageDescription</key>
+  <string>用于在聊天中拍摄并发送照片。</string>
+  <key>NSMicrophoneUsageDescription</key>
+  <string>用于录制语音消息与通话。</string>
+  <key>NSPhotoLibraryUsageDescription</key>
+  <string>用于选择头像、壁纸与聊天中发送的图片。</string>
+  <key>NSPhotoLibraryAddUsageDescription</key>
+  <string>用于将相册中的图片保存回系统相册。</string>
+  <key>NSLocalNetworkUsageDescription</key>
+  <string>用于连接局域网内自行搭建的站点。</string>
+
+  <key>ITSAppUsesNonExemptEncryption</key>
+  <false/>
+
+  <key>CFBundleIcons</key>
+  <dict>
+    <key>CFBundlePrimaryIcon</key>
+    <dict>
+      <key>CFBundleIconFiles</key>
+      <array>
+        <string>AppIcon29x29</string>
+        <string>AppIcon40x40</string>
+        <string>AppIcon60x60</string>
+      </array>
+      <key>UIPrerenderedIcon</key>
+      <false/>
+    </dict>
+  </dict>
+  <key>CFBundleIcons~ipad</key>
+  <dict>
+    <key>CFBundlePrimaryIcon</key>
+    <dict>
+      <key>CFBundleIconFiles</key>
+      <array>
+        <string>AppIcon29x29</string>
+        <string>AppIcon40x40</string>
+        <string>AppIcon60x60</string>
+        <string>AppIcon76x76</string>
+        <string>AppIcon83.5x83.5</string>
+      </array>
+      <key>UIPrerenderedIcon</key>
+      <false/>
+    </dict>
+  </dict>
+</dict>
+</plist>

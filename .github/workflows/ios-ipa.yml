@@ -1,0 +1,67 @@
+name: 打包 ipa
+
+# 手动触发，或者推一个 ios-v 开头的标签。
+# 产物是未签名的 ipa，下载后自己签名安装。
+on:
+  workflow_dispatch:
+    inputs:
+      app_url:
+        description: 网页地址
+        required: false
+        default: https://yu7705423-cell.github.io/phone/
+      bundle_id:
+        description: 包标识
+        required: false
+        default: com.example.xiaoshouji
+      version:
+        description: 版本号
+        required: false
+        default: 1.0.0
+  push:
+    tags:
+      - 'ios-v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 选一个 Xcode
+        run: sudo xcode-select -s /Applications/Xcode.app
+
+      - name: 定版本号
+        id: meta
+        run: |
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            V="${GITHUB_REF_NAME#ios-v}"
+          else
+            V="${{ inputs.version }}"
+          fi
+          echo "version=${V:-1.0.0}" >> "$GITHUB_OUTPUT"
+
+      - name: 打包
+        env:
+          APP_URL: ${{ inputs.app_url || 'https://yu7705423-cell.github.io/phone/' }}
+          BUNDLE_ID: ${{ inputs.bundle_id || 'com.example.xiaoshouji' }}
+          VERSION: ${{ steps.meta.outputs.version }}
+          BUILD_NUM: ${{ github.run_number }}
+        run: ios/build.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: phone-unsigned-ipa
+          path: ios/build/*.ipa
+          if-no-files-found: error
+
+      - name: 发布（仅标签触发）
+        if: github.ref_type == 'tag'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ios/build/*.ipa
+          body: |
+            未签名的 ipa。下载后使用 AltStore、Sideloadly 或 TrollStore 自行签名安装。
+            应用内容从网络载入，站点地址可在应用中摇动设备后修改。
