@@ -1,0 +1,543 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>记忆并入备份</title>
+<style>
+/* 这个文件不属于小手机，是一次性的迁移工具。
+   它不引用 src/ 里的任何东西，app 里也没有任何地方链接到它。
+   放在仓库里只是为了能用自己的 GitHub Pages 打开 —— 在自己的域名下
+   浏览器才肯让网页把文件存下来。用完删掉也不影响任何东西。 */
+:root {
+  --paper: #FAFAF8;
+  --raise: #FFFFFF;
+  --ink:   #16171A;
+  --mute:  #6C6E73;
+  --faint: #93959A;
+  --line:  #E3E2DD;
+  --accent:#2F5D50;
+  --accent-soft: #E8EFEB;
+  --warn:  #8A5A2B;
+  --warn-soft: #F6EDE2;
+  /* 不引外部字体：这个项目不装依赖，系统等宽在 iOS 上就是 SF Mono */
+  --mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+  --sans: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB',
+          'Microsoft YaHei', 'Noto Sans SC', sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #131416; --raise: #1B1D20; --ink: #ECEDEA; --mute: #9A9CA1;
+    --faint: #6E7075; --line: #2C2F33; --accent: #7FBFAA; --accent-soft: #1D2C28;
+    --warn: #D6A569; --warn-soft: #2C2519;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--paper); color: var(--ink);
+  font-family: var(--sans); font-size: 15px; line-height: 1.7;
+  -webkit-text-size-adjust: 100%;
+}
+.wrap {
+  max-width: 680px; margin: 0 auto;
+  padding-inline: 20px; padding-block: 36px 72px;
+  display: flex; flex-direction: column; gap: 28px;
+}
+h1 { font-size: 23px; line-height: 1.35; margin: 0; text-wrap: balance; font-weight: 600; }
+.lede { color: var(--mute); margin: 0; font-size: 14px; }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+.step { display: flex; gap: 14px; align-items: flex-start; }
+.step-n {
+  flex: none; width: 25px; height: 25px; margin-top: 2px;
+  border: 1px solid var(--line); border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--mono); font-size: 12px; color: var(--mute);
+}
+.step.is-done .step-n { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+.step-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.step h2 { font-size: 15px; margin: 0; font-weight: 600; }
+.step p { margin: 0; color: var(--mute); font-size: 13px; }
+
+.pick {
+  display: block; width: 100%; text-align: left; cursor: pointer;
+  background: var(--raise); border: 1px solid var(--line); border-radius: 10px;
+  padding: 12px 14px; color: var(--ink); font: inherit;
+}
+.pick:hover { border-color: var(--accent); }
+.pick:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.pick .name { font-family: var(--mono); font-size: 13px; word-break: break-all; }
+.pick .hint { color: var(--faint); font-size: 12px; }
+
+.panel {
+  background: var(--raise); border: 1px solid var(--line);
+  border-radius: 10px; padding: 16px;
+  display: flex; flex-direction: column; gap: 14px;
+}
+.rows { display: flex; flex-direction: column; gap: 10px; }
+.row { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.row label { font-size: 14px; }
+.row .sub { color: var(--faint); font-size: 12px; display: block; }
+select, input[type="number"] {
+  font: inherit; font-size: 14px; color: var(--ink); background: var(--paper);
+  border: 1px solid var(--line); border-radius: 7px; padding: 6px 9px; max-width: 100%;
+}
+input[type="checkbox"] { width: 17px; height: 17px; accent-color: var(--accent); }
+
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { text-align: left; padding: 6px 8px 6px 0; border-bottom: 1px solid var(--line); }
+th { color: var(--faint); font-weight: 500; font-size: 12px; }
+td.n { font-family: var(--mono); font-variant-numeric: tabular-nums; text-align: right; padding-right: 0; }
+.scroller { overflow-x: auto; }
+
+.sample {
+  background: var(--paper); border: 1px solid var(--line); border-left: 2px solid var(--accent);
+  border-radius: 0 7px 7px 0; padding: 10px 12px; font-size: 13px;
+}
+.sample .meta { color: var(--faint); font-size: 12px; font-family: var(--mono); margin-top: 5px; }
+
+.go {
+  width: 100%; font: inherit; font-size: 15px; font-weight: 600; cursor: pointer;
+  background: var(--accent); color: var(--paper); border: none;
+  border-radius: 10px; padding: 14px;
+}
+.go[disabled] { background: var(--line); color: var(--faint); cursor: not-allowed; }
+.go:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+.note { font-size: 13px; color: var(--mute); }
+.flag {
+  background: var(--warn-soft); border: 1px solid var(--warn); color: var(--warn);
+  border-radius: 8px; padding: 10px 12px; font-size: 13px;
+}
+.ok { color: var(--accent); }
+details summary { cursor: pointer; font-size: 14px; color: var(--mute); }
+details[open] summary { margin-bottom: 12px; }
+hr { border: none; border-top: 1px solid var(--line); margin: 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>记忆并入备份</h1>
+    <p class="lede">
+      把喵喵工具箱 <span class="mono">char_memories_v2</span> 的导出并进一份小手机备份。
+      全部在这台设备上完成，不上传任何内容。
+    </p>
+  </header>
+
+  <div class="flag">
+    这个页面不属于小手机，是一次性的迁移工具。它不会修改你选中的文件，
+    只生成一份新的备份供你导入。
+  </div>
+
+  <section class="step" id="step1">
+    <div class="step-n">1</div>
+    <div class="step-body">
+      <h2>选择记忆导出</h2>
+      <p>Supabase 导出的 CSV。</p>
+      <button class="pick" type="button" id="pickCsv">
+        <span class="name" id="csvName">尚未选择</span>
+        <span class="hint" id="csvHint">点击选择 CSV 文件</span>
+      </button>
+      <input type="file" id="csvFile" accept=".csv,text/csv" hidden>
+    </div>
+  </section>
+
+  <section class="step" id="step2">
+    <div class="step-n">2</div>
+    <div class="step-body">
+      <h2>选择小手机备份</h2>
+      <p>在小手机的「设置 - 存储 - 导出备份」中选「仅数据」导出的 JSON。完整备份的 ZIP 不能用于此处。</p>
+      <button class="pick" type="button" id="pickBak">
+        <span class="name" id="bakName">尚未选择</span>
+        <span class="hint" id="bakHint">点击选择 JSON 文件</span>
+      </button>
+      <input type="file" id="bakFile" accept=".json,application/json" hidden>
+    </div>
+  </section>
+
+  <section class="step" id="step3" hidden>
+    <div class="step-n">3</div>
+    <div class="step-body">
+      <h2>对应到角色</h2>
+      <p>左侧是导出文件里的来源编号，右侧选择并入小手机中的哪个角色。</p>
+      <div class="panel"><div class="rows" id="mapRows"></div></div>
+    </div>
+  </section>
+
+  <section class="step" id="step4" hidden>
+    <div class="step-n">4</div>
+    <div class="step-body">
+      <h2>核对</h2>
+      <div class="panel" id="preview"></div>
+      <details>
+        <summary>调整并入方式</summary>
+        <div class="panel">
+          <div class="rows">
+            <div class="row">
+              <label for="optDate">附上日期<span class="sub">写在正文末尾的括号里</span></label>
+              <input type="checkbox" id="optDate" checked>
+            </div>
+            <div class="row">
+              <label for="optLoc">附上地点<span class="sub">同上</span></label>
+              <input type="checkbox" id="optLoc" checked>
+            </div>
+            <div class="row">
+              <label for="optEmo">附上情绪<span class="sub">正文中通常没有，是新信息</span></label>
+              <input type="checkbox" id="optEmo" checked>
+            </div>
+            <div class="row">
+              <label for="optStance">附上双方立场<span class="sub">多数是正文的同义复述，默认不附</span></label>
+              <input type="checkbox" id="optStance">
+            </div>
+            <hr>
+            <div class="row">
+              <label for="optRank">等级<span class="sub">A 级在关键词模式下每轮全量注入，数量大时不宜选</span></label>
+              <select id="optRank">
+                <option value="B" selected>B（命中关键词或语义相近时召回）</option>
+                <option value="A">A（每轮全部注入）</option>
+                <option value="C">C（仅语义检索时参与）</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </details>
+    </div>
+  </section>
+
+  <section class="step" id="step5" hidden>
+    <div class="step-n">5</div>
+    <div class="step-body">
+      <h2>导出并导入</h2>
+      <button class="go" type="button" id="go" disabled>生成新的备份文件</button>
+      <p class="note" id="goNote">
+        保存后回到小手机，在「设置 - 存储 - 导入备份」中选择它。
+        导入会以备份内容覆盖当前数据，因此请确认这份备份就是刚刚从本机导出的。
+        装好后再到「设置 - 向量」点一次补齐，为新记忆计算向量。
+      </p>
+    </div>
+  </section>
+
+</div>
+
+<script>
+'use strict';
+
+// ---- 类别对照。左边是导出文件里的，右边是小手机的六类之一 ----
+var CATEGORY = {
+  'event': 'fact',
+  'bond/conflict': 'relation',
+  'promise/goal': 'pending',
+  'identity/relationship': 'profile',
+  'preference': 'profile',
+  'health': 'fact',
+  'routine/diet': 'pattern',
+  'relationship': 'relation'
+};
+
+var state = { csv: null, rows: null, backup: null, chars: [], map: {}, out: null };
+
+// ---- CSV。字段里可能有引号与逗号，按 RFC4180 老实读 ----
+function parseCsv(text) {
+  var rows = [], row = [], cell = '', quoted = false;
+  var s = text.replace(/^﻿/, '');
+  for (var i = 0; i < s.length; i++) {
+    var c = s[i];
+    if (quoted) {
+      if (c === '"') { if (s[i + 1] === '"') { cell += '"'; i++; } else quoted = false; }
+      else cell += c;
+      continue;
+    }
+    if (c === '"') { quoted = true; continue; }
+    if (c === ',') { row.push(cell); cell = ''; continue; }
+    if (c === '\r') continue;
+    if (c === '\n') { row.push(cell); rows.push(row); row = []; cell = ''; continue; }
+    cell += c;
+  }
+  if (cell || row.length) { row.push(cell); rows.push(row); }
+  var head = rows.shift() || [];
+  return rows.filter(function (r) { return r.length > 1; }).map(function (r) {
+    var o = {};
+    head.forEach(function (h, i) { o[h] = r[i] == null ? '' : r[i]; });
+    return o;
+  });
+}
+
+function uid(p) {
+  return p + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+}
+
+// Postgres 写的是 `2026-07-13 01:33:42.917118+00`：中间是空格不是 T，
+// 时区只有两位。两处都不合 ISO，不补齐的话解析失败，
+// 所有记忆的日期都会变成导入当天。
+function timeOf(v) {
+  var iso = String(v || '').trim().replace(' ', 'T').replace(/([+-]\d{2})$/, '$1:00');
+  var t = Date.parse(iso);
+  return isFinite(t) ? t : Date.now();
+}
+
+// trigger_context 是一句话，不能整句当关键词 —— 关键词是拿去做子串匹配的
+function keywordsOf(trigger) {
+  var body = String(trigger || '')
+    .replace(/^(提及|谈到|聊到|说到|讨论|探讨|问起|涉及)/, '')
+    .replace(/(的时候|时候|时)$/, '');
+  var seen = {}, out = [];
+  body.split(/[或、，,和与及\/]+/).forEach(function (x) {
+    var k = x.trim();
+    if (k.length >= 2 && k.length <= 8 && !seen[k]) { seen[k] = 1; out.push(k); }
+  });
+  return out;
+}
+
+function opts() {
+  return {
+    date: document.getElementById('optDate').checked,
+    loc: document.getElementById('optLoc').checked,
+    emo: document.getElementById('optEmo').checked,
+    stance: document.getElementById('optStance').checked,
+    rank: document.getElementById('optRank').value
+  };
+}
+
+function contentOf(r, o) {
+  var text = String(r.content || '').trim();
+  var tail = [];
+  if (o.date && r.event_date) tail.push(r.event_date);
+  if (o.loc && (r.location_normalized || r.location)) tail.push(r.location_normalized || r.location);
+  if (o.emo && r.emotion) tail.push(r.emotion);
+  if (o.stance && r.user_stance) tail.push('用户：' + r.user_stance);
+  if (o.stance && r.char_stance) tail.push('角色：' + r.char_stance);
+  return tail.length ? text + '（' + tail.join(' · ') + '）' : text;
+}
+
+// ---- 算一遍：既用来预览，也用来真的生成 ----
+function build() {
+  var o = opts();
+  var backup = state.backup;
+  var existing = Array.isArray(backup.memories) ? backup.memories : [];
+  var seen = {};
+  existing.forEach(function (m) { seen[m.charId + '\u0000' + m.content] = 1; });
+
+  var made = [], perChar = {}, cats = {}, skipped = 0, dup = 0;
+  var earliest = Infinity, latest = 0;
+
+  state.rows.forEach(function (r) {
+    var charId = state.map[r.char_id];
+    if (!charId) { skipped++; return; }
+    var content = contentOf(r, o);
+    if (!content) { skipped++; return; }
+    var key = charId + '\u0000' + content;
+    if (seen[key]) { dup++; return; }
+    seen[key] = 1;
+
+    var at = timeOf(r.created_at);
+    if (at < earliest) earliest = at;
+    if (at > latest) latest = at;
+    var category = CATEGORY[r.category] || 'fact';
+    cats[category] = (cats[category] || 0) + 1;
+
+    var name = (state.chars.find(function (c) { return c.id === charId; }) || {}).name || charId;
+    perChar[name] = (perChar[name] || 0) + 1;
+
+    made.push({
+      id: uid('mem'),
+      charId: charId,
+      // 留空表示对这个角色的所有身份都可见。填死一个身份是替用户做决定
+      personaId: null,
+      content: content,
+      category: category,
+      rank: o.rank,
+      keywords: keywordsOf(r.trigger_context),
+      source: 'import',
+      createdAt: at,
+      updatedAt: at
+    });
+  });
+
+  return {
+    made: made, perChar: perChar, cats: cats, skipped: skipped, dup: dup,
+    earliest: earliest === Infinity ? 0 : earliest, latest: latest,
+    existing: existing.length
+  };
+}
+
+var day = function (ms) { return ms ? new Date(ms).toISOString().slice(0, 10) : '—'; };
+var esc = function (s) {
+  return String(s).replace(/[&<>"]/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+  });
+};
+
+function renderPreview() {
+  var g = build();
+  state.out = g;
+  var el = document.getElementById('preview');
+  var rowsHtml = Object.keys(g.perChar).map(function (k) {
+    return '<tr><td>' + esc(k) + '</td><td class="n">' + g.perChar[k] + '</td></tr>';
+  }).join('');
+  var catHtml = Object.keys(g.cats).sort(function (a, b) { return g.cats[b] - g.cats[a]; })
+    .map(function (k) { return esc(k) + ' ' + g.cats[k]; }).join('　');
+
+  var samples = g.made.slice(0, 2).map(function (m) {
+    return '<div class="sample">' + esc(m.content) +
+      '<div class="meta">' + esc(m.category) + ' · ' + esc(m.rank) + ' · ' + day(m.createdAt) +
+      (m.keywords.length ? ' · 关键词 ' + esc(m.keywords.join('、')) : ' · 无关键词') +
+      '</div></div>';
+  }).join('');
+
+  el.innerHTML =
+    '<div class="scroller"><table><tbody>' + rowsHtml +
+    '<tr><td><strong>并入合计</strong></td><td class="n"><strong>' + g.made.length + '</strong></td></tr>' +
+    '<tr><td>备份中原有</td><td class="n">' + g.existing + '</td></tr>' +
+    '<tr><td>并入后共计</td><td class="n">' + (g.existing + g.made.length) + '</td></tr>' +
+    '</tbody></table></div>' +
+    '<div class="note">类别分布　' + catHtml + '</div>' +
+    '<div class="note">日期范围　<span class="mono">' + day(g.earliest) + ' 至 ' + day(g.latest) + '</span></div>' +
+    (g.dup ? '<div class="note">跳过 ' + g.dup + ' 条，备份中已存在相同正文。</div>' : '') +
+    (g.skipped ? '<div class="note">跳过 ' + g.skipped + ' 条，来源编号未指定角色。</div>' : '') +
+    samples;
+
+  document.getElementById('go').disabled = g.made.length === 0;
+  document.getElementById('step5').hidden = false;
+}
+
+function renderMap() {
+  var ids = [];
+  var count = {};
+  state.rows.forEach(function (r) {
+    if (!count[r.char_id]) { count[r.char_id] = 0; ids.push(r.char_id); }
+    count[r.char_id]++;
+  });
+  ids.sort(function (a, b) { return count[b] - count[a]; });
+
+  var box = document.getElementById('mapRows');
+  box.innerHTML = '';
+  ids.forEach(function (srcId) {
+    var row = document.createElement('div');
+    row.className = 'row';
+    var label = document.createElement('label');
+    label.setAttribute('for', 'map-' + srcId);
+    label.innerHTML = '<span class="mono">' + esc(srcId) + '</span>' +
+      '<span class="sub">' + count[srcId] + ' 条</span>';
+    var sel = document.createElement('select');
+    sel.id = 'map-' + srcId;
+    sel.innerHTML = '<option value="">不导入</option>' + state.chars.map(function (c) {
+      return '<option value="' + esc(c.id) + '">' + esc(c.name) + '</option>';
+    }).join('');
+    // 只有一条的多半是当初的测试数据，默认不导入
+    if (count[srcId] > 1 && state.chars.length) sel.value = '';
+    sel.addEventListener('change', function () {
+      state.map[srcId] = sel.value;
+      renderPreview();
+    });
+    state.map[srcId] = '';
+    row.appendChild(label);
+    row.appendChild(sel);
+    box.appendChild(row);
+  });
+  document.getElementById('step3').hidden = false;
+  document.getElementById('step4').hidden = false;
+  renderPreview();
+}
+
+function ready() {
+  if (state.rows && state.backup) renderMap();
+}
+
+function fail(hintId, msg) {
+  var el = document.getElementById(hintId);
+  el.textContent = msg;
+  el.style.color = 'var(--warn)';
+}
+
+document.getElementById('pickCsv').addEventListener('click', function () {
+  document.getElementById('csvFile').click();
+});
+document.getElementById('pickBak').addEventListener('click', function () {
+  document.getElementById('bakFile').click();
+});
+
+document.getElementById('csvFile').addEventListener('change', function (e) {
+  var f = e.target.files && e.target.files[0];
+  if (!f) return;
+  f.text().then(function (text) {
+    var rows = parseCsv(text);
+    if (!rows.length || !('char_id' in rows[0]) || !('content' in rows[0])) {
+      fail('csvHint', '这个文件里没有 char_id 与 content 两列，可能不是记忆导出。');
+      return;
+    }
+    state.rows = rows;
+    document.getElementById('csvName').textContent = f.name;
+    var hint = document.getElementById('csvHint');
+    hint.textContent = '读到 ' + rows.length + ' 行';
+    hint.className = 'hint ok';
+    document.getElementById('step1').className = 'step is-done';
+    ready();
+  });
+});
+
+document.getElementById('bakFile').addEventListener('change', function (e) {
+  var f = e.target.files && e.target.files[0];
+  if (!f) return;
+  f.text().then(function (text) {
+    var data;
+    try { data = JSON.parse(text); }
+    catch (err) {
+      fail('bakHint', '这不是一个 JSON 文件。完整备份是 ZIP，此处需要「仅数据」那一档。');
+      return;
+    }
+    if (data._format !== 'mini-phone-backup') {
+      fail('bakHint', '这不是小手机的备份文件。');
+      return;
+    }
+    if (!Array.isArray(data.characters) || !data.characters.length) {
+      fail('bakHint', '这份备份里没有角色，无法对应。');
+      return;
+    }
+    state.backup = data;
+    state.chars = data.characters.map(function (c) {
+      return { id: c.id, name: String(c.name || '未命名') };
+    });
+    document.getElementById('bakName').textContent = f.name;
+    var hint = document.getElementById('bakHint');
+    hint.textContent = '读到 ' + state.chars.length + ' 个角色、' +
+      (Array.isArray(data.memories) ? data.memories.length : 0) + ' 条已有记忆';
+    hint.className = 'hint ok';
+    document.getElementById('step2').className = 'step is-done';
+    ready();
+  });
+});
+
+['optDate', 'optLoc', 'optEmo', 'optStance', 'optRank'].forEach(function (id) {
+  document.getElementById(id).addEventListener('change', function () {
+    if (state.rows && state.backup) renderPreview();
+  });
+});
+
+document.getElementById('go').addEventListener('click', function () {
+  var g = state.out;
+  if (!g || !g.made.length) return;
+  var backup = state.backup;
+  backup.memories = (Array.isArray(backup.memories) ? backup.memories : []).concat(g.made);
+  var blob = new Blob([JSON.stringify(backup)], { type: 'application/json' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = '小手机备份-已并入记忆-' + new Date().toISOString().slice(0, 10) + '.json';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+  document.getElementById('goNote').innerHTML =
+    '已生成 <strong>' + g.made.length + '</strong> 条记忆的新备份。' +
+    '回到小手机，在「设置 - 存储 - 导入备份」中选择它；' +
+    '装好后再到「设置 - 向量」点一次补齐，为新记忆计算向量。';
+  // 再点一次会把同一批又接一遍，所以按完就停下
+  document.getElementById('go').disabled = true;
+  document.getElementById('go').textContent = '已生成';
+});
+</script>
+</body>
+</html>
