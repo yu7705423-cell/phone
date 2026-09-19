@@ -74,6 +74,7 @@ function Screen({ chatId, chat, char }) {
   const busyRef = useRef(false);
   useStore(db.messages.store);
   useStore(db.readnotes.store);
+  useStore(db.settings.store);
   // 片库那条记录也要订阅：字幕偏移就写在它上面，改完这一屏要立刻跟着变
   useStore(db.videos.store);
 
@@ -145,6 +146,23 @@ function Screen({ chatId, chat, char }) {
     generate();
   };
 
+  const land = db.settings.get().watchLandscape !== false;
+
+  const goFull = async () => {
+    setFull(true); setPanel(false);
+    if (!land) return;
+    try {
+      await document.documentElement.requestFullscreen?.();
+      await screen.orientation?.lock?.('landscape');
+    } catch { /* iOS 上这两样都没有，退回 CSS 那层旋转 */ }
+  };
+
+  const leaveFull = () => {
+    setFull(false); setPanel(false);
+    try { screen.orientation?.unlock?.(); } catch { /* 本来就没锁上 */ }
+    if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+  };
+
   const finish = async () => {
     if (!await confirm({ title: '结束一起看', message: '将记录本次观看的时长与进度。', okText: '结束' })) return;
     watch.stop();
@@ -165,13 +183,14 @@ function Screen({ chatId, chat, char }) {
       onBack: nav.pop,
       right: html`<button class="nav-text press" onClick=${finish}>结束</button>`,
     }} noScroll>
-      <div class=${`wt${full ? ' is-full' : ''}`}>
+      <div class=${`wt${full ? ' is-full' : ''}${land ? ' is-landscape' : ''}`}>
         <div class="wt-stage">
+          <div class="wt-rot">
           <video ref=${ref} class="wt-video" playsinline
             onClick=${() => (full ? setPanel(v => !v) : watch.toggle())}></video>
           ${full ? html`
             <button class="wt-exit press" aria-label="退出全屏"
-              onClick=${e => { e.stopPropagation(); setFull(false); setPanel(false); }}>
+              onClick=${e => { e.stopPropagation(); leaveFull(); }}>
               <${Icon} name="close" size=${18}/>
             </button>` : null}
 
@@ -203,6 +222,11 @@ function Screen({ chatId, chat, char }) {
                   disabled=${busy} onClick=${generate}>
                   <${Icon} name="message" size=${18}/>
                 </button>
+                <button class="mu-ctl press"
+                  aria-label=${land ? '改为竖屏' : '改为横屏'}
+                  onClick=${() => db.settings.set({ watchLandscape: !land })}>
+                  <${Icon} name="refresh" size=${18}/>
+                </button>
               </div>
               <div class="wt-panel-msgs">
                 ${recent.slice(-3).map(m => html`
@@ -223,11 +247,11 @@ function Screen({ chatId, chat, char }) {
               </div>
             </div>` : null}
           </div>
+          </div>
         </div>
 
         <div class="wt-bar">
-          <button class="mu-ctl press" aria-label="全屏"
-            onClick=${() => { setFull(true); setPanel(false); }}>
+          <button class="mu-ctl press" aria-label="全屏" onClick=${goFull}>
             <${Icon} name="maximize" size=${18}/>
           </button>
           <button class="mu-ctl press" aria-label=${s.playing ? '暂停' : '播放'}

@@ -1285,6 +1285,26 @@ button.search-bar { width: 100%; border: none; }
   color: var(--stage-bg); border-color: var(--on-scrim);
 }
 
+/* ---- 影片全屏横屏 ----
+   片子是 16:9 的，竖着全屏等于白全屏，所以全屏默认把画面这一层转过来。
+
+   **用容器查询单位 cqw / cqh，不是视口单位。** 它们认的是容器自己的盒子，
+   地址栏一收一放动不了它们，也就不碰第 1 条要求整齐划一的那串外壳 ——
+   那一条要防的正是这种抽动，这里连量都不用量。
+
+   手机本来就横着拿的时候不要再转一次。系统方向锁成功时也走这一条：
+   锁成之后视口自己就是横的，这个 @media 不成立，CSS 这层自动让开。 */
+.wt-rot { position: absolute; inset: 0; }
+.wt.is-full .wt-stage { container-type: size; }
+
+@media (orientation: portrait) {
+  .wt.is-full.is-landscape .wt-rot {
+    inset: auto; top: 50%; left: 50%;
+    width: 100cqh; height: 100cqw;
+    transform: translate(-50%, -50%) rotate(90deg);
+  }
+}
+
 /* ---- 影片全屏 ----
    画面吃掉剩下的全部高度。**不用 vh**（第 1 条）：.wt 本来就是 height:100%
    的 flex 列，这里把 aspect-ratio 撤掉改 flex:1 就够，不必自己量高度。 */
