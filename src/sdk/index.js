@@ -20,6 +20,7 @@ import * as memoryCtx from '../system/ai/context/memory.js';
 import * as bondApi from '../system/bond.js';
 import * as embedApi from '../system/ai/embed.js';
 import * as memvecApi from '../system/ai/memvec.js';
+import * as rerankApi from '../system/ai/rerank.js';
 import * as loreCtx from '../system/ai/context/lorebook.js';
 import * as traceApi from '../system/ai/trace.js';
 import { extract, shouldAutoExtract, pendingOf } from '../system/ai/tasks/memory-extract.js';
@@ -163,6 +164,7 @@ export const phone = {
     bond: bondApi,
     embed: embedApi,
     memvec: memvecApi,
+    rerank: rerankApi,
     lore: loreCtx,
     trace: traceApi,
     moments: momentTasks,

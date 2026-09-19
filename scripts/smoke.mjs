@@ -32,7 +32,7 @@ const ROUTES = {
   album: ['/', '/album/:alb', '/photo/:pho', '/photo/:card'],
   health: ['/', '/log', '/cycle', '/meds', '/settings', '/char/:char'],
   settings: ['/', '/api', '/voice', '/image', '/embed', '/notify', '/music',
-    '/appearance', '/storage', '/trace', '/vision', '/asr', '/limits', '/search', '/translate', '/memoryapi'],
+    '/appearance', '/storage', '/trace', '/vision', '/asr', '/limits', '/search', '/translate', '/memoryapi', '/rerank'],
 };
 
 // 本项目不装 npm 依赖（CLAUDE.md 第 9 条），所以 playwright 从别处借：

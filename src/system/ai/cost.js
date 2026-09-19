@@ -50,6 +50,13 @@ export const EXTRA_CALLS = [
     when: s => `接口返回 429 或 5xx 时，最多再试 ${retryMax()} 次`,
   },
   {
+    id: 'rerankOn',
+    label: '召回之后重排一遍',
+    setting: 'rerankOn', off: false,
+    on: s => s.rerankOn === true && svc.rerankReady(),
+    when: '每一轮各一次（走重排接口，不是聊天接口）。通话不走重排',
+  },
+  {
     id: 'memoryVector',
     label: '记忆按语义检索',
     setting: 'memoryVector', off: false,
@@ -116,6 +123,8 @@ export function perTurn(chatId) {
   const s = settings.get();
   const chat = chats.get(chatId);
   if (s.memoryVector === true && svc.embedReady()) n += 1;
+  // 重排只对语义召回的候选生效，向量没开就不会跑
+  if (s.rerankOn === true && svc.rerankReady() && s.memoryVector === true && svc.embedReady()) n += 1;
   if (chat?.translateTo && svc.translateMode() === 'api') n += 1;
   // 心声「单独生成」那一档是整轮说完之后另起的一次调用
   if (chat?.innerMode === 'apart') n += 1;

@@ -35,6 +35,7 @@ export const DEFAULT_SETTINGS = {
     image: { presets: [], activeId: null },
     voice: { enabled: false, baseUrl: '', groupId: '', apiKey: '', model: '' },
     embed: { baseUrl: '', apiKey: '', model: '', dims: 0 },
+    rerank: { baseUrl: '', apiKey: '', model: '' },
     vision: { mode: 'off', baseUrl: '', apiKey: '', model: '' },
     asr: { baseUrl: '', apiKey: '', model: '', mode: 'text' },
   },
@@ -119,6 +120,9 @@ export const DEFAULT_SETTINGS = {
   memoryVector: false,            // 按语义检索。每轮多取一次查询向量，所以默认关着（第 15 条）
   memoryTopK: 12,                 // 语义检索取前几条
   memoryThreshold: 0.22,          // 相似度低于这个就不要了
+  // 召回之后再让重排模型排一遍。每轮多一次请求，所以默认关着（第 15 条）
+  rerankOn: false,
+  rerankCandidates: 50,           // 送去重排的候选条数。0 = 全都送（第 13 条）
   autoSummarizeInterval: 0,       // 0 = 关闭
   // 总结记忆的输出上限。太小会把 JSON 截断，截断的那一份仍然照付，
   // 所以默认不限 —— max_tokens 只是上限，没用到的部分不计费。

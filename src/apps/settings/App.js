@@ -9,6 +9,7 @@ import { StoragePage } from './StoragePage.js';
 import { TracePage } from './TracePage.js';
 import { NotifyPage } from './NotifyPage.js';
 import { EmbedPage } from './EmbedPage.js';
+import { RerankPage } from './RerankPage.js';
 import { VisionPage } from './VisionPage.js';
 import { AsrPage } from './AsrPage.js';
 import { MusicPage } from './MusicPage.js';
@@ -54,10 +55,17 @@ function Home() {
     : svc.neteaseLoggedIn() ? `已登录 ${ne.nickname}${ne.sync ? ' · 同步歌单' : ''}` : '已填写地址，尚未登录';
 
   const emb = svc.embedConfig();
+  const rrk = svc.rerankConfig();
   const embDone = phone.ai.memvec.indexedCount();
   const embDesc = emb.apiKey && emb.model
     ? `${emb.model} · 已索引 ${embDone} / ${db.memories.count()} 条记忆`
     : '未配置。配置后记忆按语义检索，不再依赖关键词匹配';
+
+  const rerankDesc = !svc.rerankReady()
+    ? '未配置。配置后可在语义召回之后再按相关度重排一遍'
+    : db.settings.get().rerankOn === true
+      ? `${rrk.model} · 已开启，每轮额外调用一次`
+      : `${rrk.model} · 已配置但未开启`;
 
   const tr = svc.translateConfig();
   const trDesc = svc.translateMode() === 'api'
@@ -102,6 +110,9 @@ function Home() {
         <${ListItem} title="向量" subtitle=${embDesc} arrow multiline
           left=${html`<${Icon} name="brain" size=${19}/>`}
           onClick=${() => nav.push('/embed')}/>
+        <${ListItem} title="重排" subtitle=${rerankDesc} arrow multiline
+          left=${html`<${Icon} name="filter" size=${19}/>`}
+          onClick=${() => nav.push('/rerank')}/>
         <${ListItem} title="联网搜索" subtitle=${searchDesc} arrow multiline
           left=${html`<${Icon} name="compass" size=${19}/>`}
           onClick=${() => nav.push('/search')}/>
@@ -172,6 +183,7 @@ export default function SettingsApp({ route }) {
   if (route === '/api') return html`<${ApiPage}/>`;
   if (route === '/notify') return html`<${NotifyPage}/>`;
   if (route === '/embed') return html`<${EmbedPage}/>`;
+  if (route === '/rerank') return html`<${RerankPage}/>`;
   if (route === '/vision') return html`<${VisionPage}/>`;
   if (route === '/asr') return html`<${AsrPage}/>`;
   if (route === '/music') return html`<${MusicPage}/>`;

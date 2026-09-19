@@ -1,6 +1,7 @@
 import { memories } from '../../db/index.js';
 import { takeTopWithin } from '../tokens.js';
 import { dot, embedReady } from '../embed.js';
+import { rankQueued, rerankReady } from '../rerank.js';
 import { rootIdOf } from '../../accounts.js';
 import * as bond from '../../bond.js';
 
@@ -36,9 +37,12 @@ export function listFor(charId, personaId) {
 // 向量检索：S 级照旧钉死（身份级的事实，不该由相似度决定进不进），
 // 剩下的预算交给语义相似度挑。关键词命中的直接算满分并进。
 // queryVec 由 build() 提前算好传进来 —— 这一层是同步的，不能在这里发请求。
-export function selectByVector(charId, scanText, budget, queryVec, opts = {}) {
+/**
+ * 按相似度排好序的候选，**不套预算也不截断到最终条数**。
+ * 重排要的是一批候选，不是已经挑完的结果，所以单拎出来。
+ */
+export function vectorPool(charId, scanText, queryVec, opts = {}) {
   const personaId = opts.personaId || null;
-  const topK = opts.topK > 0 ? opts.topK : Infinity;   // 0 = 全都要
   const floor = typeof opts.threshold === 'number' ? opts.threshold : 0.22;
   const text = String(scanText || '').toLowerCase();
 
@@ -46,10 +50,8 @@ export function selectByVector(charId, scanText, budget, queryVec, opts = {}) {
   // 从前 S 级是每轮钉死全量注入的，于是随口问一句今天吃什么，
   // 满眼也都是那几件大事。
   const all = listFor(charId, personaId).filter(m => m.rank !== 'S');
-  const pinned = [];
-  const rest = all;
 
-  const scored = rest.map(m => {
+  const scored = all.map(m => {
     const kws = (m.keywords || []).filter(Boolean);
     const hit = kws.length > 0 && kws.some(k => text.includes(String(k).toLowerCase()));
     const sim = m.vec?.length ? dot(queryVec, m.vec) : -1;
@@ -58,11 +60,14 @@ export function selectByVector(charId, scanText, budget, queryVec, opts = {}) {
   }).filter(x => x.hit || x.score >= floor);
 
   scored.sort((a, b) => b.score - a.score);
+  const limit = opts.limit > 0 ? opts.limit : Infinity;   // 0 = 全都要
+  return (limit === Infinity ? scored : scored.slice(0, limit)).map(x => x.m);
+}
 
-  const pool = [
-    ...pinned.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0)),
-    ...(topK === Infinity ? scored : scored.slice(0, topK)).map(x => x.m),
-  ];
+export function selectByVector(charId, scanText, budget, queryVec, opts = {}) {
+  const pool = vectorPool(charId, scanText, queryVec, {
+    ...opts, limit: opts.topK > 0 ? opts.topK : 0,
+  });
   return takeTopWithin(pool, budget, m => m.content || '');
 }
 
@@ -118,6 +123,40 @@ export function recall(ctx) {
     })
     : select(char?.id, scanText, budgets.memory, personaId);
   return items;
+}
+
+/**
+ * 带重排的那一档。默认关着，关着就是原样走 recall。
+ *
+ * 顺序是：向量粗筛一批候选 -> 重排模型按相关度重排 -> 再套上下文预算。
+ * 粗筛那一步要放宽（候选条数由用户填），不然重排只能在已经挑剩的几条里
+ * 分高下，等于白花一次请求。
+ *
+ * 重排挂了就退回纯向量那一档 —— 排不出名次不该让这一轮发不出去。
+ */
+export async function recallAsync(ctx) {
+  const s = ctx.settings || {};
+  const useVec = s.memoryVector === true && embedReady() && ctx.queryVec?.length;
+  if (!useVec || s.rerankOn !== true || !rerankReady()) return recall(ctx);
+
+  const pool = vectorPool(ctx.char?.id, ctx.scanText, ctx.queryVec, {
+    personaId: ctx.persona?.id || null,
+    threshold: typeof s.memoryThreshold === 'number' ? s.memoryThreshold : 0.22,
+    limit: Math.max(0, Math.round(Number(s.rerankCandidates) || 0)),
+  });
+  if (pool.length < 2) return recall(ctx);
+
+  try {
+    const topN = s.memoryTopK > 0 ? s.memoryTopK : 0;
+    const order = await rankQueued(ctx.char?.id || 'x', ctx.scanText,
+      pool.map(m => m.content || ''), { topN });
+    const ranked = order.map(o => pool[o.index]).filter(Boolean);
+    if (!ranked.length) return recall(ctx);
+    return takeTopWithin(ranked, ctx.budgets.memory, m => m.content || '').items;
+  } catch (err) {
+    console.warn('[rerank]', err.message || err);
+    return recall(ctx);
+  }
 }
 
 export const recallText = items =>

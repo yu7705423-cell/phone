@@ -3,7 +3,7 @@ import * as accounts from '../accounts.js';
 import * as clock from '../time.js';
 import { assemble } from './context/index.js';
 import { activate as activateLore, split as splitLore, textOf as loreText } from './context/lorebook.js';
-import { recall as recallMemory, recallText, depthOf as memoryDepth } from './context/memory.js';
+import { recallAsync as recallMemory, recallText, depthOf as memoryDepth } from './context/memory.js';
 import { fillTemplate, template } from './templates.js';
 import { capabilityBlock } from './capabilities.js';
 import { embedQuery, embedReady } from './embed.js';
@@ -454,7 +454,8 @@ export function streamReply({ chat, char, onDelta }) {
     // 召回也是一轮只算一次：设定区与对话里用的必须是同一份，
     // 而且向量检索本身要花一次接口调用。
     const me = accounts.get(chat?.personaId) || accounts.current();
-    const recall = recallMemory({
+    // 开了重排的话这一步要等一次请求。没开就是同步返回，不多花时间
+    const recall = await recallMemory({
       settings: s0, char, scanText: scanTextOf(msgs, s0.scanWindow),
       budgets: budgets(s0.contextBudget), queryVec, persona: me,
     });

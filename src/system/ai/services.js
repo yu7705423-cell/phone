@@ -7,6 +7,9 @@ export const EMPTY_SERVICES = {
   image: { presets: [], activeId: null },
   voice: { enabled: false, baseUrl: '', groupId: '', apiKey: '', model: '' },
   embed: { baseUrl: '', apiKey: '', model: '', dims: 0 },
+  // 重排。向量粗筛出一批候选之后，再让它按相关度排一遍。
+  // 每轮多一次请求，所以整项默认关着（rerankOn，见 ai/cost.js）
+  rerank: { baseUrl: '', apiKey: '', model: '' },
   // 识图。mode 决定图片怎么让角色看见：
   //   off   不识别，角色只知道你发了一张图
   //   chat  直接把图交给聊天模型（它自己能看图的话，不必再配一套接口）
@@ -42,6 +45,7 @@ export function services() {
     image: { ...EMPTY_SERVICES.image, ...(s?.image || {}) },
     voice: { ...EMPTY_SERVICES.voice, ...(s?.voice || {}) },
     embed: { ...EMPTY_SERVICES.embed, ...(s?.embed || {}) },
+    rerank: { ...EMPTY_SERVICES.rerank, ...(s?.rerank || {}) },
     vision: { ...EMPTY_SERVICES.vision, ...(s?.vision || {}) },
     asr: { ...EMPTY_SERVICES.asr, ...(s?.asr || {}) },
     memory: { ...EMPTY_SERVICES.memory, ...(s?.memory || {}) },
@@ -135,6 +139,13 @@ export function removeImagePreset(id) {
 export function setActiveImage(id) { write({ image: { ...services().image, activeId: id } }); }
 
 // ---- 向量（嵌入）。只有一份，走 OpenAI 兼容的 /v1/embeddings ----
+export function rerankConfig() { return services().rerank; }
+export function setRerank(patch) { write({ rerank: { ...services().rerank, ...patch } }); }
+export function rerankReady() {
+  const r = services().rerank;
+  return !!(r.baseUrl && r.apiKey && r.model);
+}
+
 export function embedConfig() { return services().embed; }
 export function setEmbed(patch) { write({ embed: { ...services().embed, ...patch } }); }
 export function embedReady() {
