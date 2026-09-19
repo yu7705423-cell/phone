@@ -512,3 +512,26 @@
 /* 一格高的时候只剩一行数字，标题栏让出去 */
 .wg-health.is-flat .wg-hl { gap: var(--sp-3); align-items: baseline; }
 .wg-health.is-flat .wg-hl-one b { font-size: var(--fs-18); }
+
+/* ---- 保活中断的那一条 ---- */
+/* 压在最上面：它本身就是恢复手段，点不到就没有意义 */
+.ka-banner {
+  position: fixed; left: var(--sp-4); right: var(--sp-4);
+  top: calc(var(--sp-4) + env(safe-area-inset-top));
+  z-index: var(--z-banner);
+  display: flex; align-items: center; gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--r-lg); border: 1px solid var(--border);
+  background: var(--surface); box-shadow: var(--shadow-2);
+  color: var(--text-3);
+}
+.ka-text { flex: 1; min-width: 0; }
+.ka-title { font-size: var(--fs-14); font-weight: var(--fw-medium); color: var(--text); }
+.ka-sub { font-size: var(--fs-11); color: var(--text-3); margin-top: 1px; }
+.ka-act {
+  flex: none; padding: var(--sp-2) var(--sp-3);
+  border: 0; border-radius: var(--r-sm);
+  background: var(--text); color: var(--surface);
+  font-size: var(--fs-13); font-weight: var(--fw-medium);
+}
+.ka-close { flex: none; border: 0; background: none; color: var(--text-3); padding: 2px; }

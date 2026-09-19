@@ -1,12 +1,41 @@
+import { createStore } from './store.js';
+
 // 保活。循环播放一段无声音频，让系统把这个页面当成正在放东西的标签页，
 // 切到后台之后不那么快被冻结，主动消息的定时器才有机会照常跑。
 //
 // 这不是什么正经 API，是个业内通用的将就办法，效果取决于系统当时的心情：
 // iOS 锁屏之后照样会停，只是比什么都不做能多撑一阵。所以默认关着，
 // 由用户自己决定要不要用这点电量换这点存活时间。
+//
+// ---- 被打断之后怎么回来 ----
+//
+// 来一通电话、别的 app 抢走音频、系统把页面冻了，这段音频都会被按停。
+// 从前有三个毛病，合起来就是「断一次就再也不回来」：
+//
+//   一、状态是**假的**。play() 成功就把 on 记成 true，之后元素被按停了
+//       也没人改它，界面上看还开着，实际早停了。现在以 el.paused 为准。
+//   二、补救只有一次。从前那个 pointerdown 监听器**第一次点击就摘掉自己**，
+//       不管那次补救成没成。现在只要还想开着就一直挂着。
+//   三、没人盯着。现在三路一起盯：元素自己的 pause/ended/error、
+//       回到前台、以及一个二十秒的巡检。
+//
+// 自动续不上的时候（浏览器要求先有一次真实触摸），才弹条让用户点一下 ——
+// 那一下既是许可也是手势，是唯一能可靠恢复的办法。
+
+const WATCH_MS = 20000;
+const RETRY_MS = 800;
+
+/**
+ * want  用户要不要开
+ * on    现在是不是真的在播（以元素为准，不是我们记的）
+ * needsTap  想开、没在播、自动续不上了，得用户点一下
+ */
+export const state = createStore({ want: false, on: false, needsTap: false });
 
 let el = null;
-let on = false;
+let watchdog = null;
+let retry = null;
+let wired = false;
 
 // 一段 1 秒的无声 wav，直接内联，不占一次网络请求
 function silentWav() {
@@ -30,35 +59,101 @@ function ensure() {
   el.volume = 0;
   // iOS 要有这个才肯在后台继续播
   el.setAttribute('playsinline', '');
+  if (!wired) {
+    wired = true;
+    // 被按停不等于我们想停。想开着就再续上
+    ['pause', 'ended', 'error'].forEach(ev => el.addEventListener(ev, onStopped));
+    el.addEventListener('playing', () => sync());
+  }
   return el;
 }
 
-export function running() { return on; }
+/** 以元素为准同步一次状态。on 从来不靠我们自己记。 */
+function sync(needsTap) {
+  const playing = !!el && !el.paused && !el.ended;
+  const s = state.get();
+  state.set({
+    on: playing,
+    needsTap: needsTap === undefined ? (playing ? false : s.needsTap) : needsTap,
+  });
+  return playing;
+}
 
-export async function start() {
+function onStopped() {
+  if (!state.get().want) { sync(false); return; }
+  sync();
+  // 别在事件回调里直接重放，先让这一轮事件走完
+  clearTimeout(retry);
+  retry = setTimeout(() => { resume(); }, RETRY_MS);
+}
+
+/**
+ * 试着续上。续不上就把 needsTap 立起来，界面据此弹一条。
+ * 浏览器要求先有一次真实触摸，这种时候代码怎么试都没用。
+ */
+export async function resume() {
+  if (!state.get().want) return false;
   const a = ensure();
   try {
     await a.play();
-    on = true;
+    sync(false);
     return true;
   } catch {
-    // 还没有过真实触摸，浏览器不让自动播。等下一次点击再试
-    on = false;
+    sync(true);
     return false;
   }
 }
 
-export function stop() {
-  on = false;
-  if (el) { el.pause(); el.currentTime = 0; }
+export async function start() {
+  state.set({ want: true });
+  const okd = await resume();
+  startWatch();
+  return okd;
 }
 
-// 开着保活但被浏览器拦下来时，等用户第一次点击再补一次
-export function installRetry(enabled) {
-  const once = () => {
-    if (enabled() && !on) start();
-    window.removeEventListener('pointerdown', once);
-  };
-  window.addEventListener('pointerdown', once);
-  return () => window.removeEventListener('pointerdown', once);
+export function stop() {
+  // 先把 want 放下来，否则下面这一停会被 onStopped 当成「被打断」又续回去
+  state.set({ want: false, needsTap: false });
+  clearTimeout(retry);
+  stopWatch();
+  if (el) { el.pause(); el.currentTime = 0; }
+  sync(false);
 }
+
+function startWatch() {
+  stopWatch();
+  // 事件不一定每次都来（被系统冻住那种就没有），所以还得自己巡一遍
+  watchdog = setInterval(() => {
+    if (!state.get().want) return;
+    if (!sync()) resume();
+  }, WATCH_MS);
+}
+
+function stopWatch() { clearInterval(watchdog); watchdog = null; }
+
+/**
+ * 挂上所有盯梢。返回一个清理函数。
+ *
+ * 关键的一处：手势那个监听器**一直挂着**，不是点一次就摘。
+ * 从前那个只补救一次，于是第一次点击如果没能救回来，就永远没有第二次机会。
+ */
+export function install(getWant) {
+  const onTap = () => { if (getWant() && !state.get().on) resume(); };
+  const onVis = () => {
+    if (document.visibilityState !== 'visible') return;
+    if (getWant() && !sync()) resume();
+  };
+  window.addEventListener('pointerdown', onTap);
+  document.addEventListener('visibilitychange', onVis);
+  return () => {
+    window.removeEventListener('pointerdown', onTap);
+    document.removeEventListener('visibilitychange', onVis);
+    stopWatch();
+    clearTimeout(retry);
+  };
+}
+
+/** 界面上那条横幅按了「知道了」：这一次不提示了，等下一次断再说。 */
+export const dismiss = () => state.set({ needsTap: false });
+
+export const running = () => state.get().on;
