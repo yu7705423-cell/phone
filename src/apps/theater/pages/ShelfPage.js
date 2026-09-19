@@ -30,8 +30,11 @@ function AddSheet({ open, charId, onClose }) {
   const [rows, setRows] = useState(null);
   const [busy, setBusy] = useState(false);
 
+  const min = booksearch.providerOf().minQ || 1;
+  const tooShort = q.trim().length > 0 && q.trim().length < min;
+
   const go = async () => {
-    if (!q.trim()) return;
+    if (!q.trim() || tooShort) return;
     setBusy(true); setRows(null);
     try { setRows(await booksearch.search(q)); }
     catch (err) { toast(String(err.message || err), 'error', 5000); setRows([]); }
@@ -52,15 +55,19 @@ function AddSheet({ open, charId, onClose }) {
       title="往书架上放一本" height="86%">
       <div class="pad-x">
         <${Field} label="书名"
-          desc=${booksearch.ready()
-            ? '查到之后连封面一起放上。查不到也可以自己填，下面两栏都可以留空。'
-            : '尚未选择书目接口。自己填也一样，下面两栏都可以留空。'}>
+          desc=${!booksearch.ready()
+            ? '尚未选择书目接口。自己填也一样，下面两栏都可以留空。'
+            : tooShort
+              ? `${booksearch.providerOf().name} 不接受短于 ${min} 个字符的查询，`
+                + '书名很短时请直接自己填，下面两栏都可以留空。'
+              : '查到之后连封面一起放上。查不到也可以自己填，下面两栏都可以留空。'}>
           <${Input} value=${q} placeholder="输入书名" onInput=${v => setQ(v)}/>
         <//>
         ${booksearch.ready() ? html`
           <div class="batch-acts">
-            <${Button} disabled=${busy || !q.trim()} onClick=${go}>
-              ${busy ? html`<${Spinner} size=${15}/> 正在查` : '查一下'}<//>
+            <${Button} disabled=${busy || !q.trim() || tooShort} onClick=${go}>
+              ${busy ? html`<${Spinner} size=${15}/> 正在查`
+                : tooShort ? `至少 ${min} 个字` : '查一下'}<//>
           </div>` : null}
         <${Field} label="作者"><${Input} value=${author} placeholder="可留空"
           onInput=${v => setAuthor(v)}/><//>

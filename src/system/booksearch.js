@@ -12,10 +12,19 @@ import { services } from './ai/services.js';
 // 连不连得上只有在你自己的浏览器里问才算数，所以给一个探测器（probe），
 // 和音乐接口那个同一个路子。
 
+// minQ：这一家最短能查几个字符。Open Library 不收短于 3 个的，
+// 而《家》《雨》这样的书名到处都是 —— 拦在发出去之前，别让人对着
+// 一句英文报错猜是怎么回事
 export const PROVIDERS = [
-  { id: 'openlibrary', name: 'Open Library', host: 'openlibrary.org' },
-  { id: 'google', name: 'Google Books', host: 'www.googleapis.com' },
+  { id: 'openlibrary', name: 'Open Library', host: 'openlibrary.org', minQ: 3 },
+  { id: 'google', name: 'Google Books', host: 'www.googleapis.com', minQ: 1 },
 ];
+
+export const providerOf = id =>
+  PROVIDERS.find(p => p.id === (id || config().provider)) || PROVIDERS[0];
+
+// 探测用的样本。要够长（Open Library 的下限），而且一定查得到、一定有封面
+const SAMPLE = 'Dune';
 
 export const config = () => services().books;
 export const ready = () => !!config().provider;
@@ -91,8 +100,14 @@ async function ask(url, ms = 12000) {
 }
 
 export async function search(q, { limit = 10, provider = config().provider } = {}) {
-  if (!String(q || '').trim()) return [];
-  const r = await ask(urlFor(provider, q, limit));
+  const text = String(q || '').trim();
+  if (!text) return [];
+  const min = providerOf(provider).minQ || 1;
+  if (text.length < min) {
+    throw new Error(`${providerOf(provider).name} 不接受短于 ${min} 个字符的查询。`
+      + '可以换一家，或者直接自己填书名。');
+  }
+  const r = await ask(urlFor(provider, text, limit));
   if (r.status === 0) throw new Error(r.err);
   if (!r.ok) {
     const why = WHY[r.status] || `接口返回 ${r.status}`;
@@ -106,7 +121,7 @@ export async function probe(provider = config().provider, onStep) {
   const out = [];
   const step = row => { out.push(row); if (onStep) onStep(row, out); return row; };
 
-  const r = await ask(urlFor(provider, '雨', 3));
+  const r = await ask(urlFor(provider, SAMPLE, 3));
   // **收到任何一个状态码，都说明地址通、跨域也放行了。**
   // 422、429 是接口在回话，不是连不上 —— 判成连不上，人就会去查网络，
   // 而真正要改的是下一项。
@@ -126,7 +141,7 @@ export async function probe(provider = config().provider, onStep) {
     id: 'search', label: '查得到书',
     desc: r.status === 429
       ? '被限流时换一家，或给 Google Books 填一个免费密钥'
-      : '用一个常见的字查一下，能不能返回书名与作者',
+      : `用《${SAMPLE}》试一下，能不能返回书名与作者`,
     pass: rows.length > 0,
     note: rows.length ? `查到 ${rows.length} 本，例如《${rows[0].title}》`
       : r.ok ? '接口通，但没有结果'
