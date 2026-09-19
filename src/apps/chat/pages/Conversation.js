@@ -220,6 +220,7 @@ export function Conversation({ chatId, focusId = '' }) {
   const [settling, setSettling] = useState(null);// 正在处理的那一笔
   const [asking, setAsking] = useState(false);   // 申请面板开着
   const [packing, setPacking] = useState(false); // 正在打这个角色的包
+  const [summing, setSumming] = useState(false); // 正在总结记忆
   const [voting, setVoting] = useState(null);    // 正在表态的那一条申请
   const [placing, setPlacing] = useState(false); // 发位置的面板开着
   const [callLog, setCallLog] = useState(null);  // 正在看的那通电话
@@ -783,12 +784,20 @@ export function Conversation({ chatId, focusId = '' }) {
   // 而这一页每来一条消息就重渲染一次
   const wipeN = menu ? phone.purge.counts(char.id) : { chats: 0, messages: 0, memories: 0 };
 
+  // 总结要走一次接口，真机上十几二十秒。**菜单先别关。**
+  // 从前是点完立刻 setMenu(false)，于是屏幕上只发生了一件事：菜单没了，
+  // 人回到聊天页，没有任何迹象说明它在干活 —— 看着就是「点了没用」。
+  // 现在这一行自己转着，完成才收起菜单；失败则留在原地，把原因贴在这一行边上。
   const summarize = async () => {
-    setMenu(false);
+    if (summing) return;
+    setSumming(true);
     try {
       const r = await ai.memory.extract(chatId);
+      setMenu(false);
       toast(r.added + r.updated ? `新增 ${r.added} 条，更新 ${r.updated} 条` : '没有需要记录的新信息');
-    } catch (err) { toast(String(err.message || err), 'error', 4000); }
+    } catch (err) {
+      toast(String(err.message || err), 'error', 4000);
+    } finally { setSumming(false); }
   };
 
   const pending = ai.memory.pendingOf(chatId).length;
@@ -1060,11 +1069,16 @@ export function Conversation({ chatId, focusId = '' }) {
           <${ListItem} title="上下文与记忆" subtitle="注入顺序、扫描窗口、历史范围、自动总结" arrow multiline
             left=${html`<${Icon} name="layers" size=${18}/>`}
             onClick=${() => { setMenu(false); nav.push('/context'); }}/>
-          <${ListItem} title="立即总结记忆" arrow multiline
-            subtitle=${`尚有 ${pending} 条未总结 · ${settings.autoSummarizeInterval > 0
-              ? `自动总结每 ${settings.autoSummarizeInterval} 轮一次`
-              : '自动总结已关闭'}`}
-            left=${html`<${Icon} name="brain" size=${18}/>`} onClick=${summarize}/>
+          <${ListItem} title=${summing ? '正在总结记忆' : '立即总结记忆'} arrow multiline
+            subtitle=${summing
+              ? '正在调用接口，完成后会给出结果。这段时间请不要离开本页。'
+              : `尚有 ${pending} 条未总结 · ${settings.autoSummarizeInterval > 0
+                ? `自动总结每 ${settings.autoSummarizeInterval} 轮一次`
+                : '自动总结已关闭'}`}
+            left=${summing
+              ? html`<${Spinner} size=${16}/>`
+              : html`<${Icon} name="brain" size=${18}/>`}
+            onClick=${() => !summing && summarize()}/>
           <${ListItem} title="关系底色" arrow multiline
             subtitle=${(() => {
               const t = ai.bond.textOf(char, chat.personaId);
@@ -1077,9 +1091,14 @@ export function Conversation({ chatId, focusId = '' }) {
           <${ListItem} title="每轮的接口调用" arrow multiline
             subtitle=${(() => {
               const n = ai.cost.perTurn(chatId);
-              return n > 1
-                ? `这段对话每轮固定调用 ${n} 次接口。点击查看是哪几项，并可逐项关闭`
+              const worst = ai.cost.worstPerTurn(chatId);
+              const head = n > 1
+                ? `这段对话每轮固定调用 ${n} 次接口`
                 : '这段对话每轮调用 1 次接口';
+              // 重试与换套相乘，失败那一轮的数目和顺利时不是一回事
+              const tail = worst > n ? `，请求失败时最多 ${worst} 次` : '';
+              return `${head}${tail}${n > 1 || worst > n
+                ? '。点击查看是哪几项，并可逐项关闭' : ''}`;
             })()}
             left=${html`<${Icon} name="filter" size=${18}/>`}
             onClick=${() => { setMenu(false); phone.intent.open('settings', { route: '/limits' }); }}/>

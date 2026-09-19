@@ -15,6 +15,8 @@ export function LimitsPage() {
   const set = patch => db.settings.set(patch);
   // 现在开着哪几项会多打接口。清单只在 ai/cost.js 列一处
   const extra = ai.cost.active();
+  // 重试与换套是相乘的。这个数从 ai/cost.js 来，界面不自己再算一遍
+  const attempts = ai.cost.attemptsPerCall();
 
   return html`
     <${Page} title="用量与上限" onBack=${nav.pop}>
@@ -32,6 +34,12 @@ export function LimitsPage() {
             : '一次回复只调用一次接口。开启下列任一项后，某些回合会追加调用。'}/>
         ${extra.map(x => html`
           <${ListItem} key=${x.id} title=${x.label} subtitle=${x.whenText} multiline/>`)}
+        ${attempts > 1 ? html`
+          <${ListItem} title=${`请求失败时，每一次调用会变成 ${attempts} 个请求`} multiline
+            left=${html`<${Icon} name="filter" size=${18}/>`}
+            subtitle=${'「自动重试」与「接口失败时改用另一套」是相乘的关系，不是相加：'
+              + '换用另一套本身是第二个请求，而重试重的是整轮，连同那次换套一并重来。'
+              + `当前设置下，一次失败的回复最多发出 ${attempts} 个请求，每个都计费。`}/>` : null}
       <//>
 
       <${List} title="额外的接口调用">

@@ -121,3 +121,34 @@ export function perTurn(chatId) {
   if (chat?.innerMode === 'apart') n += 1;
   return n;
 }
+
+/** 主用和副用是不是两套不同的。允许配成同一个，那种情况下换不出去。 */
+function twoConfigs() {
+  const a = svc.activeChat();
+  const b = svc.fallbackChat();
+  return !!(a && b && a.id !== b.id);
+}
+
+/**
+ * **一次调用失败时，实际会打出去几个请求。**
+ *
+ * 要紧的是这两项**相乘**，不是相加：
+ *
+ *   「失败改用副用」把一次调用变成两个请求；
+ *   「自动重试」重的是**整轮**，连同那次换套一起再来一遍。
+ *
+ * 两个都开着，一次回复失败就是四个请求。从前这一页只把它们各算一项加进去，
+ * 于是界面上写「这一轮 2 次」，账单上是 4 次 —— 正是第 15 条要拦的那种
+ * 「功能照跑，账单照涨，而界面仍然写着 1」。
+ */
+export function attemptsPerCall() {
+  // 聊天那几处 enqueue 给的 retries 都写的 1，真正试几次取它与 retryMax 里小的那个
+  const tries = 1 + Math.min(1, retryMax());
+  const swap = settings.get().chatFallback === true && twoConfigs() ? 2 : 1;
+  return tries * swap;
+}
+
+/** 全都失败时，这一轮最多会打出去几个请求。顺利时是 perTurn。 */
+export function worstPerTurn(chatId) {
+  return perTurn(chatId) * attemptsPerCall();
+}
