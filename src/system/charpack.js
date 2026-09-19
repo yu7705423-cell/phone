@@ -2,7 +2,7 @@ import { characters, lorebooks, memories, chats, messages, messagesOf, images, f
 import { DATA_VERSION } from './db/schema.js';
 import * as accounts from './accounts.js';
 import { uid } from './store.js';
-import { zip, unzip } from './zip.js';
+import { zip, unzip, verify } from './zip.js';
 
 // 单个角色的打包与安装。
 //
@@ -94,7 +94,10 @@ export async function build(charId, { history = true, onProgress } = {}) {
     const blob = await files.blob(id);
     if (blob) entries.push({ name: `files/${id}.${extOf(blob.type, 'bin')}`, blob });
   }
-  return zip(entries, { onProgress });
+  const out = await zip(entries, { onProgress });
+  const check = await verify(out, ['character.json']);
+  if (!check.ok) throw new Error(`打出来的包自检没过（${check.problem}），请重试`);
+  return out;
 }
 
 /** 文件名。名字里可能有斜杠之类的，扫掉再用。 */
@@ -108,7 +111,12 @@ export const fileNameFor = name =>
 export async function read(file) {
   const found = await unzip(file);
   const json = found.get('character.json');
-  if (!json) throw new Error('这个包里没有 character.json，可能不是角色包');
+  if (!json) {
+    const names = [...found.keys()].slice(0, 5).join('、');
+    throw new Error(names
+      ? `这个包里没有 character.json。里面是：${names}${found.size > 5 ? ' 等' : ''}`
+      : '这个包里一条记录都读不出来，可能不是角色包');
+  }
   const data = JSON.parse(await json.text());
   if (data._format !== FORMAT) throw new Error('这不是一个角色包');
   const from = Number(data._data) || 0;

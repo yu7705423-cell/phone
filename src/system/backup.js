@@ -3,7 +3,7 @@ import { DATA_VERSION, KV, runMigrations } from './db/schema.js';
 import { idb } from './db/idb.js';
 import { images } from './db/images.js';
 import { files } from './db/files.js';
-import { zip, unzip } from './zip.js';
+import { zip, unzip, verify } from './zip.js';
 
 // 备份。
 //
@@ -92,7 +92,15 @@ export async function build({ media = true, onProgress } = {}) {
       if (blob) entries.push({ name: `files/${id}.${extOf(blob.type, 'bin')}`, blob });
     }
   }
-  return zip(entries, { onProgress });
+  const out = await zip(entries, { onProgress });
+  // 打完自检一次。一个结构坏掉的包当时看不出来，等到换台设备要恢复才发现，
+  // 那时候原始数据往往已经没了
+  const check = await verify(out, ['backup.json']);
+  if (!check.ok) {
+    throw new Error(`打出来的包自检没过（${check.problem}）。`
+      + '请重试；若仍然失败，改用「仅数据」导出，那一档不打包。');
+  }
+  return out;
 }
 
 /**
@@ -115,7 +123,13 @@ export async function restore(file, { onProgress } = {}) {
   } else {
     const found = await unzip(file);
     const json = found.get('backup.json');
-    if (!json) throw new Error('包里没有 backup.json，可能不是小手机的备份');
+    // 报错要说清楚里面到底是什么，否则只能靠猜
+    if (!json) {
+      const names = [...found.keys()].slice(0, 5).join('、');
+      throw new Error(names
+        ? `包里没有 backup.json。里面是：${names}${found.size > 5 ? ' 等' : ''}`
+        : '这个包里一条记录都读不出来，可能不是小手机的备份');
+    }
     data = JSON.parse(await json.text());
     media = found;
   }
