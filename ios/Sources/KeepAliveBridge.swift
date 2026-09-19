@@ -13,11 +13,18 @@ import WebKit
 // （最低位上下抖一下，听不见，但确实是有波形的采样）—— 零样本的静音在
 // 某些机型上同样会被当成没在放。
 //
-// 配套的两件事在 ShellViewController 那边：Info.plist 里的 UIBackgroundModes
-// 有 audio，AVAudioSession 是 .playback + .mixWithOthers（不打断用户自己在放的东西）。
+// ---- 为什么开着的时候要独占音频 ----
+//
+// 平时这只 app 的音频会话是 .playback + .mixWithOthers，不打断用户自己在放的
+// 东西。但 **mixWithOthers 的音频是「次要音频」**，系统不拿它当「这只 app 正在
+// 放东西」的凭据，后台该停还是停 —— 那样保活等于白开。
+//
+// 所以开着保活的这段时间换成不混音的 .playback，关掉再换回去。代价是
+// **会打断用户自己正在放的音乐**。这一条写在设置那个开关的说明里，不含糊过去：
+// 这是用户自己打开的功能，他得知道开了会发生什么。
 //
 // **这仍然不是什么正经办法**，和网页那套一样是将就：系统愿意让你活多久是它的事。
-// 所以默认关着，由用户自己决定要不要用这点电量换这点存活时间。
+// 所以默认关着，由用户自己决定要不要用这点电量、这点打断，换这点存活时间。
 
 final class KeepAliveBridge: NSObject {
 
@@ -40,7 +47,15 @@ final class KeepAliveBridge: NSObject {
     }
 
     private func start() -> [String: Any] {
-        if player?.isPlaying == true { return ["on": true] }
+        if player?.isPlaying == true { return info(on: true) }
+        let session = AVAudioSession.sharedInstance()
+        do {
+            // 独占（不混音），否则系统不认为这只 app 在放东西，后台照停
+            try session.setCategory(.playback, mode: .default, options: [])
+            try session.setActive(true)
+        } catch {
+            return ["error": "音频会话没拿到：\(error.localizedDescription)"]
+        }
         do {
             let p = try AVAudioPlayer(data: quietWav())
             p.numberOfLoops = -1
@@ -48,7 +63,7 @@ final class KeepAliveBridge: NSObject {
             p.prepareToPlay()
             guard p.play() else { return ["error": "音频没能开始播放"] }
             player = p
-            return ["on": true]
+            return info(on: true)
         } catch {
             return ["error": "保活开不起来：\(error.localizedDescription)"]
         }
@@ -57,11 +72,28 @@ final class KeepAliveBridge: NSObject {
     private func stop() -> [String: Any] {
         player?.stop()
         player = nil
-        return ["on": false]
+        // 换回混音，不再挡着用户自己放的东西
+        let session = AVAudioSession.sharedInstance()
+        try? session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
+        try? session.setActive(true)
+        return info(on: false)
     }
 
     /// 以播放器为准，不是以我们记的为准 —— 来一通电话就会被按停。
-    private func status() -> [String: Any] { ["on": player?.isPlaying == true] }
+    private func status() -> [String: Any] { info(on: player?.isPlaying == true) }
+
+    /// 回给网页的一份实情。**把系统那边的真实状态一起带回去** ——
+    /// 上一版只回一个 on，开关打开之后屏幕上什么都不变，坏没坏谁也看不出来，
+    /// 于是只能收到一句「完全没有」，没法往下查。
+    private func info(on: Bool) -> [String: Any] {
+        let s = AVAudioSession.sharedInstance()
+        return [
+            "on": on,
+            "category": s.category.rawValue,
+            "mixing": s.categoryOptions.contains(.mixWithOthers),
+            "otherAudio": s.isOtherAudioPlaying,
+        ]
+    }
 }
 
 extension KeepAliveBridge: WKScriptMessageHandlerWithReply {

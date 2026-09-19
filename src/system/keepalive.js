@@ -41,7 +41,13 @@ const RETRY_MS = 800;
  * on    现在是不是真的在播（以元素为准，不是我们记的）
  * needsTap  想开、没在播、自动续不上了，得用户点一下
  */
-export const state = createStore({ want: false, on: false, needsTap: false });
+export const state = createStore({
+  want: false, on: false, needsTap: false,
+  // 走外壳那条路时，外壳回来的实情：音频会话是什么类别、有没有在混音、
+  // 出了什么错。**界面要把它显示出来** —— 开关打开之后屏幕上什么都不变的话，
+  // 坏没坏谁也看不出来
+  note: '',
+});
 
 let el = null;
 let watchdog = null;
@@ -62,14 +68,25 @@ async function callNative(action) {
 }
 
 /** 走外壳时的续播。原生不需要用户手势，所以 needsTap 永远立不起来。 */
+/** 外壳回来的那几项翻成一句人话，显示在设置那一行上。 */
+function noteOf(got) {
+  if (!got.on) return '没有在运行';
+  // mixing 为真时系统不拿这段音频当「这只 app 正在放东西」，后台照停 ——
+  // 那种情况下这个功能等于没开，得说出来
+  return got.mixing
+    ? '正在运行，但音频与其他应用混合，后台可能仍会被暂停'
+    : '正在运行';
+}
+
 async function nativeResume() {
   try {
     const got = await callNative('start');
-    state.set({ on: got.on === true, needsTap: false });
+    state.set({ on: got.on === true, needsTap: false, note: noteOf(got) });
     return got.on === true;
-  } catch {
-    // 原生这一层开不起来是真开不起来，点一下也没用，不要去骗用户点
-    state.set({ on: false, needsTap: false });
+  } catch (err) {
+    // 原生这一层开不起来是真开不起来，点一下也没用，不要去骗用户点。
+    // 但要把原话显示出来，不然只剩一句「没反应」
+    state.set({ on: false, needsTap: false, note: String(err.message || err) });
     return false;
   }
 }
@@ -156,7 +173,7 @@ export function stop() {
   stopWatch();
   if (native()) {
     callNative('stop').catch(() => {});
-    state.set({ on: false });
+    state.set({ on: false, note: '' });
     return;
   }
   if (el) { el.pause(); el.currentTime = 0; }
@@ -171,7 +188,7 @@ function startWatch() {
     // 走外壳时以那边的播放器为准；来一通电话就会被按停，巡到了就续上
     if (native()) {
       const got = await callNative('status').catch(() => ({ on: false }));
-      state.set({ on: got.on === true });
+      state.set({ on: got.on === true, note: noteOf(got) });
       if (!got.on) nativeResume();
       return;
     }

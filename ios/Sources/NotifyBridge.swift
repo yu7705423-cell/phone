@@ -78,12 +78,18 @@ final class NotifyBridge: NSObject {
 
 extension NotifyBridge: UNUserNotificationCenterDelegate {
 
-    /// app 正在前台时收到自己发的通知。**不弹系统横幅** ——
-    /// 网页在前台有自己那条横幅，两条一起出来是重的。
-    /// 网页那边本来也只在页面不可见时才叫这里发，这里再兜一道。
+    /// app 正在前台时收到自己发的通知：**照常弹**。
+    ///
+    /// 上一版这里返回空，想着「网页在前台有自己那条横幅，两条一起出来是重的」。
+    /// 那个想法是错的，而且正好把唯一能验证的那一下变没了：
+    ///
+    ///   一、网页只在 `document.visibilityState !== 'visible'` 时才叫这里发
+    ///       （push.js 的 shouldUseSystem），前台根本不会走到这儿。
+    ///   二、真正会在前台走到这儿的只有「试一条系统通知」—— 人正看着屏幕
+    ///       按下去，却什么都不出现，看起来就是通知坏了。
     func userNotificationCenter(_ c: UNUserNotificationCenter,
                                 willPresent n: UNNotification) async
-        -> UNNotificationPresentationOptions { [] }
+        -> UNNotificationPresentationOptions { [.banner, .list, .sound] }
 
     func userNotificationCenter(_ c: UNUserNotificationCenter,
                                 didReceive r: UNNotificationResponse) async {

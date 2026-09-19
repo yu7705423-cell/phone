@@ -23,6 +23,8 @@ const { db, nav } = phone;
 
 function Home() {
   const s = useStore(db.settings.store);
+  // 保活现在到底在不在跑。开关打开之后屏幕上得有个地方看得出来
+  const ka = useStore(phone.keepAlive.state);
   const svc = phone.ai.services;
   const ai = phone.ai;
   const chat = svc.services().chat;
@@ -156,9 +158,12 @@ function Home() {
           left=${html`<${Icon} name="power" size=${18}/>`}
           subtitle=${(phone.keepAlive.native()
             ? `由外壳持续播放一段极轻的音频，让系统把本应用当成正在播放，`
-            : `循环播放一段无声音频，让系统把本页当成正在播放的标签页，`)
-            + `切到后台后不那么快被冻结，主动消息更有机会按时发出。`
-            + `会持续占用少量电量，且在锁屏后通常仍会停止。`}
+              + `切到后台后不那么快被冻结，主动消息更有机会按时发出。`
+              + `开启期间独占音频，会中断其他应用正在播放的内容。`
+            : `循环播放一段无声音频，让系统把本页当成正在播放的标签页，`
+              + `切到后台后不那么快被冻结，主动消息更有机会按时发出。`)
+            + `会持续占用少量电量，且在锁屏后通常仍会停止。`
+            + (ka.note ? `　当前：${ka.note}` : '')}
           right=${html`<${Switch} checked=${!!s.keepAlive}
             onChange=${v => db.settings.set({ keepAlive: v })}/>`}/>
       <//>
