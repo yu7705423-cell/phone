@@ -55,6 +55,11 @@ export function clearAt(bookId, at) {
 export const countFor = bookId =>
   readnotes.where(n => n.bookId === bookId && n.text).length;
 
+/** 书没了，它身上的段评一起清掉。 */
+export function dropBook(bookId) {
+  readnotes.where(n => n.bookId === bookId).forEach(n => readnotes.remove(n.id));
+}
+
 // ---- 共读名单 ----
 //
 // 存在书上。第一次挑好谁参与，之后每一段点一下就生成，不必每段重挑。

@@ -60,7 +60,7 @@ import * as dayTask from '../system/ai/tasks/day.js';
 import * as recipeBatch from '../system/ai/tasks/recipe-batch.js';
 import * as shelfBatch from '../system/ai/tasks/shelf-batch.js';
 import * as impression from '../system/ai/tasks/shelf-impression.js';
-import * as readNotes from '../system/ai/tasks/read-notes.js';
+import * as readAheadTask from '../system/ai/tasks/readahead.js';
 import * as paraComment from '../system/ai/tasks/para-comment.js';
 import * as drawApi from '../system/draw.js';
 import * as eventBatch from '../system/ai/tasks/event-batch.js';
@@ -74,7 +74,7 @@ import * as readApi from '../system/read.js';
 import * as shelfApi from '../system/shelf.js';
 import * as readerApi from '../system/reader.js';
 import * as excerptApi from '../system/excerpt.js';
-import * as notesApi from '../system/readnotes.js';
+import * as aheadApi from '../system/readahead.js';
 import * as paraApi from '../system/paracomment.js';
 import * as reviewApi from '../system/review.js';
 import * as booksearchApi from '../system/booksearch.js';
@@ -182,7 +182,7 @@ export const phone = {
     recipeBatch,
     shelfBatch,
     impression,
-    readNotes,
+    readAhead: readAheadTask,
     paraComment,
     runWithPreset: engine.runWithPreset,
 
@@ -232,7 +232,7 @@ export const phone = {
   shelf: shelfApi,
   reader: readerApi,
   excerpt: excerptApi,
-  readnotes: notesApi,
+  ahead: aheadApi,
   para: paraApi,
   review: reviewApi,
   booksearch: booksearchApi,

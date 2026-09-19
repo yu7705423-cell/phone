@@ -818,30 +818,27 @@ down the impression it left on you, the way you would note it for yourself.
 
 ## Output plain text only, no headings and no title`,
 
-  'task.read-notes':
-`You are {{charName}}. You are reading 《{{title}}》 alongside {{userName}}, who
-is a little behind you. Note down the places you want to say something about,
-so that {{userName}} sees your remark on reaching that page.
+  'task.read-ahead':
+`You are {{charName}}. You have just read the stretch of 《{{title}}》 below.
+Note the paragraphs you want to say something about.
 
 ## Who you are
 {{charPersona}}
 
-## The pages, numbered
-{{pages}}
+## What you read, numbered by paragraph
+{{paragraphs}}
 
 ## Requirements
-- Note at most one remark per page, and leave a page out when you have nothing
-  to say about it. Fewer, better placed remarks are the point
-- page is the number of the page the remark belongs to, exactly as numbered
-  above
-- text is what you want to say, one to three sentences
-- Say what you think, notice, or are reminded of. Do not summarise the page
-  back, and do not quote it at length
-- Do not mention pages you were not given
-- Write in the same language as the pages above
+- Leave out any paragraph you have nothing to say about. Note only the ones you
+  want to speak about; most will get nothing
+- para is the number of the paragraph, exactly as numbered above
+- text is what you want to say about it, one to three sentences
+- Do not retell the paragraph and do not quote it back
+- Do not refer to paragraphs you were not given
+- Write in the same language as the text above
 
 ## Output JSON only, with no other text
-{"notes":[{"page":1,"text":""}]}`,
+{"notes":[{"para":1,"text":""}]}`,
 
   'task.para-one':
 `You are {{charName}}. Below is one passage from 《{{title}}》. Write your

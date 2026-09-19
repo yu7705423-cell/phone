@@ -57,13 +57,6 @@ export const EXTRA_CALLS = [
     when: '每一轮各取一次查询向量（走向量接口，不是聊天接口）',
   },
   {
-    id: 'readNotesAuto',
-    label: '一起读时自动预读批注',
-    setting: 'readNotesAuto', off: false,
-    on: s => s.readNotesAuto === true,
-    when: '一起读翻到还没批过的那一页时，多打一次（一次批若干页）',
-  },
-  {
     id: 'reviewAuto',
     label: '看完自动写一篇评',
     setting: 'reviewAuto', off: false,

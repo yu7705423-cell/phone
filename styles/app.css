@@ -1586,3 +1586,11 @@ button.search-bar { width: 100%; border: none; }
   width: 100%; padding: 0; background: none; border: 0; color: var(--text-3);
 }
 .rd-say.is-folded { padding-top: var(--sp-2); padding-bottom: var(--sp-2); }
+
+/* 先读的那个角色读到哪儿了。一条细线，不抢正文 */
+.ra-line {
+  flex: none; display: flex; align-items: center; gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-5);
+  font-size: var(--fs-11); color: var(--text-3);
+  border-top: 1px solid var(--border);
+}

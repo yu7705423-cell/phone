@@ -2,9 +2,9 @@ import { html, useState, useEffect, useRef } from '../../../lib.js';
 import { phone, useStore } from '../../../sdk/index.js';
 import { Page, List, ListItem, Icon, IconButton, Sheet, Spinner, EmptyState, toast, confirm } from '../../../ui/index.js';
 import { Paragraphs } from './Para.js';
+import { ReadAheadSheet, ReadAheadWatch } from './ReadAhead.js';
 
-const { db, nav, book, read, ai, readnotes } = phone;
-const notesTask = ai.readNotes;
+const { db, nav, book, read, ai } = phone;
 
 const PAGE = book.PAGE;
 
@@ -13,7 +13,6 @@ export function TogetherPage({ chatId, bookId }) {
   useStore(db.ebooks.store);
   useStore(db.messages.store);
   useStore(read.read);
-  useStore(db.readnotes.store);
   useStore(db.settings.store);
   const s = read.read.get();
   const row = db.ebooks.get(bookId);
@@ -22,12 +21,11 @@ export function TogetherPage({ chatId, bookId }) {
 
   const [text, setText] = useState(() => book.peekText(bookId));
   const [busy, setBusy] = useState(false);
-  const [noting, setNoting] = useState(false);
+  const [aheading, setAheading] = useState(false);
   const [toc, setToc] = useState(false);
   const [open, setOpen] = useState(false);       // 她说的话默认收着
   const bodyRef = useRef(null);
   const started = useRef(false);
-  const auto = useRef(null);
 
   useEffect(() => {
     let alive = true;
@@ -45,8 +43,6 @@ export function TogetherPage({ chatId, bookId }) {
   }, [chatId, bookId, !!row, !!chat]);
 
   useEffect(() => { read.back(); }, []);
-
-  useEffect(() => () => clearTimeout(auto.current), []);
 
   if (!row || !chat || !char) {
     return html`<${Page} title="一起读" onBack=${nav.pop}>
@@ -77,27 +73,11 @@ export function TogetherPage({ chatId, bookId }) {
     finally { setBusy(false); }
   };
 
-  // 预读批注。一次把后面几页交给她，按页标出想说的话 —— 比一页一调省得多。
-  const makeNotes = async () => {
-    if (noting || !ai.isConfigured()) return;
-    setNoting(true);
-    try {
-      const r = await notesTask.generate({ chatId, bookId, at });
-      toast(r.added ? `批了 ${r.pages} 页，留下 ${r.added} 处` : `批了 ${r.pages} 页，这几页她没有话说`,
-        r.added ? 'ok' : 'plain', 4000);
-    } catch (err) { toast(String(err.message || err), 'error', 5000); }
-    finally { setNoting(false); }
-  };
-
   const turn = to => {
     const next = Math.max(0, Math.min(text.length - 1, to));
     read.setAt(next);
     if (bodyRef.current) bodyRef.current.scrollTop = 0;
-    // 自动预读：翻到还没批过的地方就批一批。默认关着（第 15 条）
-    if (db.settings.get().readNotesAuto && next > readnotes.coveredTo(chatId, bookId)) {
-      clearTimeout(auto.current);
-      auto.current = setTimeout(makeNotes, 400);
-    } else if (read.due()) speak();
+    if (read.due()) speak();
   };
 
   const finish = async () => {
@@ -113,8 +93,8 @@ export function TogetherPage({ chatId, bookId }) {
     <${Page} title=${`和 ${char.name} 一起读`} onBack=${nav.pop} noScroll
       right=${html`
         <div class="nav-acts">
-          <${IconButton} name=${noting ? 'clock' : 'notes'} label="预读批注"
-            onClick=${makeNotes}/>
+          <${IconButton} name="notes" label="让角色先读"
+            onClick=${() => setAheading(true)}/>
           <button class="nav-text press" onClick=${finish}>结束</button>
         </div>`}>
       <div class="rd">
@@ -123,6 +103,8 @@ export function TogetherPage({ chatId, bookId }) {
           <${Paragraphs} bookId=${bookId} text=${text} at=${at} span=${PAGE}
             onOpen=${to => nav.push(`/para/${bookId}/${to}`)}/>
         </div>
+
+        <${ReadAheadWatch} bookId=${bookId} at=${at} span=${PAGE}/>
 
         ${said.length ? html`
           <div class=${`rd-say${open ? '' : ' is-folded'}`}>
@@ -149,6 +131,9 @@ export function TogetherPage({ chatId, bookId }) {
             onClick=${() => turn(at + PAGE)}><${Icon} name="chevronRight" size=${19}/></button>
         </div>
       </div>
+
+      <${ReadAheadSheet} open=${aheading} bookId=${bookId} from=${at}
+        onClose=${() => setAheading(false)}/>
 
       <${Sheet} open=${toc} onClose=${() => setToc(false)} title="目录" height="76%">
         <${List} inset=${false}>

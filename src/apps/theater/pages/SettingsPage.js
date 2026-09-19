@@ -111,21 +111,19 @@ export function SettingsPage() {
             <br/>书目接口只查询书名、作者与封面，不提供书的文件。书需要你自己导入。
           </div>` : null}` : null}
 
-      <div class="list-title">预读批注</div>
-      <${List}>
-        <${ListItem} title="翻到没批过的地方自动批" multiline
-          subtitle=${'一起读时把后面若干页一并交给角色，由它标出想说的话；'
-            + '读到那一页时正文下方出现一行标记，点开才显示。'
-            + '开启后每翻到未批注的页面会多调用一次接口。关闭后可在阅读页右上角手动批注。'}
-          right=${html`<${Switch} checked=${s.readNotesAuto === true}
-            onChange=${v => set({ readNotesAuto: v })}/>`}/>
-      <//>
+      <div class="list-title">让角色先读</div>
       <div class="pad-x pad-b">
-        <${Field} label="一次批几页"
-          desc="每次批注覆盖的页数。页数越多单次请求越长，但整本书需要的请求次数越少。
-            填 0 表示一次批到书末。">
-          <${NumberInput} value=${s.readNotesPages} unit="页" placeholder="批到书末"
-            onChange=${v => set({ readNotesPages: v })}/>
+        <${Field} label="一次注入多少字"
+          desc="每次交给角色阅读的字数。无论多少字都只调用一次接口，
+            字数越多单次请求越长。填 0 表示一次读到书末。">
+          <${NumberInput} value=${s.injectChars} unit="字" placeholder="读到书末"
+            onChange=${v => set({ injectChars: v })}/>
+        <//>
+        <${Field} label="最多自动续读几次"
+          desc="在弹窗中选择「一直继续」之后，最多再自动读几次，每次一次调用。
+            达到上限后会重新询问，不会一直读下去。填 0 表示从不自动续读，每次都询问。">
+          <${NumberInput} value=${s.injectMaxRuns} unit="次" placeholder="从不自动"
+            onChange=${v => set({ injectMaxRuns: v })}/>
         <//>
       </div>
 

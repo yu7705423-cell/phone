@@ -5,6 +5,7 @@ import { Page, List, ListItem, Icon, IconButton, Button, Sheet, Spinner,
 import { ReaderSettings } from './ReaderSettings.js';
 import { ExcerptSheet } from './ExcerptSheet.js';
 import { Paragraphs } from './Para.js';
+import { ReadAheadSheet, ReadAheadWatch } from './ReadAhead.js';
 
 const { db, nav, book, review, reader } = phone;
 
@@ -26,6 +27,7 @@ export function ReadPage({ bookId }) {
   const [toc, setToc] = useState(false);
   const [cfgOpen, setCfgOpen] = useState(false);
   const [excerpting, setExcerpting] = useState(false);
+  const [aheading, setAheading] = useState(false);
   const [anim, setAnim] = useState('');
   const [bare, setBare] = useState(false);     // 全屏时把顶栏收起来
   const bodyRef = useRef(null);
@@ -102,6 +104,7 @@ export function ReadPage({ bookId }) {
     onBack: nav.pop,
     right: html`
       <div class="nav-acts">
+        <${IconButton} name="users" label="让角色先读" onClick=${() => setAheading(true)}/>
         <${IconButton} name="notes" label="书摘" onClick=${() => setExcerpting(true)}/>
         <${IconButton} name="settings" label="阅读设置" onClick=${() => setCfgOpen(true)}/>
         <button class="nav-text press" onClick=${() => setToc(true)}>目录</button>
@@ -119,6 +122,8 @@ export function ReadPage({ bookId }) {
               onOpen=${to => nav.push(`/para/${bookId}/${to}`)}/>
           </div>
         </div>
+
+        ${immersive ? null : html`<${ReadAheadWatch} bookId=${bookId} at=${at} span=${PAGE}/>`}
 
         ${immersive ? null : html`
           <div class="rd-bar">
@@ -149,6 +154,8 @@ export function ReadPage({ bookId }) {
       <${ReaderSettings} open=${cfgOpen} onClose=${() => setCfgOpen(false)}/>
       <${ExcerptSheet} open=${excerpting} bookId=${bookId} at=${at}
         onClose=${() => setExcerpting(false)}/>
+      <${ReadAheadSheet} open=${aheading} bookId=${bookId} from=${at}
+        onClose=${() => setAheading(false)}/>
     <//>`;
 }
 
