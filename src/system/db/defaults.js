@@ -178,7 +178,7 @@ export const DEFAULT_PERSONA = {
 };
 
 // 主界面默认版式: 顶部横条,其下四个 app 与一个方形并列,左右交替。
-// 还没有对应 app 的位置一律用 placeholder 占住,保证版式从第一天就是完整的。
+// 摆的全是真 app —— 占位应用已经删掉了。没摆上的那几个由 heal() 自己找空位。
 export const DEFAULT_LAYOUT = {
   pages: [
     {
@@ -188,20 +188,20 @@ export const DEFAULT_LAYOUT = {
         { id: 'c2',  kind: 'app',    ref: 'lorebook',      x: 0, y: 2, w: 1, h: 1 },
         { id: 'c3',  kind: 'app',    ref: 'memory',        x: 1, y: 2, w: 1, h: 1 },
         { id: 'c4',  kind: 'widget', ref: 'recent-chats',  x: 2, y: 2, w: 2, h: 2 },
-        { id: 'c5',  kind: 'app',    ref: 'stub-photos',   x: 0, y: 3, w: 1, h: 1 },
+        { id: 'c5',  kind: 'app',    ref: 'contact',       x: 0, y: 3, w: 1, h: 1 },
         { id: 'c6',  kind: 'app',    ref: 'music',         x: 1, y: 3, w: 1, h: 1 },
         { id: 'c7',  kind: 'widget', ref: 'moments-peek',  x: 0, y: 4, w: 2, h: 2 },
-        { id: 'c8',  kind: 'app',    ref: 'stub-calendar', x: 2, y: 4, w: 1, h: 1 },
-        { id: 'c9',  kind: 'app',    ref: 'stub-weather',  x: 3, y: 4, w: 1, h: 1 },
-        { id: 'c10', kind: 'app',    ref: 'stub-clock',    x: 2, y: 5, w: 1, h: 1 },
-        { id: 'c11', kind: 'app',    ref: 'stub-notes',    x: 3, y: 5, w: 1, h: 1 },
+        { id: 'c8',  kind: 'app',    ref: 'theater',       x: 2, y: 4, w: 1, h: 1 },
+        { id: 'c9',  kind: 'app',    ref: 'health',        x: 3, y: 4, w: 1, h: 1 },
+        { id: 'c10', kind: 'app',    ref: 'daily',         x: 2, y: 5, w: 1, h: 1 },
+        { id: 'c11', kind: 'app',    ref: 'bill',          x: 3, y: 5, w: 1, h: 1 },
       ],
     },
     {
       id: 'p2',
       cells: [
-        { id: 'd1', kind: 'app', ref: 'stub-mail', x: 0, y: 0, w: 1, h: 1 },
-        { id: 'd2', kind: 'app', ref: 'stub-map',  x: 1, y: 0, w: 1, h: 1 },
+        { id: 'd1', kind: 'app', ref: 'space',  x: 0, y: 0, w: 1, h: 1 },
+        { id: 'd2', kind: 'widget', ref: 'health', x: 0, y: 1, w: 2, h: 1 },
         { id: 'd3', kind: 'widget', ref: 'clock',  x: 2, y: 0, w: 2, h: 1 },
       ],
     },

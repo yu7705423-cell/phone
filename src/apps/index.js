@@ -12,8 +12,8 @@ import { manifest as bill } from './bill/manifest.js';
 import { manifest as theater } from './theater/manifest.js';
 import { manifest as healthApp } from './health/manifest.js';
 import { manifest as settingsApp } from './settings/manifest.js';
-import { stubManifests } from './stub/manifests.js';
 
 export function registerApps() {
-  [chat, contact, lorebook, memory, space, daily, music, bill, theater, healthApp, settingsApp, ...stubManifests].forEach(registerApp);
+  [chat, contact, lorebook, memory, space, daily, music, bill, theater,
+    healthApp, settingsApp].forEach(registerApp);
 }
