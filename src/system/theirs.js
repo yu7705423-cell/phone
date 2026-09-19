@@ -121,9 +121,40 @@ export const removeVisit = (charId, i) => set(charId, {
 
 // ---- 那台手机里的会话 ----
 //
-// phoneChats 这个域已经建好、也登记进备份了，但**存取函数等聊天那一块再写**：
-// 写了没人调的函数会一直躺在那里，直到某次改坏了都没人知道（doctor 的「死导出」
-// 拦的就是这个）。
+// 一条会话一行，消息内嵌。**分两步生成**：先生成「和谁在聊、最后一句是什么」
+// 这份列表，点进某一条才生成那一段对话 —— 一次把十条会话的正文都要回来，
+// 模型多半写到第三条就收尾了。
+
+export const chatsOf = charId => phoneChats.byIndex(charId)
+  .sort((a, b) => (b.lastAt || 0) - (a.lastAt || 0));
+
+export const chat = id => phoneChats.get(id);
+
+export function addChat(charId, { npcId = '', name, preview = '', lastAt = Date.now() }) {
+  const n = cap(name, 40);
+  if (!n) return null;
+  return phoneChats.create({
+    charId, npcId: npcId || '', name: n, preview: cap(preview, 80),
+    lines: [], lastAt, filled: false,
+  });
+}
+
+/** 这台手机上已经有谁了。生成列表时发过去，让它别重复。 */
+export const chatNames = charId => chatsOf(charId).map(c => c.name);
+
+/**
+ * 把一条会话的正文填上。「进去之后再生成」落在这儿。
+ * from 只认两种：char 是这台手机的主人，other 是对面。
+ */
+export const fillChat = (id, lines) => phoneChats.update(id, {
+  lines: (lines || []).map(l => ({
+    from: l.from === 'char' ? 'char' : 'other',
+    text: cap(l.text, 300),
+  })).filter(l => l.text),
+  filled: true,
+});
+
+export const removeChat = id => phoneChats.remove(id);
 
 /** 这个角色那台手机整台清掉。 */
 export function wipe(charId) {

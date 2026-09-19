@@ -16,10 +16,10 @@ const { db, nav, theirs, ai } = phone;
 // 条数由用户填，不设上限（第 13 条）。再生成一次是**往后加**，不是重掷 ——
 // 抹掉的话上一次里合意的那几条也跟着没了。
 
-const COUNTS = { notes: 6, visits: 10 };
+const COUNTS = { chats: 6, notes: 6, visits: 10 };
 
-const stateOf = (charId, id) => (id === 'notes'
-  ? theirs.notesOf(charId).length
+const stateOf = (charId, id) => (id === 'chats' ? theirs.chatsOf(charId).length
+  : id === 'notes' ? theirs.notesOf(charId).length
   : theirs.visitsOf(charId).length);
 
 export function MakePage({ charId }) {
@@ -77,7 +77,9 @@ export function MakePage({ charId }) {
         ${ai.phone.MAKERS.map(m => html`
           <${ListItem} key=${m.id} title=${m.label} multiline
             subtitle=${`已有 ${stateOf(charId, m.id)} ${m.unit}`}
-            left=${html`<${Icon} name=${m.id === 'notes' ? 'notes' : 'search'} size=${18}/>`}
+            left=${html`<${Icon}
+              name=${m.id === 'chats' ? 'message' : m.id === 'notes' ? 'notes' : 'search'}
+              size=${18}/>`}
             right=${html`
               <${Button} size="sm" variant="ghost" disabled=${!!busy}
                 onClick=${() => runOne(m)}>
@@ -88,7 +90,10 @@ export function MakePage({ charId }) {
       <div class="pad-x">
         ${ai.phone.MAKERS.map(m => html`
           <${Field} key=${m.id} label=${`${m.label}每次生成多少`}
-            desc=${m.id === 'notes'
+            desc=${m.id === 'chats'
+              ? '不设上限。这一步只生成「和谁在聊、最后一句是什么」，'
+                + '每段对话的正文在点进那一条时单独生成。'
+              : m.id === 'notes'
               ? '不设上限。数量越多，这一次请求越长，也越可能写不完。'
               : '不设上限。'}>
             <${Input} type="number" inputmode="numeric" value=${counts[m.id]}

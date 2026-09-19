@@ -24,6 +24,8 @@ export function HomePage({ charId }) {
   useStore(db.health.store);
   useStore(db.days.store);
   useStore(db.phones.store);
+  useStore(db.phoneChats.store);
+  useStore(db.chats.store);
 
   const char = db.characters.get(charId);
   if (!char) {
@@ -34,6 +36,9 @@ export function HomePage({ charId }) {
   const books = shelf.listOf(charId);
   const notes = theirs.notesOf(charId);
   const visits = theirs.visitsOf(charId);
+  const talks = theirs.chatsOf(charId);
+  // 和用户的那几段是真的，它们也该出现在这台手机的聊天里
+  const withYou = db.chats.all().filter(c => (c.characterIds || []).includes(charId)).length;
   const d = day.today(charId);
   const body = health.dayOf(charId);
   const bodyOn = health.charOn(charId);
@@ -53,6 +58,10 @@ export function HomePage({ charId }) {
       id: 'day', icon: 'calendar', label: '今天',
       sub: d ? `${(d.items || []).length} 项安排` : '今天还没有安排',
       to: `/day/${charId}`,
+    },
+    (talks.length || withYou) && {
+      id: 'chats', icon: 'message', label: '聊天',
+      sub: `${talks.length + withYou} 条会话`, to: `/chats/${charId}`,
     },
     notes.length && {
       id: 'notes', icon: 'notes', label: '备忘录',

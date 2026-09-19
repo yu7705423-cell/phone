@@ -25,7 +25,7 @@ const ROUTES = {
   daily: ['/', '/gen', '/cell/env/good', '/cell/social/bad', '/cell/luck/plain',
     '/today', '/today/:char', '/food', '/food/', '/food/%E6%88%90%E9%83%BD'],
   theirs: ['/', '/home/:char', '/shelf/:char', '/body/:char', '/day/:char',
-    '/notes/:char', '/browser/:char', '/make/:char',
+    '/notes/:char', '/browser/:char', '/chats/:char', '/make/:char', '/chat/nope',
     '/lock/:char', '/lock/nope', '/make/nope',
     '/home/nope', '/shelf/nope', '/body/nope', '/day/nope'],
   music: ['/', '/library', '/list/1'],

@@ -9,6 +9,8 @@ import { DayPage } from './pages/DayPage.js';
 import { NotesPage } from './pages/NotesPage.js';
 import { BrowserPage } from './pages/BrowserPage.js';
 import { MakePage } from './pages/MakePage.js';
+import { ChatsPage } from './pages/ChatsPage.js';
+import { ChatPage } from './pages/ChatPage.js';
 
 // 角色手机。**拿起角色那台手机看一眼。**
 //
@@ -43,14 +45,23 @@ function Guard({ charId, children }) {
 }
 
 export default function TheirsApp({ route }) {
-  const m = String(route || '/').match(/^\/(home|shelf|body|day|notes|browser|make|lock)\/(.+)$/);
+  // 一段会话按它自己的 id 走，不是按角色 id —— 所以单独一条分支。
+  // 锁屏由 Guard 挡：那条会话属于哪台手机，问它自己
+  const one = String(route || '').match(/^\/chat\/(.+)$/);
+  if (one) {
+    const row = phone.theirs.chat(one[1]);
+    if (!row) return html`<${ChatPage} chatId=${one[1]}/>`;
+    return html`<${Guard} charId=${row.charId}><${ChatPage} chatId=${one[1]}/><//>`;
+  }
+
+  const m = String(route || '/').match(/^\/(home|shelf|body|day|notes|browser|chats|make|lock)\/(.+)$/);
   if (m) {
     const [, page, charId] = m;
     // 锁屏本身单独一条路由：主屏上的「锁上」按它回到这儿
     if (page === 'lock') return html`<${LockPage} charId=${charId}/>`;
     const PAGES = {
       home: HomePage, shelf: ShelfPage, body: BodyPage, day: DayPage,
-      notes: NotesPage, browser: BrowserPage, make: MakePage,
+      notes: NotesPage, browser: BrowserPage, make: MakePage, chats: ChatsPage,
     };
     const Inner = PAGES[page] || HomePage;
     return html`<${Guard} charId=${charId}><${Inner} charId=${charId}/><//>`;

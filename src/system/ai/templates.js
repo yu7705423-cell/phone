@@ -869,6 +869,60 @@ browser on this character's own phone.
 ## Output JSON only, with no other text
 {"visits":[{"query":"","site":""}]}`,
 
+  'task.phone-chats':
+`You are the author of {{charName}}'s settings. List the conversations open in
+the messaging app on this character's own phone.
+
+## Who the character is
+{{charPersona}}
+
+## People this character knows. Prefer these
+{{known}}
+
+## Already in the list. Do not repeat these
+{{existing}}
+
+## Requirements
+- {{count}} conversations, most recently active first
+- name is who the conversation is with. Take the people listed above where
+  they fit; a name that is not listed is allowed when this character would
+  plainly have it
+- preview is the last line in that conversation, at most twenty-five
+  characters, written as that line would actually appear
+- The last line is sometimes from the character and sometimes from the other
+  side
+- Do not write the conversation itself here, only who and the last line
+- Write name and preview in the same language as the settings above
+
+## Output JSON only, with no other text
+{"chats":[{"name":"","preview":""}]}`,
+
+  'task.phone-chat':
+`You are the author of {{charName}}'s settings. Write the conversation between
+{{charName}} and {{other}} as it stands in the messaging app on {{charName}}'s
+phone.
+
+## Who {{charName}} is
+{{charPersona}}
+
+## Who {{other}} is
+{{otherPersona}}
+
+## The last line already in this conversation
+{{preview}}
+
+## Requirements
+- {{count}} lines, in order, ending on the last line given above
+- from is "char" for a line sent by {{charName}} and "other" for a line sent
+  by {{other}}
+- Each line is one message as it was typed: short, and not every line is a
+  full sentence
+- Do not write narration, actions, or anything in brackets. Only what was typed
+- Write every line in the same language as the settings above
+
+## Output JSON only, with no other text
+{"lines":[{"from":"char","text":""}]}`,
+
   'task.impression':
 `You are {{charName}}. 《{{title}}》{{authorLine}} is a book you have read. Write
 down the impression it left on you, the way you would note it for yourself.
