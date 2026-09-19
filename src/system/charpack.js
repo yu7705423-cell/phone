@@ -3,6 +3,7 @@ import { DATA_VERSION } from './db/schema.js';
 import * as accounts from './accounts.js';
 import { uid } from './store.js';
 import { zip, unzip, verify } from './zip.js';
+import { packRow, unpackRow } from './typed.js';
 
 // 单个角色的打包与安装。
 //
@@ -80,7 +81,8 @@ export async function build(charId, { history = true, onProgress } = {}) {
     character: g.main,
     alts: g.cast.slice(1),
     lorebooks: g.books,
-    memories: g.memories,
+    // 记忆身上那个向量是 Float32Array，直接进 JSON 会烂掉，见 system/typed.js
+    memories: g.memories.map(m => packRow('memories', m)),
     chats: g.chats,
     messages: g.messages,
   };
@@ -201,7 +203,8 @@ export async function install(pack) {
   });
 
   // 记忆。同一个角色的记忆各身份分开存，这里一律归到当前账号名下
-  (data.memories || []).forEach(m => {
+  (data.memories || []).forEach(raw => {
+    const m = unpackRow('memories', raw);
     const id = (copied || memories.has(m.id)) ? uid('mem') : m.id;
     memories.put({ ...m, id, charId: remap(m.charId), personaId: me });
   });

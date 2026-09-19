@@ -4,6 +4,7 @@ import { idb } from './db/idb.js';
 import { images } from './db/images.js';
 import { files } from './db/files.js';
 import { zip, unzip, verify } from './zip.js';
+import { packRow, unpackRow } from './typed.js';
 
 // 备份。
 //
@@ -72,7 +73,10 @@ export async function build({ media = true, onProgress } = {}) {
     settings: { ...db.settings.get(), services: undefined, apiKey: '' },
     layout: db.layout.get(),
   };
-  COLLECTIONS.forEach(name => { data[name] = db[name]?.all?.() || []; });
+  // Float32Array 进 JSON 之前要换个写法，见 system/typed.js
+  COLLECTIONS.forEach(name => {
+    data[name] = (db[name]?.all?.() || []).map(row => packRow(name, row));
+  });
 
   // 只要 JSON 的那一档就给一份真的 JSON。从前两档都打成 ZIP，而界面按
   // media 把文件名写成 .json，再导回去按扩展名解析直接炸在第一个字符。
@@ -150,7 +154,7 @@ export async function restore(file, { onProgress } = {}) {
   for (const name of COLLECTIONS) {
     if (!db[name]) { step(); continue; }
     await db[name].clear();
-    (data[name] || []).forEach(row => db[name].put(row));
+    (data[name] || []).forEach(row => db[name].put(unpackRow(name, row)));
     step();
   }
 
