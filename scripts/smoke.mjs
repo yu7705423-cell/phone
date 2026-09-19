@@ -13,7 +13,7 @@ const BASE = process.env.SMOKE_BASE || 'http://127.0.0.1:8000';
 // 每条路由都要在「有数据」的前提下打开，空库跑不出真问题
 const ROUTES = {
   chat: ['/', '/moments', '/stickers', '/context', '/time', '/templates',
-    '/chat/:chat', '/translate/:chat', '/search', '/search/:chat', '/listen/:chat', '/videos', '/watch/:chat',
+    '/chat/:chat', '/translate/:chat', '/search', '/search/:chat', '/listen/:chat',
      '/profile/:char', '/edit/:char', '/proactive/:char', '/extras/:chat', '/pace/:chat',
      '/bond/:chat'],
   contact: ['/', '/import', '/me', '/me/:persona', '/char/:char',
@@ -26,6 +26,7 @@ const ROUTES = {
     '/today', '/today/:char', '/food', '/food/', '/food/%E6%88%90%E9%83%BD'],
   music: ['/', '/library', '/list/1'],
   bill: ['/', '/books', '/accounts', '/rules'],
+  theater: ['/', '/videos', '/watch/:chat'],
   settings: ['/', '/api', '/voice', '/image', '/embed', '/notify', '/music',
     '/appearance', '/storage', '/trace', '/vision', '/asr', '/limits', '/search', '/translate', '/memoryapi'],
 };

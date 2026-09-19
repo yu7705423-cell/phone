@@ -19,8 +19,6 @@ import { StickerManager } from './pages/StickerManager.js';
 import { ProactivePage } from './pages/ProactivePage.js';
 import { SearchPage } from './pages/SearchPage.js';
 import { ListenPage } from './pages/ListenPage.js';
-import { WatchPage } from './pages/WatchPage.js';
-import { VideosPage } from './pages/VideosPage.js';
 
 const { db, nav } = phone;
 
@@ -62,10 +60,6 @@ export default function ChatApp({ route }) {
 
   const lis = route?.match(/^\/listen\/(.+)$/);
   if (lis) return html`<${ListenPage} chatId=${lis[1]}/>`;
-
-  if (route === '/videos') return html`<${VideosPage}/>`;
-  const wat = route?.match(/^\/watch\/(.+)$/);
-  if (wat) return html`<${WatchPage} chatId=${wat[1]}/>`;
 
   const search = route?.match(/^\/search(?:\/(.+))?$/);
   if (search) return html`<${SearchPage} chatId=${search[1] || ''}/>`;

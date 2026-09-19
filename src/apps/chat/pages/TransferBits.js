@@ -214,9 +214,9 @@ export function WatchBar({ chatId }) {
   return html`
     <div class="listen-bar">
       <button class="listen-key press" aria-label="回到播放页"
-        onClick=${() => phone.nav.push(`/watch/${chatId}`)}>
+        onClick=${() => phone.intent.open('theater', { route: `/watch/${chatId}` })}>
         <${Icon} name="film" size=${16}/></button>
-      <div class="listen-main" onClick=${() => phone.nav.push(`/watch/${chatId}`)}>
+      <div class="listen-main" onClick=${() => phone.intent.open('theater', { route: `/watch/${chatId}` })}>
         <div class="listen-title ellipsis">${row?.title || '一起看'}</div>
         <div class="listen-sub ellipsis">
           ${s.awayAt ? '已暂停，点此回到播放页' : `看到 ${subtitle.stamp(s.at)}`}
