@@ -4,6 +4,7 @@ import { Page, List, ListItem, Icon, IconButton, Button, Sheet, Spinner,
          EmptyState, toast } from '../../../ui/index.js';
 import { ReaderSettings } from './ReaderSettings.js';
 import { ExcerptSheet } from './ExcerptSheet.js';
+import { Paragraphs } from './Para.js';
 
 const { db, nav, book, review, reader } = phone;
 
@@ -114,8 +115,8 @@ export function ReadPage({ bookId }) {
         <div class="rd-tap" onClick=${onTap}>
           <div class=${`rd-body scroll ${anim}`} ref=${bodyRef}>
             ${chapter ? html`<div class="rd-chapter">${chapter.title}</div>` : null}
-            ${page.split('\n').filter(l => l.trim()).map((p, i) => html`
-              <p key=${i} class="rd-p">${p}</p>`)}
+            <${Paragraphs} bookId=${bookId} text=${text} at=${at} span=${PAGE}
+              onOpen=${to => nav.push(`/para/${bookId}/${to}`)}/>
           </div>
         </div>
 

@@ -1,6 +1,7 @@
 import { html, useState, useEffect, useRef } from '../../../lib.js';
 import { phone, useStore } from '../../../sdk/index.js';
 import { Page, List, ListItem, Icon, IconButton, Sheet, Spinner, EmptyState, toast, confirm } from '../../../ui/index.js';
+import { Paragraphs } from './Para.js';
 
 const { db, nav, book, read, ai, readnotes } = phone;
 const notesTask = ai.readNotes;
@@ -24,7 +25,6 @@ export function TogetherPage({ chatId, bookId }) {
   const [noting, setNoting] = useState(false);
   const [toc, setToc] = useState(false);
   const [open, setOpen] = useState(false);       // 她说的话默认收着
-  const [shown, setShown] = useState(() => new Set());
   const bodyRef = useRef(null);
   const started = useRef(false);
   const auto = useRef(null);
@@ -106,9 +106,6 @@ export function TogetherPage({ chatId, bookId }) {
     nav.pop();
   };
 
-  // 这一页上她留下的批注。空文本那种是用来记「批到哪儿」的，不显示
-  const marks = readnotes.inPage(chatId, bookId, at, PAGE).filter(n => n.text);
-
   // 她刚说的那几句
   const said = db.messagesOf(chatId).filter(m => m.role === 'char' && m.kind === 'text').slice(-2);
 
@@ -123,25 +120,9 @@ export function TogetherPage({ chatId, bookId }) {
       <div class="rd">
         <div class="rd-body scroll" ref=${bodyRef}>
           ${chapter ? html`<div class="rd-chapter">${chapter.title}</div>` : null}
-          ${page.split('\n').filter(l => l.trim()).map((p, i) => html`
-            <p key=${i} class="rd-p">${p}</p>`)}
+          <${Paragraphs} bookId=${bookId} text=${text} at=${at} span=${PAGE}
+            onOpen=${to => nav.push(`/para/${bookId}/${to}`)}/>
         </div>
-
-        ${marks.length ? html`
-          <div class="rd-marks">
-            ${marks.map(n => (shown.has(n.id) ? html`
-              <div key=${n.id} class="rd-mark-open">
-                <div class="rd-say-who">${char.name}</div>
-                <div class="rd-say-line">${n.text}</div>
-              </div>`
-            : html`
-              <button key=${n.id} class="rd-mark press"
-                onClick=${() => { readnotes.markSeen(n.id); setShown(v => new Set(v).add(n.id)); }}>
-                <span class="rd-mark-rule"></span>
-                <span class="rd-mark-hint">${char.name}在这一页留了一句</span>
-                <span class="rd-mark-rule"></span>
-              </button>`))}
-          </div>` : null}
 
         ${said.length ? html`
           <div class=${`rd-say${open ? '' : ' is-folded'}`}>

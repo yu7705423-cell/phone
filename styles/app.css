@@ -1554,19 +1554,31 @@ button.search-bar { width: 100%; border: none; }
   color: var(--text-2); line-height: 1.6;
 }
 
-/* ---- 一起读：预读批注的标记 ----
-   正文下面一行浅浅的横线，点开才是她的话。不点就只是一条线，不打断阅读。 */
-.rd-marks { flex: none; padding: 0 var(--sp-5) var(--sp-3); }
-.rd-mark {
-  display: flex; align-items: center; gap: var(--sp-3);
-  width: 100%; padding: var(--sp-2) 0; background: none; border: 0;
+/* ---- 段评 ----
+   每一段正文旁边一个小气泡。有评论显示条数，没有就是个淡的，点开是那一段的评论页。
+   气泡占一条固定窄列，不压在正文上，也不让正文每段宽度不一。 */
+.rd-para { display: flex; align-items: flex-start; gap: var(--sp-2); }
+.rd-para > .rd-p { flex: 1; min-width: 0; }
+.rd-dot {
+  flex: none; width: 22px; height: 22px; margin-top: .5em;
+  display: flex; align-items: center; justify-content: center;
+  border: 1px solid var(--border-2); border-radius: var(--r-full);
+  background: none; color: var(--text-3); opacity: .5;
 }
-.rd-mark-rule { flex: 1; height: 1px; background: var(--border-2); }
-.rd-mark-hint { flex: none; font-size: var(--fs-11); color: var(--text-3); }
-.rd-mark-open {
-  padding: var(--sp-3); border-radius: var(--r-sm);
-  background: var(--surface-2); border: 1px solid var(--border);
+.rd-dot.has-n {
+  opacity: 1; color: var(--surface);
+  background: var(--text); border-color: var(--text);
 }
+.rd-dot-n { font-size: 10px; font-weight: var(--fw-medium); line-height: 1; }
+
+/* 评论页顶上那一段原文 */
+.pr-passage {
+  font-family: var(--font-serif); font-size: var(--fs-16); line-height: 1.85;
+  color: var(--text); padding: var(--sp-4);
+  border-left: 2px solid var(--border-2); background: var(--surface-2);
+  border-radius: 0 var(--r-sm) var(--r-sm) 0;
+}
+.pr-from { text-align: right; }
 
 /* 她说的话默认收着，点一下才展开 */
 .rd-say-head {

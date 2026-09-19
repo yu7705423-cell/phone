@@ -9,6 +9,7 @@ import { TogetherPage } from './pages/TogetherPage.js';
 import { SettingsPage } from './pages/SettingsPage.js';
 import { ShelfPage } from './pages/ShelfPage.js';
 import { ReviewsPage } from './pages/ReviewsPage.js';
+import { ParaPage } from './pages/ParaPage.js';
 
 const { db, nav, video, watch, book, read, shelf } = phone;
 
@@ -166,6 +167,9 @@ export default function TheaterApp({ route }) {
   if (route === '/settings') return html`<${SettingsPage}/>`;
   const sh = route?.match(/^\/shelf\/(.+)$/);
   if (sh) return html`<${ShelfPage} charId=${sh[1]}/>`;
+  const pa = route?.match(/^\/para\/([^/]+)\/(\d+)$/);
+  if (pa) return html`<${ParaPage} bookId=${pa[1]} at=${Number(pa[2])}/>`;
+
   const rv = route?.match(/^\/reviews\/(video|book)\/(.+)$/);
   if (rv) return html`<${ReviewsPage} kind=${rv[1]} subjectId=${rv[2]}/>`;
   const w = route?.match(/^\/watch\/(.+)$/);

@@ -207,6 +207,37 @@ export function chapterAt(row, at = row?.at || 0) {
   return list[0] ? { ...list[0], index: 0 } : null;
 }
 
+/**
+ * 这一页里的每一段，带上它在**全书正文**里的字符起点。
+ *
+ * 段评就挂在这个起点上 —— 和阅读进度同一套坐标，翻页、换字号、改分页大小
+ * 都不会让它对错地方。重新导入同一本书才会错位，那和进度丢失是同一回事。
+ */
+export function paragraphsOf(text, from = 0, span = 2400) {
+  const start = Math.max(0, Math.min(text.length, from));
+  const chunk = text.slice(start, Math.min(text.length, start + span));
+  const out = [];
+  let cursor = start;
+  for (const raw of chunk.split('\n')) {
+    const t = raw.trim();
+    if (t) out.push({ at: cursor + (raw.length - raw.trimStart().length), text: t });
+    cursor += raw.length + 1;      // +1 是被 split 吃掉的那个换行
+  }
+  return out;
+}
+
+/**
+ * 从这个起点开始的那一整段（到下一个换行为止）。
+ *
+ * 不要用 `paragraphsOf(text, at, 1)` 代替它 —— 那个的第三个参数是**要切多少字**，
+ * 传 1 就只切出一个字来。段评页和送进 prompt 的原文都栽在这上面过。
+ */
+export function paragraphAt(text, at) {
+  const start = Math.max(0, Math.min(text.length, at));
+  const nl = text.indexOf('\n', start);
+  return text.slice(start, nl < 0 ? text.length : nl).trim();
+}
+
 /** 从某处起的一段正文。阅读页按段取，不一次性铺一整本。 */
 export function slice(text, from, size = 2400) {
   const start = Math.max(0, Math.min(text.length, from));

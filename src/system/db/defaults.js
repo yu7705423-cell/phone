@@ -132,6 +132,11 @@ export const DEFAULT_SETTINGS = {
   readNotesAuto: false,
   readNotesPages: 6,              // 一次批几页。0 = 一直批到书末
 
+  // 段评。多人共读默认一次调用写全部；切成一人一次声音更不容易串，
+  // 代价是选几个人就是几次调用（第 13 条：把账摆出来，不替用户省）。
+  crowdSeparate: false,
+  crowdCount: 6,                  // 随机评论一次生成几条
+
   // 群聊
   groupMode: 'per-character',     // per-character | single-call
   groupSpeakersPerTurn: 2,

@@ -129,6 +129,17 @@ export function SettingsPage() {
         <//>
       </div>
 
+      <div class="list-title">段评</div>
+      <div class="pad-x pad-b">
+        <${Field} label="随机评论一次生成几条"
+          desc="每一段的评论页中，随机评论一次生成的读者条数。不设上限，
+            一次生成无论多少条都只调用一次接口。这些读者不会存入联系人。
+            多人共读的人选与生成方式，在那一段的评论页中设置。">
+          <${NumberInput} value=${s.crowdCount} unit="条" placeholder="6"
+            onChange=${v => set({ crowdCount: v })}/>
+        <//>
+      </div>
+
       <div class="list-title">影评与书评</div>
       <${List}>
         <${ListItem} title="收场时自动写一篇" multiline

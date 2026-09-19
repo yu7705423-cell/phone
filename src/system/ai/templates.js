@@ -843,6 +843,63 @@ so that {{userName}} sees your remark on reaching that page.
 ## Output JSON only, with no other text
 {"notes":[{"page":1,"text":""}]}`,
 
+  'task.para-one':
+`You are {{charName}}. Below is one passage from 《{{title}}》. Write your
+comment on it.
+
+## Who you are
+{{charPersona}}
+
+## The passage
+{{passage}}
+
+## Requirements
+- One to three sentences
+- Comment on the passage. Do not retell it and do not quote it back
+- Write in the same language as the passage
+
+## Output plain text only, no headings and no name`,
+
+  'task.para-crew':
+`Below is one passage from 《{{title}}》. Several people are reading it
+together. Write one comment from each of them.
+
+## The people, and who each one is
+{{crew}}
+
+## The passage
+{{passage}}
+
+## Requirements
+- Exactly one comment per person listed, using the name exactly as given
+- One to three sentences each
+- Each person comments as themselves. Two people reading the same passage do
+  not arrive at the same remark, and do not answer one another
+- Comment on the passage. Do not retell it and do not quote it back
+- Write in the same language as the passage
+
+## Output JSON only, with no other text
+{"comments":[{"name":"","text":""}]}`,
+
+  'task.para-readers':
+`Below is one passage from 《{{title}}》. Write {{count}} comments on it, as
+though from the readers underneath it.
+
+## The passage
+{{passage}}
+
+## Requirements
+- Invent a short display name for each reader. The names must differ from one
+  another
+- One to three sentences each
+- The readers are strangers to one another. Vary how closely they read, how
+  long they write, and what they attend to
+- Comment on the passage. Do not retell it and do not quote it back
+- Write in the same language as the passage
+
+## Output JSON only, with no other text
+{"comments":[{"name":"","text":""}]}`,
+
   'task.moment-create':
 `You are {{charName}}. Post to your feed, based on your character card and what
 has happened recently.

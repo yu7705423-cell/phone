@@ -1,6 +1,7 @@
 import { chats, characters, ebooks, settings } from '../../db/index.js';
 import * as book from '../../book.js';
 import * as notes from '../../readnotes.js';
+import * as para from '../../paracomment.js';
 import * as accounts from '../../accounts.js';
 import { fillTemplate, template } from '../templates.js';
 import { runJSONTask } from '../engine.js';
@@ -9,6 +10,9 @@ import { runJSONTask } from '../engine.js';
 //
 // 这是省调用的那条路：从前一页一次开口就是一页一次调用，
 // 现在几页合成一次。页数由用户填，不设上限（第 13 条）。
+//
+// 批出来的话落成**段评**，作者就是一起读的那个角色 —— 和多人共读、
+// 随机评论进同一个池子，在正文旁边的小气泡里一起显示。不另立一套。
 
 /** 一次批几页。0 表示一直批到书末。 */
 export function pagesOf() {
@@ -60,18 +64,20 @@ export async function generate({ chatId, bookId, at }) {
 
   const rows = Array.isArray(out?.notes) ? out.notes : [];
   const coverTo = starts[starts.length - 1] + book.PAGE - 1;
+
+  // 页号换成那一页第一段的起点 —— 评论挂在段上，不挂在页上
+  const headOf = st => book.paragraphsOf(text, st, book.PAGE)[0]?.at ?? st;
+
   const kept = rows
     .map(n => ({ page: Math.round(Number(n?.page) || 0), text: String(n?.text || '').trim() }))
     .filter(n => n.text && n.page >= 1 && n.page <= starts.length)
-    .map(n => ({ at: starts[n.page - 1], text: n.text }));
+    .map(n => ({
+      bookId, at: headOf(starts[n.page - 1]), text: n.text,
+      kind: para.CHAR, authorId: char.id, authorName: char.name,
+    }));
 
-  // 一条都没有也要记下批到哪儿了，否则下次又从同一段重批一遍
-  const saved = notes.saveMany(chatId, bookId, kept.length ? kept : [], coverTo);
-  if (!kept.length) markCovered(chatId, bookId, coverTo);
-  return { added: saved.length, pages: starts.length, coverTo };
-}
-
-// 一条批注都没出的时候，用一条空的占住位置，只为记住批到哪儿
-function markCovered(chatId, bookId, coverTo) {
+  kept.forEach(r => para.add(r));
+  // 一条都没出也要记下批到哪儿了，否则下次又从同一段重批一遍
   notes.saveMany(chatId, bookId, [{ at: coverTo, text: '' }], coverTo);
+  return { added: kept.length, pages: starts.length, coverTo };
 }

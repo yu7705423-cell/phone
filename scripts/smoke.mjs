@@ -28,7 +28,7 @@ const ROUTES = {
   bill: ['/', '/books', '/accounts', '/rules'],
   theater: ['/', '/videos', '/books', '/settings', '/watch/:chat', '/book/:ebook',
     '/read/:ebook', '/together/:chat/:ebook', '/shelf/:char',
-    '/reviews/book/:ebook', '/reviews/video/:video'],
+    '/reviews/book/:ebook', '/reviews/video/:video', '/para/:ebook/0'],
   settings: ['/', '/api', '/voice', '/image', '/embed', '/notify', '/music',
     '/appearance', '/storage', '/trace', '/vision', '/asr', '/limits', '/search', '/translate', '/memoryapi'],
 };
@@ -151,6 +151,12 @@ const ids = await page.evaluate(async () => {
   const videoMod = await import('/src/system/video.js');
   const vid = videoMod.addVideo({ title: '一部片子', url: 'https://example.com/a.mp4',
     subtitle: '1\n00:00:01,000 --> 00:00:04,000\n第一句\n' });
+  const paraMod = await import('/src/system/paracomment.js');
+  paraMod.add({ bookId: ebk.id, at: 0, text: '开头这一句写得很静。',
+    kind: paraMod.CHAR, authorId: a.id, authorName: '甲' });
+  paraMod.add({ bookId: ebk.id, at: 0, text: '我也在下雨天读的。',
+    kind: paraMod.READER, authorName: '路过的读者' });
+  paraMod.setCrew(ebk.id, [a.id]);
   db.reviews.create({ kind: 'book', subjectId: ebk.id, charId: a.id, title: '雨城旧事',
     text: '看完之后想起一件事。\n第二段。', at: 10, createdAt: Date.now() });
 
