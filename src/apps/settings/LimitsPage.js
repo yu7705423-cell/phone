@@ -97,6 +97,30 @@ export function LimitsPage() {
             onChange=${v => set({ stickerCold: v })}/>
         <//>
 
+        <${Field} label="总结记忆的输出上限"
+          desc="总结记忆时模型一次最多写多少 token。
+            数值偏小时输出会在半路截断，那一次调用仍然照付，能救回来的只有已经写完的几条。
+            填 0 表示不限，改用接口本身的上限；上限只是封顶，没有用到的部分不计费。">
+          <${NumberInput} value=${s.memoryExtractMaxTokens} unit="token" placeholder="不限"
+            onChange=${v => set({ memoryExtractMaxTokens: v })}/>
+        <//>
+
+        <${Field} label="总结时发多少条已有记忆"
+          desc="总结记忆时会把已有的记忆一并发给模型，用于去重和改写旧条目。
+            条数越多重复越少，每次请求也越长。裁剪时按等级保留，S 级与 A 级优先。
+            填 0 表示全部发送。">
+          <${NumberInput} value=${s.memoryDedupeList} unit="条" placeholder="全部"
+            onChange=${v => set({ memoryDedupeList: v })}/>
+        <//>
+
+        <${Field} label="记忆导入的分段长度"
+          desc="从文本导入记忆时，每段发送的字数。每段是一次单独的接口调用，
+            段越短调用次数越多。填 0 表示不分段，整段一次发完，调用一次。
+            分段过长时模型可能漏掉其中的内容。">
+          <${NumberInput} value=${s.memoryImportChunk} unit="字" placeholder="不分段"
+            onChange=${v => set({ memoryImportChunk: v })}/>
+        <//>
+
         <${Field} label="批量生成时发多少条已有词条"
           desc="批量生成随机事件时，会把该格已有的词条一并发给模型以避免重复。
             条数越多重复越少，每次请求也越长。填 0 表示全部发送。

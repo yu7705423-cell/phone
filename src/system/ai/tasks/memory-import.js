@@ -1,4 +1,4 @@
-import { memories } from '../../db/index.js';
+import { memories, settings } from '../../db/index.js';
 import { template, runJSONTask } from '../engine.js';
 import { fillTemplate } from '../templates.js';
 import { listFor, CATEGORIES, RANKS } from '../context/memory.js';
@@ -10,10 +10,21 @@ import * as accounts from '../../accounts.js';
 // 注意：拆分靠的是聊天模型，不是向量接口 —— 向量接口只负责把文字变成向量。
 // 存进去之后 touchVec 会自动排队补向量。
 
-const CHUNK = 2400;      // 一次喂给模型的字数。太长模型会偷懒漏东西
+// 一次喂给模型的字数。切得越碎调用次数越多 —— 这是个默认值，不是上限：
+// 在「设置 - 用量与上限」里可以改大，也可以填 0 表示不切，整段一次发完。
+const CHUNK = 6000;
+
+export const chunkSize = () => {
+  const v = Number(settings.get().memoryImportChunk);
+  if (v === 0) return Infinity;          // 不切
+  return Number.isFinite(v) && v > 0 ? Math.round(v) : CHUNK;
+};
+
+/** 这一段会切成几块，也就是会调用几次接口。界面上要先把账摆出来。 */
+export const callsFor = text => chunk(text).length;
 
 // 按空行切段，再攒到接近 CHUNK 为止。不在句子中间硬切。
-export function chunk(text, size = CHUNK) {
+export function chunk(text, size = chunkSize()) {
   const paras = String(text || '').split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
   const out = [];
   let buf = '';

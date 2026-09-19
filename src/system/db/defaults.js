@@ -115,6 +115,11 @@ export const DEFAULT_SETTINGS = {
   memoryTopK: 12,                 // 语义检索取前几条
   memoryThreshold: 0.22,          // 相似度低于这个就不要了
   autoSummarizeInterval: 0,       // 0 = 关闭
+  // 总结记忆的输出上限。太小会把 JSON 截断，截断的那一份仍然照付，
+  // 所以默认不限 —— max_tokens 只是上限，没用到的部分不计费。
+  memoryExtractMaxTokens: 0,      // 0 = 不限
+  memoryDedupeList: 0,            // 总结时发多少条已有记忆过去，0 = 全部
+  memoryImportChunk: 6000,        // 记忆导入一次喂多少字，0 = 不切，一次发完
 
   // 群聊
   groupMode: 'per-character',     // per-character | single-call

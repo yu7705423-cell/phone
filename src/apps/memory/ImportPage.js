@@ -21,6 +21,8 @@ export function ImportPage() {
 
   const chars = db.characters.all();
   const owners = chars.map(c => ({ value: c.id, label: c.name }));
+  // 按下之前先把账摆出来：这一段会切成几块，就是几次调用
+  const calls = raw.trim() ? imp.callsFor(raw) : 0;
 
 
   const run = async () => {
@@ -92,14 +94,21 @@ export function ImportPage() {
               </div>` : html`<div class="li-hint">还没有角色，先去「联系」里建一个</div>`}
           <//>
           <${Field} label="粘贴内容"
-            desc="支持粘贴设定、经历、笔记等任意文本。长文将自动分段处理。">
+            desc=${`支持粘贴设定、经历、笔记等任意文本。超过 ${imp.chunkSize()} 字会分段发送，`
+              + '每段是一次单独的接口调用。分段长度可在「设置 - 用量与上限」中调整，'
+              + '填 0 表示整段一次发完。'}>
             <${Textarea} rows=${12} value=${raw} onInput=${setRaw}
               placeholder="在此粘贴文本"/>
           <//>
+          ${raw.trim() ? html`
+            <div class="hint-box">
+              当前 ${raw.trim().length} 字，将分 ${calls} 段发送，共调用 ${calls} 次接口。
+            </div>` : null}
         </div>
         <div class="pad">
           <${Button} full disabled=${busy || !raw.trim()} onClick=${run}>
-            ${busy ? html`<${Spinner} size=${15}/> 正在拆 ${prog || ''}` : '开始整理'}
+            ${busy ? html`<${Spinner} size=${15}/> 正在拆 ${prog || ''}`
+              : `开始整理（${calls} 次调用）`}
           <//>
         </div>
         <div class="settings-foot">

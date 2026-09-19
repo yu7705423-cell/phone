@@ -1,6 +1,6 @@
 import { touch as touchVec } from '../memvec.js';
 import { memories, chats, characters, settings, messagesOf } from '../../db/index.js';
-import { template, runJSONTask } from '../engine.js';
+import { template, runJSONTask, MAX_OUTPUT } from '../engine.js';
 import { fillTemplate } from '../templates.js';
 import { listFor, CATEGORIES, RANKS } from '../context/memory.js';
 import { uid } from '../../store.js';
@@ -30,8 +30,15 @@ export async function extract(chatId) {
     return `${who}：${m.content}`;
   }).join('\n');
 
-  const existingText = existing.length
-    ? existing.map(m => `(id:${m.id}) [${m.rank}/${m.category}] ${m.content}`).join('\n')
+  // 发多少条已有记忆过去。它只用来去重和认 updateId，不必每次全发。
+  // 0 为全部。裁的时候按等级留，S/A 先留住 —— 会被改写的多半是它们。
+  const keepN = Math.max(0, Math.round(Number(settings.get().memoryDedupeList) || 0));
+  const byRank = { S: 0, A: 1, B: 2, C: 3 };
+  const sent = keepN
+    ? existing.slice().sort((a, b) => (byRank[a.rank] ?? 9) - (byRank[b.rank] ?? 9)).slice(0, keepN)
+    : existing;
+  const existingText = sent.length
+    ? sent.map(m => `(id:${m.id}) [${m.rank}/${m.category}] ${m.content}`).join('\n')
     : '(no existing memories)';
 
   const system = fillTemplate(template('task.memory-extract'), {
@@ -41,8 +48,11 @@ export async function extract(chatId) {
 
   let result;
   try {
+    // 从前这里写死 1600。对话一长、记忆一多，JSON 就在半路断掉，
+    // parseJSON 拿不到东西，整次总结失败 —— 而那一次是照付的。
+    const cap = Math.max(0, Math.round(Number(settings.get().memoryExtractMaxTokens) || 0));
     result = await runJSONTask('memory.extract', {
-      system, key: `memory-extract:${chatId}`, maxTokens: 1600,
+      system, key: `memory-extract:${chatId}`, maxTokens: cap || MAX_OUTPUT,
     });
   } catch (err) {
     // 记下这次试到哪儿了。不记的话，提取一旦失败，之后**每发一条消息**
