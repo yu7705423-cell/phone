@@ -790,6 +790,14 @@ export function Conversation({ chatId, focusId = '' }) {
   // 现在这一行自己转着，完成才收起菜单；失败则留在原地，把原因贴在这一行边上。
   const summarize = async () => {
     if (summing) return;
+    // 积压太多时先把账摆出来。从别处迁进来几万条消息的话，
+    // 一次总结只吃最早的一批，追平要按很多次 —— 按之前得知道这件事
+    if (runs > 1 && !await confirm({
+      title: '总结记忆',
+      message: `这段对话尚有 ${pending} 条未总结。一次总结最早的 ${ai.memory.batchSize() || pending} 条，`
+        + `追平需要重复 ${runs} 次，每次调用一次接口。现在只总结最早的那一批。`,
+      okText: '总结这一批',
+    })) return;
     setSumming(true);
     try {
       const r = await ai.memory.extract(chatId);
@@ -801,6 +809,21 @@ export function Conversation({ chatId, focusId = '' }) {
   };
 
   const pending = ai.memory.pendingOf(chatId).length;
+  // 追平积压要按几次。1 次是常态，迁进来一堆历史时会很大
+  const runs = ai.memory.runsFor(chatId);
+
+  // 不调接口，直接把积压划掉。迁进来一堆历史又不想为它们付钱时用
+  const skipSummary = async () => {
+    if (!pending) { toast('没有未总结的消息'); return; }
+    if (!await confirm({
+      title: '标记为已总结', danger: true, okText: '标记',
+      message: `将把 ${pending} 条消息记为已总结，不调用接口，也不会生成任何记忆。`
+        + '此后只总结新产生的对话。已有的记忆不受影响。',
+    })) return;
+    const n = ai.memory.markCaughtUp(chatId);
+    setMenu(false);
+    toast(`已标记 ${n} 条`, 'ok');
+  };
 
   const pro = ai.proactive.configOf(char);
   const proDesc = pro.proactive
@@ -1074,11 +1097,18 @@ export function Conversation({ chatId, focusId = '' }) {
               ? '正在调用接口，完成后会给出结果。这段时间请不要离开本页。'
               : `尚有 ${pending} 条未总结 · ${settings.autoSummarizeInterval > 0
                 ? `自动总结每 ${settings.autoSummarizeInterval} 轮一次`
-                : '自动总结已关闭'}`}
+                : '自动总结已关闭'}`
+                + (runs > 1 ? `。一次总结最早的一批，追平需要 ${runs} 次` : '')}
             left=${summing
               ? html`<${Spinner} size=${16}/>`
               : html`<${Icon} name="brain" size=${18}/>`}
             onClick=${() => !summing && summarize()}/>
+          ${runs > 1 ? html`
+            <${ListItem} title="标记为已总结" danger arrow multiline
+              subtitle=${`把这 ${pending} 条记为已总结，不调用接口。`
+                + '从别处迁入大量历史、又不打算为它们生成记忆时用'}
+              left=${html`<${Icon} name="check" size=${18}/>`}
+              onClick=${skipSummary}/>` : null}
           <${ListItem} title="关系底色" arrow multiline
             subtitle=${(() => {
               const t = ai.bond.textOf(char, chat.personaId);

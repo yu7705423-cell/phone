@@ -68,7 +68,7 @@ export function selectByVector(charId, scanText, budget, queryVec, opts = {}) {
   const pool = vectorPool(charId, scanText, queryVec, {
     ...opts, limit: opts.topK > 0 ? opts.topK : 0,
   });
-  return takeTopWithin(pool, budget, m => m.content || '');
+  return takeTopWithin(pool, budget, lineOf);
 }
 
 // S/A 全注入; B 在扫描窗口里命中关键词才进; C 只存档不注入
@@ -87,7 +87,7 @@ export function select(charId, scanText, budget, personaId) {
     (weight[a.rank] ?? 3) - (weight[b.rank] ?? 3)
     || (b.updatedAt || 0) - (a.updatedAt || 0));
 
-  return takeTopWithin(pool, budget, m => m.content || '');
+  return takeTopWithin(pool, budget, lineOf);
 }
 
 // 召回那一段的定位是**候选**，不是必须用上的事实。
@@ -104,7 +104,27 @@ When none of them fits the present situation, disregard this section.`;
 // 名字是同一套，两边对得上。
 const LABEL = m => (CATEGORIES[m.category] ? m.category : (m.category || 'memory'));
 
-export const lineOf = m => `【${LABEL(m)}】${m.content}`;
+/**
+ * 这条记忆是什么时候的事。
+ *
+ * 召回从前只给类别和正文。一条三个月前的事和昨天的事长得一模一样，
+ * 模型没法分先后，也没法知道「她说她在准备考试」是不是早就过去了。
+ * 日期是客观事实，不是替它作判断（第 16 条），该给。
+ *
+ * 用本地时区手工拼，不走 toISOString —— 那是 UTC，晚上记的事会串到前一天。
+ */
+export function dayOf(m) {
+  const t = Number(m?.createdAt) || 0;
+  if (!t) return '';
+  const d = new Date(t);
+  const two = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())}`;
+}
+
+export const lineOf = m => {
+  const day = dayOf(m);
+  return `【${LABEL(m)}${day ? ' ' + day : ''}】${m.content}`;
+};
 
 /**
  * 这一轮召回哪几条。S 级不再逐条进来 —— 它们已经压进关系底色了（见 bond.js）。
@@ -152,7 +172,7 @@ export async function recallAsync(ctx) {
       pool.map(m => m.content || ''), { topN });
     const ranked = order.map(o => pool[o.index]).filter(Boolean);
     if (!ranked.length) return recall(ctx);
-    return takeTopWithin(ranked, ctx.budgets.memory, m => m.content || '').items;
+    return takeTopWithin(ranked, ctx.budgets.memory, lineOf).items;
   } catch (err) {
     console.warn('[rerank]', err.message || err);
     return recall(ctx);

@@ -2,7 +2,7 @@ import { touch as touchVec } from '../memvec.js';
 import { memories, chats, characters, settings, messagesOf } from '../../db/index.js';
 import { template, runJSONTask, MAX_OUTPUT } from '../engine.js';
 import { fillTemplate } from '../templates.js';
-import { listFor, CATEGORIES, RANKS } from '../context/memory.js';
+import { listFor, CATEGORIES, RANKS, dayOf } from '../context/memory.js';
 import { uid } from '../../store.js';
 import * as accounts from '../../accounts.js';
 
@@ -16,11 +16,44 @@ export function pendingOf(chatId) {
   return idx < 0 ? all : all.slice(idx + 1);
 }
 
+/**
+ * 一次总结吃掉最早的多少条。0 表示一次全吃（第 13 条：这是默认值不是上限）。
+ *
+ * 为什么要有这个闸：从别处迁进来六万条消息的话，memoryUpTo 是空的，
+ * 未总结就是全部六万条 —— 它们会被当成**一轮对话**拼进一次请求里。
+ * 那一次要么直接超上下文报错，要么真发出去，烧掉几百万 token。
+ */
+export const batchSize = () =>
+  Math.max(0, Math.round(Number(settings.get().memoryBatch) || 0));
+
+/** 按现在这个批量，追平积压还要按几次。0 表示没什么可总结的。 */
+export function runsFor(chatId) {
+  const n = pendingOf(chatId).length;
+  if (n < 2) return 0;
+  const b = batchSize();
+  return b ? Math.ceil(n / b) : 1;
+}
+
+/**
+ * 不调接口，直接把积压的标成「已总结」。
+ *
+ * 迁进来一大堆历史、又不想为它们付钱的时候用这个。回来的是划掉了多少条。
+ */
+export function markCaughtUp(chatId) {
+  const all = pendingOf(chatId);
+  if (!all.length) return 0;
+  chats.update(chatId, { memoryUpTo: all[all.length - 1].id, memoryTriedId: null });
+  return all.length;
+}
+
 export async function extract(chatId) {
   const chat = chats.get(chatId);
   if (!chat) throw new Error('会话不存在');
-  const pending = pendingOf(chatId);
-  if (pending.length < 2) throw new Error('对话太短，暂时不需要总结');
+  const all = pendingOf(chatId);
+  if (all.length < 2) throw new Error('对话太短，暂时不需要总结');
+  // 只吃最早的一批。吃完 memoryUpTo 往前挪，下一次接着吃
+  const cap = batchSize();
+  const pending = cap ? all.slice(0, cap) : all;
 
   const charId = (chat.characterIds || [])[0];
   const existing = listFor(charId, chat.personaId);
@@ -38,7 +71,11 @@ export async function extract(chatId) {
     ? existing.slice().sort((a, b) => (byRank[a.rank] ?? 9) - (byRank[b.rank] ?? 9)).slice(0, keepN)
     : existing;
   const existingText = sent.length
-    ? sent.map(m => `(id:${m.id}) [${m.rank}/${m.category}] ${m.content}`).join('\n')
+    ? sent.map(m => {
+      // 带上日期：一条三个月前的和昨天的长得一样，模型判不出该改写哪条
+      const day = dayOf(m);
+      return `(id:${m.id}) [${m.rank}/${m.category}${day ? ' ' + day : ''}] ${m.content}`;
+    }).join('\n')
     : '(no existing memories)';
 
   const system = fillTemplate(template('task.memory-extract'), {
@@ -64,6 +101,8 @@ export async function extract(chatId) {
 
   const rows = Array.isArray(result?.memories) ? result.memories : [];
   let added = 0, updated = 0;
+  // 这一批最后一条消息的时间，就当这批记忆发生的时间
+  const at = Number(pending[pending.length - 1]?.createdAt) || Date.now();
 
   for (const r of rows) {
     if (!r || !r.content) continue;
@@ -81,6 +120,10 @@ export async function extract(chatId) {
     const row = memories.create({
       id: uid('mem'), charId, content: r.content, category, rank, keywords,
       source: 'auto',
+      // 记的时间是**这批消息**发生的时间，不是总结的时间。
+      // 迁进来一堆半年前的历史，今天补总结，全戳成今天就不对了 ——
+      // 召回时那个日期是要给模型看的。
+      createdAt: at, updatedAt: at,
       // 这条记忆是和哪个身份聊出来的。换账号之后互相看不见
       personaId: chats.get(chatId)?.personaId || accounts.currentId(),
     });

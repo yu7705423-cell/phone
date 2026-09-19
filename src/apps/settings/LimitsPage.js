@@ -43,6 +43,12 @@ export function LimitsPage() {
       <//>
 
       <${List} title="额外的接口调用">
+        <${ListItem} title="一次总结吃掉多少条消息" multiline
+          subtitle=${'总结记忆时，一次最多拿最早的这么多条消息去拼请求。填 0 表示一次全拿。'
+            + '从别处迁入大量历史时，不设这个数会把几万条当成一轮拼进一次请求，'
+            + '要么超出上下文报错，要么真的发出去。剩下的下次接着总结。'}
+          right=${html`<${NumberInput} value=${Number(s.memoryBatch) || 0} min=${0}
+            onChange=${v => set({ memoryBatch: v })}/>`}/>
         <${ListItem} title="自动重试" multiline
           subtitle=${`接口返回 429 或 5xx 时自动重发。每重试一次即多一次计费。`
             + `填 0 表示不重试，最多 ${ai.cost.RETRY_CAP} 次。主动取消不计为失败，不会重试。`}

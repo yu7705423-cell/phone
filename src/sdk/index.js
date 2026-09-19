@@ -23,7 +23,7 @@ import * as memvecApi from '../system/ai/memvec.js';
 import * as rerankApi from '../system/ai/rerank.js';
 import * as loreCtx from '../system/ai/context/lorebook.js';
 import * as traceApi from '../system/ai/trace.js';
-import { extract, shouldAutoExtract, pendingOf } from '../system/ai/tasks/memory-extract.js';
+import { extract, shouldAutoExtract, pendingOf, runsFor, markCaughtUp, batchSize } from '../system/ai/tasks/memory-extract.js';
 import * as memImport from '../system/ai/tasks/memory-import.js';
 import * as charAltApi from '../system/ai/tasks/char-alt.js';
 import * as cardApi from '../system/ai/tasks/card.js';
@@ -160,7 +160,8 @@ export const phone = {
     blocks: BLOCKS,
     defaultOrder: DEFAULT_ORDER,
     resolveOrder,
-    memory: { ...memoryCtx, extract, shouldAutoExtract, pendingOf, import: memImport },
+    memory: { ...memoryCtx, extract, shouldAutoExtract, pendingOf, runsFor, markCaughtUp, batchSize,
+      import: memImport },
     bond: bondApi,
     embed: embedApi,
     memvec: memvecApi,

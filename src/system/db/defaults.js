@@ -130,6 +130,9 @@ export const DEFAULT_SETTINGS = {
   // 所以默认不限 —— max_tokens 只是上限，没用到的部分不计费。
   memoryExtractMaxTokens: 0,      // 0 = 不限
   memoryDedupeList: 0,            // 总结时发多少条已有记忆过去，0 = 全部
+  // 一次总结吃掉最早的多少条消息。0 = 一次全吃。
+  // 从别处迁进来几万条消息时，不设这个闸会把它们当成一轮拼进一次请求
+  memoryBatch: 200,
   memoryImportChunk: 6000,        // 记忆导入一次喂多少字，0 = 不切，一次发完
 
   // 阅读器外观。和全局主题分开 —— 读书时的纸色字体不该跟着 app 皮肤走
