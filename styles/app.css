@@ -1823,6 +1823,12 @@ button.search-bar { width: 100%; border: none; }
   background: var(--surface-2) center / cover no-repeat; color: var(--text-3);
 }
 .tp-shot-note { font-size: var(--fs-12); color: var(--text-2); max-width: 100%; }
+/* 「你发的」那一枚。角色自己存下来的和生成出来的混在一起分不清哪张是真的 */
+.tp-shot-from {
+  align-self: flex-start; padding: 1px var(--sp-2);
+  border-radius: var(--r-full); background: var(--accent-weak);
+  color: var(--accent); font-size: var(--fs-11);
+}
 
 /* 生成出来的那一段对话。不复用会话页那套气泡：那一套跟着用户的美化 CSS 走，
    这里是「别人手机上的聊天」，不该被自己的皮肤影响 */

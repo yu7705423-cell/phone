@@ -925,11 +925,13 @@ phone.
 
   'skeleton.keepphoto':
 `Save a photo to your own phone: write a line on its own,
-[存图：what the photo shows].
+[存图：what you are keeping].
 
-The line is not a message. It is not sent to anyone and the other side does
-not see the photo. Write at most thirty characters, the way you would label
-it for yourself.`,
+If the other side has just sent a photo, that photo is the one saved, and the
+line is the label you give it. Otherwise the line is all that is saved.
+
+The line is not a message. It is not sent and the other side does not see it.
+Write at most thirty characters, as you would label it for yourself.`,
 
   'task.phone-album':
 `You are the author of {{charName}}'s settings. List the photos in the album

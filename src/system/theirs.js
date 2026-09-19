@@ -244,6 +244,9 @@ export function addPhotos(charId, rows, albumId = '') {
       albumId: cap(r?.albumId ?? albumId, 40),
       note: cap(r?.note, 200),
       imageId: r?.imageId || null,
+      // 'you' 是用户发过来、角色自己存下的那张。界面上标一下，
+      // 免得和生成出来的混在一起分不清哪张是真的
+      from: r?.from === 'you' ? 'you' : '',
       at: Number(r?.at) || Date.now(),
     }))
     .filter(r => r.note || r.imageId);

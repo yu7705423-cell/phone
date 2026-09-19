@@ -105,7 +105,7 @@ export const CAPS = [
     on: ({ char }) => theirs.keepOn(char.id),
     hot: ({ msgs }) => usedRecently(msgs, /[[【]存图/),
     line: () => 'Save a photo to your own phone: write a line on its own,'
-      + ' [存图：what the photo shows]',
+      + ' [存图：what you are keeping]. A photo just sent to you is the one saved',
     detail: () => template('skeleton.keepphoto'),
   },
   {

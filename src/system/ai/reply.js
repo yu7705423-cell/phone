@@ -1,4 +1,4 @@
-import { messages, chats, characters, images, files, settings } from '../db/index.js';
+import { messages, messagesOf, chats, characters, images, files, settings } from '../db/index.js';
 import { uid } from '../store.js';
 import * as imageSvc from './image.js';
 import * as imgPrompt from './imageprompt.js';
@@ -482,6 +482,34 @@ function broke(base, amount, what) {
 
 // 一个 part 落成一条消息。图片语音顺带把生成任务排上。
 // 单拎出来是因为「修格式」也要用同一条路，不然两边各写一遍迟早走岔。
+/**
+ * 用户刚发过来的那张图。没有就返回 null。
+ *
+ * 从后往前扫，跳过的只有**这一轮**角色自己刚落下的那几条（按 turnId 认），
+ * 撞见别的角色消息就停。然后在紧挨着的那一段用户消息里取最新的一张图。
+ *
+ * **再往前就不是「刚发的」了。** 一开始我跳过了所有末尾的角色消息，
+ * 于是上一轮存过的那张三条消息之后还会被再存一次 —— 测试里那条
+ * 「隔了一条自己的消息之后就不再翻旧图」当场挂掉。
+ */
+function justSent(chatId, turnId) {
+  const list = messagesOf(chatId);
+  let hit = null;
+  let inUser = false;
+  for (let i = list.length - 1; i >= 0; i--) {
+    const m = list[i];
+    if (m.role === 'user') {
+      inUser = true;
+      if (m.imageId && !hit) hit = m.imageId;
+      continue;
+    }
+    if (inUser) break;
+    // 这一轮自己刚落下的跳过；上一轮的说明用户那段已经过去了
+    if (!turnId || m.turnId !== turnId) break;
+  }
+  return hit;
+}
+
 export function materialize(part, base, char) {
   const quote = quoteFields(base.chatId, part.quote);
   const row = {
@@ -624,11 +652,14 @@ export function materialize(part, base, char) {
   if (part.type === 'keep') {
     // 只有角色自己存得进它自己那台手机
     if (base.role !== 'char' || !char || !part.note) return null;
-    theirs.addPhotos(char.id, [{ note: part.note }]);
+    // 用户刚发过来的那张图就是它要存的那张。**存的是同一个 id，不另拷一份**
+    // —— 同一张图在库里躺两份没有意义，而且 purge 那边已经把相册算作引用了
+    const imageId = justSent(base.chatId, base.turnId);
+    theirs.addPhotos(char.id, [{ note: part.note, imageId, from: imageId ? 'you' : '' }]);
+    // 用 row 建，不自己拼字段：turnId 在里面，重新生成这一轮时它才跟着被清掉
     return messages.create({
-      chatId: base.chatId, role: 'char', authorId: char.id,
-      kind: 'notice', content: `[${char.name || '对方'}存了一张照片]`, status: 'done',
-      createdAt: base.createdAt || Date.now(),
+      ...row, kind: 'notice',
+      content: `[${char.name || '对方'}${imageId ? '把这张照片存了下来' : '存了一张照片'}]`,
     });
   }
   if (part.type === 'dice') {

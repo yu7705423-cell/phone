@@ -22,6 +22,8 @@ function Shot({ photo, onOpen }) {
       ${url ? html`<span class="tp-shot-img" style=${`background-image:url(${url})`}></span>`
         : html`<span class="tp-shot-none"><${Icon} name="image" size=${18}/></span>`}
       <span class="tp-shot-note ellipsis">${photo.note || '没有描述'}</span>
+      ${photo.from === 'you'
+        ? html`<span class="tp-shot-from">你发的</span>` : null}
     </button>`;
 }
 
@@ -138,7 +140,9 @@ export function AlbumPage({ charId }) {
       <//>
 
       <div class="settings-foot">
-        照片记的是一句描述，依据该角色的设定生成。可以为某一张挂上真实图片。
+        生成的照片只有一句描述，可以为某一张挂上真实图片。
+        标有「你发的」的是该角色从对话中存下的照片，图片即你当时发送的那一张，
+        描述是该角色自己写的。
       </div>
 
       <${Sheet} open=${!!making} onClose=${() => setMaking(null)}
