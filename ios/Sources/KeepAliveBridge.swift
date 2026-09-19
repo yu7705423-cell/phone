@@ -59,7 +59,10 @@ final class KeepAliveBridge: NSObject {
         do {
             let p = try AVAudioPlayer(data: quietWav())
             p.numberOfLoops = -1
-            p.volume = 0.01
+            // **音量给满。** 样本本身只有 ±1 个最低位（约 -90 dBFS），听不见；
+            // 再乘 0.01 就等于把它压成绝对的零，而零输出正是系统可能
+            // 不认这只 app「在放东西」的那种。听不见要靠波形小，不靠音量小
+            p.volume = 1
             p.prepareToPlay()
             guard p.play() else { return ["error": "音频没能开始播放"] }
             player = p
@@ -89,6 +92,7 @@ final class KeepAliveBridge: NSObject {
         let s = AVAudioSession.sharedInstance()
         return [
             "on": on,
+            "playing": player?.isPlaying == true,
             "category": s.category.rawValue,
             "mixing": s.categoryOptions.contains(.mixWithOthers),
             "otherAudio": s.isOtherAudioPlaying,

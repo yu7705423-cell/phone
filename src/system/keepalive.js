@@ -68,14 +68,22 @@ async function callNative(action) {
 }
 
 /** 走外壳时的续播。原生不需要用户手势，所以 needsTap 永远立不起来。 */
-/** 外壳回来的那几项翻成一句人话，显示在设置那一行上。 */
+// 那一行字必须**先说走的是哪条路**。
+//
+// 上一版只有外壳那条路会写 note，于是「外壳的桥不在」「在浏览器里」
+// 「还没开起来」三种情况在屏幕上长得一模一样，全是一片空白 ——
+// 而这一行字本来就是为了把它们分开才加的。现在两条路都写。
+const WEB = '网页音频';
+const SHELL = '外壳音频';
+
+/** 外壳回来的那几项翻成一句人话。 */
 function noteOf(got) {
-  if (!got.on) return '没有在运行';
+  if (!got.on) return `${SHELL}：没有在运行`;
   // mixing 为真时系统不拿这段音频当「这只 app 正在放东西」，后台照停 ——
   // 那种情况下这个功能等于没开，得说出来
-  return got.mixing
-    ? '正在运行，但音频与其他应用混合，后台可能仍会被暂停'
-    : '正在运行';
+  if (got.mixing) return `${SHELL}：正在运行，但与其他应用混音，后台可能仍会被暂停`;
+  if (got.playing === false) return `${SHELL}：会话已就绪，但播放器没有在播`;
+  return `${SHELL}：正在运行`;
 }
 
 async function nativeResume() {
@@ -126,9 +134,15 @@ function ensure() {
 function sync(needsTap) {
   const playing = !!el && !el.paused && !el.ended;
   const s = state.get();
+  const tap = needsTap === undefined ? (playing ? false : s.needsTap) : needsTap;
   state.set({
     on: playing,
-    needsTap: needsTap === undefined ? (playing ? false : s.needsTap) : needsTap,
+    needsTap: tap,
+    // 走的是网页那条老路。**装成 app 之后还看到这一句，就说明外壳那座桥没接上**
+    // —— 那条路在 WKWebView 里本来就不管用，这一行要能把它认出来
+    note: playing ? `${WEB}：正在运行`
+      : tap ? `${WEB}：被打断了，需要在屏幕上点一下`
+      : `${WEB}：没有在运行`,
   });
   return playing;
 }
@@ -178,6 +192,7 @@ export function stop() {
   }
   if (el) { el.pause(); el.currentTime = 0; }
   sync(false);
+  state.set({ note: '' });     // 自己关的，不用在界面上报告
 }
 
 function startWatch() {
