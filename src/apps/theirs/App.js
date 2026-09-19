@@ -11,6 +11,7 @@ import { BrowserPage } from './pages/BrowserPage.js';
 import { MakePage } from './pages/MakePage.js';
 import { ChatsPage } from './pages/ChatsPage.js';
 import { ChatPage } from './pages/ChatPage.js';
+import { AlbumPage } from './pages/AlbumPage.js';
 
 // 角色手机。**拿起角色那台手机看一眼。**
 //
@@ -54,7 +55,7 @@ export default function TheirsApp({ route }) {
     return html`<${Guard} charId=${row.charId}><${ChatPage} chatId=${one[1]}/><//>`;
   }
 
-  const m = String(route || '/').match(/^\/(home|shelf|body|day|notes|browser|chats|make|lock)\/(.+)$/);
+  const m = String(route || '/').match(/^\/(home|shelf|body|day|notes|browser|chats|album|make|lock)\/(.+)$/);
   if (m) {
     const [, page, charId] = m;
     // 锁屏本身单独一条路由：主屏上的「锁上」按它回到这儿
@@ -62,6 +63,7 @@ export default function TheirsApp({ route }) {
     const PAGES = {
       home: HomePage, shelf: ShelfPage, body: BodyPage, day: DayPage,
       notes: NotesPage, browser: BrowserPage, make: MakePage, chats: ChatsPage,
+      album: AlbumPage,
     };
     const Inner = PAGES[page] || HomePage;
     return html`<${Guard} charId=${charId}><${Inner} charId=${charId}/><//>`;

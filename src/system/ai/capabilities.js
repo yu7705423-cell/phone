@@ -1,4 +1,5 @@
 import { characters, stickers } from '../db/index.js';
+import * as theirs from '../theirs.js';
 import * as clock from '../time.js';
 import * as currency from '../currency.js';
 import { template, fillTemplate } from './templates.js';
@@ -96,6 +97,16 @@ export const CAPS = [
     detail: ({ char, hot, settings }) => fillTemplate(template('skeleton.sticker'), {
       names: stickerNames(char, hot ? (settings.stickerHot || 0) : (settings.stickerCold || 0)),
     }),
+  },
+  {
+    // 往自己那台手机的相册里存一张。开关在「角色手机 - 相册」那一页，默认关着
+    id: 'keepphoto',
+    label: '往自己相册存图',
+    on: ({ char }) => theirs.keepOn(char.id),
+    hot: ({ msgs }) => usedRecently(msgs, /[[【]存图/),
+    line: () => 'Save a photo to your own phone: write a line on its own,'
+      + ' [存图：what the photo shows]',
+    detail: () => template('skeleton.keepphoto'),
   },
   {
     id: 'quote',

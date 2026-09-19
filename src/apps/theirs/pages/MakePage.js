@@ -16,9 +16,10 @@ const { db, nav, theirs, ai } = phone;
 // 条数由用户填，不设上限（第 13 条）。再生成一次是**往后加**，不是重掷 ——
 // 抹掉的话上一次里合意的那几条也跟着没了。
 
-const COUNTS = { chats: 6, notes: 6, visits: 10 };
+const COUNTS = { chats: 6, album: 8, notes: 6, visits: 10 };
 
 const stateOf = (charId, id) => (id === 'chats' ? theirs.chatsOf(charId).length
+  : id === 'album' ? theirs.photosOf(charId).length
   : id === 'notes' ? theirs.notesOf(charId).length
   : theirs.visitsOf(charId).length);
 
@@ -78,7 +79,7 @@ export function MakePage({ charId }) {
           <${ListItem} key=${m.id} title=${m.label} multiline
             subtitle=${`已有 ${stateOf(charId, m.id)} ${m.unit}`}
             left=${html`<${Icon}
-              name=${m.id === 'chats' ? 'message' : m.id === 'notes' ? 'notes' : 'search'}
+              name=${{ chats: 'message', album: 'camera', notes: 'notes' }[m.id] || 'search'}
               size=${18}/>`}
             right=${html`
               <${Button} size="sm" variant="ghost" disabled=${!!busy}
@@ -93,6 +94,9 @@ export function MakePage({ charId }) {
             desc=${m.id === 'chats'
               ? '不设上限。这一步只生成「和谁在聊、最后一句是什么」，'
                 + '每段对话的正文在点进那一条时单独生成。'
+              : m.id === 'album'
+              ? '不设上限。生成的是每张照片的描述，不生成图片本身，'
+                + '可以在相册中为某一张挂上真实图片。'
               : m.id === 'notes'
               ? '不设上限。数量越多，这一次请求越长，也越可能写不完。'
               : '不设上限。'}>

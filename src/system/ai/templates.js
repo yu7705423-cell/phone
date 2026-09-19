@@ -923,6 +923,36 @@ phone.
 ## Output JSON only, with no other text
 {"lines":[{"from":"char","text":""}]}`,
 
+  'skeleton.keepphoto':
+`Save a photo to your own phone: write a line on its own,
+[存图：what the photo shows].
+
+The line is not a message. It is not sent to anyone and the other side does
+not see the photo. Write at most thirty characters, the way you would label
+it for yourself.`,
+
+  'task.phone-album':
+`You are the author of {{charName}}'s settings. List the photos in the album
+on this character's own phone. Each entry is what one photo shows.
+
+## Who the character is
+{{charPersona}}
+
+## Already there. Do not repeat these
+{{existing}}
+
+## Requirements
+- {{count}} photos, most recent first
+- note is what the photo shows, at most thirty characters, written the way
+  this character would label it for themself
+- A photo is taken by this character unless the note says otherwise. Not every
+  photo has a person in it
+- Do not describe anything that is not in the frame
+- Write the notes in the same language as the settings above
+
+## Output JSON only, with no other text
+{"photos":[{"note":""}]}`,
+
   'task.impression':
 `You are {{charName}}. 《{{title}}》{{authorLine}} is a book you have read. Write
 down the impression it left on you, the way you would note it for yourself.

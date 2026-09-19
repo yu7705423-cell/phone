@@ -1787,6 +1787,25 @@ button.search-bar { width: 100%; border: none; }
   background: var(--surface-2); color: var(--text-2); font-size: var(--fs-12);
 }
 
+/* 相册。一格一张，图在上描述在下 —— 没有图的那些只剩描述，
+   所以格子不做成纯图的正方形网格 */
+.tp-shots {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-3); padding: var(--sp-4) var(--sp-5);
+}
+.tp-shot {
+  display: flex; flex-direction: column; gap: var(--sp-2);
+  min-width: 0; padding: var(--sp-2);
+  border: 1px solid var(--border); border-radius: var(--r-md);
+  background: var(--surface); text-align: left;
+}
+.tp-shot-img, .tp-shot-none {
+  display: flex; align-items: center; justify-content: center;
+  width: 100%; aspect-ratio: 1; border-radius: var(--r-sm);
+  background: var(--surface-2) center / cover no-repeat; color: var(--text-3);
+}
+.tp-shot-note { font-size: var(--fs-12); color: var(--text-2); max-width: 100%; }
+
 /* 生成出来的那一段对话。不复用会话页那套气泡：那一套跟着用户的美化 CSS 走，
    这里是「别人手机上的聊天」，不该被自己的皮肤影响 */
 .tp-who {

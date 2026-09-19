@@ -58,6 +58,7 @@ export async function makeLock(charId, { digits = 4 } = {}) {
 /** 一个 app 一条：id、名字、生成函数。生成页照着这一份列。 */
 export const MAKERS = [
   { id: 'chats', label: '聊天', unit: '条会话', run: makeChats },
+  { id: 'album', label: '相册', unit: '张', run: makeAlbum },
   { id: 'notes', label: '备忘录', unit: '条', run: makeNotes },
   { id: 'visits', label: '浏览记录', unit: '条', run: makeVisits },
 ];
@@ -143,6 +144,33 @@ export async function fillChat(chatId, { count = 12 } = {}) {
   if (!lines.length) throw new Error('这一次没有生成出内容，可以再试一次');
   theirs.fillChat(chatId, lines);
   return lines.length;
+}
+
+/**
+ * 相册里的照片。生成的是**一句描述**，不是图 —— 模型手里没有照片。
+ * 真图可以事后自己挂上去，和书架上那本书接不接得上正文是同一个道理。
+ */
+export async function makeAlbum(charId, { count = 8 } = {}) {
+  const char = characters.get(charId);
+  if (!char) throw new Error('角色不存在');
+  const n = Math.max(1, Math.round(count) || 0);
+  const have = theirs.photosOf(charId);
+
+  const out = await runJSONTask('phone.album', {
+    system: fillTemplate(template('task.phone-album'), {
+      charName: char.name || '该角色',
+      charPersona: personaOf(char),
+      count: n,
+      existing: have.slice(0, 40).map(x => `- ${x.note}`).join('\n') || '（还没有）',
+    }),
+    key: `phone-album:${charId}:${Date.now()}`,
+    maxTokens: 300 + n * 40,
+  });
+
+  const rows = Array.isArray(out?.photos) ? out.photos : [];
+  const added = theirs.addPhotos(charId, rows.map(r => ({ note: str(r?.note) })));
+  if (!added.length) throw new Error('这一次没有生成出内容，可以再试一次');
+  return added.length;
 }
 
 export async function makeNotes(charId, { count = 6 } = {}) {

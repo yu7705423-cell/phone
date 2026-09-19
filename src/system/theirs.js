@@ -119,6 +119,101 @@ export const removeVisit = (charId, i) => set(charId, {
   visits: visitsOf(charId).filter((_, k) => k !== i),
 });
 
+// ---- 那台手机里的相册 ----
+//
+// **这是角色手机唯一真正自己拥有的东西。** 别的（书架、身体状态、今天、
+// 和你的对话）都在别处有主，这里只是视图。
+//
+// 一张「照片」记的是**一句描述**，图片可有可无：模型手里没有照片，
+// 让它写一句「拍到了什么」是它做得到的事；真图可以事后自己挂上去，
+// 和书架上那本书接不接得上正文是同一个道理。
+//
+// 相册可以设一个密码。**那不是加密**，库里就是明文，界面上也这么写 ——
+// 它挡的是「顺手翻到」，不是挡人来查。
+
+/**
+ * 允许这个角色在对话里往自己相册存照片。**默认关着。**
+ *
+ * 开着要在每一轮的提示词里多列一条能力，也会改变它说话的样子。
+ * 这种事不替用户默认打开（第 15 条那个精神：会多出点什么的，让用户自己开）。
+ * 开关放在相册那一页 —— 它起作用的地方就在那儿（第 5 条）。
+ */
+export const keepOn = charId => get(charId)?.keepOn === true;
+export const setKeepOn = (charId, v) => set(charId, { keepOn: v === true });
+
+export const albumsOf = charId => get(charId)?.albums || [];
+export const photosOf = charId => get(charId)?.photos || [];
+
+export const albumOf = (charId, albumId) =>
+  albumsOf(charId).find(a => a.id === albumId) || null;
+
+/** 某一本里的那几张。albumId 留空取没归类的。 */
+export const inAlbum = (charId, albumId) =>
+  photosOf(charId).filter(p => (p.albumId || '') === (albumId || ''));
+
+export function addAlbum(charId, { name, code = '' }) {
+  const n = cap(name, 20);
+  if (!n) throw new Error('请填写名称');
+  const row = { id: `pa_${Date.now().toString(36)}`, name: n, code: cap(code, 20) };
+  set(charId, { albums: [...albumsOf(charId), row] });
+  return row;
+}
+
+export const updateAlbum = (charId, albumId, patch) => set(charId, {
+  albums: albumsOf(charId).map(a => (a.id === albumId
+    ? { ...a, ...patch, name: cap(patch.name ?? a.name, 20), code: cap(patch.code ?? a.code, 20) }
+    : a)),
+});
+
+/** 删本子不删照片：里面那几张退回「没归类」，不跟着一起没。 */
+export function removeAlbum(charId, albumId) {
+  set(charId, {
+    albums: albumsOf(charId).filter(a => a.id !== albumId),
+    photos: photosOf(charId).map(p => (p.albumId === albumId ? { ...p, albumId: '' } : p)),
+  });
+}
+
+export function addPhotos(charId, rows, albumId = '') {
+  const clean = (rows || [])
+    .map((r, i) => ({
+      id: `pp_${Date.now().toString(36)}_${i}`,
+      albumId: cap(r?.albumId ?? albumId, 40),
+      note: cap(r?.note, 200),
+      imageId: r?.imageId || null,
+      at: Number(r?.at) || Date.now(),
+    }))
+    .filter(r => r.note || r.imageId);
+  if (!clean.length) return [];
+  set(charId, { photos: [...clean, ...photosOf(charId)] });   // 新的在前
+  return clean;
+}
+
+export const updatePhoto = (charId, photoId, patch) => set(charId, {
+  photos: photosOf(charId).map(p => (p.id === photoId ? { ...p, ...patch } : p)),
+});
+
+export const removePhoto = (charId, photoId) => set(charId, {
+  photos: photosOf(charId).filter(p => p.id !== photoId),
+});
+
+// 相册里挂上去的真图，purge.usedImageIds 直接从 phones 那一行里数
+// —— 那个函数的活就是「把所有用图的地方列一遍」，它一处处伸手进各个域，
+// 这里不另给一个 helper，免得两处各数各的。
+
+// 这一次打开期间，哪几本密码本已经开过了。和锁屏同一个道理：不落库
+const openedAlbums = new Set();
+const keyOf = (charId, albumId) => `${charId}/${albumId}`;
+export const albumOpen = (charId, albumId) => {
+  const a = albumOf(charId, albumId);
+  return !a?.code || openedAlbums.has(keyOf(charId, albumId));
+};
+export const openAlbum = (charId, albumId, code) => {
+  const a = albumOf(charId, albumId);
+  if (!a || (a.code && String(code).trim() !== a.code)) return false;
+  openedAlbums.add(keyOf(charId, albumId));
+  return true;
+};
+
 // ---- 那台手机里的会话 ----
 //
 // 一条会话一行，消息内嵌。**分两步生成**：先生成「和谁在聊、最后一句是什么」

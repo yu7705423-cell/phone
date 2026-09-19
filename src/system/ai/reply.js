@@ -21,6 +21,7 @@ import * as takeout from '../takeout.js';
 import * as translate from './translate.js';
 import * as ledger from '../ledger.js';
 import * as request from '../request.js';
+import * as theirs from '../theirs.js';
 
 // 角色回复里可以带这几种标记，由模型自己决定什么时候用。
 // 中英文冒号都认，方括号也认全角。
@@ -89,6 +90,12 @@ const DICE_LINE = /^[[【(（]\s*(?:骰子|掷骰子|扔骰子|dice)\s*[\]】)�
 // 提示词里写的是「去电」：这一行是角色自己拨出去的动作，站在它那一边看是去电，
 // 「来电」是用户那边收到的结果。两个词都认，免得模型偶尔写回旧的那个。
 const RING_LINE = /^[[【(（]\s*(视频)?(?:去电|来电|打电话|拨打|通话|call)\s*[\]】)）]$/i;
+
+// 往自己那台手机的相册里存一张。**不是一条消息** —— 对面看不到这张照片，
+// 落下来的是一行提示（notice），和拍一拍同一类。
+// 开关在「角色手机 - 相册」那一页，默认关着；关着的时候提示词里根本没有这一条，
+// 所以正常不会出现。真出现了也照存 —— 用户自己写模板要它这么干是他的自由。
+const KEEP_LINE = /^[[【(（]?\s*(?:存图|存照片)\s*[:：]\s*(.+?)[\]】)）]?\s*$/i;
 
 // 引用单独成行，挂在它下面那一条上，不自己占一个气泡。
 const QUOTE_LINE = /^[[【(（]?\s*(?:引用|回复|quote)\s*[:：]\s*([^\n\]】)）]+)[\]】)）]?\s*$/i;
@@ -282,6 +289,8 @@ export function splitReply(raw) {
 
       // 拍一拍落一行提示，骰子落一条自己的消息，两样都不占气泡。
       if (PAT_LINE.test(t)) { push({ type: 'pat' }); return; }
+      const kp = t.match(KEEP_LINE);
+      if (kp) { push({ type: 'keep', note: kp[1].trim() }); return; }
       if (DICE_LINE.test(t)) { push({ type: 'dice' }); return; }
 
       // 心声和译文一样，挂到刚刚那一条上 —— 它是那句话背后的那一层，
@@ -611,6 +620,16 @@ export function materialize(part, base, char) {
   }
   if (part.type === 'pat') {
     return extras.pat({ chatId: base.chatId, role: base.role });
+  }
+  if (part.type === 'keep') {
+    // 只有角色自己存得进它自己那台手机
+    if (base.role !== 'char' || !char || !part.note) return null;
+    theirs.addPhotos(char.id, [{ note: part.note }]);
+    return messages.create({
+      chatId: base.chatId, role: 'char', authorId: char.id,
+      kind: 'notice', content: `[${char.name || '对方'}存了一张照片]`, status: 'done',
+      createdAt: base.createdAt || Date.now(),
+    });
   }
   if (part.type === 'dice') {
     // 点数是本地掷的。这一条要到下一轮才进历史，所以她写下这一行的时候

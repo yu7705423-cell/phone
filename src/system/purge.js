@@ -1,5 +1,5 @@
 import { chats, characters, memories, messages, messagesOf, moments, personas, stickers,
-         settings, layout, images, files, videos, songs, ebooks } from './db/index.js';
+         settings, layout, images, files, videos, songs, ebooks, phones } from './db/index.js';
 import { allImageIds } from './looks.js';
 
 // 把一个角色身上的东西清干净。
@@ -79,6 +79,8 @@ export function usedImageIds() {
 
   // 外观预设里的图也算有引用，否则一清理，存好的预设就成了空壳
   allImageIds().forEach(add);
+  // 角色手机相册里挂上去的真图。漏了这一行，清理一次那几本就全空了
+  phones.all().forEach(row => (row.photos || []).forEach(p => add(p.imageId)));
   // 字体存在 files 域，不在这一批里，删字体走「主题」那边
   return used;
 }

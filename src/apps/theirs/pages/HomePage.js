@@ -37,6 +37,7 @@ export function HomePage({ charId }) {
   const notes = theirs.notesOf(charId);
   const visits = theirs.visitsOf(charId);
   const talks = theirs.chatsOf(charId);
+  const shots = theirs.photosOf(charId);
   // 和用户的那几段是真的，它们也该出现在这台手机的聊天里
   const withYou = db.chats.all().filter(c => (c.characterIds || []).includes(charId)).length;
   const d = day.today(charId);
@@ -62,6 +63,10 @@ export function HomePage({ charId }) {
     (talks.length || withYou) && {
       id: 'chats', icon: 'message', label: '聊天',
       sub: `${talks.length + withYou} 条会话`, to: `/chats/${charId}`,
+    },
+    shots.length && {
+      id: 'album', icon: 'camera', label: '相册',
+      sub: `${shots.length} 张`, to: `/album/${charId}`,
     },
     notes.length && {
       id: 'notes', icon: 'notes', label: '备忘录',
