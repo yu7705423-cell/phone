@@ -21,6 +21,7 @@ import { installUnlock } from '../system/sound.js';
 import { installBridge } from '../system/push.js';
 import * as keepAlive from '../system/keepalive.js';
 import { KeepAliveBanner } from './KeepAliveBanner.js';
+import { NavBack } from './NavBack.js';
 
 export function Root() {
   const s = useStore(nav);
@@ -39,6 +40,11 @@ export function Root() {
     [cfg.iconColor, cfg.iconShadow, cfg.iconLabels, cfg.bottomLift, cfg.glass]);
 
   useEffect(() => { applyCustomCSS(cfg.customCSS); }, [cfg.customCSS]);
+
+  // 返回怎么做。两套只能有一套：样式里按这个属性藏掉另一套
+  useEffect(() => {
+    document.documentElement.dataset.nav = cfg.navStyle === 'back' ? 'back' : 'bar';
+  }, [cfg.navStyle]);
 
   useEffect(() => { applyFonts(cfg); }, [cfg.fontBody, cfg.fontSerif, cfg.fonts]);
 
@@ -95,9 +101,11 @@ export function Root() {
         ${s.screen === 'app' && s.appId ? html`
           <div class="app-layer"><${AppHost} appId=${s.appId} route=${route}/></div>` : null}
         ${s.switcher ? html`<${AppSwitcher}/>` : null}
+        ${s.screen !== 'lock' && cfg.navStyle === 'back'
+          ? html`<${NavBack} screen=${s.screen}/>` : null}
       </div>
       ${s.screen === 'home' ? html`<${Dock}/>` : null}
-      ${s.screen !== 'lock' ? html`
+      ${s.screen !== 'lock' && cfg.navStyle !== 'back' ? html`
         <div class="home-indicator" onClick=${goHome}
           onDblClick=${() => setSwitcher(true)} title="点击返回主界面，双击打开多任务">
           <span class="hi-bar"></span>

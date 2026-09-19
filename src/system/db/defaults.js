@@ -13,6 +13,11 @@ export const DEFAULT_SETTINGS = {
   fontSerif: '',                  // 衬线槽位用哪一个（挂件里的标题会用到）
   customCSS: '',                  // 用户自定义 CSS，注入到独立 style 节点
   statusBar: 'auto',              // auto | on | off  见 shell/StatusBar.js
+  // 返回怎么做。二选一，不并存：
+  //   bar   底部一条横条。点一下回主界面，双击开多任务。默认
+  //   back  左上角一个悬浮返回键，点一下退回上一级，长按回主界面。
+  //         开了它就没有底部横条，页面自己那个返回箭头也让位给它
+  navStyle: 'bar',
   showLockScreen: true,
 
   // 保活。循环播放无声音频，换取后台多活一阵，见 system/keepalive.js

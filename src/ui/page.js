@@ -124,6 +124,34 @@ function useSwipeBack(onBack) {
   return { ref, handlers };
 }
 
+// ---- 「返回」这一下归谁 ----
+//
+// 外壳那个悬浮返回键要做的事，必须和这一页左上角那个箭头一模一样。
+// 一百多页里有七页的返回是「退出多选」「关掉预览」这种**页内**的事，
+// 外壳统一调 nav.pop 会把它们连页面一起退掉。
+//
+// 所以每个带返回的 Page 把自己的 onBack 压进这个栈，最上面那个就是当前
+// 该执行的（整屏浮层套在应用页上时，里面那层后挂，正好在上面）。
+// 和 ui/overlay.js 里那个关闭栈是同一套写法。
+const backs = [];
+export const topBack = () => backs[backs.length - 1] || null;
+
+function useBackRegistry(onBack) {
+  const ref = useRef(onBack);
+  ref.current = onBack;
+  // 依赖只看「有没有返回」。onBack 多半是每次渲染新建的箭头函数，
+  // 拿它本身当依赖会一渲染就摘一次挂一次
+  useEffect(() => {
+    if (!ref.current) return undefined;
+    const fn = () => ref.current?.();
+    backs.push(fn);
+    return () => {
+      const i = backs.indexOf(fn);
+      if (i >= 0) backs.splice(i, 1);
+    };
+  }, [!onBack]);
+}
+
 // 所有页面必须包在 Page 里。滚动、安全区、导航栏、应用内 TabBar 由它统一处理。
 // app 不允许自己写 overflow,见 CLAUDE.md
 export function Page({ title, onBack, right, tabs, children, noScroll,
@@ -135,6 +163,7 @@ export function Page({ title, onBack, right, tabs, children, noScroll,
   }, [statusBarStyle]);
 
   const swipe = useSwipeBack(onBack);
+  useBackRegistry(onBack);
 
   return html`
     <div class="page" ref=${swipe.ref} ...${swipe.handlers}>

@@ -280,6 +280,20 @@
   width: auto; aspect-ratio: 1; align-self: center;
 }
 
+/* ---- 左上角那个悬浮返回键。和底部横条二选一，见 shell/NavBack.js ---- */
+.navback {
+  position: absolute; z-index: var(--z-call);
+  top: 0; left: var(--sp-1);
+  width: 48px; height: var(--navbar-h);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text);
+}
+/* 开了悬浮键就没有底部横条，页面自己那个返回箭头也让位 —— 同一个位置
+   不放两个返回。用 visibility 不用 display：导航栏是三列网格，
+   左边那一格塌掉标题就不居中了 */
+:root[data-nav="back"] .home-indicator { display: none; }
+:root[data-nav="back"] .navbar .nav-left { visibility: hidden; }
+
 .home-indicator {
   position: relative; z-index: 1;
   flex: none; height: 22px; display: flex; align-items: center; justify-content: center;

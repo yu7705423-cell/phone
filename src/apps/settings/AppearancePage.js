@@ -130,6 +130,15 @@ export function AppearancePage() {
           right=${html`<div style="width:150px"><${Segmented}
             value=${s.statusBar} onChange=${v => db.settings.set({ statusBar: v })}
             items=${[{ value: 'auto', label: '自动' }, { value: 'on', label: '显示' }, { value: 'off', label: '隐藏' }]}/></div>`}/>
+        <${ListItem} title="返回方式" multiline
+          subtitle=${s.navStyle === 'back'
+            ? '左上角一个返回键。点一下退回上一级，长按回到主界面；在主界面点一下打开多任务。'
+              + '没有导航栏的页面（全屏读书、全屏看片）同样有它。底部横条已隐藏。'
+            : '底部一条横条。点一下回到主界面，双击打开多任务，返回上一级用页面左上角的箭头。'}
+          right=${html`<div style="width:150px"><${Segmented}
+            value=${s.navStyle === 'back' ? 'back' : 'bar'}
+            onChange=${v => db.settings.set({ navStyle: v })}
+            items=${[{ value: 'bar', label: '底部横条' }, { value: 'back', label: '返回键' }]}/></div>`}/>
         <${ListItem} title="启动时显示锁屏"
           left=${html`<${Icon} name="lock" size=${19}/>`}
           right=${html`<${Switch} checked=${s.showLockScreen}
