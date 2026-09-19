@@ -730,7 +730,6 @@ export function Conversation({ chatId, focusId = '' }) {
     } catch (err) { toast(String(err.message || err), 'error'); }
   };
 
-  // 清空聊天记录与清空记忆在角色卡的「清除数据」里，这一页只管消息这一级。
   // 只打包这一个角色。整个库那一份是「设置 - 存储」里的完整备份。
   const exportChar = async () => {
     setPacking(true);
@@ -747,6 +746,42 @@ export function Conversation({ chatId, focusId = '' }) {
       toast('导出失败：' + (err.message || err), 'error', 5000);
     } finally { setPacking(false); }
   };
+
+  // 清除数据。三样都删不回来，所以数目先在确认框里摆出来，不让用户蒙着点。
+  // 作用范围是这个角色名下的全部会话，不只是眼前这一段 —— 说明里写明了。
+  const wipe = async which => {
+    const n = phone.purge.counts(char.id);
+    const act = {
+      history: {
+        title: '清空聊天记录',
+        message: `将删除 ${n.messages} 条消息，其中的图片与语音一并清除。`
+          + '已提取的记忆保留。由聊天记录推算出的账目会随之消失。',
+        run: () => { phone.purge.clearHistory(char.id); return `已清空 ${n.messages} 条消息`; },
+      },
+      memory: {
+        title: '清空记忆',
+        message: `将删除 ${n.memories} 条记忆。聊天记录保留，`
+          + '下次总结时会从现有的聊天记录重新提取。',
+        run: () => { phone.purge.clearMemories(char.id); return `已清空 ${n.memories} 条记忆`; },
+      },
+      both: {
+        title: '清空记忆与聊天记录',
+        message: `将删除 ${n.messages} 条消息与 ${n.memories} 条记忆，`
+          + '消息中的图片与语音一并清除。角色卡本身保留。',
+        run: () => {
+          phone.purge.clearAll(char.id);
+          return `已清空 ${n.messages} 条消息、${n.memories} 条记忆`;
+        },
+      },
+    }[which];
+    if (!await confirm({ title: act.title, message: act.message, danger: true })) return;
+    setMenu(false);
+    toast(act.run(), 'ok');
+  };
+
+  // 菜单没开就不数。counts 要把这个角色名下所有会话的消息过一遍，
+  // 而这一页每来一条消息就重渲染一次
+  const wipeN = menu ? phone.purge.counts(char.id) : { chats: 0, messages: 0, memories: 0 };
 
   const summarize = async () => {
     setMenu(false);
@@ -979,12 +1014,6 @@ export function Conversation({ chatId, focusId = '' }) {
               })()}
               left=${html`<${Icon} name="music" size=${18}/>`}
               onClick=${pullMusic}/>` : null}
-          <${ListItem} title=${packing ? '正在打包' : '导出这个角色'} arrow multiline
-            subtitle="打包该角色及其相关数据。导入在「联系」右上角的「导入角色」中。整库备份在「设置 - 存储」"
-            left=${packing
-              ? html`<${Spinner} size=${16}/>`
-              : html`<${Icon} name="download" size=${18}/>`}
-            onClick=${() => !packing && exportChar()}/>
         <//>
 
         <${List} title="这段对话">
@@ -1073,6 +1102,37 @@ export function Conversation({ chatId, focusId = '' }) {
             left=${html`<${Icon} name="sparkle" size=${18}/>`}
             onClick=${() => { setMenu(false); nav.push('/templates'); }}/>
         <//>
+
+        <${List} title="数据">
+          <${ListItem} title=${packing ? '正在打包' : '导出这个角色'} arrow multiline
+            subtitle="打包该角色及其相关数据为压缩包。整库备份在「设置 - 存储」"
+            left=${packing
+              ? html`<${Spinner} size=${16}/>`
+              : html`<${Icon} name="download" size=${18}/>`}
+            onClick=${() => !packing && exportChar()}/>
+          <${ListItem} title="导入角色" arrow multiline
+            subtitle="装回上面导出的压缩包，或从一份资料整理出新角色。与「联系」右上角的入口是同一页"
+            left=${html`<${Icon} name="upload" size=${18}/>`}
+            onClick=${() => { setMenu(false); phone.intent.open('contact', { route: '/import' }); }}/>
+          <${ListItem} title="清空聊天记录" danger arrow multiline
+            subtitle=${wipeN.chats > 1
+              ? `${wipeN.messages} 条消息，分布在 ${wipeN.chats} 段会话中。已提取的记忆保留`
+              : `${wipeN.messages} 条消息。已提取的记忆保留`}
+            left=${html`<${Icon} name="trash" size=${18}/>`}
+            onClick=${() => wipe('history')}/>
+          <${ListItem} title="清空记忆" danger arrow multiline
+            subtitle=${`${wipeN.memories} 条记忆。聊天记录保留`}
+            left=${html`<${Icon} name="brain" size=${18}/>`}
+            onClick=${() => wipe('memory')}/>
+          <${ListItem} title="清空记忆与聊天记录" danger arrow multiline
+            subtitle="两者一并删除，角色卡本身保留"
+            left=${html`<${Icon} name="close" size=${18}/>`}
+            onClick=${() => wipe('both')}/>
+        <//>
+        <div class="settings-foot">
+          清除操作针对该角色名下的全部内容。同一角色与多个身份分别聊过的，
+          各段会话与各身份下的记忆都会被清除。角色卡、世界书关联与各项设置不受影响。
+        </div>
       <//>
     <//>`;
 }

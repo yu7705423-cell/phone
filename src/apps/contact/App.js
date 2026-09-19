@@ -519,7 +519,7 @@ function EditPage({ id }) {
 
       <div class="settings-foot">
         语音、发图、主动找我、关联世界书在会话右上角的「角色卡」里调。<br/>
-        导出这个角色在会话右上角的菜单里。
+        导出这个角色、导入角色与清除数据在会话右上角菜单最下面的「数据」一组里。
       </div>
 
       <div class="pad">

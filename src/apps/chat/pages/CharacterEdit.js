@@ -1,11 +1,11 @@
 import { html, useState, useRef } from '../../../lib.js';
 import { phone, useStore, useImage } from '../../../sdk/index.js';
 import { Page, Field, Input, Textarea, Avatar, List, ListItem,
-         Switch, Segmented, Icon, Button, QrLogin, CookiePaste, toast, confirm } from '../../../ui/index.js';
+         Switch, Segmented, Icon, Button, QrLogin, CookiePaste, toast } from '../../../ui/index.js';
 import { ZonePicker } from './ZonePicker.js';
 import { AvatarPool } from './AvatarPool.js';
 
-const { db, nav, clock, extras, purge } = phone;
+const { db, nav, clock, extras } = phone;
 
 const FACE_MODES = [
   { value: 'off', label: '关闭' },
@@ -31,37 +31,6 @@ export function CharacterEdit({ id }) {
 
   if (!char) return html`<${Page} title="编辑" onBack=${nav.pop}/>`;
   const patch = p => db.characters.update(id, p);
-
-  // 数目先摆出来，确认框里再写一遍 —— 这三样都删不回来
-  const n = purge.counts(id);
-  const WIPE = {
-    history: {
-      title: '清空聊天记录',
-      message: `将删除 ${n.messages} 条消息，其中的图片与语音一并清除。`
-        + '已提取的记忆保留。由聊天记录推算出的账目会随之消失。',
-      run: () => { purge.clearHistory(id); return `已清空 ${n.messages} 条消息`; },
-    },
-    memory: {
-      title: '清空记忆',
-      message: `将删除 ${n.memories} 条记忆。聊天记录保留，`
-        + '下次总结时会从现有的聊天记录重新提取。',
-      run: () => { purge.clearMemories(id); return `已清空 ${n.memories} 条记忆`; },
-    },
-    both: {
-      title: '清空记忆与聊天记录',
-      message: `将删除 ${n.messages} 条消息与 ${n.memories} 条记忆，`
-        + '消息中的图片与语音一并清除。角色卡本身保留。',
-      run: () => {
-        purge.clearAll(id);
-        return `已清空 ${n.messages} 条消息、${n.memories} 条记忆`;
-      },
-    },
-  };
-  const wipe = async which => {
-    const act = WIPE[which];
-    if (!await confirm({ title: act.title, message: act.message, danger: true })) return;
-    toast(act.run(), 'ok');
-  };
 
   // 换了脸图，之前读出来那段外貌描述就作废了，不然新脸配旧描述
   const pickFace = async e => {
@@ -303,27 +272,6 @@ export function CharacterEdit({ id }) {
           left=${html`<${Icon} name="book" size=${18}/>`}
           onClick=${() => phone.intent.open('theater', { route: `/shelf/${id}` })}/>
       <//>
-
-      <${List} title="清除数据">
-        <${ListItem} title="清空聊天记录" danger arrow multiline
-          subtitle=${n.chats > 1
-            ? `${n.messages} 条消息，分布在 ${n.chats} 段会话中。已提取的记忆保留`
-            : `${n.messages} 条消息。已提取的记忆保留`}
-          left=${html`<${Icon} name="trash" size=${18}/>`}
-          onClick=${() => wipe('history')}/>
-        <${ListItem} title="清空记忆" danger arrow multiline
-          subtitle=${`${n.memories} 条记忆。聊天记录保留`}
-          left=${html`<${Icon} name="brain" size=${18}/>`}
-          onClick=${() => wipe('memory')}/>
-        <${ListItem} title="清空记忆与聊天记录" danger arrow multiline
-          subtitle="两者一并删除，角色卡本身保留"
-          left=${html`<${Icon} name="close" size=${18}/>`}
-          onClick=${() => wipe('both')}/>
-      <//>
-      <div class="settings-foot">
-        以上操作针对该角色名下的全部内容。同一角色与多个身份分别聊过的，
-        各段会话与各身份下的记忆都会被清除。角色卡、世界书关联与各项设置不受影响。
-      </div>
 
       <${List} title="关联世界书">
         ${db.lorebooks.all().map(b => html`

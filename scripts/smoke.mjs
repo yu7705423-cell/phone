@@ -63,7 +63,9 @@ const ids = await page.evaluate(async () => {
   card.link(a.id, b.id, '同学', '同学');
   const chat = db.chats.create({ characterIds: [a.id], personaId: me.id, lastMessageAt: Date.now() });
   db.messages.create({ chatId: chat.id, role: 'user', kind: 'text', content: '嗨', status: 'done' });
-  const mem = db.memories.create({ scope: `character:${a.id}`, content: '一条记忆', category: 'fact', rank: 'A', keywords: [], personaId: me.id });
+  // charId 是记忆现在的归属字段。scope 是 v3 之前的写法，迁移只跑老库，
+  // 新建的行照着写就成了一条谁也挂不上的记忆，记忆那几页等于没测到
+  const mem = db.memories.create({ charId: a.id, content: '一条记忆', category: 'fact', rank: 'A', keywords: [], personaId: me.id });
   const lore = db.lorebooks.create({ name: '一本世界书', description: '', global: false, entries: [
     { id: 'e1', comment: '雨城', keys: ['雨城'], secondaryKeys: [], content: '常年下雨的城市。',
       enabled: true, constant: false, priority: 100, order: 0,
