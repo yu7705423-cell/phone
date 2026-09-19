@@ -176,8 +176,9 @@ final class ShellViewController: UIViewController {
             f.autocorrectionType = .no
             f.clearButtonMode = .whileEditing
         }
-        alert.addAction(UIAlertAction(title: "保存", style: .default) { [weak self] _ in
-            let text = (alert.textFields?.first?.text ?? "").trimmingCharacters(in: .whitespaces)
+        // alert 要弱引用：它持有 action，action 持有这个闭包，闭包再强持有它就成了环
+        alert.addAction(UIAlertAction(title: "保存", style: .default) { [weak self, weak alert] _ in
+            let text = (alert?.textFields?.first?.text ?? "").trimmingCharacters(in: .whitespaces)
             UserDefaults.standard.set(text, forKey: Self.urlKey)
             self?.rebuildAndLoad()
         })
@@ -373,8 +374,8 @@ extension ShellViewController: WKUIDelegate {
         let a = UIAlertController(title: nil, message: prompt, preferredStyle: .alert)
         a.addTextField { $0.text = defaultText }
         a.addAction(UIAlertAction(title: "取消", style: .cancel) { _ in completionHandler(nil) })
-        a.addAction(UIAlertAction(title: "好", style: .default) { _ in
-            completionHandler(a.textFields?.first?.text)
+        a.addAction(UIAlertAction(title: "好", style: .default) { [weak a] _ in
+            completionHandler(a?.textFields?.first?.text)
         })
         present(a, animated: true)
     }
