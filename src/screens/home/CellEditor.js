@@ -3,7 +3,7 @@ import { Sheet, List, ListItem, Icon, Button, Input, Field, toast } from '../../
 import { listWidgets } from '../../system/registry.js';
 import { listAppLooks } from '../../system/look.js';
 import { layout } from '../../system/db/index.js';
-import { placeAt, placeAtXY, clearCell, newFolder, setFolder, putInFolder, takeOut } from './layout.js';
+import { placeAt, placeAtXY, clearCell, newFolder, newFolderAuto, setFolder, putInFolder, takeOut } from './layout.js';
 
 const sizeLabel = (w, h) => `${w} x ${h}`;
 
@@ -76,7 +76,12 @@ export function CellEditor({ cell, pageIdx, onClose, onSwapFrom }) {
     setName(cell.name || '');
     setTab('folder-edit');
   };
-  const openFolderNew = () => { setPickedApps([]); setName(''); setTab('folder-new'); };
+  // app 格上新建：这个 app 先替你勾上，多半就是为了把它收起来才点的
+  const openFolderNew = () => {
+    setPickedApps(cell.kind === 'app' && cell.ref ? [cell.ref] : []);
+    setName('');
+    setTab('folder-new');
+  };
 
   const body =
     tab === 'widget' ? html`
@@ -138,13 +143,16 @@ export function CellEditor({ cell, pageIdx, onClose, onSwapFrom }) {
             left=${html`<${Icon} name="grid" size=${18}/>`} onClick=${() => setTab('widget')}/>
           <${ListItem} title="放一个应用" arrow
             left=${html`<${Icon} name="layers" size=${18}/>`} onClick=${() => setTab('app')}/>
-          ${isSlot ? html`
-            <${ListItem} title="新建文件夹" subtitle="把多个应用收进一格" arrow multiline
+          ${isSlot || cell.kind === 'app' ? html`
+            <${ListItem} title="新建文件夹" arrow multiline
+              subtitle=${cell.kind === 'app'
+                ? `把「${apps.find(a => a.id === cell.ref)?.name || '这个应用'}」和别的应用收进一格`
+                : '把多个应用收进一格'}
               left=${html`<${Icon} name="folder" size=${18}/>`} onClick=${openFolderNew}/>` : null}
         `}
         ${!isSlot ? html`
           ${cell.kind === 'app' && foldersNow().length ? html`
-            <${ListItem} title="装进文件夹" arrow
+            <${ListItem} title="装进已有的文件夹" arrow
               left=${html`<${Icon} name="folder" size=${18}/>`} onClick=${() => setTab('into')}/>` : null}
           <${ListItem} title="移动到别处" subtitle="接着点想放到的位置，翻页也可以，占着的会自动让开" arrow multiline
             left=${html`<${Icon} name="drag" size=${18}/>`}

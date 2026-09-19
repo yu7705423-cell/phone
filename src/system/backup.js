@@ -25,14 +25,10 @@ const COLLECTIONS = [
 ];
 
 const FORMAT = 'mini-phone-backup';
-const VERSION = 2;                 // 备份**文件**的格式版本
+const VERSION = 2;                 // 备份文件的格式版本
 
-// 备份里还要记一个**数据结构**的版本号，那是另一件事。
-//
-// 这两个从前只有前一个。于是拿半年前的备份恢复进新版本，行照原样灌回去，
-// 中间那几次迁移一次都不跑 —— 缺的字段一直缺着，而开机时那句
-// 「from < DATA_VERSION」看的是本机的记号，不是备份的，所以也不会补。
-// 表现是安静的：某个开关莫名其妙回到了旧默认值，某个注入区块不见了。
+// 另外还要记一个数据结构的版本号（_data）。开机时那句
+// from < DATA_VERSION 看的是本机的记号，不是备份的，老备份灌回来不会补迁移。
 
 const extOf = (type, fallback) => {
   const t = String(type || '').toLowerCase();
@@ -70,12 +66,8 @@ export async function build({ media = true, onProgress } = {}) {
   };
   COLLECTIONS.forEach(name => { data[name] = db[name]?.all?.() || []; });
 
-  // 只要 JSON 的那一档就给一份真的 JSON。
-  //
-  // 从前这里不分档，两档都打成 ZIP，而界面按 media 把文件名写成 .json ——
-  // 于是「只要 JSON」导出来的是个叫 .json 的 ZIP，再导回去时按扩展名
-  // 当 JSON 解析，第一个字符就是 ZIP 的 "P"，直接报「导入失败」。
-  // 导出看着是成功的，坏在恢复那一天。
+  // 只要 JSON 的那一档就给一份真的 JSON。从前两档都打成 ZIP，而界面按
+  // media 把文件名写成 .json，再导回去按扩展名解析直接炸在第一个字符。
   if (!media) {
     onProgress && onProgress(1);
     return new Blob([JSON.stringify(data)], { type: 'application/json' });
@@ -99,8 +91,7 @@ export async function build({ media = true, onProgress } = {}) {
  * 恢复。**先把包整个读出来确认没问题，再动现有数据** ——
  * 读到一半发现是坏包，而库已经清了一半，那是最糟的一种失败。
  */
-// ZIP 一律以 "PK" 开头。**按内容认，不按扩展名认** ——
-// 文件名是界面写的，改错过一次；内容不会说谎。
+// 按内容认格式，不按扩展名 —— 文件名是界面写的，已经写错过一次。
 async function looksZip(file) {
   const head = new Uint8Array(await file.slice(0, 2).arrayBuffer());
   return head[0] === 0x50 && head[1] === 0x4b;
@@ -162,11 +153,8 @@ export async function restore(file, { onProgress } = {}) {
   }
   if (data.layout) db.layout.replace(data.layout);
 
-  // 老备份补迁移。放在最后：迁移要改的就是上面刚灌进去的那些行。
-  //
-  // `_data` 缺失的是加这个字段之前导出的备份，一律从 0 跑一遍 ——
-  // 迁移本身都是幂等的（开机那条路对全新安装也是从 0 跑起），
-  // 多跑一遍不会坏，少跑一遍会。
+  // 老备份补迁移，放在最后：要改的就是上面刚灌进去的那些行。
+  // 没有 _data 的从 0 跑一遍 —— 迁移都是幂等的，多跑不会坏，少跑会。
   let migrated = 0;
   if (from < DATA_VERSION) {
     const to = runMigrations(from, {

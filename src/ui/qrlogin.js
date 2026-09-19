@@ -73,14 +73,9 @@ export function QrLogin({ service, owner = '', onDone, hint = '请使用对应�
 
 
 /**
- * 手工粘贴 cookie。扫码那条路走不通时的另一个入口。
- *
- * 网易云按请求来源的 IP 做风控，公共实例跑在机房里，扫码的三个接口会被
- * 整条拦掉（code -462）。这种时候把浏览器里已登录的 MUSIC_U 拿过来，
- * 请求就从匿名变成了登录，那套尺度松得多。
- *
- * 和扫码共用同一个 service 约定，多用一个动作：
- *   service.saveCookie(cookie, owner)   存起来，账号信息问不到也存
+ * 手工粘贴 cookie。公共实例跑在机房里，扫码那三个接口会被网易云风控整条
+ * 拦掉（code -462），这时把浏览器里已登录的 MUSIC_U 拿过来还走得通。
+ * 和扫码共用 service 约定，多一个 saveCookie(cookie, owner)。
  */
 export function CookiePaste({ service, owner = '', onDone,
   hint = '在浏览器中登录网易云音乐后，从开发者工具的存储中复制 MUSIC_U 的值' }) {

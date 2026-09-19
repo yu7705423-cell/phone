@@ -32,7 +32,7 @@ export function CharacterEdit({ id }) {
   if (!char) return html`<${Page} title="编辑" onBack=${nav.pop}/>`;
   const patch = p => db.characters.update(id, p);
 
-  // 清除数据。数目先摆出来，确认框里再写一遍 —— 这三样都删不回来
+  // 数目先摆出来，确认框里再写一遍 —— 这三样都删不回来
   const n = purge.counts(id);
   const WIPE = {
     history: {

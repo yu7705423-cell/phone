@@ -701,11 +701,8 @@ export function Conversation({ chatId, focusId = '' }) {
     setPicked(null);
   };
 
-  // 「清空聊天记录」「清空记忆」都在角色卡的「清除数据」里，菜单上面那一行
-  // 进得去。同一件事只留一个入口（CLAUDE.md 第 5 条），而那两件事本来就该
-  // 挨在一起选。这一页留的是消息这一级的：挑几条删掉。
-  // 把这个角色打包带走。**只有这一个角色**，以及与它相关的东西 ——
-  // 所有角色、曲库、外观那一份是「设置 - 存储」里的完整备份，两件事。
+  // 清空聊天记录与清空记忆在角色卡的「清除数据」里，这一页只管消息这一级。
+  // 只打包这一个角色。整个库那一份是「设置 - 存储」里的完整备份。
   const exportChar = async () => {
     setPacking(true);
     try {
@@ -915,83 +912,18 @@ export function Conversation({ chatId, focusId = '' }) {
         onDelete=${id => dropMessages([id])}/>
 
       <${FullSheet} open=${menu} onClose=${() => setMenu(false)} title=${char.name}>
-        <${List}>
-          <${ListItem} title="搜索聊天记录" subtitle=${`在这段对话中查找，共 ${msgs.length} 条消息`}
-            arrow multiline
-            left=${html`<${Icon} name="search" size=${18}/>`}
-            onClick=${() => { setMenu(false); nav.push(`/search/${chatId}`); }}/>
+        <${List} title="这个角色">
           <${ListItem} title="角色卡" arrow multiline
             subtitle="人设、核心设定、开场白、对话示例、关联世界书，以及当日日程与各项能力的开关"
             left=${html`<${Icon} name="user" size=${18}/>`}
             onClick=${() => { setMenu(false); nav.push(`/edit/${char.id}`); }}/>
-          <${ListItem} title="角色主页" arrow
+          <${ListItem} title="角色主页" subtitle="头像、封面与该角色发布的动态" arrow multiline
             left=${html`<${Icon} name="camera" size=${18}/>`}
             onClick=${() => { setMenu(false); nav.push(`/profile/${char.id}`); }}/>
           <${ListItem} title="主动发起对话" arrow multiline
             subtitle=${proDesc}
             left=${html`<${Icon} name="bell" size=${18}/>`}
             onClick=${() => { setMenu(false); nav.push(`/proactive/${char.id}`); }}/>
-          <${ListItem} title=${packing ? '正在打包' : '导出这个角色'} arrow multiline
-            subtitle=${(() => {
-              const s2 = phone.charpack.estimate(char.id);
-              return `角色卡${s2.alts ? `、${s2.alts} 个小号` : ''}`
-                + `${s2.books ? `、${s2.books} 本关联世界书` : ''}`
-                + `，以及与该角色的 ${s2.chats} 段会话、${s2.messages} 条消息、`
-                + `${s2.memories} 条记忆与 ${s2.images} 张图片。`
-                + '其他角色不在其中，整库备份在「设置 - 存储」';
-            })()}
-            left=${packing
-              ? html`<${Spinner} size=${16}/>`
-              : html`<${Icon} name="download" size=${18}/>`}
-            onClick=${() => !packing && exportChar()}/>
-        <//>
-
-        <${List} title="上下文">
-          <${ListItem} title="每轮的接口调用" arrow multiline
-            subtitle=${(() => {
-              const n = ai.cost.perTurn(chatId);
-              return n > 1
-                ? `这段对话每轮固定调用 ${n} 次接口。点击查看是哪几项，并可逐项关闭。`
-                : '这段对话每轮调用 1 次接口。';
-            })()}
-            left=${html`<${Icon} name="filter" size=${18}/>`}
-            onClick=${() => { setMenu(false); phone.intent.open('settings', { route: '/limits' }); }}/>
-          <${ListItem} title="上下文与记忆" subtitle="注入顺序、扫描窗口、历史范围、自动总结" arrow multiline
-            left=${html`<${Icon} name="layers" size=${18}/>`}
-            onClick=${() => { setMenu(false); nav.push('/context'); }}/>
-          <${ListItem} title="翻译" arrow multiline
-            subtitle=${chat.translateTo
-              ? `每条同时给出${chat.translateTo}译文，${settings.translateOpen === 'always' ? '默认展开' : '点气泡展开'}`
-              : '关着。开启后角色每说一条会同时给出译文'}
-            left=${html`<${Icon} name="translate" size=${18}/>`}
-            onClick=${() => { setMenu(false); nav.push(`/translate/${chatId}`); }}/>
-          <${ListItem} title="节奏与自动回复" arrow multiline
-            subtitle=${(() => {
-              const mode = pace.modeOf(chat);
-              const m = mode === pace.NOW ? '发完就回'
-                : mode === pace.PACED ? '过一会儿才回' : '按按钮才回';
-              return `${m}${autoReply.bannerOf(chat) ? ' · ' + autoReply.bannerOf(chat) : ''}`;
-            })()}
-            left=${html`<${Icon} name="clock" size=${18}/>`}
-            onClick=${() => { setMenu(false); nav.push(`/pace/${chatId}`); }}/>
-          <${ListItem} title="共享位置" arrow multiline
-            subtitle=${(() => {
-              const sum = phone.geo.summary(chatId);
-              return sum ? `${sum.me.place || '未命名'} 到 ${sum.char.place || '未命名'}`
-                + (sum.text ? ` · ${sum.text}` : ' · 缺少坐标，算不出距离')
-                : '关着。开启后角色知道你们相距多远，距离由本地计算';
-            })()}
-            left=${html`<${Icon} name="compass" size=${18}/>`}
-            onClick=${() => { setMenu(false); setSharing(true); }}/>
-          <${ListItem} title="互动" arrow multiline
-            subtitle=${`心声${extras.innerMode(chat) === extras.INNER_OFF ? '关着'
-              : extras.innerMode(chat) === extras.INNER_INLINE ? '随回复一起生成' : '每轮单独生成'}`
-              + ` · 拍一拍 · ${extras.facesOf(chat)} 面骰子`}
-            left=${html`<${Icon} name="heart" size=${18}/>`}
-            onClick=${() => { setMenu(false); nav.push(`/extras/${chatId}`); }}/>
-          <${ListItem} title="Prompt 模板" subtitle="骨架与各任务的提示词" arrow
-            left=${html`<${Icon} name="sparkle" size=${18}/>`}
-            onClick=${() => { setMenu(false); nav.push('/templates'); }}/>
           ${phone.netease.cookieOf(char.id) ? html`
             <${ListItem} title="看看她在听什么" arrow multiline
               subtitle=${(() => {
@@ -1003,6 +935,63 @@ export function Conversation({ chatId, focusId = '' }) {
               })()}
               left=${html`<${Icon} name="music" size=${18}/>`}
               onClick=${pullMusic}/>` : null}
+          <${ListItem} title=${packing ? '正在打包' : '导出这个角色'} arrow multiline
+            subtitle="打包该角色及其相关数据，可在另一台设备导入。整库备份在「设置 - 存储」"
+            left=${packing
+              ? html`<${Spinner} size=${16}/>`
+              : html`<${Icon} name="download" size=${18}/>`}
+            onClick=${() => !packing && exportChar()}/>
+        <//>
+
+        <${List} title="这段对话">
+          <${ListItem} title="搜索聊天记录" subtitle=${`在这段对话中查找，共 ${msgs.length} 条消息`}
+            arrow multiline
+            left=${html`<${Icon} name="search" size=${18}/>`}
+            onClick=${() => { setMenu(false); nav.push(`/search/${chatId}`); }}/>
+          <${ListItem} title="多选消息" subtitle="选择多条消息后一并删除。长按任意消息亦可进入" arrow multiline
+            left=${html`<${Icon} name="check" size=${18}/>`}
+            onClick=${() => { setMenu(false); setPicked([]); setPanel(null); }}/>
+          <${ListItem} title="节奏与自动回复" arrow multiline
+            subtitle=${(() => {
+              const mode = pace.modeOf(chat);
+              const m = mode === pace.NOW ? '发完就回'
+                : mode === pace.PACED ? '过一会儿才回' : '按按钮才回';
+              return `${m}${autoReply.bannerOf(chat) ? ' · ' + autoReply.bannerOf(chat) : ''}`;
+            })()}
+            left=${html`<${Icon} name="clock" size=${18}/>`}
+            onClick=${() => { setMenu(false); nav.push(`/pace/${chatId}`); }}/>
+          <${ListItem} title="翻译" arrow multiline
+            subtitle=${chat.translateTo
+              ? `每条同时给出${chat.translateTo}译文，${settings.translateOpen === 'always' ? '默认展开' : '点气泡展开'}`
+              : '关着。开启后角色每说一条会同时给出译文'}
+            left=${html`<${Icon} name="translate" size=${18}/>`}
+            onClick=${() => { setMenu(false); nav.push(`/translate/${chatId}`); }}/>
+          <${ListItem} title="互动" arrow multiline
+            subtitle=${`心声${extras.innerMode(chat) === extras.INNER_OFF ? '关着'
+              : extras.innerMode(chat) === extras.INNER_INLINE ? '随回复一起生成' : '每轮单独生成'}`
+              + ` · 拍一拍 · ${extras.facesOf(chat)} 面骰子`}
+            left=${html`<${Icon} name="heart" size=${18}/>`}
+            onClick=${() => { setMenu(false); nav.push(`/extras/${chatId}`); }}/>
+          <${ListItem} title="共享位置" arrow multiline
+            subtitle=${(() => {
+              const sum = phone.geo.summary(chatId);
+              return sum ? `${sum.me.place || '未命名'} 到 ${sum.char.place || '未命名'}`
+                + (sum.text ? ` · ${sum.text}` : ' · 缺少坐标，算不出距离')
+                : '关着。开启后角色知道你们相距多远，距离由本地计算';
+            })()}
+            left=${html`<${Icon} name="compass" size=${18}/>`}
+            onClick=${() => { setMenu(false); setSharing(true); }}/>
+        <//>
+
+        <${List} title="记忆与上下文">
+          <${ListItem} title="上下文与记忆" subtitle="注入顺序、扫描窗口、历史范围、自动总结" arrow multiline
+            left=${html`<${Icon} name="layers" size=${18}/>`}
+            onClick=${() => { setMenu(false); nav.push('/context'); }}/>
+          <${ListItem} title="立即总结记忆" arrow multiline
+            subtitle=${`尚有 ${pending} 条未总结 · ${settings.autoSummarizeInterval > 0
+              ? `自动总结每 ${settings.autoSummarizeInterval} 轮一次`
+              : '自动总结已关闭'}`}
+            left=${html`<${Icon} name="brain" size=${18}/>`} onClick=${summarize}/>
           <${ListItem} title="关系底色" arrow multiline
             subtitle=${(() => {
               const t = ai.bond.textOf(char, chat.personaId);
@@ -1010,22 +999,26 @@ export function Conversation({ chatId, focusId = '' }) {
               return t ? `${t.split('\n')[0].slice(0, 20)}… · 由 ${n} 条关系转折级记忆压成`
                 : `尚未生成 · 当前有 ${n} 条关系转折级记忆`;
             })()}
-            left=${html`<${Icon} name="heart" size=${18}/>`}
+            left=${html`<${Icon} name="users" size=${18}/>`}
             onClick=${() => { setMenu(false); nav.push(`/bond/${chatId}`); }}/>
-          <${ListItem} title="立即总结记忆" arrow multiline
-            subtitle=${`尚有 ${pending} 条未总结 · ${settings.autoSummarizeInterval > 0
-              ? `自动总结每 ${settings.autoSummarizeInterval} 轮一次`
-              : '自动总结已关闭'}`}
-            left=${html`<${Icon} name="brain" size=${18}/>`} onClick=${summarize}/>
-          <${ListItem} title="表情包" subtitle=${`共 ${db.stickers.count()} 个`} arrow
-            left=${html`<${Icon} name="heart" size=${18}/>`}
-            onClick=${() => { setMenu(false); nav.push('/stickers'); }}/>
+          <${ListItem} title="每轮的接口调用" arrow multiline
+            subtitle=${(() => {
+              const n = ai.cost.perTurn(chatId);
+              return n > 1
+                ? `这段对话每轮固定调用 ${n} 次接口。点击查看是哪几项，并可逐项关闭`
+                : '这段对话每轮调用 1 次接口';
+            })()}
+            left=${html`<${Icon} name="filter" size=${18}/>`}
+            onClick=${() => { setMenu(false); phone.intent.open('settings', { route: '/limits' }); }}/>
         <//>
 
-        <${List} title="这段对话">
-          <${ListItem} title="多选消息" subtitle="选择多条消息后一并删除。长按任意消息亦可进入" arrow multiline
-            left=${html`<${Icon} name="check" size=${18}/>`}
-            onClick=${() => { setMenu(false); setPicked([]); setPanel(null); }}/>
+        <${List} title="所有角色通用">
+          <${ListItem} title="表情包" subtitle=${`共 ${db.stickers.count()} 个，所有角色共用`} arrow multiline
+            left=${html`<${Icon} name="image" size=${18}/>`}
+            onClick=${() => { setMenu(false); nav.push('/stickers'); }}/>
+          <${ListItem} title="Prompt 模板" subtitle="骨架与各任务的提示词" arrow multiline
+            left=${html`<${Icon} name="sparkle" size=${18}/>`}
+            onClick=${() => { setMenu(false); nav.push('/templates'); }}/>
         <//>
       <//>
     <//>`;

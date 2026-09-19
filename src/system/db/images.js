@@ -11,12 +11,9 @@ export const PHOTO_MAX = 1280;
 export const ICON_MAX = 256;
 const QUALITY = 0.82;
 
-// 缩略图。**列表里画的一律是这一张，原图只在需要原图的地方用。**
-//
-// 存进来的照片长边 1280，而气泡里那张最宽只有 200 逻辑像素、朋友圈九宫格
-// 一格才 120。浏览器却要把 1280×1280 整个解码成位图才画得出来 ——
-// 一张 6.5MB 内存，一屏十几张就是几十兆，滚动时反复解码，机器就是这么烫的。
-// 640 在三倍屏上画 200 宽还有富余，像素数只有原来的四分之一。
+// 缩略图。列表里画的一律是这一张，原图只在需要原图的地方用。
+// 气泡最宽 200 逻辑像素，却要把 1280 的原图整个解码成位图，一屏十几张
+// 就是几十兆内存，滚动时反复解。640 在三倍屏上够用，像素数只有四分之一。
 export const THUMB_MAX = 640;
 
 export async function compress(file, maxEdge = PHOTO_MAX) {
@@ -54,8 +51,7 @@ export async function compressFit(file, size = ICON_MAX) {
 // 够小的就不另存一张：缩略图和原图一样大，白占一份空间。
 const wantThumb = (w, h) => Math.max(w || 0, h || 0) > THUMB_MAX;
 
-// 老图没有缩略图，第一次要用的时候现做一张存回去。
-// 同一张图一屏里有好几处要，所以把这件事按 id 去重，不然做十几遍。
+// 老图第一次用到时现做一张存回去。按 id 去重，不然一屏里做十几遍。
 const making = new Map();
 function makeThumb(row) {
   if (making.has(row.id)) return making.get(row.id);
@@ -93,7 +89,7 @@ export const images = {
   async put(file, maxEdge = PHOTO_MAX) {
     const { blob, w, h } = await compress(file, maxEdge);
     const row = { id: uid('img'), blob, w, h, bytes: blob.size, createdAt: Date.now() };
-    // 缩略图当场做好。等到第一次显示再做，那一下正是列表在滚的时候
+    // 当场做好。等第一次显示再做，那一下正是列表在滚的时候
     if (wantThumb(w, h)) {
       const t = await compress(blob, THUMB_MAX);
       row.thumb = t.blob; row.tw = t.w; row.th = t.h;
@@ -124,7 +120,7 @@ export const images = {
     await write('images', () => idb.put('images', row));
     const old = urls.get(id);
     if (old) { URL.revokeObjectURL(old); urls.delete(id); }
-    // 缩略图不进备份（它是从原图算出来的），第一次用到时再现做
+    // 缩略图不进备份，第一次用到时再现做
     const oldThumb = thumbUrls.get(id);
     if (oldThumb) { URL.revokeObjectURL(oldThumb); thumbUrls.delete(id); }
     return id;

@@ -34,8 +34,7 @@ async function call(path, params = {}, cookie = '') {
   });
   url.searchParams.set('timestamp', String(Date.now()));
   if (cookie) url.searchParams.set('cookie', cookie);
-  // 网易云按请求来源的 IP 做风控，境外地址会被要求先过验证（code -462）。
-  // 接口支持把这个参数当作来源地址转交上去，填了就一路带着。
+  // 境外地址会被网易云要求先过验证（code -462），realIP 转交上去可以绕开
   const ip = neteaseConfig().realIP;
   if (ip) url.searchParams.set('realIP', ip);
 
@@ -96,8 +95,7 @@ export function ready() { return neteaseReady(); }
 const withIP = (url, ip) =>
   (ip ? `${url}${url.includes('?') ? '&' : '?'}realIP=${encodeURIComponent(ip)}` : url);
 
-// 同理，已经存了 cookie 就带着测。网易云对匿名请求和登录请求是两套尺度：
-// 匿名被风控拦下的接口，带上 cookie 常常就通了。
+// 已存的 cookie 也带着测：匿名被风控拦下的接口，带上 cookie 常常就通。
 const withCookie = (url, ck) =>
   (ck ? `${url}${url.includes('?') ? '&' : '?'}cookie=${encodeURIComponent(ck)}` : url);
 
@@ -133,9 +131,8 @@ function said(r) {
   return `${code}${text.slice(0, 120)}${text.length > 120 ? '…' : ''}`;
 }
 
-// 网易云自己的业务码。回来了这个，说明请求一路打到了网易云、又原路回到了
-// 这个页面 —— 地址通，跨域也放行了。这类回复是**上游**不认这个实例的出口 IP，
-// 和实例本身能不能用是两件事，不该记在「连得上」头上。
+// 网易云自己的业务码。回来了这个说明请求一路打到了网易云又原路回来，
+// 地址和跨域都没问题，是上游不认这个实例的出口 IP，不该记在「连得上」头上。
 const RISK = {
   '-462': '网易云要求先完成验证：这个实例的出口 IP 在风控名单上',
   '-460': '网易云拒绝了这个实例的出口 IP',
@@ -147,9 +144,7 @@ function bizCode(r) {
   return typeof c === 'number' ? c : null;
 }
 
-// 是不是上游风控。是就返回一句现成的说明，不是就空字符串。
-// 只说这一项发生了什么，怎么办由页面底下那段统一说一次 ——
-// 七行里重复七遍「填 realIP」，反而没人看。
+// 是不是上游风控。只说这一项发生了什么，怎么办由页面底下那段统一说一次。
 function riskNote(r) {
   const c = bizCode(r);
   const hit = c !== null && RISK[String(c)];
@@ -322,12 +317,8 @@ export async function saveLogin(cookie, charId = '') {
 }
 
 /**
- * 手工粘贴 cookie 存进来。
- *
- * 和 saveLogin 的区别只有一条：**账号信息问不到也照存**。
- * 网易云对机房 IP 有风控，扫码那三步会被整条拦掉（code -462），
- * 这时唯一还走得通的路就是把浏览器里已登录的 MUSIC_U 拿过来。
- * 那种状况下 /user/account 多半也问不到，不能因此拒绝保存。
+ * 手工粘贴 cookie 存进来。和 saveLogin 的区别只有一条：账号信息问不到也照存 ——
+ * 被风控的实例上 /user/account 多半也问不到，不能因此拒绝保存。
  */
 export async function saveCookie(raw, charId = '') {
   const cookie = String(raw || '').replace(/\s+/g, ' ').trim();

@@ -393,6 +393,23 @@ export function newFolder(pageIdx, x, y, apps = [], name = '文件夹') {
   return placeAtXY(pageIdx, x, y, { kind: 'folder', name: String(name || '文件夹').slice(0, 12), apps: list });
 }
 
+/** 不指定位置，自己找个空位建。底栏那几个也是从这里建文件夹的。 */
+export function newFolderAuto(pageIdx, apps = [], name = '文件夹') {
+  const list = [...new Set(apps.filter(hasApp))];
+  if (!list.length) return { ok: false, reason: '请至少选择一个应用' };
+  detach(list);
+  const lay = layout.get();
+  const at = Math.min(pageIdx, Math.max(0, (lay.pages || []).length - 1));
+  for (let i = at; i < (lay.pages || []).length; i++) {
+    const spot = findSpot(lay.pages[i], 1, 1);
+    if (spot) return newFolder(i, spot.x, spot.y, list, name);
+  }
+  const next = structuredClone(lay);
+  next.pages.push({ id: uid('p'), cells: [] });
+  layout.replace(next);
+  return newFolder(next.pages.length - 1, 0, 0, list, name);
+}
+
 /** 改文件夹：名字和里面装什么。装空了就把这个文件夹去掉。 */
 export function setFolder(cellId, { name, apps }) {
   if (Array.isArray(apps)) {

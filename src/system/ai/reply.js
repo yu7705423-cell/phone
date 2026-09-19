@@ -660,8 +660,8 @@ function shouldNotify(chatId) {
   return !(looking && document.visibilityState === 'visible');
 }
 
-// 通知里那一行写什么。文字照抄；图片、语音这些没有可读正文的，写成它是什么。
-// 「[图片：一段给生图接口的描述]」不能原样露出来，那是给机器看的。
+// 通知里那一行写什么。「[图片：一段给生图接口的描述]」是给机器看的，
+// 不能原样露出来。
 const BODY_OF = {
   image: '[图片]', voice: '[语音]', sticker: '[表情]', transfer: '[转账]', gift: '[礼物]',
   location: '[位置]', call: '[通话]', listen: '[一起听]', watch: '[一起看]',
@@ -670,12 +670,8 @@ const BODY_OF = {
 };
 const bodyOf = m => (m.kind === 'text' ? m.content : BODY_OF[m.kind]) || '发来一条消息';
 
-// **一条消息一条通知**，不是一轮一条。
-//
-// 从前整轮落完只弹一次，正文取第一条 —— 于是系统通知永远只看得见开头那句，
-// 后面那几条像没发过。手机上本来就是一条一条弹的，这里照做。
-// 由 renderTurn 在每条气泡落下的那一刻调，和气泡的节奏一致，
-// 而不是整轮说完之后一口气补三条。
+// 一条消息一条通知，不是一轮一条。由 renderTurn 在每条气泡落下的那一刻调，
+// 和气泡的节奏一致，而不是整轮说完之后一口气补三条。
 export function notifyMessage(chat, char, msg) {
   if (!msg || !shouldNotify(chat.id)) return;
   notify({
@@ -722,8 +718,7 @@ async function applyTranslate(job, byPart) {
   });
 }
 
-// notify：每落一条就弹一条通知（人不在这个会话里时）。
-// 重放候选、一起看里的插话这些不传，它们不是「新来的消息」。
+// notify：每落一条弹一条（人不在这个会话里时）。重放候选、一起看的插话不传。
 export async function renderTurn({ chat, char, raw, turnId, swipes, swipeIndex, onEach, signal, instant, notify: wantNotify = false }) {
   const parts = splitReply(raw);
   if (!parts.length) throw new Error('模型返回了空内容');
@@ -749,9 +744,8 @@ export async function renderTurn({ chat, char, raw, turnId, swipes, swipeIndex, 
     if (wantNotify) notifyMessage(chat, char, msg);
     if (!instant && i < parts.length - 1) await new Promise(r => setTimeout(r, pause(part)));
   }
-  // 一轮写一次，不是一条写一次。messages.create 本来就已经通知过一遍界面了，
-  // 每条再 update 一次 chats 就是白多一轮重渲染 —— 一轮三到五条，白多四次。
-  // 中途被取消也照写：已经落下的那几条是真的落了。
+  // 一轮写一次。messages.create 已经通知过界面，每条再 update 一次 chats
+  // 就是白多一轮重渲染。中途取消也照写，已经落下的那几条是真落了。
   if (created.length) chats.update(chat.id, { lastMessageAt: Date.now() });
   await applyTranslate(job, byPart);
   return created;

@@ -9,8 +9,7 @@ import { appLook } from '../system/look.js';
 import { nav, currentRoute } from '../system/nav.js';
 
 const SHOW_MS = 4600;
-// 藏起来的时候最多攒这么多条。再多就是一串补弹，反而看不清。
-// 一条消息一条通知之后，同一个会话的在队列里并成一条（带条数），
+// 藏起来的时候最多攒这么多条。同一个会话的并成一条，
 // 所以这个数限的是「几个来源」，不是几条消息。
 const QUEUE_MAX = 3;
 
@@ -96,9 +95,7 @@ export function NotifyBanner() {
     ring(cfg);
     if (!cfg.banner) return;
     setQueue(q => {
-      // 前台时只显示最新那条，旧的顶掉，不堆成一摞。
-      // 藏起来的时候攒着：这几条都是你没看见的，回来要补上 ——
-      // 但同一个会话的并成一条，正文取最新那句，条数累计。
+      // 前台时只显示最新那条。藏起来时攒着，但同一个会话的并成一条 ——
       // 一轮五条各弹一遍，回来就是二十几秒的横幅，谁也不会等着看完。
       if (document.visibilityState === 'visible') return [item];
       const src = sourceOf(item);

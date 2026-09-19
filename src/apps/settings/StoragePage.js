@@ -72,9 +72,7 @@ export function StoragePage() {
     } finally { setBusy(false); setWork(null); }
   };
 
-  // 「谁还引用着图片」这张单子在 system/purge.js。从前写在这里，
-  // 漏掉了聊天记录里的图、通话背景、脸部参考与头像池 —— 按那张单子清一遍
-  // 会把它们全删了。这种单子必须和存图的地方放在一起维护。
+  // 「谁还引用着图片」这张单子在 system/purge.js，和存图的地方放在一起维护。
   const cleanOrphans = async () => {
     const orphans = phone.purge.orphanImageIds();
     if (!orphans.length) { toast('没有需要清理的图片'); return; }

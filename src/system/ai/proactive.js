@@ -61,16 +61,8 @@ function writeMap(m) {
 export function nextAt(charId) { return readMap()[charId] || 0; }
 
 /**
- * 一个 tick 里只读一次、只在真的变了的时候写一次。
- *
- * 从前每个角色都单独 `nextAt()`（一次 localStorage.getItem + JSON.parse），
- * 而 `setNext()` 每次都整份写回去（localStorage.setItem，**同步落盘**）。
- * 最花钱的是没开主动消息的那些：`setNext(id, 0)` 删一个本来就不存在的键，
- * 再把一模一样的内容写一遍 —— 二十个角色就是每二十秒四十次同步磁盘操作，
- * 全在主线程上，什么也没换来。
- *
- * 这里把一轮扫描当成一次事务：进来读一次，改动记在内存里，
- * 出去的时候脏了才落盘。
+ * 一轮扫描当成一次事务：进来读一次，改动记在内存里，出去脏了才落盘。
+ * localStorage 是同步落盘的，每个角色各读各写，二十个角色就是四十次。
  */
 function openMap() {
   const m = readMap();
@@ -223,9 +215,7 @@ const running = new Set();
 let altMod = null;
 import('./tasks/char-alt.js').then(m => { altMod = m; }).catch(() => {});
 
-// 同样的道理，这两个也只在装载时引一次。
-// 从前是每个 tick 现 import 一次 —— 模块本身有缓存，但每次仍要新起两条
-// promise 链，每二十秒一轮，白跑。
+// 同样的道理，这两个也只在装载时引一次，不在每个 tick 里现 import。
 let spaceMod = null, paceMod = null;
 import('../space.js').then(m => { spaceMod = m; }).catch(() => {});
 import('../pace.js').then(m => { paceMod = m; }).catch(() => {});
@@ -302,15 +292,9 @@ export async function tick() {
   }, 0);
 }
 
-// 下一次多久之后醒。
-//
-// **上限就是安全网**：哪怕这个数算错了，到点该发的也最多迟 MAX 这么久。
-// 所以不必去问 pace 和 space「你们下一件事什么时候」—— 它们要的精度
-// 远没有一分钟那么细，上限兜得住。
-//
-// 从前是固定二十秒。主动消息的间隔按**分钟**算（默认平均 60 分钟，
-// 还要乘 0.5 到 1.5 的随机），二十秒的精度对它毫无意义，只是把人闲着的时候
-// 也叫醒三倍的次数 —— 这一段是跟着整个外壳跑的，页面开着就一直在数。
+// 下一次多久之后醒。上限就是安全网：这个数算错了，到点该发的也最多迟 MAX，
+// 所以不必去问 pace 和 space 各自的下一件事。主动消息的间隔按分钟算，
+// 二十秒的精度对它没有意义。
 const MIN_GAP = 20000;
 const MAX_GAP = 60000;
 function gapUntil(soonest, now = Date.now()) {

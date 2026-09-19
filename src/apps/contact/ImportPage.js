@@ -6,19 +6,14 @@ const { db, nav, ai, charpack } = phone;
 const card = ai.card;
 const ACCEPT = '.txt,.md,.docx';
 
-// 导入一个角色。两条路，放在同一页：
-//
-//   角色包  本项目自己导出的那个压缩包。原样装回去，不经过模型，也不花钱。
-//   资料    别处写好的 txt / docx，交给模型整理成一张角色卡。
-//
-// 角色包排在前面：它是无损的那一条，能用就该先用它。
+// 导入一个角色。角色包是无损的那一条，所以排在「从资料整理」前面。
 export function ImportPage() {
   const [busy, setBusy] = useState(false);
   const [got, setGot] = useState(null);
   const fileRef = useRef(null);
   const packRef = useRef(null);
 
-  // 角色包。先读出来看一眼再装 —— read 只解包不动库
+  // read 只解包不动库，看一眼再装
   const pickPack = async e => {
     const file = e.target.files?.[0];
     e.target.value = '';

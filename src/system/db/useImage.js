@@ -16,9 +16,8 @@ export function useImage(id) {
   return url;
 }
 
-// 缩略图那一份。列表、九宫格、气泡里的图一律用它 ——
-// 那些地方最宽也就两百来像素，解一张 1280 的原图纯属白烧。
-// 没有缩略图（图本来就小，或者还没做出来）时退回原图，调用方不分情况。
+// 缩略图那一份。列表、九宫格、气泡里的图一律用它。
+// 没有缩略图（图本来就小）时退回原图，调用方不分情况。
 export function useThumb(id) {
   const [url, setUrl] = useState(() => images.peekThumb(id));
   useEffect(() => {
