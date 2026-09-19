@@ -1262,11 +1262,64 @@ button.search-bar { width: 100%; border: none; }
    aspect-ratio 靠宽度算高度，结果一样而且不跟着地址栏抽动。 */
 .wt-stage { position: relative; flex: none; background: var(--stage-bg); aspect-ratio: 16 / 9; }
 .wt-video { display: block; width: 100%; height: 100%; object-fit: contain; }
+/* 字幕与互动层收在同一个纵向栈里 —— 各自 absolute 会叠在一起，
+   互动层打开时字幕正好压在输入框上。 */
+.wt-bottom {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  display: flex; flex-direction: column; gap: var(--sp-2);
+  padding-bottom: var(--sp-2);
+}
 .wt-cue {
-  position: absolute; left: 0; right: 0; bottom: var(--sp-2);
-  padding: 0 var(--sp-4); text-align: center;
+  padding: 0 var(--sp-4);
+  display: flex; align-items: center; justify-content: center; gap: var(--sp-2);
   color: var(--on-scrim); font-size: var(--fs-13);
   text-shadow: 0 1px 4px rgba(0, 0, 0, .8);
+}
+/* 台词旁边那个段评气泡。压在画面上，所以描边要够亮 */
+.wt-cue .rd-dot {
+  margin-top: 0; opacity: .8;
+  border-color: var(--on-scrim); color: var(--on-scrim);
+}
+.wt-cue .rd-dot.has-n {
+  opacity: 1; background: var(--on-scrim);
+  color: var(--stage-bg); border-color: var(--on-scrim);
+}
+
+/* ---- 影片全屏 ----
+   画面吃掉剩下的全部高度。**不用 vh**（第 1 条）：.wt 本来就是 height:100%
+   的 flex 列，这里把 aspect-ratio 撤掉改 flex:1 就够，不必自己量高度。 */
+.wt.is-full > :not(.wt-stage) { display: none; }
+.wt.is-full .wt-stage { flex: 1; aspect-ratio: auto; min-height: 0; }
+
+.wt-exit {
+  position: absolute; top: var(--sp-3); right: var(--sp-3);
+  width: 34px; height: 34px; border: 0; border-radius: var(--r-full);
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0, 0, 0, .45); color: var(--on-scrim);
+}
+
+/* 全屏里点一下画面叫出来的互动层。压在画面底部，不挡字幕上方的内容 */
+.wt-panel {
+  padding: var(--sp-3) var(--sp-3) calc(var(--sp-3) + env(safe-area-inset-bottom));
+  margin-bottom: calc(-1 * var(--sp-2));
+  background: rgba(0, 0, 0, .58);
+  display: flex; flex-direction: column; gap: var(--sp-2);
+}
+.wt-panel-bar {
+  display: flex; align-items: center; gap: var(--sp-3);
+  color: var(--on-scrim);
+}
+.wt-panel-bar .mu-ctl { color: var(--on-scrim); }
+.wt-panel-bar .wt-time { color: var(--on-scrim); margin-left: auto; }
+.wt-panel-msgs {
+  display: flex; flex-direction: column; gap: var(--sp-2);
+  max-height: 9em; overflow-y: auto;
+}
+.wt-panel .wt-msg { color: var(--on-scrim); background: rgba(255, 255, 255, .14); }
+.wt-panel .wt-notice { color: var(--on-scrim); opacity: .75; }
+.wt-panel .wt-input { border-top: 0; padding: 0; background: none; }
+.wt-panel .wt-input input {
+  background: rgba(255, 255, 255, .14); color: var(--on-scrim);
 }
 .wt-bar {
   flex: none; display: flex; align-items: center; gap: var(--sp-2);

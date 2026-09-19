@@ -80,6 +80,8 @@ export function removeVideo(id) {
   const row = videos.get(id);
   if (!row) return false;
   if (row.fileId) files.remove(row.fileId);
+  // 片子没了，挂在它台词上的段评也留不住。动态引入避开循环依赖
+  import('./paracomment.js').then(m => m.dropVideo(id)).catch(() => {});
   return videos.remove(id);
 }
 

@@ -119,7 +119,7 @@ export function ReadPage({ bookId }) {
           <div class=${`rd-body scroll ${anim}`} ref=${bodyRef}>
             ${chapter ? html`<div class="rd-chapter">${chapter.title}</div>` : null}
             <${Paragraphs} bookId=${bookId} text=${text} at=${at} span=${PAGE}
-              onOpen=${to => nav.push(`/para/${bookId}/${to}`)}/>
+              onOpen=${to => nav.push(`/para/book/${bookId}/${to}`)}/>
           </div>
         </div>
 

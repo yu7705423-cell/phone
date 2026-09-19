@@ -1,8 +1,8 @@
 import { html, useState, useRef, useEffect } from '../../../lib.js';
 import { phone, useStore } from '../../../sdk/index.js';
-import { Page, List, ListItem, Button, Icon, EmptyState, toast, confirm } from '../../../ui/index.js';
+import { Page, List, ListItem, Button, Icon, IconButton, EmptyState, toast, confirm } from '../../../ui/index.js';
 
-const { db, nav, video, watch, subtitle, ai, uid } = phone;
+const { db, nav, video, watch, subtitle, para, ai, uid } = phone;
 
 // 一起看。
 //
@@ -69,15 +69,29 @@ function Screen({ chatId, chat, char }) {
   const ref = useRef(null);
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
+  const [full, setFull] = useState(false);     // 全屏：只剩画面
+  const [panel, setPanel] = useState(false);   // 全屏里点一下叫出来的互动层
   const busyRef = useRef(false);
   useStore(db.messages.store);
+  useStore(db.readnotes.store);
   // 片库那条记录也要订阅：字幕偏移就写在它上面，改完这一屏要立刻跟着变
   useStore(db.videos.store);
 
   const row = watch.current();
   const lines = video.linesOf(row);
-  const cue = subtitle.lineAt(lines, s.at);
+  const cueRow = subtitle.cueAt(lines, s.at);
+  const cue = cueRow?.text || '';
   const off = video.offsetOf(row);
+
+  // 这一句台词上的段评。锚点用这一句的起始秒 —— 和书里用段落起点是同一回事
+  const subject = row ? para.subjectOf(para.VIDEO, row.id) : '';
+  const cueAt = cueRow ? Math.round(cueRow.at) : -1;
+  const cueNotes = cueRow ? para.listFor(subject, cueAt).length : 0;
+  const openCue = () => {
+    if (!cueRow) { toast('这一刻没有台词，无法在此留下评论'); return; }
+    watch.pause?.();
+    nav.push(`/para/video/${row.id}/${cueAt}`);
+  };
 
   // 字幕对不上是常事，而**只有正在看的时候才发现**。所以调整放在这一屏上，
   // 不必退出去改片库。改完立刻生效：偏移是读出来的时候才加的。
@@ -146,16 +160,76 @@ function Screen({ chatId, chat, char }) {
   }, [recent.length, busy]);
 
   return html`
-    <${Page} title=${row?.title || '一起看'} onBack=${nav.pop} noScroll
-      right=${html`<button class="nav-text press" onClick=${finish}>结束</button>`}>
-      <div class="wt">
+    <${Page} ...${full ? {} : {
+      title: row?.title || '一起看',
+      onBack: nav.pop,
+      right: html`<button class="nav-text press" onClick=${finish}>结束</button>`,
+    }} noScroll>
+      <div class=${`wt${full ? ' is-full' : ''}`}>
         <div class="wt-stage">
           <video ref=${ref} class="wt-video" playsinline
-            onClick=${() => watch.toggle()}></video>
-          ${cue ? html`<div class="wt-cue">${cue}</div>` : null}
+            onClick=${() => (full ? setPanel(v => !v) : watch.toggle())}></video>
+          ${full ? html`
+            <button class="wt-exit press" aria-label="退出全屏"
+              onClick=${e => { e.stopPropagation(); setFull(false); setPanel(false); }}>
+              <${Icon} name="close" size=${18}/>
+            </button>` : null}
+
+          <div class="wt-bottom">
+          ${cue ? html`
+            <div class="wt-cue">
+              <span>${cue}</span>
+              <button class=${`rd-dot press${cueNotes ? ' has-n' : ''}`}
+                aria-label=${cueNotes ? `这一句有 ${cueNotes} 条评论` : '评论这一句'}
+                onClick=${e => { e.stopPropagation(); openCue(); }}>
+                ${cueNotes ? html`<span class="rd-dot-n">${cueNotes > 99 ? '99' : cueNotes}</span>`
+                  : html`<${Icon} name="message" size=${11}/>`}
+              </button>
+            </div>` : null}
+
+          ${full && panel ? html`
+            <div class="wt-panel" onClick=${e => e.stopPropagation()}>
+              <div class="wt-panel-bar">
+                <button class="mu-ctl press" aria-label=${s.playing ? '暂停' : '播放'}
+                  onClick=${() => watch.toggle()}>
+                  <${Icon} name=${s.playing ? 'pause' : 'play'} size=${18}/>
+                </button>
+                <button class="mu-ctl press" aria-label="后退十五秒"
+                  onClick=${() => watch.seek(s.at - 15)}>
+                  <${Icon} name="skipPrev" size=${18}/>
+                </button>
+                <span class="wt-time">${subtitle.stamp(s.at)}</span>
+                <button class="mu-ctl press" aria-label="让 TA 说一句"
+                  disabled=${busy} onClick=${generate}>
+                  <${Icon} name="message" size=${18}/>
+                </button>
+              </div>
+              <div class="wt-panel-msgs">
+                ${recent.slice(-3).map(m => html`
+                  <div key=${m.id} class=${`wt-msg${m.role === 'user' ? ' is-me' : ''}`}>
+                    ${m.kind === 'notice'
+                      ? html`<span class="wt-notice">${String(m.content).replace(/^\[|\]$/g, '')}</span>`
+                      : m.content}
+                  </div>`)}
+                ${busy ? html`<div class="wt-msg"><span class="wt-notice">正在输入</span></div>` : null}
+              </div>
+              <div class="wt-input">
+                <input value=${draft} placeholder="说点什么" enterkeyhint="send"
+                  onInput=${e => setDraft(e.target.value)}
+                  onKeyDown=${e => { if (e.key === 'Enter') send(); }}/>
+                <button class="mu-ctl press" aria-label="发送" onClick=${send}>
+                  <${Icon} name="send" size=${18}/>
+                </button>
+              </div>
+            </div>` : null}
+          </div>
         </div>
 
         <div class="wt-bar">
+          <button class="mu-ctl press" aria-label="全屏"
+            onClick=${() => { setFull(true); setPanel(false); }}>
+            <${Icon} name="maximize" size=${18}/>
+          </button>
           <button class="mu-ctl press" aria-label=${s.playing ? '暂停' : '播放'}
             onClick=${() => watch.toggle()}>
             <${Icon} name=${s.playing ? 'pause' : 'play'} size=${19}/>

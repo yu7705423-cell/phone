@@ -77,14 +77,16 @@ export function parse(text) {
 }
 
 /** 这一刻正在说的那一句。没有就空字符串。 */
-export function lineAt(lines, sec) {
-  if (!lines || !lines.length) return '';
+/** 这一刻正在显示的那一句，整条给出来 —— 段评要挂在它的起始秒上。 */
+export function cueAt(lines, sec) {
+  if (!lines || !lines.length) return null;
   for (const l of lines) {
     if (l.at > sec) break;
-    if (sec <= l.end) return l.text;
+    if (sec <= l.end) return l;
   }
-  return '';
+  return null;
 }
+
 
 /** 到这一刻为止的最后 n 句。角色读的就是这一小段。 */
 export function recentLines(lines, sec, n = 8) {

@@ -1,5 +1,7 @@
-import { ebooks, characters, settings } from '../../db/index.js';
+import { ebooks, videos, characters, settings } from '../../db/index.js';
 import * as book from '../../book.js';
+import * as video from '../../video.js';
+import * as subtitle from '../../subtitle.js';
 import * as para from '../../paracomment.js';
 import { fillTemplate, template } from '../templates.js';
 import { runJSONTask, runTextTask } from '../engine.js';
@@ -10,27 +12,44 @@ import { runJSONTask, runTextTask } from '../engine.js';
 const personaOf = c => [c.persona, c.signature].filter(Boolean).join('\n\n')
   || '（角色卡里还没有写人设）';
 
-async function passageOf(bookId, at) {
-  const row = ebooks.get(bookId);
+// 要评的那一处。书是那一整段正文；影片是那一句台词，连同前面几句
+// 当上下文 —— 评电影里的一个时刻，本来就得知道这句话是接着什么说的。
+const CUE_LEAD = 4;
+
+async function passageOf(subject, at) {
+  const { kind, id } = para.parseSubject(subject);
+
+  if (kind === para.VIDEO) {
+    const row = videos.get(id);
+    if (!row) throw new Error('这部影片已经不在了');
+    const lines = video.linesOf(row);
+    // recentLines 给的是台词**对象**数组，不是拼好的字符串
+    const body = subtitle.recentLines(lines, at, CUE_LEAD + 1)
+      .map(l => l.text).join('\n').trim();
+    if (!body) throw new Error('这一处没有台词');
+    return { row, body, title: row.title };
+  }
+
+  const row = ebooks.get(id);
   if (!row) throw new Error('这本书已经不在了');
-  const text = await book.textOf(bookId);
+  const text = await book.textOf(id);
   const body = book.paragraphAt(text, at);
   if (!body) throw new Error('这一段没有内容');
-  return { row, body };
+  return { row, body, title: row.title };
 }
 
 /** 一个角色评这一段。一次调用。 */
-export async function one({ bookId, at, charId }) {
+export async function one({ subject, at, charId }) {
   const char = characters.get(charId);
   if (!char) throw new Error('角色不存在');
-  const { row, body } = await passageOf(bookId, at);
+  const { title, body } = await passageOf(subject, at);
 
   const text = String(await runTextTask('para.one', {
     system: fillTemplate(template('task.para-one'), {
-      charName: char.name || '该角色', title: row.title,
+      charName: char.name || '该角色', title,
       charPersona: personaOf(char), passage: body,
     }),
-    key: `para-one:${bookId}:${at}:${charId}:${Date.now()}`, maxTokens: 300,
+    key: `para-one:${subject}:${at}:${charId}:${Date.now()}`, maxTokens: 300,
   }) || '').trim();
   if (!text) throw new Error('模型没有写出内容');
   return [{ authorId: charId, authorName: char.name, kind: para.CHAR, text }];
@@ -44,15 +63,15 @@ export const callsForCrew = charIds =>
  * 多人共读。默认一次调用写全部；`crowdSeparate` 打开之后一人一次 ——
  * 同一次调用里几个人容易写得像一个人，分开写声音不串，代价是几倍的调用。
  */
-export async function crew({ bookId, at, charIds }) {
+export async function crew({ subject, at, charIds }) {
   const list = charIds.map(id => characters.get(id)).filter(Boolean);
   if (!list.length) throw new Error('共读名单是空的');
-  const { row, body } = await passageOf(bookId, at);
+  const { title, body } = await passageOf(subject, at);
 
   if (settings.get().crowdSeparate === true) {
     const out = [];
     for (const c of list) {
-      const r = await one({ bookId, at, charId: c.id });
+      const r = await one({ subject, at, charId: c.id });
       out.push(...r);
     }
     return out;
@@ -60,10 +79,10 @@ export async function crew({ bookId, at, charIds }) {
 
   const out = await runJSONTask('para.crew', {
     system: fillTemplate(template('task.para-crew'), {
-      title: row.title, passage: body,
+      title, passage: body,
       crew: list.map(c => `- ${c.name}：${personaOf(c)}`).join('\n'),
     }),
-    key: `para-crew:${bookId}:${at}:${Date.now()}`,
+    key: `para-crew:${subject}:${at}:${Date.now()}`,
     maxTokens: 300 + list.length * 200,
   });
 
@@ -85,15 +104,15 @@ export const crowdCount = () => {
  * 随机评论。临时编一批读者，**不入库** —— 只留名字和这一条评论，
  * 不会变成你的联系人。一次调用出一批。
  */
-export async function readers({ bookId, at, count = crowdCount() }) {
+export async function readers({ subject, at, count = crowdCount() }) {
   const n = Math.max(1, Math.round(count) || 1);
-  const { row, body } = await passageOf(bookId, at);
+  const { title, body } = await passageOf(subject, at);
 
   const out = await runJSONTask('para.readers', {
     system: fillTemplate(template('task.para-readers'), {
-      title: row.title, passage: body, count: n,
+      title, passage: body, count: n,
     }),
-    key: `para-readers:${bookId}:${at}:${Date.now()}`,
+    key: `para-readers:${subject}:${at}:${Date.now()}`,
     maxTokens: 250 + n * 130,
   });
 
@@ -111,5 +130,5 @@ export async function readers({ bookId, at, count = crowdCount() }) {
 }
 
 /** 生成完写进库。挑好了再存，和批量生成那几处是同一个套路。 */
-export const keep = (bookId, at, rows) =>
-  para.addMany(rows.map(r => ({ ...r, bookId, at })));
+export const keep = (subject, at, rows) =>
+  para.addMany(rows.map(r => ({ ...r, subject, at })));

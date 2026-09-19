@@ -3,13 +3,14 @@ import { phone, useStore } from '../../../sdk/index.js';
 import { Page, List, ListItem, Field, Textarea, Button, Icon, IconButton, Sheet,
          Spinner, Switch, Avatar, EmptyState, toast, confirm } from '../../../ui/index.js';
 
-const { db, nav, book, para, ai } = phone;
+const { db, nav, book, video, subtitle, para, ai } = phone;
 const task = ai.paraComment;
 
-// 某一段的评论页。从阅读页那个小气泡进来。
-export function ParaPage({ bookId, at }) {
+// 某一处的评论页。书里从段落旁的气泡进来，影片里从台词旁的气泡进来。
+export function ParaPage({ kind, id, at }) {
   useStore(db.readnotes.store);
   useStore(db.ebooks.store);
+  useStore(db.videos.store);
   useStore(db.characters.store);
   useStore(db.settings.store);
 
@@ -19,21 +20,27 @@ export function ParaPage({ bookId, at }) {
   const [writing, setWriting] = useState(false);
   const [crewing, setCrewing] = useState(false);
 
-  useEffect(() => {
-    let alive = true;
-    book.textOf(bookId).then(t => { if (alive) setText(t); });
-    return () => { alive = false; };
-  }, [bookId]);
+  const isVideo = kind === para.VIDEO;
 
-  const row = db.ebooks.get(bookId);
+  useEffect(() => {
+    if (isVideo) return undefined;
+    let alive = true;
+    book.textOf(id).then(t => { if (alive) setText(t); });
+    return () => { alive = false; };
+  }, [id, isVideo]);
+
+  const subject = para.subjectOf(kind, id);
+  const row = isVideo ? db.videos.get(id) : db.ebooks.get(id);
   if (!row) {
-    return html`<${Page} title="这一段" onBack=${nav.pop}>
-      <${EmptyState} title="这本书已经不在了"/><//>`;
+    return html`<${Page} title=${isVideo ? '这一处' : '这一段'} onBack=${nav.pop}>
+      <${EmptyState} title=${isVideo ? '这部影片已经不在了' : '这本书已经不在了'}/><//>`;
   }
 
-  const passage = text ? book.paragraphAt(text, at) : '';
-  const list = para.listFor(bookId, at);
-  const crew = para.crewOf(bookId);
+  const passage = isVideo
+    ? subtitle.recentLines(video.linesOf(row), at, 5).map(l => l.text).join('\n')
+    : (text ? book.paragraphAt(text, at) : '');
+  const list = para.listFor(subject, at);
+  const crew = para.crewOf(subject);
 
   const run = async (what, fn) => {
     if (busy) return;
@@ -42,7 +49,7 @@ export function ParaPage({ bookId, at }) {
     try {
       const rows = await fn();
       if (!rows.length) { toast('这一次没有写出内容', 'plain', 4000); return; }
-      task.keep(bookId, at, rows);
+      task.keep(subject, at, rows);
       toast(`新增 ${rows.length} 条`, 'ok');
     } catch (err) { toast(String(err.message || err), 'error', 6000); }
     finally { setBusy(''); }
@@ -50,7 +57,7 @@ export function ParaPage({ bookId, at }) {
 
   const writeMine = () => {
     try {
-      para.add({ bookId, at, text: mine, kind: para.ME, authorName: '我' });
+      para.add({ subject, at, text: mine, kind: para.ME, authorName: '我' });
       setMine(''); setWriting(false);
     } catch (err) { toast(String(err.message || err), 'error'); }
   };
@@ -63,16 +70,19 @@ export function ParaPage({ bookId, at }) {
   const calls = task.callsForCrew(crew.map(c => c.id));
 
   return html`
-    <${Page} title="这一段" onBack=${nav.pop}
+    <${Page} title=${isVideo ? subtitle.stamp(at) : '这一段'} onBack=${nav.pop}
       right=${list.length ? html`
         <button class="nav-text press" onClick=${async () => {
           if (!await confirm({ title: '清空这一段的评论', danger: true })) return;
-          para.clearAt(bookId, at);
+          para.clearAt(subject, at);
         }}>清空</button>` : null}>
 
       <div class="pad-x pad-t">
         <div class="pr-passage">${passage || html`<${Spinner} size=${16}/>`}</div>
-        <div class="settings-foot pr-from">《${row.title}》${row.author ? ` · ${row.author}` : ''}</div>
+        <div class="settings-foot pr-from">
+          ${isVideo ? `《${row.title}》 · ${subtitle.stamp(at)}`
+            : `《${row.title}》${row.author ? ` · ${row.author}` : ''}`}
+        </div>
       </div>
 
       ${list.length ? html`
@@ -91,19 +101,19 @@ export function ParaPage({ bookId, at }) {
       : html`<div class="settings-foot">这一段还没有评论。</div>`}
 
       <${List} title="让谁来评">
-        <${ListItem} title="多人共读" arrow multiline
+        <${ListItem} title=${isVideo ? '多人同看' : '多人共读'} arrow multiline
           subtitle=${crew.length
             ? `${crew.map(c => c.name).join('、')} 各写一条 · 本次调用 ${calls} 次`
             : '先选定参与共读的角色，之后每一段点一下即可'}
           left=${busy === 'crew' ? html`<${Spinner} size=${16}/>` : html`<${Icon} name="users" size=${18}/>`}
           onClick=${() => (crew.length
-            ? run('crew', () => task.crew({ bookId, at, charIds: crew.map(c => c.id) }))
+            ? run('crew', () => task.crew({ subject, at, charIds: crew.map(c => c.id) }))
             : setCrewing(true))}/>
         <${ListItem} title="随机评论" arrow multiline
           subtitle=${`临时生成 ${task.crowdCount()} 位读者的评论，调用 1 次。`
             + '这些读者不会存入联系人'}
           left=${busy === 'readers' ? html`<${Spinner} size=${16}/>` : html`<${Icon} name="message" size=${18}/>`}
-          onClick=${() => run('readers', () => task.readers({ bookId, at }))}/>
+          onClick=${() => run('readers', () => task.readers({ subject, at }))}/>
         <${ListItem} title="自己写一条" arrow multiline
           subtitle="写下你自己的想法，不调用接口"
           left=${html`<${Icon} name="edit" size=${18}/>`}
@@ -125,23 +135,24 @@ export function ParaPage({ bookId, at }) {
         </div>
       <//>
 
-      <${CrewSheet} open=${crewing} bookId=${bookId} onClose=${() => setCrewing(false)}/>
+      <${CrewSheet} open=${crewing} subject=${subject} onClose=${() => setCrewing(false)}/>
     <//>`;
 }
 
 // 共读名单。存在书上，挑一次之后每一段都用它
-function CrewSheet({ open, bookId, onClose }) {
+function CrewSheet({ open, subject, onClose }) {
   useStore(db.ebooks.store);
+  useStore(db.videos.store);
   useStore(db.settings.store);
   if (!open) return null;
-  const picked = new Set((db.ebooks.get(bookId)?.crew || []));
+  const picked = new Set(para.crewOf(subject).map(c => c.id));
   const all = para.candidates();
   const s = db.settings.get();
 
   const toggle = id => {
     const next = new Set(picked);
     if (next.has(id)) next.delete(id); else next.add(id);
-    para.setCrew(bookId, [...next]);
+    para.setCrew(subject, [...next]);
   };
 
   return html`

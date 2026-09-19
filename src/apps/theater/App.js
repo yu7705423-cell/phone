@@ -167,8 +167,8 @@ export default function TheaterApp({ route }) {
   if (route === '/settings') return html`<${SettingsPage}/>`;
   const sh = route?.match(/^\/shelf\/(.+)$/);
   if (sh) return html`<${ShelfPage} charId=${sh[1]}/>`;
-  const pa = route?.match(/^\/para\/([^/]+)\/(\d+)$/);
-  if (pa) return html`<${ParaPage} bookId=${pa[1]} at=${Number(pa[2])}/>`;
+  const pa = route?.match(/^\/para\/(book|video)\/([^/]+)\/(\d+)$/);
+  if (pa) return html`<${ParaPage} kind=${pa[1]} id=${pa[2]} at=${Number(pa[3])}/>`;
 
   const rv = route?.match(/^\/reviews\/(video|book)\/(.+)$/);
   if (rv) return html`<${ReviewsPage} kind=${rv[1]} subjectId=${rv[2]}/>`;

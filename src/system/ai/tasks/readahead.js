@@ -53,7 +53,7 @@ export async function run({ bookId, charId, from, want }) {
       return true;
     })
     .map(n => ({
-      bookId, at: list[n.i - 1].at, text: n.text,
+      subject: para.subjectOf(para.BOOK, bookId), at: list[n.i - 1].at, text: n.text,
       kind: para.CHAR, authorId: charId, authorName: char.name,
     }));
 

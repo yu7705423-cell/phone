@@ -172,7 +172,7 @@ export const DEFAULT_LAYOUT = {
         { id: 'c3',  kind: 'app',    ref: 'memory',        x: 1, y: 2, w: 1, h: 1 },
         { id: 'c4',  kind: 'widget', ref: 'recent-chats',  x: 2, y: 2, w: 2, h: 2 },
         { id: 'c5',  kind: 'app',    ref: 'stub-photos',   x: 0, y: 3, w: 1, h: 1 },
-        { id: 'c6',  kind: 'app',    ref: 'stub-music',    x: 1, y: 3, w: 1, h: 1 },
+        { id: 'c6',  kind: 'app',    ref: 'music',         x: 1, y: 3, w: 1, h: 1 },
         { id: 'c7',  kind: 'widget', ref: 'moments-peek',  x: 0, y: 4, w: 2, h: 2 },
         { id: 'c8',  kind: 'app',    ref: 'stub-calendar', x: 2, y: 4, w: 1, h: 1 },
         { id: 'c9',  kind: 'app',    ref: 'stub-weather',  x: 3, y: 4, w: 1, h: 1 },

@@ -10,7 +10,7 @@ const { book, para } = phone;
  */
 export function Paragraphs({ bookId, text, at, span, onOpen }) {
   const list = book.paragraphsOf(text, at, span);
-  const counts = para.countsIn(bookId, at, span);
+  const counts = para.countsIn(para.subjectOf(para.BOOK, bookId), at, span);
   return html`
     ${list.map(p => {
       const n = counts.get(p.at) || 0;

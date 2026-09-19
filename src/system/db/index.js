@@ -88,6 +88,15 @@ export function lastMessageOf(chatId) {
   return list.length ? list[list.length - 1] : null;
 }
 
+// 会话删掉之后，它那条缓存要跟着走，否则这个 Map 只涨不落。
+//
+// 不在三个删除点各写一行 —— 那样以后多一个删除点就又漏一个。挂在 chats 上
+// 统一收：缓存条数没超过会话数时直接返回，所以平时这里等于不做事。
+chats.store.subscribe(() => {
+  if (sortedCache.size <= chats.count()) return;
+  for (const id of sortedCache.keys()) if (!chats.has(id)) sortedCache.delete(id);
+});
+
 export const ready = (async function boot() {
   await Promise.all([
     ...Object.values(COLLECTIONS).map(c => c.load()),
