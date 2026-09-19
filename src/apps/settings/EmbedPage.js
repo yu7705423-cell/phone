@@ -1,6 +1,7 @@
 import { html, useState } from '../../lib.js';
 import { phone, useStore } from '../../sdk/index.js';
 import { Page, List, ListItem, Field, Input, Button, Icon, toast, confirm } from '../../ui/index.js';
+import { ApiSource } from './ApiSource.js';
 import { ModelPicker } from './ModelPicker.js';
 
 const { db, nav, ai } = phone;
@@ -60,8 +61,11 @@ export function EmbedPage() {
         用的是 OpenAI 那套 /v1/embeddings，中转站和本地 Ollama 一般都兼容。
       </div>
 
+      <${ApiSource} cfg=${cfg} set=${set}/>
+
       <div class="pad-x">
-        <${Field} label="接口地址" desc="留空则使用 https://api.openai.com。">
+        ${cfg.endpointId ? null : html`
+<${Field} label="接口地址" desc="留空则使用 https://api.openai.com。">
           <${Input} value=${cfg.baseUrl} onInput=${v => set({ baseUrl: v.trim() })}
             placeholder="https://api.openai.com"/>
         <//>
@@ -69,6 +73,7 @@ export function EmbedPage() {
           <${Input} type="password" value=${cfg.apiKey} onInput=${v => set({ apiKey: v.trim() })}
             placeholder="sk-..."/>
         <//>
+        `}
         <${Field} label="模型" desc=${cfg.dims ? `上次测出来 ${cfg.dims} 维` : '例如 text-embedding-3-small'}>
           <${Input} value=${cfg.model} onInput=${v => set({ model: v.trim() })}
             placeholder="text-embedding-3-small"/>

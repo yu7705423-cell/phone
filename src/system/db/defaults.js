@@ -36,6 +36,8 @@ export const DEFAULT_SETTINGS = {
     voice: { enabled: false, baseUrl: '', groupId: '', apiKey: '', model: '' },
     embed: { baseUrl: '', apiKey: '', model: '', dims: 0 },
     rerank: { baseUrl: '', apiKey: '', model: '' },
+    // 自建的接口来源。各服务用 endpointId 指过来，见 ai/services.js
+    endpoints: [],
     vision: { mode: 'off', baseUrl: '', apiKey: '', model: '' },
     asr: { baseUrl: '', apiKey: '', model: '', mode: 'text' },
   },

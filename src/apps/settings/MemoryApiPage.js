@@ -1,6 +1,7 @@
 import { html, useState } from '../../lib.js';
 import { phone, useStore } from '../../sdk/index.js';
 import { Page, List, ListItem, Field, Input, Button, Segmented, toast } from '../../ui/index.js';
+import { ApiSource } from './ApiSource.js';
 
 const { db, nav, ai } = phone;
 const svc = ai.services;
@@ -49,8 +50,11 @@ export function MemoryApiPage() {
       </div>
 
       ${mode !== 'api' ? null : html`
+      <${ApiSource} cfg=${v} set=${set}/>
+
       <div class="pad">
-        <${Field} label="接口地址" desc="OpenAI 兼容的 chat/completions 端点。留空则使用 https://api.openai.com/v1。中转站填写至 /v1 为止。">
+        ${v.endpointId ? null : html`
+<${Field} label="接口地址" desc="OpenAI 兼容的 chat/completions 端点。留空则使用 https://api.openai.com/v1。中转站填写至 /v1 为止。">
           <${Input} value=${v.baseUrl} onInput=${x => set({ baseUrl: x })}
             placeholder="https://api.openai.com/v1"/>
         <//>
@@ -59,7 +63,7 @@ export function MemoryApiPage() {
           <${Input} type="password" value=${v.apiKey} onInput=${x => set({ apiKey: x })}
             placeholder="sk-..."/>
         <//>
-
+        `}
         <${Field} label="模型"
           desc="这几项输入长、输出短，且无人等待结果，可以选用比对话接口更便宜的模型。须支持较长的上下文。">
           <${Input} value=${v.model} onInput=${x => set({ model: x })} placeholder="模型名称"/>

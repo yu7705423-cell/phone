@@ -2,6 +2,8 @@ import { html, useState } from '../../lib.js';
 import { phone, useStore } from '../../sdk/index.js';
 import { Page, List, ListItem, Field, Input, Button, Switch, NumberInput,
          Icon, toast } from '../../ui/index.js';
+import { ApiSource } from './ApiSource.js';
+import { ModelPicker } from './ModelPicker.js';
 
 const { db, nav, ai } = phone;
 const svc = ai.services;
@@ -11,6 +13,7 @@ const svc = ai.services;
 export function RerankPage() {
   const s = useStore(db.settings.store);
   const [busy, setBusy] = useState(false);
+  const [picking, setPicking] = useState(false);
   const cfg = svc.rerankConfig();
   const set = patch => svc.setRerank(patch);
   const ready = svc.rerankReady();
@@ -37,8 +40,11 @@ export function RerankPage() {
         用的是 Cohere 那套 /v1/rerank，SiliconFlow、Jina、Voyage 均兼容。
       </div>
 
+      <${ApiSource} cfg=${cfg} set=${set}/>
+
       <div class="pad-x">
-        <${Field} label="接口地址" desc="例如 https://api.siliconflow.cn">
+        ${cfg.endpointId ? null : html`
+<${Field} label="接口地址" desc="例如 https://api.siliconflow.cn">
           <${Input} value=${cfg.baseUrl} onInput=${v => set({ baseUrl: v.trim() })}
             placeholder="https://api.siliconflow.cn"/>
         <//>
@@ -46,9 +52,15 @@ export function RerankPage() {
           <${Input} type="password" value=${cfg.apiKey} onInput=${v => set({ apiKey: v.trim() })}
             placeholder="sk-..."/>
         <//>
+        `}
         <${Field} label="模型" desc="例如 Qwen/Qwen3-Reranker-8B">
           <${Input} value=${cfg.model} onInput=${v => set({ model: v.trim() })}
             placeholder="Qwen/Qwen3-Reranker-8B"/>
+          <div class="pad-t">
+            <${Button} size="sm" variant="ghost" icon="search"
+              disabled=${!cfg.baseUrl || !cfg.apiKey}
+              onClick=${() => setPicking(true)}>拉取并选择<//>
+          </div>
         <//>
       </div>
 
@@ -78,5 +90,9 @@ export function RerankPage() {
         重排接口失败时不影响聊天，该轮自动退回按向量距离排序。<br/>
         通话不走重排，避免在等对方开口时多一次往返。
       </div>
+
+      <${ModelPicker} open=${picking} initialQuery="rerank"
+        preset=${{ provider: 'openai', baseUrl: cfg.baseUrl, apiKey: cfg.apiKey, model: cfg.model }}
+        onPick=${m => set({ model: m })} onClose=${() => setPicking(false)}/>
     <//>`;
 }

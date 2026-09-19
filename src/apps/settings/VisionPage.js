@@ -1,6 +1,7 @@
 import { html, useState, useRef } from '../../lib.js';
 import { phone, useStore } from '../../sdk/index.js';
 import { Page, List, ListItem, Field, Input, Button, Segmented, toast } from '../../ui/index.js';
+import { ApiSource } from './ApiSource.js';
 
 const { db, nav, ai } = phone;
 const svc = ai.services;
@@ -52,8 +53,11 @@ export function VisionPage() {
       </div>
 
       ${mode !== 'api' ? null : html`
+      <${ApiSource} cfg=${v} set=${set}/>
+
       <div class="pad">
-        <${Field} label="接口地址" desc="OpenAI 兼容的 chat/completions 端点。留空则使用 https://api.openai.com/v1。中转站填写至 /v1 为止。">
+        ${v.endpointId ? null : html`
+<${Field} label="接口地址" desc="OpenAI 兼容的 chat/completions 端点。留空则使用 https://api.openai.com/v1。中转站填写至 /v1 为止。">
           <${Input} value=${v.baseUrl} onInput=${x => set({ baseUrl: x })}
             placeholder="https://api.openai.com/v1"/>
         <//>
@@ -62,7 +66,7 @@ export function VisionPage() {
           <${Input} type="password" value=${v.apiKey} onInput=${x => set({ apiKey: x })}
             placeholder="sk-..."/>
         <//>
-
+        `}
         <${Field} label="模型" desc="须为能看图的多模态模型。填写模型名称，例如 gpt-4o-mini 或中转站提供的同类模型。">
           <${Input} value=${v.model} onInput=${x => set({ model: x })} placeholder="模型名称"/>
         <//>

@@ -1,6 +1,7 @@
 import { html } from '../../lib.js';
 import { phone, useStore } from '../../sdk/index.js';
 import { Page, Field, Input, Button, toast } from '../../ui/index.js';
+import { ApiSource } from './ApiSource.js';
 
 const { db, nav, ai } = phone;
 const svc = ai.services;
@@ -17,8 +18,11 @@ export function SearchApiPage() {
 
   return html`
     <${Page} title="联网搜索" onBack=${nav.pop}>
+      <${ApiSource} cfg=${v} set=${set}/>
+
       <div class="pad">
-        <${Field} label="接口地址" desc="OpenAI 兼容的 chat/completions 端点。留空则使用 https://api.openai.com/v1。中转站填写至 /v1 为止。">
+        ${v.endpointId ? null : html`
+<${Field} label="接口地址" desc="OpenAI 兼容的 chat/completions 端点。留空则使用 https://api.openai.com/v1。中转站填写至 /v1 为止。">
           <${Input} value=${v.baseUrl} onInput=${x => set({ baseUrl: x })}
             placeholder="https://api.openai.com/v1"/>
         <//>
@@ -27,7 +31,7 @@ export function SearchApiPage() {
           <${Input} type="password" value=${v.apiKey} onInput=${x => set({ apiKey: x })}
             placeholder="sk-..."/>
         <//>
-
+        `}
         <${Field} label="模型"
           desc="须为自身具备联网搜索能力的模型。普通模型只会凭印象作答，写出来的店名可能并不存在。">
           <${Input} value=${v.model} onInput=${x => set({ model: x })} placeholder="模型名称"/>

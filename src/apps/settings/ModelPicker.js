@@ -3,11 +3,15 @@ import { phone } from '../../sdk/index.js';
 import { Sheet, Input, Button, Icon, EmptyState, Spinner, toast } from '../../ui/index.js';
 
 // 从接口拉模型列表，可搜索。拉不到就还能手填。
-export function ModelPicker({ open, preset, onPick, onClose }) {
+export function ModelPicker({ open, preset, onPick, onClose, initialQuery = '' }) {
   const [list, setList] = useState([]);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
   const [q, setQ] = useState('');
+
+  // 一套接口下的模型可能几百个，重排那种一眼扫不到。
+  // 打开时先按调用方给的词过一遍，清空搜索框就能看全部
+  useEffect(() => { if (open) setQ(initialQuery); }, [open, initialQuery]);
 
   useEffect(() => {
     if (!open || !preset) return;

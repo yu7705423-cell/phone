@@ -36,6 +36,10 @@ export const EMPTY_SERVICES = {
   netease: { baseUrl: '', realIP: '', cookie: '', nickname: '', uid: '', sync: false, recentGap: 5 },
   // 书目。只查书名作者封面这类元数据，不碰书的文件。两家都不要密钥
   books: { provider: '', apiKey: '' },
+  // 自建的接口来源。除聊天与生图之外那几套服务都只要「地址 + 密钥 + 模型」，
+  // 同一个中转站要在五六个页面各填一遍。存在这儿，各服务用 endpointId 指过来。
+  // 也可以直接指一个聊天预设的 id —— 两边共用一个 id 空间，见 sourceOf。
+  endpoints: [],
 };
 
 export function services() {
@@ -53,6 +57,7 @@ export function services() {
     search: { ...EMPTY_SERVICES.search, ...(s?.search || {}) },
     netease: { ...EMPTY_SERVICES.netease, ...(s?.netease || {}) },
     books: { ...EMPTY_SERVICES.books, ...(s?.books || {}) },
+    endpoints: Array.isArray(s?.endpoints) ? s.endpoints : [],
   };
 }
 
@@ -138,18 +143,69 @@ export function removeImagePreset(id) {
 }
 export function setActiveImage(id) { write({ image: { ...services().image, activeId: id } }); }
 
+// ---- 接口来源 ----
+//
+// 向量、重排、识图、语音识别、记忆、翻译、联网搜索这七套，形状都是
+// 「地址 + 密钥 + 模型」。同一个中转站要在七个页面各填一遍地址和密钥，
+// 改一次密钥还要再改七遍。
+//
+// 所以各服务可以只记一个 endpointId，地址与密钥从来源上取：
+//   来源可以是一条**自建的接口**（下面这份清单），
+//   也可以是一个**聊天预设** —— 多数人的中转站本来就是同一个。
+// 两边共用一个 id 空间，先查自建的再查聊天预设。
+//
+// endpointId 留空就是老样子：这个服务自己填的地址与密钥。
+// 指向的那条被删掉时也退回自己填的，不至于整套服务突然不通。
+
+export function endpoints() { return services().endpoints; }
+
+export function addEndpoint(init = {}) {
+  const row = {
+    id: uid('ep'),
+    name: init.name || '未命名',
+    baseUrl: (init.baseUrl || '').trim(),
+    apiKey: (init.apiKey || '').trim(),
+  };
+  write({ endpoints: [...endpoints(), row] });
+  return row;
+}
+
+export function updateEndpoint(id, patch) {
+  write({ endpoints: endpoints().map(e => e.id === id ? { ...e, ...patch } : e) });
+}
+
+export function removeEndpoint(id) {
+  write({ endpoints: endpoints().filter(e => e.id !== id) });
+}
+
+/** 这个 id 指的是哪一条。自建的优先，然后才是聊天预设。找不到返回 null。 */
+export function sourceOf(id) {
+  if (!id) return null;
+  const own = endpoints().find(e => e.id === id);
+  if (own) return { ...own, kind: 'own' };
+  const p = services().chat.presets.find(x => x.id === id);
+  if (p) return { id: p.id, name: p.name, baseUrl: p.baseUrl, apiKey: p.apiKey, kind: 'chat' };
+  return null;
+}
+
+/** 把来源上的地址与密钥盖上去。模型名始终是这个服务自己的。 */
+function resolved(cfg) {
+  const src = sourceOf(cfg.endpointId);
+  return src ? { ...cfg, baseUrl: src.baseUrl, apiKey: src.apiKey } : cfg;
+}
+
 // ---- 向量（嵌入）。只有一份，走 OpenAI 兼容的 /v1/embeddings ----
-export function rerankConfig() { return services().rerank; }
+export function rerankConfig() { return resolved(services().rerank); }
 export function setRerank(patch) { write({ rerank: { ...services().rerank, ...patch } }); }
 export function rerankReady() {
-  const r = services().rerank;
+  const r = rerankConfig();
   return !!(r.baseUrl && r.apiKey && r.model);
 }
 
-export function embedConfig() { return services().embed; }
+export function embedConfig() { return resolved(services().embed); }
 export function setEmbed(patch) { write({ embed: { ...services().embed, ...patch } }); }
 export function embedReady() {
-  const e = services().embed;
+  const e = embedConfig();
   return !!(e.apiKey && e.model);
 }
 
@@ -158,7 +214,7 @@ export function voiceConfig() { return services().voice; }
 export function setVoice(patch) { write({ voice: { ...services().voice, ...patch } }); }
 
 // ---- 识图。OpenAI 兼容的 chat/completions，带一个 image_url 内容块 ----
-export function visionConfig() { return services().vision; }
+export function visionConfig() { return resolved(services().vision); }
 export function setVision(patch) { write({ vision: { ...services().vision, ...patch } }); }
 export function visionMode() {
   const m = services().vision.mode;
@@ -167,7 +223,7 @@ export function visionMode() {
 
 // 单独那套识图接口配全了没有
 export function visionReady() {
-  const v = services().vision;
+  const v = visionConfig();
   return !!(v.apiKey && v.model);
 }
 
@@ -178,10 +234,10 @@ export function visionActive() {
 }
 
 // ---- 语音识别 ----
-export function searchConfig() { return services().search; }
+export function searchConfig() { return resolved(services().search); }
 export function setSearch(patch) { write({ search: { ...services().search, ...patch } }); }
 export function searchReady() {
-  const v = services().search;
+  const v = searchConfig();
   return !!(v.apiKey && v.model);
 }
 
@@ -191,11 +247,11 @@ export function neteaseReady() { return !!services().netease.baseUrl; }
 export function neteaseLoggedIn() { const n = services().netease; return !!(n.baseUrl && n.cookie); }
 
 // ---- 记忆整理。单独配一套，不配就跟着副用走 ----
-export function memoryConfig() { return services().memory; }
+export function memoryConfig() { return resolved(services().memory); }
 export function setMemory(patch) { write({ memory: { ...services().memory, ...patch } }); }
 
 export function memoryFilled() {
-  const m = services().memory;
+  const m = memoryConfig();
   return !!(m.apiKey && m.model);
 }
 
@@ -205,12 +261,12 @@ export function memoryMode() {
 }
 
 // ---- 翻译。OpenAI 兼容的 chat/completions ----
-export function translateConfig() { return services().translate; }
+export function translateConfig() { return resolved(services().translate); }
 export function setTranslate(patch) { write({ translate: { ...services().translate, ...patch } }); }
 
 // 配全了没有。没填全就算选了 api 也走不通，所以这两件事分开问。
 export function translateFilled() {
-  const t = services().translate;
+  const t = translateConfig();
   return !!(t.apiKey && t.model);
 }
 
@@ -221,10 +277,10 @@ export function translateMode() {
   return t.mode === 'api' && translateFilled() ? 'api' : 'inline';
 }
 
-export function asrConfig() { return services().asr; }
+export function asrConfig() { return resolved(services().asr); }
 export function setAsr(patch) { write({ asr: { ...services().asr, ...patch } }); }
 export function asrReady() {
-  const a = services().asr;
+  const a = asrConfig();
   return !!(a.apiKey && a.model);
 }
 

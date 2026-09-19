@@ -1,6 +1,7 @@
 import { html, useState, useRef } from '../../lib.js';
 import { phone, useStore } from '../../sdk/index.js';
 import { Page, List, ListItem, Field, Input, Button, Segmented, toast } from '../../ui/index.js';
+import { ApiSource } from './ApiSource.js';
 
 const { db, nav, ai } = phone;
 const svc = ai.services;
@@ -56,6 +57,8 @@ export function AsrPage() {
         ${phone.audio.speechSupported() ? '' : '这个浏览器不支持本机识别，必须配置接口才能发送语音。'}
       </div>
 
+      <${ApiSource} cfg=${a} set=${set}/>
+
       <div class="pad">
         <${Field} label="识别方式"
           desc=${tone
@@ -65,7 +68,8 @@ export function AsrPage() {
             onChange=${m => { set({ mode: m }); setResult(null); }}/>
         <//>
 
-        <${Field} label="接口地址"
+        ${a.endpointId ? null : html`
+<${Field} label="接口地址"
           desc=${tone
             ? '使用 chat/completions 端点。留空则使用 https://api.openai.com/v1。中转站填写至 /v1 为止。'
             : '使用 audio/transcriptions 端点。留空则使用 https://api.openai.com/v1。中转站填写至 /v1 为止。'}>
@@ -77,7 +81,7 @@ export function AsrPage() {
           <${Input} type="password" value=${a.apiKey} onInput=${x => set({ apiKey: x })}
             placeholder="sk-..."/>
         <//>
-
+        `}
         <${Field} label="模型"
           desc=${tone
             ? '须为能直接接收音频的多模态模型，例如 gpt-4o-audio-preview 或中转站提供的同类模型。填写普通转写模型会报错。'
