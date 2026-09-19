@@ -10,6 +10,7 @@ import { DOCK_SIZE } from '../system/db/defaults.js';
 import { AppTile } from '../screens/home/AppTile.js';
 import { editState, setPicked, clearPicked } from '../screens/home/editState.js';
 import { movePicked, clearDockSlot, newFolderAuto, putInFolder } from '../screens/home/layout.js';
+import { IconSheet } from '../screens/home/IconSheet.js';
 import { Sheet, List, ListItem, toast } from '../ui/index.js';
 
 function unreadFor(appId) {
@@ -29,6 +30,7 @@ export function Dock() {
   useStore(settings.store);
   const [menu, setMenu] = useState(null);
   const [into, setInto] = useState(false);
+  const [editingIcon, setEditingIcon] = useState(null);
 
   const folders = (lay.pages || []).flatMap(p => (p.cells || []).filter(c => c.kind === 'folder'));
 
@@ -77,6 +79,9 @@ export function Dock() {
             <${ListItem} title="移动到其他位置" subtitle="随后点击网格中的位置，或底部的其他格位" arrow multiline
               left=${html`<${Icon} name="drag" size=${18}/>`}
               onClick=${() => { setPicked({ type: 'dock', i: menu }); setMenu(null); }}/>
+            <${ListItem} title="图标与名称" subtitle="换一个线条图标或一张图片，也可以改名" arrow multiline
+              left=${html`<${Icon} name="edit" size=${18}/>`}
+              onClick=${() => { setEditingIcon(slots[menu]); setMenu(null); }}/>
             <${ListItem} title="新建文件夹" subtitle="在主界面的空位上新建，该应用移入其中" arrow multiline
               left=${html`<${Icon} name="folder" size=${18}/>`}
               onClick=${() => {
@@ -93,6 +98,8 @@ export function Dock() {
               onClick=${() => { clearDockSlot(menu); setMenu(null); }}/>
           <//>` : null}
       <//>
+
+      <${IconSheet} appId=${editingIcon} onClose=${() => setEditingIcon(null)}/>
 
       <${Sheet} open=${into} onClose=${() => setInto(false)} title="装进哪个文件夹">
         <${List} inset=${false}>

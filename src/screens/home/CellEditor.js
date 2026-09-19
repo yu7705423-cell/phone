@@ -4,6 +4,7 @@ import { listWidgets } from '../../system/registry.js';
 import { listAppLooks } from '../../system/look.js';
 import { layout } from '../../system/db/index.js';
 import { placeAt, placeAtXY, clearCell, newFolder, newFolderAuto, setFolder, putInFolder, takeOut } from './layout.js';
+import { IconSheet } from './IconSheet.js';
 
 const sizeLabel = (w, h) => `${w} x ${h}`;
 
@@ -34,6 +35,7 @@ export function CellEditor({ cell, pageIdx, onClose, onSwapFrom }) {
   const [tab, setTab] = useState('root');
   const [picked, setPickedApps] = useState([]);
   const [name, setName] = useState('');
+  const [editingIcon, setEditingIcon] = useState(null);
   if (!cell) return null;
 
   const widgets = listWidgets();
@@ -151,6 +153,10 @@ export function CellEditor({ cell, pageIdx, onClose, onSwapFrom }) {
               left=${html`<${Icon} name="folder" size=${18}/>`} onClick=${openFolderNew}/>` : null}
         `}
         ${!isSlot ? html`
+          ${cell.kind === 'app' ? html`
+            <${ListItem} title="图标与名称" subtitle="换一个线条图标或一张图片，也可以改名" arrow multiline
+              left=${html`<${Icon} name="edit" size=${18}/>`}
+              onClick=${() => setEditingIcon(cell.ref)}/>` : null}
           ${cell.kind === 'app' && foldersNow().length ? html`
             <${ListItem} title="装进已有的文件夹" arrow
               left=${html`<${Icon} name="folder" size=${18}/>`} onClick=${() => setTab('into')}/>` : null}
@@ -171,6 +177,7 @@ export function CellEditor({ cell, pageIdx, onClose, onSwapFrom }) {
 
   return html`
     <${Sheet} open=${true} onClose=${close} title=${title} height=${tab === 'root' ? null : '72%'}>
+      <${IconSheet} appId=${editingIcon} onClose=${() => setEditingIcon(null)}/>
       ${tab !== 'root' ? html`
         <div class="pad-b">
           <${Button} size="sm" variant="ghost" icon="chevronLeft"

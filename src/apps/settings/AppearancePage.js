@@ -1,9 +1,8 @@
 import { html, useRef, useState } from '../../lib.js';
 import { phone, useStore, useImage } from '../../sdk/index.js';
 import { Page, List, ListItem, Field, Input, Textarea, Switch, Segmented,
-         Button, Icon, Sheet, toast, confirm, prompt } from '../../ui/index.js';
+         Button, Icon, Sheet, IconPicker, toast, confirm, prompt } from '../../ui/index.js';
 import { PHOTO_MAX, ICON_MAX } from '../../system/db/images.js';
-import { ICON_NAMES } from '../../icons/paths.js';
 import { BatchIcons } from './BatchIcons.js';
 import { LookPresets } from './LookPresets.js';
 import { FontPicker } from './FontPicker.js';
@@ -53,107 +52,14 @@ function WallpaperRow({ slot, label, desc }) {
     </div>`;
 }
 
-function IconPicker({ appId, onClose }) {
-  // 所有 hook 都要在任何提前返回之前调用，否则关闭和打开时 hook 数量不一致，
-  // 顺序一错预览就不跟着刷新了
-  const st = useStore(db.settings.store);
-  const fileRef = useRef(null);
-  const [busy, setBusy] = useState(false);
-  const cur = (st.appIcons || {})[appId] || {};
-  const preview = useImage(cur.imageId);
-
+// 图标与名称的界面在 ui/IconPicker，动作在 system/look。
+// 主界面长按图标、文件夹里长按图标用的是同一套。
+function IconSheet({ appId, onClose }) {
+  useStore(db.settings.store);
+  const preview = useImage(appId ? appsApi.icon.override(appId).imageId : null);
   if (!appId) return null;
-
-  const app = appsApi.get(appId);
-  const icon = cur.icon || app?.icon;
-
-  const set = patch => db.settings.set({
-    appIcons: { ...(st.appIcons || {}), [appId]: { ...cur, ...patch } },
-  });
-
-  const reset = () => {
-    if (cur.imageId) db.images.remove(cur.imageId);
-    const next = { ...(st.appIcons || {}) };
-    delete next[appId];
-    db.settings.replace({ ...st, appIcons: next });
-  };
-
-  const useImageFile = async file => {
-    setBusy(true);
-    try {
-      const id = await db.images.putIcon(file, ICON_MAX);
-      if (cur.imageId) db.images.remove(cur.imageId);
-      set({ imageId: id });
-      toast('已更换为图片');
-    } catch (err) { toast('图片处理失败：' + err.message, 'error', 4000); }
-    finally { setBusy(false); }
-  };
-
-  const pickFile = async e => {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (file) await useImageFile(file);
-  };
-
-  // 链接同样落到本地，不做远程引用
-  const fromUrl = async () => {
-    const url = await prompt({ title: '图片链接', placeholder: 'https://...' });
-    if (!url) return;
-    setBusy(true);
-    try {
-      const res = await fetch(url.trim());
-      if (!res.ok) throw new Error(String(res.status));
-      const blob = await res.blob();
-      if (!/^image\//.test(blob.type)) throw new Error('这个链接不是图片');
-      await useImageFile(new File([blob], 'icon', { type: blob.type }));
-    } catch (err) {
-      toast('获取失败：' + err.message + '。通常为跨域限制，可先保存到相册后再选择。', 'error', 6000);
-      setBusy(false);
-    }
-  };
-
-  return html`
-    <${Sheet} open=${true} onClose=${onClose} title=${app?.name || appId} height="86%">
-      <${Field} label="名称">
-        <${Input} value=${app?.name || ''} onInput=${v => set({ name: v })}/>
-      <//>
-
-      <${Field} label="更换为图片" desc=${`整图完整缩放至 ${ICON_MAX} x ${ICON_MAX}，保存在本地。`}>
-        <div class="icon-upload">
-          <div class=${`app-tile app-tile-preview${preview ? ' has-image' : ''}`}
-            style=${preview ? `background-image:url(${preview})` : ''}>
-            ${preview ? null : html`<${Icon} name=${icon} size=${24}/>`}
-          </div>
-          <div class="icon-upload-acts">
-            <${Button} size="sm" variant="ghost" icon="upload" disabled=${busy}
-              onClick=${() => fileRef.current?.click()}>选择图片<//>
-            <${Button} size="sm" variant="ghost" icon="layers" disabled=${busy}
-              onClick=${fromUrl}>使用链接<//>
-            ${cur.imageId ? html`
-              <${Button} size="sm" variant="ghost" icon="close"
-                onClick=${() => { db.images.remove(cur.imageId); set({ imageId: null }); }}>恢复为图标<//>` : null}
-          </div>
-        </div>
-        <input type="file" accept="image/*" ref=${fileRef} onChange=${pickFile} style="display:none"/>
-      <//>
-
-      ${cur.imageId ? html`
-        <div class="field-desc">正在用图片。想换回线条图标，点上面的「改回图标」。</div>`
-      : html`
-        <${Field} label="或者挑一个图标"/>
-        <div class="icon-grid">
-          ${ICON_NAMES.map(n => html`
-            <button key=${n} class=${`icon-pick${icon === n ? ' is-active' : ''}`}
-              onClick=${() => set({ icon: n })} aria-label=${n}>
-              <${Icon} name=${n} size=${22}/>
-            </button>`)}
-        </div>`}
-
-      <div class="sheet-acts">
-        <${Button} variant="ghost" onClick=${reset}>恢复默认<//>
-        <${Button} onClick=${onClose}>完成<//>
-      </div>
-    <//>`;
+  return html`<${IconPicker} appId=${appId} app=${appsApi.get(appId)} preview=${preview}
+    service=${appsApi.icon} maxEdge=${ICON_MAX} onClose=${onClose}/>`;
 }
 
 function CSSEditor({ open, onClose }) {
@@ -322,7 +228,7 @@ export function AppearancePage() {
         </div>
       </div>
 
-      <${IconPicker} appId=${picking} onClose=${() => setPicking(null)}/>
+      <${IconSheet} appId=${picking} onClose=${() => setPicking(null)}/>
       <${CSSEditor} open=${cssOpen} onClose=${() => setCssOpen(false)}/>
       <${BatchIcons} open=${batchOpen} onClose=${() => setBatchOpen(false)}/>
     <//>`;

@@ -84,7 +84,8 @@ import { files, download } from '../system/db/files.js';
 import { useFile } from '../system/db/useFile.js';
 import { BLOCKS, DEFAULT_ORDER, resolveOrder } from '../system/ai/context/index.js';
 import { toast, confirm, prompt } from '../ui/overlay.js';
-import { appLook, listAppLooks } from '../system/look.js';
+import { appLook, listAppLooks, iconOverride, setAppIcon, resetAppIcon,
+         setAppIconFile, setAppIconUrl, clearAppIconImage } from '../system/look.js';
 import { registryStore } from '../system/registry.js';
 import { removedApps, restoreApp } from '../screens/home/layout.js';
 
@@ -113,6 +114,15 @@ export const phone = {
     // 所以从 sdk 过一道：app 不直接碰 screens/
     removed: removedApps,
     restore: restoreApp,
+    // 图标与名称。ui/IconPicker 要的就是这几个动作
+    icon: {
+      override: iconOverride,
+      set: setAppIcon,
+      reset: resetAppIcon,
+      file: setAppIconFile,
+      url: setAppIconUrl,
+      clearImage: clearAppIconImage,
+    },
   },
 
   ai: {

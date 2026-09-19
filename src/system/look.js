@@ -1,4 +1,5 @@
-import { settings } from './db/index.js';
+import { settings, images } from './db/index.js';
+import { ICON_MAX } from './db/images.js';
 import { getApp, listApps } from './registry.js';
 
 // 图标一律白底黑图。颜色、阴影、名称显示与否在主题设置里统一控制，
@@ -38,4 +39,49 @@ export function applyCustomCSS(css) {
     document.head.appendChild(styleEl);
   }
   styleEl.textContent = css || '';
+}
+
+
+// ---- 每个 app 的图标与名称 ----
+//
+// 数据在 settings.appIcons[appId]，改它的地方有三处：设置 - 外观、主界面上
+// 长按图标、文件夹里长按图标。逻辑放这里，三处共用，界面是 ui/IconPicker。
+
+export const iconOverride = appId => (settings.get().appIcons || {})[appId] || {};
+
+export function setAppIcon(appId, patch) {
+  const all = settings.get().appIcons || {};
+  settings.set({ appIcons: { ...all, [appId]: { ...(all[appId] || {}), ...patch } } });
+}
+
+export function resetAppIcon(appId) {
+  const s = settings.get();
+  const all = { ...(s.appIcons || {}) };
+  const cur = all[appId];
+  if (cur?.imageId) images.remove(cur.imageId);
+  delete all[appId];
+  settings.replace({ ...s, appIcons: all });
+}
+
+export async function setAppIconFile(appId, file) {
+  const id = await images.putIcon(file, ICON_MAX);
+  const old = iconOverride(appId).imageId;
+  if (old) images.remove(old);
+  setAppIcon(appId, { imageId: id });
+  return id;
+}
+
+// 链接同样落到本地，不做远程引用
+export async function setAppIconUrl(appId, url) {
+  const res = await fetch(String(url || '').trim());
+  if (!res.ok) throw new Error(String(res.status));
+  const blob = await res.blob();
+  if (!/^image\//.test(blob.type)) throw new Error('这个链接不是图片');
+  return setAppIconFile(appId, new File([blob], 'icon', { type: blob.type }));
+}
+
+export function clearAppIconImage(appId) {
+  const old = iconOverride(appId).imageId;
+  if (old) images.remove(old);
+  setAppIcon(appId, { imageId: null });
 }
