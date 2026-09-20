@@ -137,12 +137,12 @@ export function untilSale(t, now = Date.now()) {
  *
  * 返回 { ok, left, reason }。
  */
-export function grabOnce(tripId, ticketId, { random = Math.random } = {}) {
+export function grabOnce(tripId, ticketId, { random = Math.random, ignoreSale = false } = {}) {
   const row = trip.get(tripId);
   const t = trip.ticketOf(tripId, ticketId);
   if (!row || !t) throw new Error('这张票已经不在了');
   if (t.state === trip.BOUGHT) throw new Error('这张票已经买到了');
-  if (!saleOpen(t)) throw new Error('尚未开售');
+  if (!ignoreSale && !saleOpen(t)) throw new Error('尚未开售');
 
   const odds = oddsOf(tripId, ticketId);
   if (!odds) throw new Error('未能检索到场馆容量与想看人数，无法抢票');
@@ -174,6 +174,36 @@ export function grabOnce(tripId, ticketId, { random = Math.random } = {}) {
     return { ok: false, left: 0, reason: 'soldout' };
   }
   return { ok: false, left: after?.left ?? 0, reason: 'miss' };
+}
+
+/**
+ * 一次跑完整场。
+ *
+ * 和连点「抢票」到底是同一件事，同一套概率、同一套扣款 —— 只是不必真的
+ * 点上几十下，也不必等到开售时刻。**开售时刻在这里是不作数的**：
+ * 一场三个月后的演出，逐次点击要等三个月才点得动，而这台手机上的三个月
+ * 不会真的过去。
+ *
+ * 不设次数上限（第 13 条）：跑到抢到、或者本档售罄为止。这个循环一定会停，
+ * 因为每跑一次余票都在掉，第 TRIES 次之后就是零。下面那个 10000 是防跑飞的
+ * 保险，不是给用户的门 —— TRIES 是几十的量级，正常永远碰不到它。
+ */
+export function simulate(tripId, ticketId, { random = Math.random } = {}) {
+  let tries = 0;
+  let last = null;
+  while (tries < 10000) {
+    const before = oddsOf(tripId, ticketId);
+    if (!before) throw new Error('未能检索到场馆容量与想看人数，无法抢票');
+    if (before.left <= 0) break;
+    last = grabOnce(tripId, ticketId, { random, ignoreSale: true });
+    tries += 1;
+    if (last.ok || last.reason === 'soldout') break;
+  }
+  return {
+    ok: !!last?.ok, tries,
+    left: last?.left ?? (oddsOf(tripId, ticketId)?.left ?? 0),
+    reason: last?.ok ? 'got' : 'soldout',
+  };
 }
 
 /**

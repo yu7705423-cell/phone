@@ -68,6 +68,27 @@ export function GrabPage({ tripId, ticketId }) {
     } finally { setBusy(false); }
   };
 
+  // 一次跑完整场。和连点「抢票」到底是同一件事 —— 同一套概率、同一套扣款，
+  // 只是不必点上几十下，也不必等到开售时刻。见 system/grab.js 的 simulate
+  const runAll = async () => {
+    if (!await confirm({
+      title: '立即模拟抢票',
+      message: '不等待开售时刻，按本档的概率连续尝试，直到抢到或本档售罄。'
+        + '概率与扣款均与逐次点击相同，抢到时同样从共同账户扣除票款。',
+      okText: '开始',
+    })) return;
+    setBusy(true);
+    try {
+      const r = grab.simulate(tripId, ticketId);
+      say(r.ok
+        ? `模拟结束：第 ${r.tries} 次尝试抢到，款项已从共同账户扣除`
+        : `模拟结束：尝试 ${r.tries} 次，本档已售罄`);
+      toast(r.ok ? '已抢到' : '未抢到，本档已售罄', r.ok ? 'ok' : 'plain', 4000);
+    } catch (e) {
+      toast(String(e.message || e), 'error', 5000);
+    } finally { setBusy(false); }
+  };
+
   const resale = async () => {
     const times = odds?.times || 1;
     if (!await confirm({
@@ -145,6 +166,16 @@ export function GrabPage({ tripId, ticketId }) {
             ${busy ? '正在尝试' : '抢票'}
           <//>`}
       </div>
+
+      ${!done && !gone && !quit && odds ? html`
+        <div class="pad-x">
+          <${Button} full variant="ghost" disabled=${busy} onClick=${runAll}>
+            立即模拟抢票
+          <//>
+          <div class="settings-foot">
+            不等待开售时刻，按本档的概率连续尝试，直到抢到或本档售罄。
+          </div>
+        </div>` : null}
 
       ${!done && odds && (gone || odds.left <= 0) ? html`
         <div class="pad-x">

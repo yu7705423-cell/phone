@@ -584,6 +584,8 @@ input[type="range"] {
 .stk-manage { max-height: none; padding: 0 var(--sp-1); }
 .stk-cell { display: flex; align-items: center; justify-content: center; }
 .stk-cell .stk-img, .stk-cell .stk-miss { width: 100%; height: auto; aspect-ratio: 1; }
+/* 整理分组时选中的那几个 */
+.stk-cell.is-picked { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: var(--r-xs); }
 
 .stk-suggest {
   flex: none; display: flex; gap: var(--sp-2);

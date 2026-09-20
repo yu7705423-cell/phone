@@ -117,6 +117,13 @@ export function StickerManager() {
   const [pasting, setPasting] = useState(false);
   const [editing, setEditing] = useState(null);
   const [caching, setCaching] = useState(null);
+  // 整理模式。null 是没在整理，数组是已经选中的那几个 id。
+  //
+  // 已有的表情本来也能一个个点开改分组，可库里攒到几百个之后，
+  // 「把已经有的归一下类」就成了几百次「点开、选组、关掉」。
+  // 所以给一个多选：选一批，一次移过去。
+  const [picking, setPicking] = useState(null);
+  const [moving, setMoving] = useState(false);
   const imgRef = useRef(null);
   const fileRef = useRef(null);
   const oneRef = useRef(null);
@@ -145,6 +152,26 @@ export function StickerManager() {
   };
 
   const addOneTo = g => { intoRef.current = g; oneRef.current?.click(); };
+
+  const picked = picking || [];
+  const isPicked = id => picked.includes(id);
+  const toggle = id => setPicking(v => (v || []).includes(id)
+    ? v.filter(x => x !== id)
+    : [...(v || []), id]);
+  // 这一组全选 / 全不选。归类时多半是整组整组地挪
+  const toggleGroup = g => {
+    const ids = api.inGroup(g).map(s => s.id);
+    const all = ids.length && ids.every(isPicked);
+    setPicking(v => all
+      ? (v || []).filter(x => !ids.includes(x))
+      : [...new Set([...(v || []), ...ids])]);
+  };
+  const moveTo = g => {
+    picked.forEach(id => db.stickers.update(id, { group: g }));
+    toast(`已移入「${g}」，共 ${picked.length} 个`, 'ok');
+    setMoving(false);
+    setPicking(null);
+  };
 
   const newGroup = async () => {
     const name = await prompt({ title: '新建分组', placeholder: '分组名' });
@@ -210,6 +237,59 @@ export function StickerManager() {
     api.renameGroup(g, name);
   };
 
+  if (picking) {
+    return html`
+      <${Page} title=${`整理分组 · 已选 ${picked.length}`}
+        onBack=${() => setPicking(null)}
+        right=${html`
+          <button class=${`nav-text press${picked.length ? '' : ' is-off'}`}
+            onClick=${() => picked.length && setMoving(true)}>移入分组</button>`}>
+        <div class="pad-x pad-t">
+          <div class="hint-box">
+            点击表情选中或取消，点击分组名可全选该组。选定之后点击右上角移入分组。
+          </div>
+        </div>
+
+        ${groups.map(g => {
+          const list = api.inGroup(g);
+          const all = list.length && list.every(x => isPicked(x.id));
+          return html`
+            <div key=${g} class="list-wrap">
+              <div class="list-title stk-group-head">
+                <span>${g} · ${list.length}</span>
+                <button class="nav-text press" onClick=${() => toggleGroup(g)}>
+                  ${all ? '取消全选' : '全选'}</button>
+              </div>
+              ${list.length ? html`
+                <div class="stk-grid stk-manage">
+                  ${list.map(x => html`
+                    <button key=${x.id}
+                      class=${`stk-cell press${isPicked(x.id) ? ' is-picked' : ''}`}
+                      onClick=${() => toggle(x.id)} title=${x.name}>
+                      <${StickerImg} sticker=${x}/>
+                    </button>`)}
+                </div>`
+              : html`<div class="settings-foot">这个分组还是空的。</div>`}
+            </div>`;
+        })}
+
+        ${moving ? html`
+          <${Sheet} open=${true} onClose=${() => setMoving(false)}
+            title=${`移入分组 · ${picked.length} 个`}>
+            <${Field} label="移入哪个分组">
+              <div class="chip-row">
+                ${groups.map(g => html`
+                  <button key=${g} class="chip" onClick=${() => moveTo(g)}>${g}</button>`)}
+                <button class="chip" onClick=${async () => {
+                  const g = api.addGroup(await prompt({ title: '新建分组', placeholder: '分组名' }));
+                  if (g) moveTo(g);
+                }}>新建</button>
+              </div>
+            <//>
+          <//>` : null}
+      <//>`;
+  }
+
   return html`
     <${Page} title="表情包" onBack=${nav.pop}>
       <${List} title="导入">
@@ -238,6 +318,10 @@ export function StickerManager() {
           subtitle="先建一个空分组，再把表情放进去。分组名也可以在导入时直接填写。" arrow
           left=${html`<${Icon} name="folder" size=${18}/>`}
           onClick=${newGroup}/>
+        <${ListItem} title="整理分组" multiline
+          subtitle="选择多个已有的表情，一并移入指定分组。亦可按分组全选。" arrow
+          left=${html`<${Icon} name="check" size=${18}/>`}
+          onClick=${() => setPicking([])}/>
       <//>
 
       <input type="file" accept="image/*" ref=${oneRef} onChange=${pickOne} style="display:none"/>
