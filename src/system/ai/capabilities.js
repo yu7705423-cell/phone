@@ -147,7 +147,7 @@ export const CAPS = [
     label: '一起听与点歌',
     // 曲库是空的就没什么可听的，提了反而让它点一首不存在的歌
     on: ({ char }) => char.canListen !== false && allSongs().length > 0,
-    // 正在一起听就必须是热的：那三条「别当鉴赏课」的规矩是这个功能的全部要害
+    // 正在一起听就必须是热的：点歌、建歌单这几个标记怎么写，这一段说了算
     hot: ({ chat, msgs }) => (listen.get().active && listen.get().chatId === chat.id)
       || usedRecently(msgs, /^listen$|[[【](一起听|点歌|建歌单)/),
     line: () => 'Listen together: write a line on its own, [一起听];'
