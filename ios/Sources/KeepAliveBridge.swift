@@ -46,12 +46,17 @@ final class KeepAliveBridge: NSObject {
         return d
     }
 
-    private func start() -> [String: Any] {
+    private func start(mix: Bool) -> [String: Any] {
         if player?.isPlaying == true { return info(on: true) }
         let session = AVAudioSession.sharedInstance()
         do {
-            // 独占（不混音），否则系统不认为这只 app 在放东西，后台照停
-            try session.setCategory(.playback, mode: .default, options: [])
+            // 独占还是混音由网页那边定（设置里那个开关）。
+            //
+            // 独占是保守的那一档：系统一定认这只 app 在放东西，代价是
+            // 打断用户正在听的东西。混音不打断，但**系统认不认是另一回事** ——
+            // 这个验不了，所以交给用户自己开着量（网页那边有心跳）。
+            try session.setCategory(.playback, mode: .default,
+                                    options: mix ? [.mixWithOthers] : [])
             try session.setActive(true)
         } catch {
             return ["error": "音频会话没拿到：\(error.localizedDescription)"]
@@ -106,7 +111,7 @@ extension KeepAliveBridge: WKScriptMessageHandlerWithReply {
                                replyHandler: @escaping (Any?, String?) -> Void) {
         let body = message.body as? [String: Any] ?? [:]
         switch body["action"] as? String ?? "" {
-        case "start":  replyHandler(start(), nil)
+        case "start":  replyHandler(start(mix: body["mix"] as? Bool ?? false), nil)
         case "stop":   replyHandler(stop(), nil)
         case "status": replyHandler(status(), nil)
         default:       replyHandler(["error": "不认识的动作"], nil)

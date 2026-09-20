@@ -168,6 +168,14 @@ function Home() {
             + (phone.keepAlive.awayText() ? `　${phone.keepAlive.awayText()}` : '')}
           right=${html`<${Switch} checked=${!!s.keepAlive}
             onChange=${v => db.settings.set({ keepAlive: v })}/>`}/>
+        ${phone.keepAlive.native() ? html`
+          <${ListItem} title="不打断其他应用的声音" multiline
+            subtitle=${'开启后保活音频与其他应用混合，你正在听的东西不会被中断。'
+              + '代价是系统可能不再把本应用当成正在播放，后台仍会被暂停。'
+              + '开启后切到后台三分钟以上再回来，上面那一行会告诉你还管不管用。'}
+            right=${html`<${Switch} checked=${!!s.keepAliveMix}
+              onChange=${v => db.settings.set({ keepAliveMix: v })}
+              disabled=${!s.keepAlive}/>`}/>` : null}
       <//>
 
       <${List} title="数据">

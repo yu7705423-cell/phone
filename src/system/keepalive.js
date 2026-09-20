@@ -1,4 +1,5 @@
 import { createStore } from './store.js';
+import { settings } from './db/index.js';
 
 // 保活。循环播放一段无声音频，让系统把这个页面当成正在放东西的标签页，
 // 切到后台之后不那么快被冻结，主动消息的定时器才有机会照常跑。
@@ -68,11 +69,14 @@ const BRIDGE = () => window.webkit?.messageHandlers?.keepalive;
 /** 外壳有没有这座桥。有就一律走它。 */
 export const native = () => !!(window.phoneKeepAlive && BRIDGE());
 
-async function callNative(action) {
-  const got = await BRIDGE().postMessage({ action });
+async function callNative(action, payload = {}) {
+  const got = await BRIDGE().postMessage({ action, ...payload });
   if (got && got.error) throw new Error(String(got.error));
   return got || {};
 }
+
+/** 用户选的：保活期间要不要和其他应用混音。 */
+const wantMix = () => settings.get().keepAliveMix === true;
 
 /** 走外壳时的续播。原生不需要用户手势，所以 needsTap 永远立不起来。 */
 // 那一行字必须**先说走的是哪条路**。
@@ -88,14 +92,20 @@ function noteOf(got) {
   if (!got.on) return `${SHELL}：没有在运行`;
   // mixing 为真时系统不拿这段音频当「这只 app 正在放东西」，后台照停 ——
   // 那种情况下这个功能等于没开，得说出来
-  if (got.mixing) return `${SHELL}：正在运行，但与其他应用混音，后台可能仍会被暂停`;
+  // 混音是用户自己选的时候不当成毛病说 —— 它是不是够用，
+  // 由那把尺子（切后台几分钟再回来）告诉他，不由这里替他判
+  if (got.mixing) {
+    return wantMix()
+      ? `${SHELL}：正在运行，与其他应用混音`
+      : `${SHELL}：正在运行，但与其他应用混音，后台可能仍会被暂停`;
+  }
   if (got.playing === false) return `${SHELL}：会话已就绪，但播放器没有在播`;
   return `${SHELL}：正在运行`;
 }
 
 async function nativeResume() {
   try {
-    const got = await callNative('start');
+    const got = await callNative('start', { mix: wantMix() });
     state.set({ on: got.on === true, needsTap: false, note: noteOf(got) });
     return got.on === true;
   } catch (err) {
