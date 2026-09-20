@@ -71,9 +71,12 @@ export function selectByVector(charId, scanText, budget, queryVec, opts = {}) {
   return takeTopWithin(pool, budget, lineOf);
 }
 
-// S/A 全注入; B 在扫描窗口里命中关键词才进; C 只存档不注入
+// A 全注入; B 在扫描窗口里命中关键词才进; C 只存档不注入
 // 没有向量接口时的退路。同样不收 S 级
-export function select(charId, scanText, budget, personaId) {
+//
+// **条数也要封顶。** 从前这一档只有 token 预算这一道闸：四十条 A 级，
+// 预算填满为止，和当前在聊什么毫无关系 —— 「一次召回一堆」主要就是它。
+export function select(charId, scanText, budget, personaId, topK = 0) {
   const text = String(scanText || '').toLowerCase();
   const pool = listFor(charId, personaId).filter(m => {
     if (m.rank === 'A') return true;
@@ -87,7 +90,8 @@ export function select(charId, scanText, budget, personaId) {
     (weight[a.rank] ?? 3) - (weight[b.rank] ?? 3)
     || (b.updatedAt || 0) - (a.updatedAt || 0));
 
-  return takeTopWithin(pool, budget, lineOf);
+  const n = Math.max(0, Math.round(Number(topK) || 0));
+  return takeTopWithin(n ? pool.slice(0, n) : pool, budget, lineOf);
 }
 
 // 召回那一段的定位是**候选**，不是必须用上的事实。
@@ -95,9 +99,13 @@ export function select(charId, scanText, budget, personaId) {
 // 从前的抬头写着「请自然地运用这些信息」—— 那是在命令模型用上它们，
 // 于是每一条召回噪音都被硬塞进回复。检索精度再调也治不好这个：
 // 检索本来就不可能完美，能改的是检索结果的定位。
+//
+// 「冲突时以日期新的为准」是**解析规则**，不是替角色作判断（第 16 条）：
+// 同一件事有两种说法时按哪一条算，依据的是日期这个客观事实。
+// 不写这一句，两条打架的记忆一起进来，模型只能瞎猜，或者两句都顺着说。
 const HEAD = `[相关记忆]
-The following are your relevant memories, ordered by relevance, for reference.
-When none of them fits the present situation, disregard this section.`;
+Notes that may bear on the present conversation, for reference. Ignore any that
+do not fit. Where two entries conflict, the one with the later date is current.`;
 
 // 写给模型看的标签用类别 id。原先是 [S/事实] —— S 对模型没有任何含义，
 // 它不知道 S 比 A 重要在哪儿、该怎么用。类别 id 与 task.memory-* 里列的那六个
@@ -121,9 +129,38 @@ export function dayOf(m) {
   return `${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())}`;
 }
 
+/**
+ * 这件事离现在多久。
+ *
+ * 召回从前只给一个裸日期，「多久以前」要模型自己算 —— 而日期相减和
+ * 距离、点数、金额一样不是模型的活（第 16 条），算错了它也不知道。
+ * 算好摆进去，它就不会把半年前的事说成前几天。
+ */
+export function agoText(m, now = Date.now()) {
+  const t = Number(m?.createdAt) || 0;
+  if (!t) return '';
+  const days = Math.floor((now - t) / 86400000);
+  if (days <= 0) return 'today';
+  if (days === 1) return 'yesterday';
+  if (days < 14) return `${days} days ago`;
+  if (days < 60) return `${Math.round(days / 7)} weeks ago`;
+  if (days < 365) return `${Math.round(days / 30)} months ago`;
+  const y = Math.round(days / 365);
+  return y <= 1 ? 'about a year ago' : `${y} years ago`;
+}
+
+/**
+ * 一条记忆写成一行。
+ *
+ * 从前是 `【fact 2026-03-01】正文`。类别 id 那一段是白给的 —— 模型不知道
+ * 拿 pattern 该怎么办，它占位置却不改变任何行为。现在类别改成分栏（见
+ * recallText），行里只留日期与「多久以前」这两样看得懂的。
+ */
 export const lineOf = m => {
   const day = dayOf(m);
-  return `【${LABEL(m)}${day ? ' ' + day : ''}】${m.content}`;
+  const ago = agoText(m);
+  const when = day ? `${day}${ago ? ` (${ago})` : ''} ` : '';
+  return `- ${when}${m.content}`;
 };
 
 /**
@@ -141,7 +178,7 @@ export function recall(ctx) {
       topK: settings.memoryTopK,
       threshold: typeof settings.memoryThreshold === 'number' ? settings.memoryThreshold : 0.22,
     })
-    : select(char?.id, scanText, budgets.memory, personaId);
+    : select(char?.id, scanText, budgets.memory, personaId, settings.memoryTopK);
   return items;
 }
 
@@ -179,8 +216,34 @@ export async function recallAsync(ctx) {
   }
 }
 
-export const recallText = items =>
-  (items && items.length ? `${HEAD}\n${items.map(lineOf).join('\n')}` : '');
+// 按**客观性质**分三栏，不按相关度平铺。
+//
+// 十二行长得一模一样地摊在那里，模型看到的是十二条平级事实，只能平均用力。
+// 分栏本身就是轻重：没了结的事天然最先被注意到（人对未竟之事就是这样）。
+//
+// **这不是替角色排优先级。** 第 16 条删掉过的那一段「冲突时的取舍」排的是
+// 人设 > 世界设定 > 其余，那是替用户决定他自己写的几份设定谁让谁；
+// 这里分的是同一批记忆按它们自身的性质归栏，栏目名都是事实陈述。
+const GROUPS = [
+  { id: 'open', head: 'Still unresolved:', has: m => m.category === 'pending' && !/已完结/.test(m.content || '') },
+  { id: 'stable', head: 'Always true:', has: m => ['fact', 'profile', 'pattern'].includes(m.category) },
+  { id: 'past', head: 'That happened:', has: () => true },
+];
+
+export function recallText(items) {
+  const list = (items || []).filter(Boolean);
+  if (!list.length) return '';
+  const rest = list.slice();
+  const out = [];
+  for (const g of GROUPS) {
+    const mine = [];
+    for (let i = rest.length - 1; i >= 0; i--) {
+      if (g.has(rest[i])) mine.unshift(rest.splice(i, 1)[0]);
+    }
+    if (mine.length) out.push(`${g.head}\n${mine.map(lineOf).join('\n')}`);
+  }
+  return `${HEAD}\n\n${out.join('\n\n')}`;
+}
 
 // 深度。0 表示留在设定区，N ≥ 1 表示插进对话历史倒数第 N 条之前。
 // 默认 1：召回是每轮都变的，放在最前面会让后面所有稳定内容的 prompt

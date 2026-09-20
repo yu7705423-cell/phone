@@ -14,13 +14,44 @@ function headers(cfg) {
   };
 }
 
+/**
+ * 历史里那几条 system 消息，Anthropic 收不了。
+ *
+ * **它的 messages 只认 user 与 assistant**，system 必须走顶层参数。而世界书的
+ * 「插入深度」和本轮召回都是以 system 角色插进历史的（见 engine.insertLore）——
+ * 原样发过去就是一个 400，而 memoryDepth 默认是 1，也就是说**库里一有记忆
+ * 能召回，这一轮就发不出去**。走 OpenAI 兼容端点的人碰不到，那边容忍
+ * system 混在中间，所以这条一直没被发现。
+ *
+ * 转成 user，并用 <context> 包住：不包的话它读起来就像用户自己说的话，
+ * 模型会回一句「好的我记住了」。包起来是 Anthropic 自己文档里的做法
+ * （长上下文里的资料用 XML 标签裹着放进 user 轮）。
+ *
+ * 转完顺手合并相邻的同角色消息 —— 带图的那条不合，合进去图就和文字错位了。
+ */
+function toUserTurns(messages) {
+  const out = [];
+  for (const m of messages) {
+    const one = m.role === 'system'
+      ? { ...m, role: 'user', content: `<context>\n${m.content}\n</context>` }
+      : m;
+    const last = out[out.length - 1];
+    if (last && last.role === one.role && !last.image && !one.image) {
+      last.content += `\n\n${one.content}`;
+    } else {
+      out.push({ ...one });
+    }
+  }
+  return out;
+}
+
 function buildBody(cfg, { system, messages, maxTokens, stream }) {
   const body = {
     model: cfg.model,
     max_tokens: maxTokens,
     // 带图的消息换成内容块数组。Anthropic 收的是 base64 加 media_type，
     // 和 OpenAI 那边的 dataURL 形状不一样，所以在各自的 provider 里转。
-    messages: messages.map(m => ({
+    messages: toUserTurns(messages).map(m => ({
       role: m.role,
       content: m.image
         ? [

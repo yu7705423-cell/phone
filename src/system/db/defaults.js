@@ -120,7 +120,9 @@ export const DEFAULT_SETTINGS = {
   // 记忆
   memoryEnabled: true,
   memoryVector: false,            // 按语义检索。每轮多取一次查询向量，所以默认关着（第 15 条）
-  memoryTopK: 12,                 // 语义检索取前几条
+  // 一轮召回几条。**六条模型分得清主次，十二条开始平均用力。**
+  // 这是默认值不是上限（第 13 条），填 0 就是不限
+  memoryTopK: 6,
   memoryThreshold: 0.22,          // 相似度低于这个就不要了
   // 召回之后再让重排模型排一遍。每轮多一次请求，所以默认关着（第 15 条）
   rerankOn: false,
