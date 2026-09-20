@@ -38,11 +38,14 @@ import { LookPage } from './pages/LookPage.js';
 
 // 锁着就先过锁屏。**每一页都要挡** —— 只挡主屏的话，从别处直接跳
 // /body/xxx 就绕过去了，那道锁等于没有。
+//
+// 不再问「这台手机设过密码没有」：密码在数据层总是有的（system/theirs.js
+// 的 localLock），所以这里只问一件事 —— 这一次打开期间解过没有。
 function Guard({ charId, children }) {
   // hook 一律无条件调用。解开之后 open 记在内存里（见 system/theirs.js），
   // 这里只是为了让那一下能触发一次重渲染
   const [, bump] = useState(0);
-  if (!phone.theirs.locked(charId) || phone.theirs.isOpen(charId)) return children;
+  if (phone.theirs.isOpen(charId)) return children;
   return html`<${LockPage} charId=${charId} onOpen=${() => bump(n => n + 1)}/>`;
 }
 
@@ -59,8 +62,12 @@ export default function TheirsApp({ route }) {
   const m = String(route || '/').match(/^\/(home|shelf|body|day|notes|browser|chats|album|look|make|lock)\/(.+)$/);
   if (m) {
     const [, page, charId] = m;
-    // 锁屏本身单独一条路由：主屏上的「锁上」按它回到这儿
-    if (page === 'lock') return html`<${LockPage} charId=${charId}/>`;
+    // 锁屏本身单独一条路由：主屏上的「锁上」按它回到这儿。
+    // 这一条不经过 Guard，所以解开之后自己回主屏
+    if (page === 'lock') {
+      return html`<${LockPage} charId=${charId}
+        onOpen=${() => phone.nav.replace(`/home/${charId}`)}/>`;
+    }
     const PAGES = {
       home: HomePage, shelf: ShelfPage, body: BodyPage, day: DayPage,
       notes: NotesPage, browser: BrowserPage, make: MakePage, chats: ChatsPage,

@@ -125,7 +125,7 @@ export function AlbumPage({ charId }) {
             <${Shot} key=${p.id} photo=${p} onOpen=${() => setEditing(p)}/>`)}
         </div>`
       : html`
-        <${EmptyState} icon="camera" title="这一本还是空的"
+        <${EmptyState} icon="camera" title=${at ? '这一本还是空的' : '还没有照片'}
           desc=${at ? '把未归类里的照片移进来，或者重新生成。'
             : '依据该角色的设定生成这台手机里的照片。'}
           action=${at ? null : html`<${Button} size="sm" icon="plus"

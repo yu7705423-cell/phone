@@ -175,8 +175,11 @@ function useBackRegistry(onBack) {
 
 // 所有页面必须包在 Page 里。滚动、安全区、导航栏、应用内 TabBar 由它统一处理。
 // app 不允许自己写 overflow,见 CLAUDE.md
+// hideBar 是给「整页就是一块屏」的那几页用的：仿真的桌面、锁屏。
+// 它们自己画顶上那一行，再叠一条导航栏就成了两层顶。**onBack 照常传** ——
+// 边缘返回那一下是挂在 onBack 上的，藏的只是那条栏。
 export function Page({ title, onBack, right, tabs, children, noScroll,
-                       statusBarStyle, scrollRef, headerExtra }) {
+                       statusBarStyle, scrollRef, headerExtra, hideBar }) {
   useEffect(() => {
     if (!statusBarStyle) return;
     document.documentElement.dataset.statusbar = statusBarStyle;
@@ -188,7 +191,7 @@ export function Page({ title, onBack, right, tabs, children, noScroll,
 
   return html`
     <div class="page" ref=${swipe.ref} ...${swipe.handlers}>
-      ${(title || onBack || right) ? html`
+      ${(!hideBar && (title || onBack || right)) ? html`
         <div class="navbar">
           <div class="nav-left">
             ${onBack ? html`<${IconButton} name="chevronLeft" size=${22} onClick=${onBack} label="返回"/>` : null}

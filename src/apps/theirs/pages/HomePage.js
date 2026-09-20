@@ -1,20 +1,40 @@
 import { html } from '../../../lib.js';
 import { phone, useStore, useImage } from '../../../sdk/index.js';
-import { Page, Icon, Avatar, EmptyState } from '../../../ui/index.js';
+import { Page, Icon, EmptyState } from '../../../ui/index.js';
 
 const { db, nav, shelf, health, day, clock, theirs } = phone;
 
-// 那一块主屏。图标网格，和真的主界面一个意思：进来先看见有什么，再点进去。
+// 那一块主屏。**做成一块真的桌面**：壁纸铺满、顶上一行时间、底下一排图标，
+// 没有导航栏，没有副标题，没有一格一张卡片。
 //
-// **没有内容的那一格不画。** 角色卡上没开「今天」，这台手机上就没有「今天」
-// 这个 app —— 画一个点进去空着的格子，等于让人白点一次。
+// 从前这里是两列带副标题的卡片，看着像一页设置。可它是「拿起别人的手机」
+// 这件事的第一眼 —— 第一眼看见一页设置，后面几页做得再像也回不来了。
+//
+// ---- 哪几格画出来 ----
+//
+// 聊天、相册、备忘录、浏览器是这台手机自带的，**空着也画** ——
+// 真的手机上备忘录一条没有也还在桌面上，点进去是一页空的，不是没有这个应用。
+// 那四页的空状态里各有一个「去生成」。
+//
+// 书架、身体状态、今天不一样：那三样的数据在别的系统里，那边关着的时候
+// 这一格点进去什么也读不到。所以那三格跟着各自那个开关走 ——
+// 相当于「这台手机上没装这个应用」。
+//
+// ---- 底下那一排 ----
+//
+// 生成、外观、锁上、退出是**你的**工具，不是这台手机上的应用，所以摆在
+// 底部那一条里，和上面的图标分开。原先它们在导航栏右上角，那条栏现在没有了。
+//
+// 退出也摆在这一条里，不另画一道 Home Indicator ——
+// 外壳底下已经有一道了，再画一道就是两道。边缘往里一划是同一件事
+// （Page 的 onBack 照常传，只是藏了导航栏）。
 
 function Wall({ char, own, children }) {
   // 自己换过的优先；没换过就用角色卡的封面 —— 那张本来就是这个角色的画面。
   // 两样都没有就留底色，不去凑一张
   const url = useImage(own || char.cover);
   return html`
-    <div class=${`tp-wall${url ? ' has-img' : ''}`}
+    <div class=${`tp-desk${url ? ' has-img' : ''}`}
       style=${url ? `background-image:url(${url})` : ''}>
       ${children}
     </div>`;
@@ -25,13 +45,12 @@ function Cell({ charId, tile }) {
   const over = theirs.iconOf(charId, tile.id);
   const url = useImage(over.imageId);
   return html`
-    <button class="tp-tile press" onClick=${() => nav.push(tile.to)}>
-      <span class=${`tp-ico${url ? ' has-img' : ''}`}
+    <button class="tp-cell press" onClick=${() => nav.push(tile.to)}>
+      <span class=${`tp-tile${url ? ' has-image' : ''}`}
         style=${url ? `background-image:url(${url})` : ''}>
-        ${url ? null : html`<${Icon} name=${over.icon || tile.icon} size=${22}/>`}
+        ${url ? null : html`<${Icon} name=${over.icon || tile.icon} size=${26}/>`}
       </span>
-      <b>${over.name || tile.label}</b>
-      <span class="tp-sub ellipsis">${tile.sub}</span>
+      <b class="tp-name ellipsis">${over.name || tile.label}</b>
     </button>`;
 }
 
@@ -50,86 +69,52 @@ export function HomePage({ charId }) {
   }
 
   const books = shelf.listOf(charId);
-  const notes = theirs.notesOf(charId);
-  const visits = theirs.visitsOf(charId);
-  const talks = theirs.chatsOf(charId);
-  const shots = theirs.photosOf(charId);
-  // 和用户的那几段是真的，它们也该出现在这台手机的聊天里
-  const withYou = db.chats.all().filter(c => (c.characterIds || []).includes(charId)).length;
-  const d = day.today(charId);
-  const body = health.dayOf(charId);
-  const bodyOn = health.charOn(charId);
 
-  // 每一格：有内容才画。副标题写此刻这一格里是什么，不写人设（第 6 条）
+  // 自带的四个照常画，空着也画。后面三个跟着各自那个开关走
   const tiles = [
-    books.length && {
-      id: 'shelf', icon: 'book', label: '书架',
-      sub: `${books.length} 本`, to: `/shelf/${charId}`,
-    },
-    bodyOn && {
-      id: 'body', icon: 'pulse', label: '身体状态',
-      sub: health.energyOf(body.energy)?.label || '今天还没有设定',
-      to: `/body/${charId}`,
-    },
-    day.isOn(char) && {
-      id: 'day', icon: 'calendar', label: '今天',
-      sub: d ? `${(d.items || []).length} 项安排` : '今天还没有安排',
-      to: `/day/${charId}`,
-    },
-    (talks.length || withYou) && {
-      id: 'chats', icon: 'message', label: '聊天',
-      sub: `${talks.length + withYou} 条会话`, to: `/chats/${charId}`,
-    },
-    shots.length && {
-      id: 'album', icon: 'camera', label: '相册',
-      sub: `${shots.length} 张`, to: `/album/${charId}`,
-    },
-    notes.length && {
-      id: 'notes', icon: 'notes', label: '备忘录',
-      sub: `${notes.length} 条`, to: `/notes/${charId}`,
-    },
-    visits.length && {
-      id: 'browser', icon: 'search', label: '浏览器',
-      sub: `${visits.length} 条记录`, to: `/browser/${charId}`,
-    },
+    { id: 'chats', icon: 'message', label: '聊天', to: `/chats/${charId}` },
+    { id: 'album', icon: 'camera', label: '相册', to: `/album/${charId}` },
+    { id: 'notes', icon: 'notes', label: '备忘录', to: `/notes/${charId}` },
+    { id: 'browser', icon: 'search', label: '浏览器', to: `/browser/${charId}` },
+    books.length && { id: 'shelf', icon: 'book', label: '书架', to: `/shelf/${charId}` },
+    health.charOn(charId)
+      && { id: 'body', icon: 'pulse', label: '身体状态', to: `/body/${charId}` },
+    day.isOn(char) && { id: 'day', icon: 'calendar', label: '今天', to: `/day/${charId}` },
   ].filter(Boolean);
 
   // 角色那边此刻几点。跟着它自己的时区走，和「今天」用的是同一套
   const hhmm = clock.clockOnly(clock.now(), clock.charZone(char));
-  const weekday = day.weekdayOf(char);
+  const wall = theirs.wallpaperOf(charId) || char.cover;
+
+  const dock = [
+    { id: 'make', icon: 'sparkle', label: '生成', run: () => nav.push(`/make/${charId}`) },
+    { id: 'look', icon: 'image', label: '外观', run: () => nav.push(`/look/${charId}`) },
+    { id: 'lock',
+      icon: 'lock',
+      label: '锁上',
+      run: () => { theirs.relock(charId); nav.replace(`/lock/${charId}`); } },
+    { id: 'out', icon: 'chevronLeft', label: '退出', run: nav.pop },
+  ];
 
   return html`
-    <${Page} title=${char.name} onBack=${nav.pop} noScroll
-      right=${html`<button class="nav-text press"
-        onClick=${() => { theirs.relock(charId); nav.replace(`/lock/${charId}`); }}>
-        ${theirs.locked(charId) ? '锁上' : '设定密码'}
-      </button>`}>
+    <${Page} onBack=${nav.pop} hideBar noScroll
+      statusBarStyle=${wall ? 'light' : undefined}>
       <${Wall} char=${char} own=${theirs.wallpaperOf(charId)}>
-        <div class="tp-top">
-          <${Avatar} src=${char.avatar} name=${char.name} size=${56}/>
-          <b>${char.name}</b>
-          <span>${hhmm}　${weekday}</span>
+        <div class="tp-desk-top">
+          <b>${hhmm}</b>
+          <span>${day.weekdayOf(char)}　${char.name}</span>
         </div>
 
-        ${tiles.length ? html`
-          <div class="tp-grid">
-            ${tiles.map(t => html`<${Cell} key=${t.id} charId=${charId} tile=${t}/>`)}
-          </div>`
-        : html`
-          <div class="tp-empty">
-            这台手机上还没有内容。可以依据该角色的设定生成，
-            也可以在角色卡中开启「今天」与「身体状态」，或为该角色添加书架。
-          </div>`}
+        <div class="tp-apps">
+          ${tiles.map(t => html`<${Cell} key=${t.id} charId=${charId} tile=${t}/>`)}
+        </div>
 
-        <div class="tp-make">
-          <button class="press" onClick=${() => nav.push(`/make/${charId}`)}>
-            <${Icon} name="sparkle" size=${15}/>
-            <span>${tiles.length ? '生成更多内容' : '生成这台手机里的内容'}</span>
-          </button>
-          <button class="press" onClick=${() => nav.push(`/look/${charId}`)}>
-            <${Icon} name="image" size=${15}/>
-            <span>外观</span>
-          </button>
+        <div class="tp-dock">
+          ${dock.map(d => html`
+            <button key=${d.id} class="tp-dock-btn press" onClick=${d.run}>
+              <${Icon} name=${d.icon} size=${20}/>
+              <span>${d.label}</span>
+            </button>`)}
         </div>
       <//>
     <//>`;

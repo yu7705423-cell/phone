@@ -36,7 +36,7 @@
 .acc-tag {
   margin-left: 6px; padding: 1px 6px; border-radius: var(--r-full);
   background: var(--group-fill); color: var(--text-3); font-size: var(--fs-11);
-  font-weight: var(--fw-regular);
+  font-weight: var(--fw-normal);
 }
 .acc-alt { padding-left: var(--sp-5); }
 
@@ -1736,62 +1736,86 @@ button.search-bar { width: 100%; border: none; }
 }
 
 /* ---- 角色手机 ---- */
-/* 一块主屏：壁纸铺底，上面一行是这台手机的主人，下面是图标网格 */
-.tp-wall {
-  flex: 1; min-height: 0; overflow-y: auto;
-  display: flex; flex-direction: column;
-  padding: var(--sp-5) var(--sp-5) var(--sp-6);
+/* 一块主屏。**做成一块真的桌面**：壁纸铺满、顶上时间、底下一排图标。
+   从前这里是两列带副标题的卡片，看着像一页设置 —— 而这是「拿起别人的
+   手机」这件事的第一眼。没有导航栏（Page 的 hideBar），顶上那一行自己画。 */
+.tp-desk {
+  /* .page-body 是个普通块，不是 flex 容器，所以这里得写 height: 100%
+     才真的铺到底；写 flex: 1 只会缩成内容那么高，底下那一条就吊在半空 */
+  height: 100%; display: flex; flex-direction: column;
+  padding: var(--sp-5) var(--sp-5) var(--sp-3);
   background-size: cover; background-position: center;
 }
-.tp-wall.has-img { position: relative; }
+.tp-desk.has-img { position: relative; }
 /* 壁纸上压一层，不然浅色壁纸上的字读不出来 */
-.tp-wall.has-img::before {
+.tp-desk.has-img::before {
   content: ''; position: absolute; inset: 0;
   background: var(--scrim); pointer-events: none;
 }
-.tp-wall > * { position: relative; }
-.tp-top {
-  display: flex; flex-direction: column; align-items: center; gap: var(--sp-2);
-  padding: var(--sp-5) 0 var(--sp-6);
+.tp-desk > * { position: relative; }
+
+/* 顶上那一行：角色那边此刻几点。真机上这一行没有名字，
+   但这里同时开着好几台，不写是谁会认错 */
+.tp-desk-top {
+  flex: none; display: flex; flex-direction: column;
+  align-items: center; gap: 2px; padding: var(--sp-4) 0 var(--sp-6);
 }
-.tp-top b { font-size: var(--fs-17); font-weight: var(--fw-semi); color: var(--text); }
-.tp-top span { font-size: var(--fs-12); color: var(--text-3); font-variant-numeric: tabular-nums; }
-.tp-grid {
-  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--sp-3);
+.tp-desk-top b {
+  font-size: var(--fs-28); font-weight: var(--fw-semi); line-height: 1.1;
+  color: var(--text); font-variant-numeric: tabular-nums;
+}
+.tp-desk-top span { font-size: var(--fs-12); color: var(--text-2); }
+.tp-desk.has-img .tp-desk-top b { color: var(--on-scrim); }
+.tp-desk.has-img .tp-desk-top span { color: var(--on-scrim); opacity: .85; }
+
+/* 图标网格。四列，和真的主界面一样是圆角方块加下面一行名字，
+   不写副标题 —— 桌面上的图标不解释自己里面有几条 */
+.tp-apps {
+  flex: 1; min-height: 0; overflow-y: auto;
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--sp-5) var(--sp-3); align-content: start;
+}
+.tp-cell {
+  display: flex; flex-direction: column; align-items: center; gap: 5px;
+  min-width: 0; background: none; border: 0; padding: 0;
 }
 .tp-tile {
-  display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
-  min-width: 0; padding: var(--sp-4);
-  border: 1px solid var(--border); border-radius: var(--r-md);
-  background: var(--surface); text-align: left;
-}
-.tp-ico {
   display: flex; align-items: center; justify-content: center;
-  width: 38px; height: 38px; margin-bottom: var(--sp-2);
-  border-radius: var(--r-md);
-  background: var(--surface-2); color: var(--text-2);
+  width: 100%; max-width: 58px; aspect-ratio: 1;
+  border-radius: 24%; background: var(--tile-bg); color: var(--icon-color);
+  box-shadow: var(--tile-shadow);
+  transition: transform var(--dur-fast) var(--ease);
 }
-.tp-tile b { font-size: var(--fs-14); font-weight: var(--fw-semi); color: var(--text); }
-.tp-sub { font-size: var(--fs-11); color: var(--text-3); max-width: 100%; }
-.tp-empty {
-  padding: var(--sp-6) var(--sp-4); text-align: center;
-  font-size: var(--fs-12); color: var(--text-3); line-height: 1.7;
+.tp-cell:active .tp-tile { transform: scale(.93); }
+/* 图标整张放进去，永远不裁 —— 和主界面那套同一个理由 */
+.tp-tile.has-image {
+  background-size: contain; background-position: center; background-repeat: no-repeat;
+}
+.tp-name {
+  font-size: var(--fs-11); font-weight: var(--fw-normal);
+  color: var(--text-2); max-width: 100%; text-align: center;
+}
+.tp-desk.has-img .tp-name {
+  color: var(--on-scrim); text-shadow: 0 1px 3px rgba(0, 0, 0, .55);
 }
 
-/* 主屏底下那一条「去生成」。不做成格子：它不是这台手机上的一个应用 */
-.tp-make {
-  display: flex; justify-content: center; gap: var(--sp-2);
-  padding: var(--sp-5) 0 var(--sp-2);
+/* 底下那一条。生成、外观、锁上是**你的**工具，不是这台手机上的应用，
+   所以和上面的图标分开摆，做成一条而不是几格 */
+.tp-dock {
+  flex: none; display: flex; justify-content: space-around; gap: var(--sp-2);
+  margin-top: var(--sp-4); padding: var(--sp-3) var(--sp-2);
+  border-radius: var(--r-xl);
+  background: var(--capsule-bg); border: 1px solid var(--capsule-border);
 }
-.tp-make button {
-  display: flex; align-items: center; gap: var(--sp-2);
-  padding: var(--sp-2) var(--sp-4); border-radius: var(--r-full);
-  background: var(--surface-2); color: var(--text-2); font-size: var(--fs-12);
+.tp-dock-btn {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  flex: 1; min-width: 0; padding: var(--sp-1) 0;
+  color: var(--text-2); font-size: var(--fs-11);
 }
+.tp-desk.has-img .tp-dock-btn { color: var(--on-scrim); }
+
 
 /* 换成图片的图标，和换壁纸那一块的预览 */
-.tp-ico.has-img { background: center / cover no-repeat; }
 .tp-ico-img {
   display: block; width: 28px; height: 28px; border-radius: var(--r-sm);
   background: var(--surface-2) center / cover no-repeat;
@@ -1856,7 +1880,8 @@ button.search-bar { width: 100%; border: none; }
 
 /* 锁屏。壁纸铺底，上面时间与头像，下面数字键盘 */
 .tp-lock {
-  flex: 1; min-height: 0; display: flex; flex-direction: column;
+  /* 同 .tp-desk：要 height: 100%，否则 space-between 无从分配 */
+  height: 100%; display: flex; flex-direction: column;
   align-items: center; justify-content: space-between;
   padding: var(--sp-6) var(--sp-5) var(--sp-5);
   background-size: cover; background-position: center;
@@ -1875,13 +1900,16 @@ button.search-bar { width: 100%; border: none; }
 .tp-lock-top span { font-size: var(--fs-13); color: var(--text-3); }
 .tp-lock-name { font-size: var(--fs-14); color: var(--text-2); }
 
+/* 圆点与那一行说明是一件事，拢在一起 —— 分成两个 flex 子项的话
+   space-between 会把它们撑开老远 */
+.tp-lock-mid { display: flex; flex-direction: column; align-items: center; }
 .tp-dots { display: flex; gap: var(--sp-3); }
 .tp-dots i {
   width: 11px; height: 11px; border-radius: var(--r-full);
   border: 1px solid var(--text-3); background: transparent;
 }
 .tp-dots i.is-on { background: var(--text); border-color: var(--text); }
-.tp-lock-note { font-size: var(--fs-12); color: var(--text-3); margin-top: var(--sp-3); }
+.tp-lock-note { font-size: var(--fs-12); color: var(--text-3); margin-top: var(--sp-4); }
 
 .tp-keys {
   display: grid; grid-template-columns: repeat(3, 72px);

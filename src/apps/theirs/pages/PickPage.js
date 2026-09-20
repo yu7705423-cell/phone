@@ -18,12 +18,14 @@ export function PickPage() {
 
   const bitsOf = c => {
     const out = [];
-    if (theirs.locked(c.id)) out.push(theirs.isOpen(c.id) ? '已解锁' : '锁屏已设定');
+    // 每一台都锁着，所以只在解开过的那几台上标一下。
+    // 「锁着」是常态，写出来等于每一行都重复同一句
+    if (theirs.isOpen(c.id)) out.push('已解锁');
     const books = shelf.listOf(c.id).length;
     if (books) out.push(`书架 ${books} 本`);
     if (health.charOn(c.id)) out.push('身体状态');
     if (day.isOn(c)) out.push('今天');
-    return out.length ? out.join(' · ') : '这台手机上还没有内容';
+    return out.length ? out.join(' · ') : '锁屏已启用';
   };
 
   if (!chars.length) {

@@ -1,4 +1,4 @@
-import { phones, phoneChats, images } from './db/index.js';
+import { phones, phoneChats, images, characters } from './db/index.js';
 import { ICON_MAX, PHOTO_MAX } from './db/images.js';
 
 // 角色手机的数据层。
@@ -13,7 +13,7 @@ export const get = charId => phones.byIndex(charId)[0] || null;
 
 const blank = charId => ({
   charId,
-  lock: null,          // { code, why, hints: [] }。没生成过就是 null
+  lock: null,          // { code, why, hints, src, shown }。空着就按角色卡当场推（localLock）
   wallpaper: null,     // 图片 id。没有就用角色卡的封面
   icons: {},           // appId -> { name, icon }
   notes: [],           // 备忘录
@@ -33,19 +33,110 @@ export function set(charId, patch) {
 
 // ---- 锁屏 ----
 //
-// 密码是按人设生成的：生日、一个数字、一件对它有意义的事。
-// **生成的时候不给你看。** 看了就没得猜了 —— 这一下本来就是这个功能的全部意思。
+// **一台手机不会「还没有密码」。** 点进去看见的第一屏就该是锁屏，不是一页
+// 「要不要现在设定一个密码」的设置 —— 那一页把这件事的意思整个抽掉了。
 //
-// 猜不出来可以问它。提示是生成密码的那一次**一起**产出的，问的时候不再调接口
-// （第 15 条：能一次要回来的不分两次）。提示问完了还猜不出，可以直接看答案。
+// 所以密码**不落库也先有**：没存过的时候按角色卡当场推出来一个（见 localLock），
+// 不调接口、不等，进去就能输。存下来的只有两种情况：问过一条提示（要记住
+// 问到第几条了），或者在「生成内容」里让模型重新定过一个。
+//
+// 密码生成之后不显示。猜不出来可以问它要提示，提示问完了可以直接看答案 ——
+// 这个口子必须留着，不然一台永远打不开的手机就是一个坏功能。
 
-/** 这台手机锁着没有。没生成过密码的不算锁着 —— 那是还没开始。 */
-export const locked = charId => !!get(charId)?.lock?.code;
+const pad2 = n => String(n).padStart(2, '0');
 
-export const lockOf = charId => get(charId)?.lock || null;
+/** 从生日那一栏里取出 MMDD。认 1999-03-14、3月14日、03/14、19990314。 */
+function mmddOf(raw) {
+  const s = String(raw || '').trim();
+  if (!s) return '';
+  const ok = (mo, d) => (mo >= 1 && mo <= 12 && d >= 1 && d <= 31 ? `${pad2(mo)}${pad2(d)}` : '');
+
+  let m = s.match(/(\d{1,2})\s*月\s*(\d{1,2})/);
+  if (m) return ok(Number(m[1]), Number(m[2]));
+
+  m = s.match(/(?:\d{4}\s*[-/.年]\s*)?(\d{1,2})\s*[-/.]\s*(\d{1,2})/);
+  if (m) return ok(Number(m[1]), Number(m[2]));
+
+  const only = s.replace(/\D/g, '');
+  if (only.length === 8) return ok(Number(only.slice(4, 6)), Number(only.slice(6, 8)));
+  if (only.length === 4) return ok(Number(only.slice(0, 2)), Number(only.slice(2, 4)));
+  return '';
+}
+
+/** 设定正文里出现过的头一串四位数。用 (^|\D) 而不是后顾断言：iOS 15 上没有。 */
+function fourInText(text) {
+  const m = String(text || '').match(/(^|\D)(\d{4})(\D|$)/);
+  return m ? m[2] : '';
+}
+
+// 两样都没有的时候按角色 id 推一串。**这一串是猜不出来的**，
+// 所以那一条提示直接说明这件事，「直接查看密码」当场就给。
+const hashOf = s => {
+  let h = 0;
+  for (let i = 0; i < String(s).length; i += 1) h = (h * 31 + String(s).charCodeAt(i)) >>> 0;
+  return h;
+};
+
+/**
+ * 不调接口，按角色卡当场推一个密码出来。
+ * 依据按这个顺序取：生日、设定正文里的四位数、角色 id。
+ */
+export function localLock(char) {
+  if (!char) return null;
+  const bd = mmddOf(char.birthday);
+  if (bd) {
+    return {
+      code: bd,
+      why: '该角色的生日',
+      src: 'birthday',
+      hints: [
+        '这串数字是一个日期。',
+        '那是这台手机的主人自己的日期。',
+        `月份是 ${Number(bd.slice(0, 2))} 月。`,
+      ],
+      shown: 0,
+    };
+  }
+  const four = fourInText([char.persona, char.description, char.signature]
+    .filter(Boolean).join('\n'));
+  if (four) {
+    return {
+      code: four,
+      why: '该角色设定中出现过的四位数字',
+      src: 'text',
+      hints: [
+        '这串数字在该角色的设定里写着。',
+        '它是设定正文中出现的第一串四位数字。',
+        `第一位是 ${four[0]}。`,
+      ],
+      shown: 0,
+    };
+  }
+  return {
+    code: String(hashOf(char.id) % 10000).padStart(4, '0'),
+    why: '该角色的设定中没有可以作为依据的数字，这串是按角色标识推出的',
+    src: 'random',
+    hints: ['该角色的设定中没有可以作为密码依据的信息。这串数字无从推测，可以直接查看。'],
+    shown: 0,
+  };
+}
+
+/**
+ * 这台手机现在用的那个密码。
+ * 存过的优先；没存过就当场推一个，**不写库** —— 写了的话「换了生日
+ * 密码不跟着换」就成了个要解释的毛病。
+ */
+export function lockOf(charId) {
+  const stored = get(charId)?.lock;
+  if (stored?.code) return stored;
+  return localLock(characters.get(charId));
+}
+
+/** 密码是模型定的还是当场推的。界面据此说明线索是从哪儿来的。 */
+export const lockSrc = charId => lockOf(charId)?.src || 'random';
 
 export function setLock(charId, lock) {
-  return set(charId, { lock: lock ? { ...lock, shown: 0 } : null });
+  return set(charId, { lock: lock ? { ...lock, src: lock.src || 'ai', shown: 0 } : null });
 }
 
 /** 猜一次。对了返回 true，不落任何痕迹 —— 猜错几次不该被记下来。 */
@@ -54,7 +145,11 @@ export const tryCode = (charId, input) => {
   return !!code && String(input || '').trim() === code;
 };
 
-/** 再要一条提示。要完了返回 null，界面据此改成「直接看答案」。 */
+/**
+ * 再要一条提示。要完了返回 null，界面据此改成「直接看答案」。
+ * 问到第几条要记住，所以这一下**会把当场推出来的那个密码存下来** ——
+ * 存的是此刻这一个，之后改生日也不会换掉已经在猜的这一串。
+ */
 export function nextHint(charId) {
   const lock = lockOf(charId);
   if (!lock) return null;
@@ -64,12 +159,6 @@ export function nextHint(charId) {
   set(charId, { lock: { ...lock, shown: shown + 1 } });
   return list[shown];
 }
-
-/** 已经问出来的那几条。 */
-export const shownHints = charId => {
-  const lock = lockOf(charId);
-  return lock ? (lock.hints || []).slice(0, lock.shown || 0) : [];
-};
 
 // 这一次打开应用期间，哪几台已经解开了。
 //

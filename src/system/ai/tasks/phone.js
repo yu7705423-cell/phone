@@ -45,8 +45,8 @@ export async function makeLock(charId, { digits = 4 } = {}) {
     .map(str).filter(Boolean).slice(0, 3);
   if (!hints.length) throw new Error('模型没有给出提示，请重试');
 
-  theirs.setLock(charId, { code, why: str(out?.why), hints });
-  return { digits: n, hints: hints.length };
+  theirs.setLock(charId, { code, why: str(out?.why), hints, src: 'ai' });
+  return n;
 }
 
 // ---- 把角色说要留的那一块裁出来 ----
@@ -122,11 +122,40 @@ export async function cropKept(imageId, note) {
 // 能往后加而不是重掷的前提。
 
 /** 一个 app 一条：id、名字、生成函数。生成页照着这一份列。 */
+// 能生成的几样。`state` 是那一项此刻的实情，界面照着显示 ——
+// 写在这里而不是界面里，是因为「有几条」这件事各项算法不同，
+// 而界面只该负责摆出来。
+//
+// 锁屏那一项 `solo`：**「全部生成」不带它**。密码本来就是有的（按角色卡
+// 当场推的那一个），重新定一次会把正在猜的那一串换掉 —— 那不该是
+// 按一下「全部生成」顺带发生的事。
 export const MAKERS = [
-  { id: 'chats', label: '聊天', unit: '条会话', run: makeChats },
-  { id: 'album', label: '相册', unit: '张', run: makeAlbum },
-  { id: 'notes', label: '备忘录', unit: '条', run: makeNotes },
-  { id: 'visits', label: '浏览记录', unit: '条', run: makeVisits },
+  { id: 'chats', label: '聊天', icon: 'message', run: makeChats,
+    done: n => `新增 ${n} 条会话`,
+    state: id => `已有 ${theirs.chatsOf(id).length} 条会话`,
+    desc: '不设上限。这一步只生成「和谁在聊、最后一句是什么」，'
+      + '每段对话的正文在点进那一条时单独生成。' },
+  { id: 'album', label: '相册', icon: 'camera', run: makeAlbum,
+    done: n => `新增 ${n} 张`,
+    state: id => `已有 ${theirs.photosOf(id).length} 张`,
+    desc: '不设上限。生成的是每张照片的描述，不生成图片本身，'
+      + '可以在相册中为某一张挂上真实图片。' },
+  { id: 'notes', label: '备忘录', icon: 'notes', run: makeNotes,
+    done: n => `新增 ${n} 条`,
+    state: id => `已有 ${theirs.notesOf(id).length} 条`,
+    desc: '不设上限。数量越多，这一次请求越长，也越可能写不完。' },
+  { id: 'visits', label: '浏览记录', icon: 'search', run: makeVisits,
+    done: n => `新增 ${n} 条`,
+    state: id => `已有 ${theirs.visitsOf(id).length} 条`,
+    desc: '不设上限。' },
+  { id: 'lock', label: '锁屏密码', icon: 'lock', run: makeLock, solo: true,
+    done: n => `已重新设定 ${n} 位密码，现在需要重新推测`,
+    choices: [{ value: 4, label: '四位' }, { value: 6, label: '六位' }],
+    state: id => (theirs.lockSrc(id) === 'ai'
+      ? '当前密码由模型依据该角色的设定生成'
+      : '当前密码依据角色卡中的信息推出，未调用接口'),
+    desc: '重新设定这台手机的开机密码，同时生成三条可以在锁屏上询问的线索。'
+      + '设定后不会显示密码。当前正在使用的密码将被替换。' },
 ];
 
 // ---- 聊天：分两步 ----
