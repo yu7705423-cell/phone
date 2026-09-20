@@ -22,7 +22,19 @@ final class NotifyBridge: NSObject {
 
     private let center = UNUserNotificationCenter.current()
     /// 回调网页用。ShellViewController 建好 WKWebView 之后塞进来
-    weak var web: WKWebView?
+    weak var web: WKWebView? { didSet { flush() } }
+
+    /// 还没交出去的那一下。
+    ///
+    /// **点通知这件事几乎总是跑在网页前面。** app 被系统结束之后再点，
+    /// 顺序是：先启动、建 WKWebView、开始载入，然后系统才把这一下交过来 ——
+    /// 那时页面还在载，evaluateJavaScript 打在一个马上就要被换掉的文档上，
+    /// 等于没打。从后台回来也一样：网页进程被回收过就要重载一遍。
+    ///
+    /// 所以这里先记着，等页面真的载完了（ShellViewController 的 didFinish）
+    /// 再交。网页那头 index.html 在文档一开始就挂了一个接得住的
+    /// phoneNotifyOpen，起来之后自己去兑现（见 system/push.js）。
+    private var pending: String?
 
     override init() {
         super.init()
@@ -100,8 +112,22 @@ extension NotifyBridge: UNUserNotificationCenterDelegate {
         ]
         guard let data = try? JSONSerialization.data(withJSONObject: payload),
               let json = String(data: data, encoding: .utf8) else { return }
-        await MainActor.run {
-            web?.evaluateJavaScript("window.phoneNotifyOpen && window.phoneNotifyOpen(\(json))")
+        await MainActor.run { deliver(json) }
+    }
+
+    /// 交给网页。页面还在载就先记着，载完再交。
+    @MainActor private func deliver(_ json: String) {
+        pending = json
+        flush()
+    }
+
+    /// 把记着的那一下交出去。页面载完、以及回到前台时各叫一次。
+    func flush() {
+        guard let json = pending, let w = web, !w.isLoading, w.url != nil else { return }
+        pending = nil
+        w.evaluateJavaScript("window.phoneNotifyOpen && window.phoneNotifyOpen(\(json))") { [weak self] _, err in
+            // 这一下没打出去（文档正好在换）就放回去，等下一次载完再试
+            if err != nil { self?.pending = json }
         }
     }
 }

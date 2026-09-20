@@ -85,6 +85,8 @@ final class ShellViewController: UIViewController {
     @objc private func didBecomeActive() {
         // 上次没载进来（断网、地址写错）时回到前台再试一次，不然要一直看着失败页
         if web.url == nil { load() }
+        // 点通知进来的那一下多半比页面早到，回到前台时补交一次
+        notifyBridge.flush()
     }
 
     // MARK: - WebView
@@ -350,6 +352,15 @@ extension ShellViewController: WKNavigationDelegate {
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         hideFailure()
+        // 页面载完才交得动点通知那一下：更早打过去，文档马上就被换掉，等于没打
+        notifyBridge.flush()
+    }
+
+    /// 网页进程被系统回收了。**必须自己重载一遍**，否则回到前台看到的是一张白纸
+    /// —— url 还在，isLoading 也是 false，只有里面那个渲染进程没了。
+    /// 从后台回来时最常见，而点通知进来正好就是从后台回来。
+    func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
+        load()
     }
 
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
