@@ -889,6 +889,18 @@ export function Conversation({ chatId, focusId = '' }) {
   const quotingRef = quoting ? quoteOf({ quoteId: quoting.id }, { char, chat }) : null;
   // 这段对话里等着确认的第一条。一条一条问，不堆在一起
   const todoAsk = phone.todo.pendingOf(chatId)[0] || null;
+  // 那句话里说了时刻的（「明天七点」），计入这一下把闹钟一并排上 ——
+  // 点「计入」本来就是「记着，到点叫我」的意思，不该再让人进一次待办去排
+  const takeTodo = async () => {
+    if (!todoAsk) return;
+    phone.todo.accept(todoAsk.id);
+    const at = phone.alarm.timeOf(todoAsk);
+    if (!phone.alarm.isFuture(at)) { toast('已计入待办', 'ok'); return; }
+    const r = await phone.alarm.schedule(todoAsk.id).catch(() => ({ native: false }));
+    toast(r.native
+      ? `已计入待办，${phone.when.show(at)} 响铃`
+      : `已计入待办，${phone.when.show(at)} 提醒`, 'ok', 4000);
+  };
   const canRegen = !!(held && held.role === 'char' && held.turnId && held.turnId === lastTurnId);
 
   return html`
@@ -973,11 +985,12 @@ export function Conversation({ chatId, focusId = '' }) {
           ${todoAsk ? html`
             <div class="todo-bar">
               <div class="todo-ask">
-                <span class="todo-tag">${phone.todo.fromLabel(todoAsk.from)}</span>
+                <span class="todo-tag">${phone.alarm.timeOf(todoAsk)
+                  ? phone.when.show(phone.alarm.timeOf(todoAsk))
+                  : phone.todo.fromLabel(todoAsk.from)}</span>
                 <b>${todoAsk.text}</b>
               </div>
-              <button class="nav-text press"
-                onClick=${() => { phone.todo.accept(todoAsk.id); toast('已计入待办', 'ok'); }}>计入<//>
+              <button class="nav-text press" onClick=${takeTodo}>计入<//>
               <button class="nav-text press is-off"
                 onClick=${() => phone.todo.ignore(todoAsk.id)}>忽略<//>
             </div>` : null}

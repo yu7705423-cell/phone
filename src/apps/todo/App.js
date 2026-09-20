@@ -3,7 +3,7 @@ import { phone, useStore } from '../../sdk/index.js';
 import { Page, List, ListItem, Button, Icon, IconButton, Field, Input, Textarea,
          Switch, Sheet, EmptyState, toast, confirm, prompt } from '../../ui/index.js';
 
-const { db, nav, todo, alarm } = phone;
+const { db, nav, todo, alarm, when } = phone;
 
 // 待办。用户自己的那一份 —— 角色的日程在「日常」，你们之间的约定在「你们之间」。
 //
@@ -167,20 +167,23 @@ function EditSheet({ id, onClose }) {
  */
 function Clock({ row }) {
   const ms = alarm.timeOf(row);
-  const d = ms ? new Date(ms) : null;
-  const p = n => String(n).padStart(2, '0');
-  const [date, setDate] = useState(d ? `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}` : (row.dueAt || ''));
-  const [time, setTime] = useState(d ? `${p(d.getHours())}:${p(d.getMinutes())}` : '');
+  // 输入框里放原话。人写的是「明天七点」，回头再看到的也该是这句话，
+  // 不是换算之后的那一串数字
+  const [text, setText] = useState(row.whenText || (ms ? when.show(ms) : ''));
   const [busy, setBusy] = useState(false);
   const native = alarm.available();
+  const read = when.parse(text);
+  const at = read?.hasTime ? read.at : 0;
 
-  const apply = async (nextDate, nextTime) => {
-    const at = alarm.at(nextDate, nextTime);
-    if (!at) { db.todos.update(row.id, { remindAt: 0, rungAt: 0 }); return; }
+  const apply = async v => {
+    setText(v);
+    const got = when.parse(v);
+    const next = got?.hasTime ? got.at : 0;
+    if (!next) { db.todos.update(row.id, { remindAt: 0, rungAt: 0, whenText: v }); return; }
     setBusy(true);
     try {
-      await alarm.reschedule(row.id, at);
-      db.todos.update(row.id, { rungAt: 0 });
+      await alarm.reschedule(row.id, next);
+      db.todos.update(row.id, { rungAt: 0, whenText: v });
     } catch (err) {
       toast(String(err.message || err), 'error', 5000);
     } finally { setBusy(false); }
@@ -188,16 +191,19 @@ function Clock({ row }) {
 
   return html`
     <${Field} label="提醒时刻"
-      desc=${'填写日期与时刻后生效。'
+      desc=${'可直接填写「明天七点」「后天下午三点半」「周四上午十点」一类的说法，'
+        + '也可填写具体日期与时刻。按当前的真实时间折算，与对话中设定的时间无关。'
         + (native
-          ? '本应用会将其排入系统闹钟，关闭应用后仍会在设定的时刻响铃。'
-          : '当前环境无法排入系统闹钟，仅在本应用运行时到点提醒。'
-            + '安装为应用并使用 iOS 26 或更新的系统后可排入系统闹钟。')}>
-      <div class="chip-row">
-        <${Input} value=${date} placeholder="2026-09-30"
-          onInput=${v => { setDate(v.trim()); apply(v.trim(), time); }}/>
-        <${Input} value=${time} placeholder="07:30"
-          onInput=${v => { setTime(v.trim()); apply(date, v.trim()); }}/>
+          ? '设定后排入系统闹钟，关闭本应用仍会在该时刻响铃。'
+          : '当前环境无法排入系统闹钟，仅在本应用运行时到点提醒。')}>
+      <${Input} value=${text} placeholder="明天七点"
+        onInput=${v => apply(v)}/>
+      <div class="settings-foot">
+        ${text.trim()
+          ? (at ? `识别为 ${when.show(at)}`
+            : (read ? '只识别出日期，没有识别出时刻。补上「七点」一类的说法才能提醒。'
+              : '没有识别出时间。'))
+          : '留空表示不提醒。'}
       </div>
     <//>
     ${ms ? html`

@@ -1,4 +1,5 @@
 import { todos, settings } from './db/index.js';
+import * as when from './when.js';
 
 /**
  * 待办。**用户自己的**，不是角色的日程（那是 day.js），也不是你们之间的
@@ -114,9 +115,15 @@ const already = (text, chatId) => {
 export function propose({ text, chatId = '', charId = '', srcMsgId = '', from = FROM_LOCAL }) {
   const t = String(text || '').trim().slice(0, 200);
   if (!t || already(t, chatId)) return null;
+  // 「明天七点去跑步」里那个时刻顺手认出来（见 system/when.js）。
+  // **只认说到点钟的**：一句话里顺口带了个「今天」不算约了时间，
+  // 那种只会平白给人挂上一个凌晨零点的闹钟
+  const got = when.parse(t);
+  const at = got?.hasTime ? got.at : 0;
   return todos.create({
     text: t, chatId, charId, srcMsgId, from,
-    state: PENDING, dueAt: '', createdAt: Date.now(),
+    state: PENDING, dueAt: '', remindAt: at > Date.now() ? at : 0,
+    createdAt: Date.now(),
   });
 }
 
