@@ -41,15 +41,37 @@ const TABLE = (() => {
   return t;
 })();
 
-// 分片算，一片四兆。整份读进来算 CRC 等于没躲开内存那个坎。
-async function crc32(blob) {
-  const STEP = 4 * 1024 * 1024;
+const STEP = 4 * 1024 * 1024;
+
+/**
+ * 把一条的字节抄一份出来，顺带算 CRC。分片走，一片四兆，不整个读进内存。
+ *
+ * ---- 为什么要抄，不直接把源 Blob 接进包里 ----
+ *
+ * 从前这里只算 CRC，然后把**源 Blob 原样**接进 parts，最后 new Blob(parts)
+ * 时才真正去读它。源 Blob 是 IndexedDB 里那一份，而那一读发生在整包拼完
+ * 之后 —— 一个大库要拼好几分钟。WebKit 上隔这么久再去读 IndexedDB 里的
+ * Blob 是会失手的，读回来比 `blob.size` 少，甚至一个字节都没有。
+ *
+ * 而中央目录里的偏移量早就按 `blob.size` 算好了。少写几个字节，它**后面
+ * 每一条**的偏移量就全错，末尾那条记录指的位置也错 —— 打出来的包自检
+ * 挂在「中央目录记的偏移量对不上」，正是这么来的。
+ *
+ * 抄一份之后，接进包里的是本页自己的 Blob，不再回头去问 IndexedDB。
+ * 而且回来的 `size` 是**真的读到了多少字节**，不是 `blob.size` 的一面之词：
+ * 就算读短了，头里记的长度和实际写进去的也是同一个数，包仍然是完整的。
+ */
+async function copyOf(blob) {
   let c = 0xffffffff;
+  let size = 0;
+  const chunks = [];
   for (let at = 0; at < blob.size; at += STEP) {
-    const chunk = new Uint8Array(await blob.slice(at, Math.min(blob.size, at + STEP)).arrayBuffer());
-    for (let i = 0; i < chunk.length; i++) c = TABLE[(c ^ chunk[i]) & 0xff] ^ (c >>> 8);
+    const part = new Uint8Array(await blob.slice(at, Math.min(blob.size, at + STEP)).arrayBuffer());
+    for (let i = 0; i < part.length; i++) c = TABLE[(c ^ part[i]) & 0xff] ^ (c >>> 8);
+    size += part.length;
+    if (part.length) chunks.push(new Blob([part]));
   }
-  return (c ^ 0xffffffff) >>> 0;
+  return { crc: (c ^ 0xffffffff) >>> 0, size, chunks };
 }
 
 const enc = new TextEncoder();
@@ -84,19 +106,23 @@ export async function zip(entries, { onProgress } = {}) {
   let at = 0;
   let done = 0;
 
+  const short = [];
   for (const entry of entries) {
-    const blob = entry.blob || new Blob([enc.encode(String(entry.text || ''))]);
+    const src = entry.blob || new Blob([enc.encode(String(entry.text || ''))]);
     const name = enc.encode(entry.name);
-    const crc = await crc32(blob);
-    const size = blob.size;
-    if (at + size > LIMIT) throw new Error('备份超过 4 GB，请去掉视频后重试');
+    // 先抄完再写头：头里要记 CRC 与长度，而这两样都得读完才知道
+    const { crc, size, chunks } = await copyOf(src);
+    // 读短了记一笔。不中断 —— 少一张图也比整份导不出来强，
+    // 但导完要说清楚少了哪几张
+    if (size !== src.size) short.push(entry.name);
+    if (at + 30 + name.length + size > LIMIT) throw new Error('备份超过 4 GB，请去掉视频后重试');
 
     parts.push(bytes([
       u32(LOCAL), u16(20), u16(0x0800), u16(0),      // 0x0800：文件名按 UTF-8
       u16(time), u16(date), u32(crc), u32(size), u32(size),
       u16(name.length), u16(0), name,
     ]));
-    parts.push(blob);
+    for (const chunk of chunks) parts.push(chunk);
 
     central.push(bytes([
       u32(CENTRAL), u16(20), u16(20), u16(0x0800), u16(0),
@@ -114,7 +140,16 @@ export async function zip(entries, { onProgress } = {}) {
     u32(END), u16(0), u16(0), u16(central.length), u16(central.length),
     u32(dir.length), u32(at), u16(0),
   ]));
-  return new Blob(parts, { type: 'application/zip' });
+
+  const out = new Blob(parts, { type: 'application/zip' });
+  // 记的和实际拼出来的对不上，就是上面那套算术和浏览器不是一回事。
+  // 当场说清楚差多少，别让一个坏包流出去 —— 它要到换设备恢复时才发作
+  const total = at + dir.length + 22;
+  if (out.size !== total) {
+    throw new Error(`打包时长度对不上：按记录应为 ${total} 字节，实际 ${out.size} 字节`);
+  }
+  out.shortNames = short;
+  return out;
 }
 
 // ---- 读 ----
@@ -204,7 +239,10 @@ export async function verify(blob, expectNames = []) {
   if (!got) return { ok: false, problem: '找不到中央目录' };
   const missing = expectNames.filter(n => !got.names.includes(n));
   if (missing.length) return { ok: false, problem: `少了 ${missing.slice(0, 3).join('、')}` };
-  if (got.badOffset) return { ok: false, problem: '中央目录记的偏移量对不上' };
+  if (got.badOffset) {
+    return { ok: false,
+      problem: `中央目录记的偏移量对不上（记的 ${got.saidAt}，实际 ${got.foundAt}）` };
+  }
   return { ok: true, names: got.names };
 }
 
@@ -231,6 +269,7 @@ async function readCentral(blob) {
   // 偏移量指的地方不是中央目录：整包被挪过位置（前面粘了别的东西），
   // 或者哪个工具改完没重算。按「结尾记录减去目录长度」再试一次。
   let badOffset = false;
+  const saidAt = dirAt;
   const looksDir = async at =>
     at >= 0 && at + 4 <= blob.size && (await view(blob, at, 4)).getUint32(0, true) === CENTRAL;
   if (!await looksDir(dirAt)) {
@@ -257,7 +296,7 @@ async function readCentral(blob) {
     entries.push({ name, method, size, localAt });
   }
   if (!entries.length) return null;
-  return { entries, names: entries.map(e => e.name), badOffset };
+  return { entries, names: entries.map(e => e.name), badOffset, saidAt, foundAt: dirAt };
 }
 
 /**

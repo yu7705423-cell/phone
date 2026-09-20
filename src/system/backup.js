@@ -117,6 +117,11 @@ export async function build({ media = true, keys = false, onProgress } = {}) {
     throw new Error(`打出来的包自检没过（${check.problem}）。`
       + '请重试；若仍然失败，改用「仅数据」导出，那一档不打包。');
   }
+  // 有几张读不全。包是完整的（长度按真读到的记，见 zip.js 的 copyOf），
+  // 但那几张进去的是残的，得说一声 —— 不说的话要到换设备恢复时才发现
+  if (out.shortNames?.length) {
+    console.warn('[backup] 这几项没读全：', out.shortNames.join('、'));
+  }
   return out;
 }
 
