@@ -102,6 +102,24 @@ export const SHOT_CSS = `
  * 画成 png。**失败返回 null，不抛** —— 快照那一份已经存下了，
  * 这里只是锦上添花，不该让整个保存跟着失败。
  */
+/**
+ * 这张图能画到几倍。
+ *
+ * MAX_AREA 取一千两百万，留在 iOS 那条线（约一千六百万）下面一截 —— 那条线
+ * 各代机型并不一样，卡着画等于赌。
+ */
+export const MAX_AREA = 12e6;
+
+/** 那张内嵌一切的 data URL 最长到哪儿。八兆的字符串已经够一张很满的卡片了。 */
+export const MAX_URL = 8e6;
+
+export function fitScale(w, h) {
+  const want = Math.min(2, (typeof window !== 'undefined' && window.devicePixelRatio) || 1);
+  const area = Math.max(1, w * h);
+  if (area * want * want <= MAX_AREA) return want;
+  return Math.sqrt(MAX_AREA / area);
+}
+
 export async function raster({ html, css, width, height }) {
   try {
     const w = Math.max(1, Math.round(width));
@@ -113,6 +131,13 @@ export async function raster({ html, css, width, height }) {
       + `</foreignObject></svg>`;
 
     const url = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+    // 同一类的第二处：卡片里每张图都是内嵌的 dataURL，十来张照片就是几兆，
+    // 转义完再翻两三倍，然后整个字符串还要被解码成一张图。画布那边压住了，
+    // 这边照样能把内存顶穿。顶穿的后果同样是白屏。
+    //
+    // 太大就不画了，回 null。**卡片本身不受影响** —— 那份快照早存好了，
+    // 相册里照常打得开，只是少一张顺带光栅出来的 png。
+    if (url.length > MAX_URL) return null;
     const img = await new Promise((res, rej) => {
       const i = new Image();
       i.onload = () => res(i);
@@ -120,10 +145,20 @@ export async function raster({ html, css, width, height }) {
       i.src = url;
     });
 
-    const scale = Math.min(2, window.devicePixelRatio || 1);
+    // **画布有硬上限，超了不是画不好，是整个页面没了。**
+    //
+    // iOS 上 canvas 的面积超过一千多万像素就画不出来：轻则得到一张纯白图，
+    // 重则内存一紧，渲染进程被系统收走 —— 屏幕整个白掉，app 看着像退出了。
+    // 而这里的高度是**跟着选了多少条走的**，选一百条就是两万像素高，
+    // 再乘上二倍屏，三千四百万像素，稳稳超过。
+    //
+    // 所以按面积反推倍率：能画到二倍就二倍，画不下就一路降到刚好装得下。
+    // 降倍率只是这张图糊一点，不降就是没有这张图、而且把人踢出去
+    // —— 而卡片本身（那份快照）早就存好了，这张 png 本来就是顺带的。
+    const scale = fitScale(w, h);
     const cv = document.createElement('canvas');
-    cv.width = w * scale;
-    cv.height = h * scale;
+    cv.width = Math.max(1, Math.round(w * scale));
+    cv.height = Math.max(1, Math.round(h * scale));
     const ctx = cv.getContext('2d');
     ctx.scale(scale, scale);
     ctx.drawImage(img, 0, 0, w, h);
