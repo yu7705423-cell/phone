@@ -163,6 +163,14 @@ export const CAPS = [
     detail: () => template('skeleton.ring'),
   },
   {
+    id: 'todo',
+    label: '记下待办',
+    on: ({ char }) => char.canTodo !== false,
+    hot: ({ msgs }) => usedRecently(msgs, /[[【]待办/),
+    line: () => 'Record something they mean to do: write a line on its own, [待办：the thing]',
+    detail: () => template('skeleton.todo'),
+  },
+  {
     id: 'location',
     label: '共享位置',
     on: ({ char }) => char.canSendLocation !== false,

@@ -211,6 +211,7 @@ export function Conversation({ chatId, focusId = '' }) {
   useStore(db.messages.store);
   useStore(db.characters.store);
   useStore(db.stickers.store);
+  useStore(db.todos.store);
   const settings = useStore(db.settings.store);
 
   const [draft, setDraft] = useState('');
@@ -476,9 +477,20 @@ export function Conversation({ chatId, focusId = '' }) {
     const q = draftQuote();
     setDraft('');
     setQuoting(null);
-    db.messages.create({ chatId, role: 'user', authorId: 'me', kind: 'text',
+    const msg = db.messages.create({ chatId, role: 'user', authorId: 'me', kind: 'text',
       content: text, status: 'done', ...q });
     db.chats.update(chatId, { lastMessageAt: Date.now() });
+    // 本地那一道监督：刚发出去的这句里有没有「我想 / 打算 / 记得」一类的线索。
+    // 不花钱也不延迟，落成待确认，下面那条栏问一句（见 system/todo.js）
+    if (phone.todo.localOn()) {
+      const hit = phone.todo.detect(text);
+      if (hit) {
+        phone.todo.propose({
+          text: hit.text, chatId, charId: char.id, srcMsgId: msg.id,
+          from: phone.todo.FROM_LOCAL,
+        });
+      }
+    }
     afterSend(text);
   };
 
@@ -875,6 +887,8 @@ export function Conversation({ chatId, focusId = '' }) {
   ];
 
   const quotingRef = quoting ? quoteOf({ quoteId: quoting.id }, { char, chat }) : null;
+  // 这段对话里等着确认的第一条。一条一条问，不堆在一起
+  const todoAsk = phone.todo.pendingOf(chatId)[0] || null;
   const canRegen = !!(held && held.role === 'char' && held.turnId && held.turnId === lastTurnId);
 
   return html`
@@ -955,6 +969,18 @@ export function Conversation({ chatId, focusId = '' }) {
         : html`
           ${draft.trim() && panel !== 'sticker'
             ? html`<${StickerSuggest} text=${draft} onSend=${sendSticker}/>` : null}
+
+          ${todoAsk ? html`
+            <div class="todo-bar">
+              <div class="todo-ask">
+                <span class="todo-tag">${phone.todo.fromLabel(todoAsk.from)}</span>
+                <b>${todoAsk.text}</b>
+              </div>
+              <button class="nav-text press"
+                onClick=${() => { phone.todo.accept(todoAsk.id); toast('已计入待办', 'ok'); }}>计入<//>
+              <button class="nav-text press is-off"
+                onClick=${() => phone.todo.ignore(todoAsk.id)}>忽略<//>
+            </div>` : null}
 
           ${quotingRef ? html`
             <div class="quote-bar">

@@ -174,6 +174,16 @@ page, and do not reconstruct what is missing.
 ## Output JSON only, with no other text
 {"lines":[""]}`,
 
+  // 待办。角色那一道监督（另一道是本地线索词，见 system/todo.js）。
+  // **只写这个标记是什么意思**，不写「什么时候该用」—— 那是判断，第 16 条。
+  'skeleton.todo':
+`[待办]
+To record something the other party said they mean to do, write a line on its
+own, [待办：the thing, in a few words].
+That line is not shown to them as a message. It is put to them as a suggestion,
+which they accept or dismiss.
+Record what they said they would do, not what you would have them do.`,
+
   'skeleton.location':
 `[位置]
 To tell the other party where you are, write a line on its own,

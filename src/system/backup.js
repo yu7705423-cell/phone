@@ -26,7 +26,7 @@ import { packRow, unpackRow } from './typed.js';
 const COLLECTIONS = [
   'characters', 'lorebooks', 'memories', 'chats', 'messages', 'moments',
   'stickers', 'looks', 'personas', 'songs', 'playlists', 'videos',
-  'spaceItems', 'events', 'days', 'recipes', 'meals',
+  'spaceItems', 'events', 'days', 'todos', 'recipes', 'meals',
   'books', 'entries',
   'ebooks', 'reviews', 'readnotes',
   'health', 'cycles', 'meds',

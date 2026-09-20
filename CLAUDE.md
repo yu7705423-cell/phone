@@ -385,6 +385,8 @@ node scripts/doctor.mjs
   `system/backup.js` 的 `COLLECTIONS` 里都列上。漏一个不会报错、不会变慢，
   导出看着也成功 —— 只有换台设备恢复时才发现那一域是空的，而那时候原始
   数据往往已经没了。已经因此丢过九个数据域。
+  同一条还查第三处：数据域也必须在 `system/db/schema.js` 的 `STORES` 里，
+  并提升 `DB_VERSION`。那一处漏了整个应用起不来，而报错里看不出是哪个域。
 - **构建号**：`index.html` 的 `<meta name="build">` 必须和 `src/version.js`
   一致。启动时拿这两个值比对，判断浏览器缓存里的 js 是不是旧的（见下）。
 

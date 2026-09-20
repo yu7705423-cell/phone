@@ -28,6 +28,21 @@ export function check() {
         + '在 src/system/backup.js 的 COLLECTIONS 里补上，否则换台设备恢复时它是空的');
     }
   });
+  // 数据域还要有一个 IndexedDB 仓库。漏了这一处的后果不安静 —— 整个 app
+  // 起不来（「One of the specified object stores was not found」）—— 但它
+  // 要等到打开页面才炸，而且报错里看不出是哪个域漏了。已经因此炸过一次。
+  const schemaFile = files.find(f => rel(f) === 'src/system/db/schema.js');
+  const inStores = schemaFile
+    ? listOf(read(schemaFile), /const STORES = \[([\s\S]*?)\]/) : null;
+  if (inStores) {
+    inDb.forEach(name => {
+      if (!inStores.includes(name)) {
+        problems.push(`数据域 ${name} 没建仓库。`
+          + '在 src/system/db/schema.js 的 STORES 里补上，并提升 DB_VERSION，否则整个应用起不来');
+      }
+    });
+  }
+
   inBackup.forEach(name => {
     if (!inDb.includes(name)) {
       problems.push(`备份里列了 ${name}，但库里没有这个数据域。改名或删域时忘了同步`);

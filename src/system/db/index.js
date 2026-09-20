@@ -24,6 +24,8 @@ export const spaceItems = makeCollection('spaceItems', 'si', { indexBy: 'chatId'
 export const events     = makeCollection('events', 'ev', { indexBy: 'cell' });
 // 角色的一天：一个角色一天一条。日程、抽中的随机事件、当天的大运都在里面。
 export const days       = makeCollection('days', 'day', { indexBy: 'charId' });
+// 用户自己的待办。角色的日程是 days，你们之间的约定在 spaceItems
+export const todos      = makeCollection('todos', 'td');
 // 食谱库按地区分，地区留空的是通用的。吃饭记录按角色分，抽的时候要回头看。
 export const recipes    = makeCollection('recipes', 'rc', { indexBy: 'region' });
 export const meals      = makeCollection('meals', 'ml', { indexBy: 'charId' });
@@ -52,7 +54,7 @@ export const phoneChats = makeCollection('phoneChats', 'pc', { indexBy: 'charId'
 // 攻略条目与票内嵌在行里：那两样总是跟着一次出行一起读、一起删
 export const trips      = makeCollection('trips', 'tr', { indexBy: 'chatId' });
 
-const COLLECTIONS = { characters, lorebooks, memories, chats, messages, moments, stickers, looks, personas, songs, playlists, videos, spaceItems, events, days, recipes, meals, books, entries, ebooks, reviews, readnotes, health, cycles, meds, albums, photos, shots, phones, phoneChats, trips };
+const COLLECTIONS = { characters, lorebooks, memories, chats, messages, moments, stickers, looks, personas, songs, playlists, videos, spaceItems, events, days, todos, recipes, meals, books, entries, ebooks, reviews, readnotes, health, cycles, meds, albums, photos, shots, phones, phoneChats, trips };
 
 // ---- kv: settings / persona / layout ----
 function makeKV(key, fallback, { deep = false } = {}) {
@@ -144,7 +146,7 @@ window.addEventListener('pagehide', () => { images.revokeAll(); files.revokeAll(
 
 export const db = {
   characters, lorebooks, memories, chats, messages, moments, stickers, looks, personas,
-  songs, playlists, videos, spaceItems, events, days, recipes, meals,
+  songs, playlists, videos, spaceItems, events, days, todos, recipes, meals,
   books, entries, ebooks, reviews, readnotes, health, cycles, meds,
   albums, photos, shots, phones, phoneChats, trips,
   images, files, settings, persona, layout,

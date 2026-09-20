@@ -7,6 +7,7 @@ import { manifest as lorebook } from './lorebook/manifest.js';
 import { manifest as memory } from './memory/manifest.js';
 import { manifest as space } from './space/manifest.js';
 import { manifest as daily } from './daily/manifest.js';
+import { manifest as todoApp } from './todo/manifest.js';
 import { manifest as music } from './music/manifest.js';
 import { manifest as bill } from './bill/manifest.js';
 import { manifest as theater } from './theater/manifest.js';
@@ -17,6 +18,6 @@ import { manifest as theirsApp } from './theirs/manifest.js';
 import { manifest as settingsApp } from './settings/manifest.js';
 
 export function registerApps() {
-  [chat, contact, lorebook, memory, space, daily, music, bill, theater,
+  [chat, contact, lorebook, memory, space, daily, todoApp, music, bill, theater,
     healthApp, albumApp, travelApp, theirsApp, settingsApp].forEach(registerApp);
 }

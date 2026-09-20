@@ -276,6 +276,25 @@ input[type="range"] {
 .nav-text.is-off { color: var(--text-3); }
 .nav-text.is-danger { color: var(--danger); }
 
+/* 待办确认栏。和引用栏同一个位置：有一件事等你点头，就压在输入框上面。
+   不做成弹窗 —— 聊天里说「我想」的频率很高，一句一个弹窗没法聊天 */
+.todo-bar {
+  flex: none; display: flex; align-items: center; gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3) 0;
+}
+.todo-ask { flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--sp-2); }
+.todo-ask b {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: var(--fs-13); font-weight: 500;
+}
+.todo-tag {
+  flex: none; font-size: var(--fs-11); color: var(--text-3);
+  background: var(--surface-2); border-radius: var(--r-xs); padding: 1px var(--sp-2);
+}
+.todo-bar .nav-text { flex: none; }
+.todo-acts { display: flex; align-items: center; gap: var(--sp-2); }
+.todo-tick { display: flex; color: var(--text-3); padding: var(--sp-1); }
+
 /* 引用栏：正要引着谁说话，压在输入框上面 */
 .quote-bar {
   flex: none; display: flex; align-items: center; gap: var(--sp-2);

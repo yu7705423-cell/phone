@@ -19,6 +19,7 @@ import * as extras from '../extras.js';
 import * as avatar from '../avatar.js';
 import * as takeout from '../takeout.js';
 import * as ban from '../ban.js';
+import * as todo from '../todo.js';
 import * as trip from '../trip.js';
 import * as translate from './translate.js';
 import * as ledger from '../ledger.js';
@@ -30,12 +31,13 @@ import { cropKept } from './tasks/phone.js';
 // 中英文冒号都认，方括号也认全角。
 // 「约定完成」必须排在「约定」前面 —— 交替是从左往右试的，反过来写
 // 「约定完成：早点睡」会先被「约定」吃掉，剩下「完成：早点睡」当成内容。
-const MARK = /[[【]\s*(图片|照片|image|pic|语音|voice|audio|表情|sticker|emoji|转账|transfer|位置|定位|location|礼物|gift|点歌|建歌单|约定完成|约定|pact|信|letter|事项完成|事项取消|心声|换头像|外卖|请客|代付|申请|亲属卡|旅行|攻略)\s*[:：]\s*([^\]】]+)[\]】]/gi;
+const MARK = /[[【]\s*(图片|照片|image|pic|语音|voice|audio|表情|sticker|emoji|转账|transfer|位置|定位|location|礼物|gift|点歌|建歌单|约定完成|约定|pact|信|letter|事项完成|事项取消|心声|换头像|外卖|请客|代付|申请|亲属卡|旅行|攻略|待办|todo)\s*[:：]\s*([^\]】]+)[\]】]/gi;
 
 const IMAGE_KINDS = new Set(['图片', '照片', 'image', 'pic']);
 const STICKER_KINDS = new Set(['表情', 'sticker', 'emoji']);
 const TRANSFER_KINDS = new Set(['转账', 'transfer']);
 const PLACE_KINDS = new Set(['位置', '定位', 'location']);
+const TODO_KINDS = new Set(['待办', 'todo']);
 const GIFT_KINDS = new Set(['礼物', 'gift']);
 const PICK_KINDS = new Set(['点歌']);
 const PACT_KINDS = new Set(['约定', 'pact']);
@@ -504,6 +506,8 @@ export function splitReply(raw) {
       } else if (GIFT_KINDS.has(kind)) {
         const g = gift.parse(body);
         if (g) push({ type: 'gift', ...g });
+      } else if (TODO_KINDS.has(kind)) {
+        push({ type: 'todo', text: body });
       } else if (PLACE_KINDS.has(kind)) {
         const loc = place.parse(body);
         if (loc) push({ type: 'location', ...loc });
@@ -638,6 +642,15 @@ function justSent(chatId, turnId) {
 }
 
 export function materialize(part, base, char) {
+  // 待办不是一条消息，是一个等你点头的提议，所以不占气泡也不进聊天记录。
+  // 落成待确认，由会话页问一句（见 system/todo.js）
+  if (part.type === 'todo') {
+    todo.propose({
+      text: part.text, chatId: base.chatId, charId: char?.id,
+      from: todo.FROM_CHAR,
+    });
+    return null;
+  }
   const quote = quoteFields(base.chatId, part.quote);
   const row = {
     ...base, ...quote,

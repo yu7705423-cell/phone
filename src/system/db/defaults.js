@@ -128,6 +128,11 @@ export const DEFAULT_SETTINGS = {
   banPhrases: [],
   // 命中之后自动重掷几次。0 为只标出来，不重掷（第 15 条）
   banReroll: 0,
+  // 待办：本地那一道监督。线索词与排除词为 null 时用 system/todo.js 里的默认那份，
+  // 存成数组就是用户自己改过的；改成空数组等于把本地这一道关了
+  todoDetect: true,
+  todoCues: null,
+  todoSkips: null,
 
   // 记忆
   memoryEnabled: true,
