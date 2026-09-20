@@ -4046,6 +4046,32 @@ iOS 上 canvas 的面积超过一千多万像素就画不出来 —— 轻则一
 说明不了外壳 —— 而闹钟、通知、健康那几样只在外壳里，只有重装才会变。
 所以外壳把自己的版本注进 `window.phoneAppVersion`，设置里两个并排显示。
 
+### 4.104n 语音三家、生图加 NovelAI，以及「照着常见形态写」的代价
+
+MiniMax 那份语音是**照着「常见形态」猜着写的**，从没对过官方文档，两处猜错：
+
+- 默认地址写的 `api.minimax.chat` 已经不是现在的接口地址。现在按账号所在地分
+  `api.minimaxi.com`（国内）与 `api.minimax.io`（国际）。
+- 把 GroupId 当成必填。新版 `sk-cp-` 那种 key 只用 Bearer 就够，而
+  `isVoiceReady()` 没填 GroupId 就判「没配置」—— 于是设置页明明填满了，
+  功能却是灰的。
+
+这两条合起来就是「我啥都写了但是连不上」。**教训和 AlarmKit 那次同一个**：
+接口格式要查到出处，猜出来的东西在用户那边才炸，而且报错看不出是猜错了。
+
+顺手改成多家：`voice.KINDS` 列 MiniMax / OpenAI 兼容（`/v1/audio/speech`，
+中转站基本都实现）/ ElevenLabs（鉴权走 `xi-api-key` 不是 Bearer，音色在路径里）。
+`isVoiceReady` 改成按各家的 `needModel` 判，不把可选项算成必填。
+
+生图加 `nai` 一档：`POST {base}/ai/generate-image`，body 是
+`{input, model, action, parameters}`，**回来的是一个 zip**，png 在里头
+（`system/zip.js` 的 `unzip` 正好用得上）。密钥是网站用户设置里生成的持久
+token。参考图那条路（img2img / vibe transfer）参数完全不同，还没接，照实抛错
+让上层退回纯文字。
+
+**报错分两种说**：`连不上（地址、网络、跨域）` 与 `接口返回了错（key、参数）`
+—— 这两种的下一步完全不同，混成一句「请求失败」等于什么都没说。
+
 ### 4.105 点通知那一下，几乎总是跑在网页前面
 
 外壳（`ios/Sources/NotifyBridge.swift`）收到点击之后直接 `evaluateJavaScript`，而

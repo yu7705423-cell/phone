@@ -44,9 +44,14 @@ function Editor({ id, onClose }) {
         <${Input} value=${preset.name} onInput=${v => set({ name: v })}/>
       <//>
 
-      <${Field} label="类型" desc="官方直连，或填写中转站地址。">
+      <${Field} label="类型"
+        desc=${preset.kind === 'nai'
+          ? '密钥填写 NovelAI 网站用户设置中生成的持久 token，不是账号密码。'
+            + '模型填写 nai-diffusion-3 一类。参考图暂不支持。'
+          : '官方直连，或填写中转站地址。'}>
         <${Segmented} value=${preset.kind} onChange=${v => set({ kind: v, baseUrl: '' })}
-          items=${[{ value: 'openai', label: 'OpenAI 官方' }, { value: 'relay', label: '中转站' }]}/>
+          items=${[{ value: 'openai', label: 'OpenAI 官方' },
+            { value: 'relay', label: '中转站' }, { value: 'nai', label: 'NovelAI' }]}/>
       <//>
 
       <${Field} label="API Key">
@@ -57,6 +62,16 @@ function Editor({ id, onClose }) {
         <${Field} label="接口地址" desc="填写至 /v1 为止。">
           <${Input} value=${preset.baseUrl} placeholder="https://api.example.com/v1"
             onInput=${v => set({ baseUrl: v })}/>
+        <//>` : null}
+
+      ${preset.kind === 'nai' ? html`
+        <${Field} label="接口地址" desc="留空则使用 https://image.novelai.net。">
+          <${Input} value=${preset.baseUrl} placeholder="https://image.novelai.net"
+            onInput=${v => set({ baseUrl: v })}/>
+        <//>
+        <${Field} label="负面提示词" desc="每次生成都会带上，用来排除不想要的画面元素。">
+          <${Input} value=${preset.negative || ''} placeholder="lowres, bad anatomy"
+            onInput=${v => set({ negative: v })}/>
         <//>` : null}
 
       <${Field} label="模型">
@@ -98,8 +113,9 @@ export function ImagePage() {
   const [editing, setEditing] = useState(null);
   const img = svc.services().image;
 
+  const NAMES = { openai: 'OpenAI', relay: '中转站', nai: 'NovelAI' };
   const add = kind => {
-    const p = svc.newImagePreset({ kind, name: kind === 'openai' ? 'OpenAI' : '中转站' });
+    const p = svc.newImagePreset({ kind, name: NAMES[kind] || '生图接口' });
     setEditing(p.id);
   };
 
@@ -121,7 +137,7 @@ export function ImagePage() {
         <${List} title="已保存的接口">
           ${img.presets.map(p => html`
             <${ListItem} key=${p.id} title=${p.name}
-              subtitle=${`${p.kind === 'openai' ? 'OpenAI 官方' : '中转站'} · ${p.model || '未选择模型'}`}
+              subtitle=${`${NAMES[p.kind] || '中转站'} · ${p.model || '未选择模型'}`}
               arrow right=${html`<${Switch} checked=${img.activeId === p.id}
                 onChange=${() => svc.setActiveImage(p.id)}/>`}
               onClick=${() => setEditing(p.id)}/>`)}
@@ -133,6 +149,7 @@ export function ImagePage() {
         <div class="btn-row">
           <${Button} variant="ghost" icon="plus" onClick=${() => add('openai')}>OpenAI 官方<//>
           <${Button} variant="ghost" icon="plus" onClick=${() => add('relay')}>中转站<//>
+          <${Button} variant="ghost" icon="plus" onClick=${() => add('nai')}>NovelAI<//>
         </div>
       </div>
 

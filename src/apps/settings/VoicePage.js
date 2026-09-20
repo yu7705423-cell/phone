@@ -1,6 +1,6 @@
 import { html, useState } from '../../lib.js';
 import { phone, useStore } from '../../sdk/index.js';
-import { Page, List, ListItem, Field, Input, Button, Switch, Icon,
+import { Page, Segmented, List, ListItem, Field, Input, Button, Switch, Icon,
          Sheet, EmptyState, Spinner, toast } from '../../ui/index.js';
 
 const { db, nav, ai } = phone;
@@ -57,6 +57,7 @@ export function VoicePage() {
   const [picking, setPicking] = useState(false);
   const [testing, setTesting] = useState(false);
   const v = svc.voiceConfig();
+  const kind = ai.voice.kindOf(v.kind);
   const chars = db.characters.all();
 
   const test = async () => {
@@ -82,24 +83,32 @@ export function VoicePage() {
 
       <div class="pad">
         <div class="hint-box">
-          MiniMax 的语音合成。接口地址、GroupId、Key 填在这里，
-          每个角色用哪个音色写在各自的角色卡里。
+          接口地址与密钥填在这里，每个角色用哪个音色写在各自的角色卡里。
+          ${kind.note}
         </div>
 
-        <${Field} label="接口地址" desc="留空则使用 https://api.minimax.chat。">
-          <${Input} value=${v.baseUrl} placeholder="https://api.minimax.chat"
+        <${Field} label="服务商">
+          <${Segmented} value=${kind.id} items=${ai.voice.KINDS.map(k => ({ value: k.id, label: k.label }))}
+            onChange=${x => svc.setVoice({ kind: x, baseUrl: '' })}/>
+        <//>
+
+        <${Field} label="接口地址" desc=${`留空则使用 ${kind.base}。`}>
+          <${Input} value=${v.baseUrl} placeholder=${kind.base}
             onInput=${x => svc.setVoice({ baseUrl: x })}/>
         <//>
 
-        <${Field} label="GroupId">
-          <${Input} value=${v.groupId} onInput=${x => svc.setVoice({ groupId: x })}/>
-        <//>
+        ${kind.hasGroup ? html`
+          <${Field} label="GroupId"
+            desc="旧版账号需要填写。新版以 sk- 开头的密钥留空即可，填了反而可能报错。">
+            <${Input} value=${v.groupId} onInput=${x => svc.setVoice({ groupId: x })}/>
+          <//>` : null}
 
         <${Field} label="API Key">
           <${Input} type="password" value=${v.apiKey} onInput=${x => svc.setVoice({ apiKey: x })}/>
         <//>
 
-        <${Field} label="模型">
+        <${Field} label="模型"
+          desc=${kind.needModel ? '' : '可以留空，留空则用该账号的默认模型。'}>
           <${Input} value=${v.model} placeholder="语音合成模型名称"
             onInput=${x => svc.setVoice({ model: x })}/>
           <div class="pad-t">
