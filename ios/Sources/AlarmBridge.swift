@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 import WebKit
 #if canImport(AlarmKit)
 import AlarmKit
@@ -103,14 +104,20 @@ final class AlarmBridge: NSObject {
         }
 
         let label = title.isEmpty ? "待办" : title
+        // 停止那个按钮要自己给，没有现成的 .stopButton
+        let stop = AlarmButton(
+            text: LocalizedStringResource(stringLiteral: "停止"),
+            textColor: .white,
+            systemImageName: "stop.fill")
         let alert = AlarmPresentation.Alert(
             title: LocalizedStringResource(stringLiteral: label),
-            stopButton: .stopButton)
+            stopButton: stop)
         let attributes = AlarmAttributes<TodoMeta>(
             presentation: AlarmPresentation(alert: alert),
             metadata: TodoMeta(),
-            tintColor: .accentColor)
-        let config = AlarmManager.AlarmConfiguration(
+            tintColor: Color.accentColor)
+        // 泛型参数推不出来，要写明是哪一种 metadata
+        let config = AlarmManager.AlarmConfiguration<TodoMeta>(
             schedule: .fixed(when),
             attributes: attributes)
         do {
