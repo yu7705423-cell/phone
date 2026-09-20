@@ -22,6 +22,7 @@ final class ShellViewController: UIViewController {
     /// 保活。网页那头是 system/keepalive.js
     private let keepAliveBridge = KeepAliveBridge()
     private let alarmBridge = AlarmBridge()
+    private let netBridge = NetBridge()
 
     /// 「1.0.17 (17)」这种。前一个是版本号，括号里是构建序号。
     static var appVersion: String {
@@ -120,6 +121,8 @@ final class ShellViewController: UIViewController {
         //   phoneKeepAlive   保活也走这一层。零音量的网页音频在 app 里占不到音频焦点，
         //                    见 KeepAliveBridge
         //   phoneAlarm       这套构建带得动系统闹钟（要 iOS 26，见 AlarmBridge）
+        //   phoneNet         第三方接口的请求可以交给外壳发。跨域是浏览器的规矩，
+        //                    外壳用系统的网络栈发就没这回事（见 NetBridge）
         //   phoneAppVersion  这只 app 自己的版本。网页那份构建号是从站点取的，
         //                    说明不了手机上装的是哪一版外壳 —— 而外壳里那半边
         //                    （闹钟、通知、健康）只能靠重装才会变
@@ -129,6 +132,7 @@ final class ShellViewController: UIViewController {
                 + "window.phoneKeepAlive = true;"
                 + "window.phoneHealth = \(HealthBridge.available);"
                 + "window.phoneAlarm = \(AlarmBridge.available);"
+                + "window.phoneNet = true;"
                 + "window.phoneAppVersion = \"\(Self.appVersion)\";",
             injectionTime: .atDocumentStart,
             forMainFrameOnly: false))
@@ -140,6 +144,8 @@ final class ShellViewController: UIViewController {
             keepAliveBridge, contentWorld: .page, name: "keepalive")
         cfg.userContentController.addScriptMessageHandler(
             alarmBridge, contentWorld: .page, name: "alarm")
+        cfg.userContentController.addScriptMessageHandler(
+            netBridge, contentWorld: .page, name: "net")
 
         let w = WKWebView(frame: view.bounds, configuration: cfg)
         w.navigationDelegate = self

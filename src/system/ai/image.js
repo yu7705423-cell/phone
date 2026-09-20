@@ -2,6 +2,7 @@ import { baseOf } from './url.js';
 import { activeImage } from './services.js';
 import { enqueue } from './queue.js';
 import { unzip } from '../zip.js';
+import { nfetch } from '../net.js';
 
 /**
  * 生图。两套接口，一套一个 kind：
@@ -44,7 +45,7 @@ function sizeOf(preset) {
 async function novelai(p, { prompt, signal }) {
   const base = baseOf(p.baseUrl, 'https://image.novelai.net');
   const { w, h } = sizeOf(p);
-  const res = await fetch(`${base}/ai/generate-image`, {
+  const res = await nfetch(`${base}/ai/generate-image`, {
     method: 'POST', signal,
     headers: { 'content-type': 'application/json', authorization: `Bearer ${p.apiKey}` },
     body: JSON.stringify({
@@ -102,7 +103,7 @@ export function generateWithRef({ prompt, refBlob, preset, key }) {
     form.append('n', '1');
     form.append('size', p.size || '1024x1024');
     form.append('image', new File([refBlob], 'face.png', { type: refBlob.type || 'image/png' }));
-    const res = await fetch(editEndpoint(p), {
+    const res = await nfetch(editEndpoint(p), {
       method: 'POST', signal,
       headers: { authorization: `Bearer ${p.apiKey}` },   // multipart 的 content-type 交给浏览器带边界
       body: form,
@@ -119,7 +120,7 @@ export function generate({ prompt, preset, key }) {
 
   return enqueue(key || `img:${Date.now()}`, async signal => {
     if (kindOf(p.kind).id === 'nai') return novelai(p, { prompt, signal });
-    const res = await fetch(endpoint(p), {
+    const res = await nfetch(endpoint(p), {
       method: 'POST', signal,
       headers: { 'content-type': 'application/json', authorization: `Bearer ${p.apiKey}` },
       body: JSON.stringify({

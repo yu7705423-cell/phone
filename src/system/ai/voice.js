@@ -1,6 +1,7 @@
 import { baseOf } from './url.js';
 import { voiceConfig } from './services.js';
 import { enqueue } from './queue.js';
+import { nfetch, routeOf, canNative } from '../net.js';
 
 /**
  * 语音合成。
@@ -51,15 +52,23 @@ export function isVoiceReady() {
   return true;
 }
 
-/** 连不上和接口报错要分开说：前者查地址与网络，后者查 key 与参数。 */
-async function ask(url, init) {
+/**
+ * 连不上和接口报错要分开说：前者查地址与网络，后者查 key 与参数。
+ *
+ * 装了 app 的话这一发是交给外壳的（见 system/net.js）—— 那条路没有跨域一说。
+ * 所以连不上时该提示什么，要看这一次走的是哪条路，不能一律让人「改中转地址」。
+ */
+async function ask(url, init, opts) {
   let res;
   try {
-    res = await fetch(url, init);
+    res = await nfetch(url, init, opts);
   } catch (err) {
+    const native = routeOf(url) === 'native' && opts?.prefer !== 'direct';
     throw new Error(`连不上语音接口（${url}）。`
-      + '请检查地址是否填写正确、网络是否可达。'
-      + '若浏览器拦下了跨域请求，需改填中转地址。'
+      + (native
+        ? '本次请求已交由外壳发出，与跨域无关。请检查地址是否填写正确、网络是否可达。'
+        : '请检查地址是否填写正确、网络是否可达。'
+          + (canNative() ? '' : '若为浏览器拦下的跨域请求，需改填中转地址，或安装为应用后重试。'))
       + `原始错误：${err.message || err}`);
   }
   if (!res.ok) {
@@ -147,6 +156,42 @@ export function speak({ text, voiceId, speed = 1, key }) {
     const blob = await run(v, { text, voiceId, speed, signal });
     return URL.createObjectURL(blob);
   }, { retries: 0 });
+}
+
+/**
+ * 连一次看看，把发生了什么原样说出来。
+ *
+ * 「试听」只能告诉你成没成，成不了的时候它说不出卡在哪一步。这里分四件事报：
+ * 走的哪条路、有没有连上、对方回的什么状态、音频取到没有 —— 每一步都可能单独
+ * 坏掉，而每一步的下一步都不一样。
+ */
+export async function testVoice() {
+  const v = voiceConfig();
+  const k = kindOf(v.kind);
+  const base = baseOf(v.baseUrl, k.base);
+  const out = { kind: k.label, base, route: canNative() ? '外壳转发' : '浏览器直连' };
+
+  if (!v.apiKey) return { ...out, ok: false, step: '没填密钥', hint: '先填 API Key。' };
+  if (k.needModel && !v.model) return { ...out, ok: false, step: '没填模型', hint: `${k.label} 需要填写模型名称。` };
+
+  try {
+    const url = await speak({ text: '测试。', voiceId: v.testVoiceId || '', key: `voice:test:${Date.now()}` });
+    URL.revokeObjectURL(url);
+    return { ...out, ok: true, step: '连通', hint: '接口可用，已取回音频。' };
+  } catch (err) {
+    const msg = String(err.message || err);
+    const cant = /连不上语音接口/.test(msg);
+    return {
+      ...out, ok: false,
+      step: cant ? '没连上' : '接口报错',
+      detail: msg,
+      hint: cant
+        ? (canNative()
+          ? '请求由外壳发出，与跨域无关。多半是地址填错或网络不通。'
+          : '浏览器可能拦下了跨域请求。可改填中转地址，或安装为应用后重试。')
+        : '已经连上了，是对方拒绝了这次请求。多半是密钥、模型名或音色 id 不对。',
+    };
+  }
 }
 
 function hexToBlob(hex) {

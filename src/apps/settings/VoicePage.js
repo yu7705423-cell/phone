@@ -56,6 +56,7 @@ export function VoicePage() {
   useStore(db.characters.store);
   const [picking, setPicking] = useState(false);
   const [testing, setTesting] = useState(false);
+  const [report, setReport] = useState(null);
   const v = svc.voiceConfig();
   const kind = ai.voice.kindOf(v.kind);
   const chars = db.characters.all();
@@ -71,6 +72,18 @@ export function VoicePage() {
       toast('已开始播放');
     } catch (err) { toast(String(err.message || err), 'error', 5000); }
     finally { setTesting(false); }
+  };
+
+  // 连一次看看。**和试听不是一回事**：试听只告诉你成没成，
+  // 成不了的时候说不出卡在哪一步，而每一步的下一步都不一样
+  const probe = async () => {
+    setTesting(true);
+    setReport(null);
+    try {
+      const first = chars.find(c => c.voiceId);
+      svc.setVoice({ testVoiceId: first?.voiceId || '' });
+      setReport(await ai.voice.testVoice());
+    } finally { setTesting(false); }
   };
 
   return html`
@@ -117,7 +130,23 @@ export function VoicePage() {
           </div>
         <//>
 
-        <${Button} full variant="ghost" disabled=${testing || !v.apiKey || !v.groupId}
+        <${Button} full disabled=${testing || !v.apiKey}
+          onClick=${probe}>${testing ? '正在测试' : '测试连接'}<//>
+
+        ${report ? html`
+          <${List} title="测试结果">
+            <${ListItem} title=${report.ok ? '连通' : `未连通：${report.step}`} multiline
+              subtitle=${report.hint}
+              left=${html`<${Icon} name=${report.ok ? 'check' : 'close'} size=${18}/>`}/>
+            <${ListItem} title="本次请求" multiline
+              subtitle=${`${report.kind} · ${report.route} · ${report.base}`}
+              left=${html`<${Icon} name="compass" size=${18}/>`}/>
+            ${report.detail ? html`
+              <${ListItem} title="接口原话" multiline subtitle=${report.detail}
+                left=${html`<${Icon} name="notes" size=${18}/>`}/>` : null}
+          <//>` : null}
+
+        <${Button} full variant="ghost" disabled=${testing || !v.apiKey}
           onClick=${test}>${testing ? '合成中' : '试听'}<//>
       </div>
 
