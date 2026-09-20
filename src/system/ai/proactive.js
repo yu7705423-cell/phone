@@ -183,7 +183,9 @@ export async function sendProactive(chatId, charId, { mood = false } = {}) {
     .sort((a, b) => a.createdAt - b.createdAt);
   const last = msgs[msgs.length - 1];
 
-  const { system } = buildChatSystem(chat, char, msgs, { queryVec: await queryVecFor(msgs) });
+  // 主动发起也不走 buildHistory，下沉的那几块要接回来 —— 少了它，角色就
+  // 不知道现在几点、今天排了什么，而这一条恰恰是挑时间发的
+  const { system, volatile: hot } = buildChatSystem(chat, char, msgs, { queryVec: await queryVecFor(msgs) });
   const instruction = fillTemplate(template(mood ? 'task.emo' : 'task.proactive'), {
     charName: char.name || '你',
     time: new Date().toLocaleString('zh-CN', { hour12: false }),
@@ -191,7 +193,7 @@ export async function sendProactive(chatId, charId, { mood = false } = {}) {
   });
 
   const raw = await runTextTask('chat.proactive', {
-    system: system + '\n\n' + instruction,
+    system: [system, hot, instruction].filter(Boolean).join('\n\n'),
     user: '(No new messages. You are the one opening this time.)',
     key: `${mood ? 'emo' : 'proactive'}:${chat.id}:${char.id}`,
     maxTokens: 800,

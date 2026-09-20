@@ -63,7 +63,18 @@ function buildBody(cfg, { system, messages, maxTokens, stream }) {
         : m.content,
     })),
   };
-  if (system) body.system = system;
+  // 设定区那一段整轮不变，声明成可缓存的：命中之后这一段按一折算。
+  //
+  // **要的就是它足够稳。** 每轮都变的那几块已经搬到对话末尾去了
+  // （见 context/index.js 的 VOLATILE）—— 不搬的话这里声明了也白声明，
+  // 前缀一变，缓存从那个字开始就断了。
+  //
+  // 短于模型的最小可缓存长度时，这个声明会被忽略，不报错也不多花钱。
+  if (system) {
+    body.system = cfg.cache
+      ? [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }]
+      : system;
+  }
   if (stream) body.stream = true;
   // Opus 5 / Sonnet 5 一族不再接受 temperature,传了会 400。
   // 输出深浅改用 output_config.effort 控制。

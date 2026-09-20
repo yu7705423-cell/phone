@@ -117,6 +117,14 @@ export const DEFAULT_SETTINGS = {
   scanWindow: 6,                  // 世界书与 B 级记忆的扫描窗口(条)
   contextBudget: 6000,            // 注入内容的 token 预算(粗估)
 
+  // 缓存住 prompt 里不变的那一段（目前只有 Anthropic 那条路支持显式声明，
+  // OpenAI 那边是自动前缀缓存，开不开都一样）。
+  //
+  // **默认开着。** 连着聊的时候每一轮都命中，重复那一段按一折算；
+  // 代价是**没命中的那一次要按一点二五倍计**，所以隔很久才说一句话的人
+  // 反而更贵。摆在「用量与上限」里，写清楚这笔账。
+  promptCache: true,
+
   // 记忆
   memoryEnabled: true,
   memoryVector: false,            // 按语义检索。每轮多取一次查询向量，所以默认关着（第 15 条）

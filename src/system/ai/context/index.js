@@ -49,9 +49,36 @@ export function resolveOrder(raw) {
   return out;
 }
 
-// 每个区块单独 try/catch,一个区块出错不拖垮整个 prompt
+// ---- 每轮都变的那几块要下沉 ----
+//
+// prompt 缓存只认**完全相同的前缀**（Anthropic 的前缀按 tools、system、
+// messages 的次序生成，OpenAI 那边是自动前缀缓存）。而时间块每分钟都不一样，
+// 它从前排在设定区第八位 —— 它下面的一切，包括消息规则、整份能力清单、
+// 核心设定这几段又长又稳的，**每一轮都得重新算一遍钱**。
+//
+// 所以把「不需要用户动手也会自己变」的那几块从设定区搬到对话末尾，和本轮
+// 召回放在一起。两头都合算：设定区连成一整段稳定前缀，缓存命中；而末尾
+// 恰恰是注意力最强的位置（Lost in the Middle 那条 U 形曲线的右端），
+// 「现在几点」「你们正在看到哪儿」本来就该贴着最后一句话。
+//
+// 不在这张表里的（世界书、人设、关系底色、用户资料、距离、你们之间）
+// 只在用户改了设定或数据时才变，留在设定区。
+export const VOLATILE = new Set([
+  'time',     // 每分钟
+  'day',      // 时段一过就换，事项勾一下就换
+  'music',    // 正在听哪一首、听到哪一句
+  'watch',    // 正在看哪一段、刚过去的几句台词
+  'avatar',   // 本来就只出现一轮
+  'trip',     // 第几天、今天排了什么
+  'bill',     // 余额随转账变
+  'health',   // 今天的那几项
+]);
+
+// 每个区块单独 try/catch,一个区块出错不拖垮整个 prompt。
+// 回来的是两段：留在设定区的，和要下沉到对话末尾的。
 export function assemble(order, ctx) {
   let out = '';
+  let hot = '';
   const failed = [];
   for (const id of resolveOrder(order)) {
     const block = BLOCKS[id];
@@ -59,7 +86,8 @@ export function assemble(order, ctx) {
     let text = '';
     try { text = block.build(ctx) || ''; }
     catch (err) { failed.push(id); console.error(`[prompt] 区块 ${id} 构建失败`, err); }
-    if (text) out += text;
+    if (!text) continue;
+    if (VOLATILE.has(id)) hot += text; else out += text;
   }
-  return { text: out, failed };
+  return { text: out, volatile: hot, failed };
 }

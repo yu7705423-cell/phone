@@ -52,6 +52,8 @@ function asConfig(preset) {
     // 不设回复上限。接口要求必须带 max_tokens，这里给到模型的上限，
     // 不作为「截断长度」暴露给用户。
     maxTokens: MAX_OUTPUT,
+    // 要不要声明缓存。provider 拿它决定 system 那一段带不带 cache_control
+    cache: settings.get().promptCache !== false,
   };
 }
 
@@ -191,7 +193,9 @@ export function buildChatSystem(chat, char, msgs, opts = {}) {
   const gender = genderBlock(char, me, names);
   if (gender) out += '\n\n' + gender;
 
-  const { text, failed } = assemble(s.injectOrder, ctx);
+  // 每轮都变的那几块不进设定区，交给 buildHistory 插到对话末尾去
+  // （见 context/index.js 的 VOLATILE 那一段）
+  const { text, volatile: hot, failed } = assemble(s.injectOrder, ctx);
   out += text;
 
   if (chat.summary) out += `\n\n[更早之前发生过什么]\n${chat.summary}`;
@@ -219,7 +223,7 @@ export function buildChatSystem(chat, char, msgs, opts = {}) {
   // 「对方换了头像」只该说一次。这一轮说完就记下是哪一张，下一轮它就不新了。
   if (chat.id && me?.avatar) avatarLib.markSeen(chat.id, me.avatar);
 
-  return { system: out, failed, tokens: estimate(out) };
+  return { system: out, volatile: hot, failed, tokens: estimate(out) };
 }
 
 // 引用过的消息在上下文里要带上出处,不然「是啊」这种回应模型根本不知道在应哪句。
@@ -353,13 +357,20 @@ export function buildHistory(chat, char, msgs, opts = {}) {
     || (char ? activateLore(char, scanTextOf(msgs, s.scanWindow), budgets(s.contextBudget).lorebook).items : []);
   const depths = splitLore(lore).depths;
 
-  // 本轮相关记忆也按深度插。它每轮都在变，放进 system 会让后面所有
-  // 稳定内容的 prompt 缓存作废；而且离当前对话越近越不容易被忽略。
+  // 每轮都变的那几块，连同本轮召回，一起插到对话末尾。
+  //
+  // 两个理由：**缓存**（放进设定区会让它后面所有稳定内容每轮作废，
+  // 见 context/index.js 的 VOLATILE）与**注意力**（末尾是模型读得最重的
+  // 位置之一，而「现在几点」「你们看到哪儿了」本来就该贴着最后一句话）。
+  //
+  // 召回排在状态后面 —— 越靠近最后一条消息越不容易被忽略，而召回是这一段
+  // 里最该被看见的。
   const md = memoryDepth(s);
-  if (md > 0 && opts.recall?.length) {
-    const text = recallText(opts.recall);
-    if (text) depths.set(md, [...(depths.get(md) || []), { content: text, raw: true }]);
-  }
+  const tail = [
+    String(opts.volatile || '').trim(),
+    md > 0 && opts.recall?.length ? recallText(opts.recall) : '',
+  ].filter(Boolean).join('\n\n');
+  if (tail) depths.set(md || 1, [...(depths.get(md || 1) || []), { content: tail, raw: true }]);
   return insertLore(mergeAdjacent(view2), depths);
 }
 
@@ -386,8 +397,10 @@ const callMax = () => settings.get().callMaxTokens || 0;
 
 export async function buildCallSystem(chat, char) {
   const msgs = messagesOf(chat.id).filter(m => m.status !== 'error');
-  const { system } = buildChatSystem(chat, char, msgs, { queryVec: await queryVecFor(msgs) });
-  return system + '\n\n' + template('skeleton.call');
+  const { system, volatile: hot } = buildChatSystem(chat, char, msgs, { queryVec: await queryVecFor(msgs) });
+  // 通话没有 buildHistory 那条路，下沉的那几块只能接回来。
+  // 这里也不必为缓存操心：整通电话只拼一次 system，本来就复用。
+  return [system, hot, template('skeleton.call')].filter(Boolean).join('\n\n');
 }
 
 export const callKey = chatId => `call:${chatId}`;
@@ -459,8 +472,9 @@ export function streamReply({ chat, char, onDelta }) {
       settings: s0, char, scanText: scanTextOf(msgs, s0.scanWindow),
       budgets: budgets(s0.contextBudget), queryVec, persona: me,
     });
-    const history = buildHistory(chat, char, msgs, { images: pics, lore, recall });
-    const { system } = buildChatSystem(chat, char, msgs, { queryVec, lore, recall });
+    // 先拼 system：每轮都变的那几块由它挑出来，交给 buildHistory 插到对话末尾
+    const { system, volatile: hot } = buildChatSystem(chat, char, msgs, { queryVec, lore, recall });
+    const history = buildHistory(chat, char, msgs, { images: pics, lore, recall, volatile: hot });
     // 流式 / 一次返回。流式能看见字一个个出来，但**自检那一段也是流式吐的**，
     // 剥掉之后前面几秒气泡是空的，看着像卡住。一次返回则是等齐了整段才出现，
     // 中间只有「正在输入」。两种都有人要，所以给开关。
