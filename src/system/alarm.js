@@ -42,8 +42,20 @@ export const request = () => call('request');
 /** 系统那边现在什么状态：granted / denied / notDetermined / unsupported。 */
 export const status = () => call('status');
 
-/** 系统里现在挂着几个本应用排的闹钟。用来对账 —— 排了没响是最难查的那种。 */
+/** 系统里现在挂着哪几个本应用排的闹钟。用来对账 —— 排了没响是最难查的那种。 */
 export const listNative = () => call('list');
+
+/**
+ * 逐条对账：本应用记着排了的那几条，系统那边认不认。
+ *
+ * 只给总数不够 —— 两个数一样也可能是各记各的。要能指到具体哪一条。
+ */
+export function reconcile(ids) {
+  const sys = new Set(Array.isArray(ids) ? ids : []);
+  return todos.where(r => r.alarmId).map(r => ({
+    id: r.id, text: r.text, at: timeOf(r), known: sys.has(r.alarmId),
+  })).sort((a, b) => a.at - b.at);
+}
 
 // ---- 一条待办的时刻 ----
 //
@@ -87,8 +99,12 @@ export async function schedule(id) {
   if (!available()) return { native: false, reason: 'nobridge' };
 
   const got = await call('schedule', { id: row.id, title: row.text, at: ms });
-  todos.update(id, { alarmId: got.alarmId || row.id });
-  return { native: true, alarmId: got.alarmId || row.id };
+  // **一定要外壳把编号交回来才算排上。** 从前这里拿不到就退回用待办自己的 id
+  // 顶上，于是界面照样写「已排入系统闹钟」—— 那是虚报：本地记着有，系统里
+  // 一个都没有，而人要等到那个时刻没响才发现
+  if (!got.alarmId) return { native: false, reason: 'noid' };
+  todos.update(id, { alarmId: got.alarmId });
+  return { native: true, alarmId: got.alarmId };
 }
 
 /** 撤掉这条待办的系统闹钟。桥不在就只清掉本地那个记号。 */

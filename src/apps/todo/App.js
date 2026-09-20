@@ -326,6 +326,7 @@ function AlarmPage() {
 
   const next = alarm.upcoming();
   const mine = db.todos.where(r => r.alarmId);
+  const pairs = alarm.reconcile(sys?.ids);
   const statusText = {
     granted: '已授权',
     denied: '已拒绝。可在系统设置中重新开启',
@@ -365,6 +366,17 @@ function AlarmPage() {
               : '。系统一侧的数目需要在支持的环境中读取。')}
           left=${html`<${Icon} name="layers" size=${18}/>`}/>
       <//>
+
+      ${pairs.length ? html`
+        <${List} title=${`逐条对账 ${pairs.length} 条`}>
+          ${pairs.map(r => html`
+            <${ListItem} key=${r.id} multiline title=${r.text}
+              subtitle=${`${when.show(r.at)} · `
+                + (sys?.ids
+                  ? (r.known ? '系统中已登记' : '系统中没有这一条。可撤销后重新排入')
+                  : '系统一侧的登记情况需要在支持的环境中读取')}
+              left=${html`<${Icon} name=${r.known ? 'check' : 'close'} size=${18}/>`}/>`)}
+        <//>` : null}
 
       ${next.length ? html`
         <${List} title=${`即将到时 ${next.length} 条`}>
