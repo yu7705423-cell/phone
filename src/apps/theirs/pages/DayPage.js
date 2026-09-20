@@ -51,7 +51,7 @@ export function DayPage({ charId }) {
       <${List}>
         <${ListItem} title="前往「一天」" arrow
           left=${html`<${Icon} name="calendar" size=${18}/>`}
-          onClick=${() => intent.open('daily', { route: `/today/${charId}` })}/>
+          onClick=${() => intent.open('daily', { route: `/today/${charId}`, back: true })}/>
       <//>
     <//>`;
 }

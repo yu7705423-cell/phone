@@ -91,14 +91,14 @@ export function NeedLogin({ ready, logged }) {
       <${EmptyState} icon="music" title="尚未配置音乐接口"
         desc="该应用的数据来自你自己部署的网易云音乐接口。请先在设置中填写接口地址并登录。"
         action=${html`<${Button} size="sm" icon="settings"
-          onClick=${() => phone.intent.open('settings', { route: '/music' })}>前往设置<//>`}/>`;
+          onClick=${() => phone.intent.open('settings', { route: '/music', back: true })}>前往设置<//>`}/>`;
   }
   if (!logged) {
     return html`
       <${EmptyState} icon="user" title="尚未登录"
         desc="登录后可查看个人主页、听歌排行与歌单。在此播放的歌曲会记入该账号的听歌记录。"
         action=${html`<${Button} size="sm" icon="user"
-          onClick=${() => phone.intent.open('settings', { route: '/music' })}>前往登录<//>`}/>`;
+          onClick=${() => phone.intent.open('settings', { route: '/music', back: true })}>前往登录<//>`}/>`;
   }
   return null;
 }

@@ -56,7 +56,7 @@ export function BodyPage({ charId }) {
       <${List}>
         <${ListItem} title="前往「健康」设定" arrow
           left=${html`<${Icon} name="pulse" size=${18}/>`}
-          onClick=${() => intent.open('health', { route: `/char/${charId}` })}/>
+          onClick=${() => intent.open('health', { route: `/char/${charId}`, back: true })}/>
       <//>
     <//>`;
 }

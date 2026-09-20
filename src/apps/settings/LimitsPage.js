@@ -196,7 +196,7 @@ export function LimitsPage() {
         <${ListItem} title="在「一起看」中调整" arrow multiline
           subtitle="她自行开口的间隔、每次给她看几句台词或多少字正文、离开之后多久收场。
             这几项与那个应用绑在一起，因此放在它自己的设置里"
-          onClick=${() => phone.intent.open('theater', { route: '/settings' })}/>
+          onClick=${() => phone.intent.open('theater', { route: '/settings', back: true })}/>
       <//>
 
       <div class="settings-foot">

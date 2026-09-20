@@ -10,9 +10,17 @@ export function provide(appId, intentId, fn) {
   return () => { if (handlers.get(intentId)?.appId === appId) handlers.delete(intentId); };
 }
 
+/**
+ * 跳到另一个 app 的某一页。
+ *
+ * `params.back` 是「过去看一眼就回来」：那一页退到底时回到出发的地方，
+ * 连同出发时那一整条栈。**凡是「去那边改一下 / 看一眼」的跳转都该带上它**
+ * —— 不带的话过去了就没有回头路，人要自己重开原来那个 app、再点回去。
+ * 不带的是真正的交接：从资料页「去聊天」，去了就是要待在那儿。
+ */
 export function open(appId, params) {
   const route = params?.route || '/';
-  openApp(appId, route);
+  openApp(appId, route, { back: params?.back === true });
 }
 
 export async function request(intentId, params) {

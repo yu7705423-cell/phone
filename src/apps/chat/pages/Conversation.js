@@ -1131,7 +1131,7 @@ export function Conversation({ chatId, focusId = '' }) {
                 ? '。点击查看是哪几项，并可逐项关闭' : ''}`;
             })()}
             left=${html`<${Icon} name="filter" size=${18}/>`}
-            onClick=${() => { setMenu(false); phone.intent.open('settings', { route: '/limits' }); }}/>
+            onClick=${() => { setMenu(false); phone.intent.open('settings', { route: '/limits', back: true }); }}/>
         <//>
 
         <${List} title="所有角色通用">
@@ -1162,7 +1162,7 @@ export function Conversation({ chatId, focusId = '' }) {
           <${ListItem} title="导入角色" arrow multiline
             subtitle="装回上面导出的压缩包，或从一份资料整理出新角色。与「联系」右上角的入口是同一页"
             left=${html`<${Icon} name="upload" size=${18}/>`}
-            onClick=${() => { setMenu(false); phone.intent.open('contact', { route: '/import' }); }}/>
+            onClick=${() => { setMenu(false); phone.intent.open('contact', { route: '/import', back: true }); }}/>
           <${ListItem} title="清空聊天记录" danger arrow multiline
             subtitle=${wipeN.chats > 1
               ? `${wipeN.messages} 条消息，分布在 ${wipeN.chats} 段会话中。已提取的记忆保留`

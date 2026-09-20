@@ -13,6 +13,7 @@ import { ChatsPage } from './pages/ChatsPage.js';
 import { ChatPage } from './pages/ChatPage.js';
 import { AlbumPage } from './pages/AlbumPage.js';
 import { LookPage } from './pages/LookPage.js';
+import { RealPage } from './pages/RealPage.js';
 
 // 角色手机。**拿起角色那台手机看一眼。**
 //
@@ -57,6 +58,14 @@ export default function TheirsApp({ route }) {
     const row = phone.theirs.chat(one[1]);
     if (!row) return html`<${ChatPage} chatId=${one[1]}/>`;
     return html`<${Guard} charId=${row.charId}><${ChatPage} chatId=${one[1]}/><//>`;
+  }
+
+  // 和你的那一段：真数据，但在这台手机上看，不跳回「聊天」。
+  // 路由里带上 charId，锁屏照样挡得住
+  const rl = String(route || '').match(/^\/real\/([^/]+)\/(.+)$/);
+  if (rl) {
+    return html`<${Guard} charId=${rl[1]}>
+      <${RealPage} charId=${rl[1]} chatId=${rl[2]}/><//>`;
   }
 
   const m = String(route || '/').match(/^\/(home|shelf|body|day|notes|browser|chats|album|look|make|lock)\/(.+)$/);

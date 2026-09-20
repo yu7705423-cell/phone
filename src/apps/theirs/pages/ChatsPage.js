@@ -4,14 +4,15 @@ import { Page, List, ListItem, Icon, EmptyState, Button,
          confirm, toast } from '../../../ui/index.js';
 import { CharAvatar } from '../parts.js';
 
-const { db, nav, theirs, intent } = phone;
+const { db, nav, theirs } = phone;
 
 // 这台手机上的聊天。
 //
 // 列表分两块，界线要清楚：
 //
-//   **和你的那一段是真的。** 它就在库里，不是生成出来的。所以单独一组，
-//   点进去跳回「聊天」那个 app 看真的那一段，不在这儿再画一遍。
+//   **和你的那一段是真的。** 它就在库里，不是生成出来的。所以单独一组 ——
+//   但仍然在这台手机上看（/real/…），不跳回「聊天」那个 app。跨 app 那一跳
+//   把「翻别人手机」这件事整个打断了，而且过去了退不回来。
 //
 //   **别的都是生成出来的。** 和谁聊优先取这个角色已经认识的人（NPC），
 //   对得上的用它的头像、点得进它的卡片。
@@ -69,10 +70,10 @@ export function ChatsPage({ charId }) {
               <${ListItem} key=${c.id} title=${me?.name || '我'} arrow multiline
                 subtitle=${previewOf(c)}
                 left=${html`<${CharAvatar} subject=${me} name=${me?.name || '我'} size=${36}/>`}
-                onClick=${() => intent.open('chat', { route: `/chat/${c.id}` })}/>`;
+                onClick=${() => nav.push(`/real/${charId}/${c.id}`)}/>`;
           })}
         <//>
-        <div class="settings-foot">这一段是真实的对话记录，点击后回到「聊天」查看。</div>` : null}
+        <div class="settings-foot">这一段是真实的对话记录，此处只作查看。</div>` : null}
 
       ${made.length ? html`
         <${List} title=${`其他 ${made.length} 条`}>

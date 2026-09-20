@@ -1877,6 +1877,12 @@ button.search-bar { width: 100%; border: none; }
   white-space: pre-wrap; word-break: break-word;
 }
 .tp-line.is-me .tp-bubble { background: var(--accent-weak); border-color: var(--accent-weak); }
+/* 和你那一段里的图片。只画缩略图 —— 这一页是看个样子，不是会话页 */
+.tp-bubble-img { padding: 3px; }
+.tp-bubble-img img {
+  display: block; max-width: 180px; width: 100%; height: auto;
+  border-radius: var(--r-sm);
+}
 
 /* 锁屏。壁纸铺底，上面时间与头像，下面数字键盘 */
 .tp-lock {

@@ -54,7 +54,7 @@ export function ChatPage({ chatId }) {
 
       ${npc ? html`
         <div class="pad-x pad-t">
-          <div class="tp-who" onClick=${() => intent.open('chat', { route: `/edit/${npc.id}` })}>
+          <div class="tp-who" onClick=${() => intent.open('chat', { route: `/edit/${npc.id}`, back: true })}>
             <${CharAvatar} subject=${npc} size=${32}/>
             <span>${npc.name}</span>
             <${Icon} name="chevronRight" size=${15}/>

@@ -27,6 +27,7 @@ const ROUTES = {
   theirs: ['/', '/home/:char', '/shelf/:char', '/body/:char', '/day/:char',
     '/notes/:char', '/browser/:char', '/chats/:char', '/album/:char', '/look/:char',
     '/make/:char', '/chat/nope',
+    '/real/:char/:chat', '/real/:char/nope', '/real/nope/:chat',
     '/lock/:char', '/lock/nope', '/make/nope',
     '/home/nope', '/shelf/nope', '/body/nope', '/day/nope'],
   music: ['/', '/library', '/list/1'],

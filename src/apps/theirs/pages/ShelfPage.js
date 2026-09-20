@@ -45,7 +45,7 @@ export function ShelfPage({ charId }) {
       <${List}>
         <${ListItem} title="前往「一起看」的书架" arrow
           left=${html`<${Icon} name="film" size=${18}/>`}
-          onClick=${() => intent.open('theater', { route: `/shelf/${charId}` })}/>
+          onClick=${() => intent.open('theater', { route: `/shelf/${charId}`, back: true })}/>
       <//>
     <//>`;
 }
