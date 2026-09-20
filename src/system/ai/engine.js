@@ -21,18 +21,25 @@ import * as trace from './trace.js';
 // 接口协议要求带 max_tokens，取一个足够大的值，等同于不限制
 export const MAX_OUTPUT = 32000;
 
+// 只有设定区每轮都一样的那几件值得声明缓存：对话、通话、主动找你。
+// 一次性任务（总结记忆、生成相册、排行程……）的 system 每次都不同，
+// 声明了也命中不了，反而按写入价多付两成五。
+const CACHED_TASKS = new Set(['chat.reply', 'chat.call', 'chat.proactive']);
+
 /**
  * 所有发给模型的请求都从这里过。
  *
  * 只有一个目的：留一道门，好在门口记下这一轮实际发出去的是什么
  *（见 trace.js，默认关着）。分散在六处各调各的，就没有这样一个地方。
+ * 顺带在这里按任务收窄缓存声明（见 CACHED_TASKS）。
  */
 function send(taskId, c, payload, kind = 'complete') {
+  const cfg = c.cache && !CACHED_TASKS.has(taskId) ? { ...c, cache: false } : c;
   const t = trace.begin({
     taskId, preset: c.name, model: c.model,
     system: payload.system, messages: payload.messages, stream: kind === 'stream',
   });
-  return getProvider(c.provider)[kind](c, payload)
+  return getProvider(cfg.provider)[kind](cfg, payload)
     .then(text => { t.done(text); return text; })
     .catch(err => { t.fail(err); throw err; });
 }
@@ -53,7 +60,8 @@ function asConfig(preset) {
     // 不设回复上限。接口要求必须带 max_tokens，这里给到模型的上限，
     // 不作为「截断长度」暴露给用户。
     maxTokens: MAX_OUTPUT,
-    // 要不要声明缓存。provider 拿它决定 system 那一段带不带 cache_control
+    // 要不要声明缓存。provider 拿它决定 system 那一段带不带 cache_control；
+    // send() 再按任务收窄，只有对话那几件真的带（见 CACHED_TASKS）
     cache: settings.get().promptCache !== false,
   };
 }

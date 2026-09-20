@@ -3683,6 +3683,10 @@ Anthropic 的 system 带 `cache_control`（`settings.promptCache`，默认开，
 「用量与上限」）：命中按十分之一计价，没命中那一次按一点二五倍 —— 两头的账都写在
 说明上。OpenAI 是自动前缀缓存，开关不影响。
 
+**只有对话、通话、主动发起这三件带**（`engine.js` 的 `CACHED_TASKS`）。一次性任务
+（总结记忆、生成相册、排行程……）的 system 每次都不同，声明了也命中不了，只会按
+写入价多付两成五；`send()` 在交给 provider 之前把它们的 `cache` 关掉。
+
 #### 召回块：分栏，不平铺
 
 ```

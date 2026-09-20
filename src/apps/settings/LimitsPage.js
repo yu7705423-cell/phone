@@ -95,10 +95,10 @@ export function LimitsPage() {
         <${ListItem} title="缓存设定区那一段" multiline
           subtitle=${s.promptCache === false
             ? '已关闭。每一轮都按完整价格计算输入部分。'
-            : '人设、世界书、消息规则这些整轮不变的内容声明为可缓存。'
+            : '对话、通话与主动发起时，人设、世界书、消息规则这些整轮不变的内容声明为可缓存。'
               + '连续对话时重复命中，这一段按十分之一计价；'
-              + '间隔过久未命中的那一次按一点二五倍计价。仅 Anthropic 接口支持声明，'
-              + '其余接口由服务端自行处理，开关不影响。'}
+              + '间隔过久未命中的那一次按一点二五倍计价。总结记忆、生成内容等一次性任务不声明。'
+              + '仅 Anthropic 接口支持声明，其余接口由服务端自行处理，开关不影响。'}
           right=${html`<${Switch} checked=${s.promptCache !== false}
             onChange=${v => set({ promptCache: v })}/>`}/>
         <${ListItem} title="导入角色卡时生成核心设定" multiline
