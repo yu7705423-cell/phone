@@ -412,6 +412,122 @@ export function refundTicket(id, tid) {
 export const grabRequired = t =>
   !!t && (t.need || ticketKindOf(t.kind).grab);
 
+// ---- 攻略 ----
+//
+// 一条攻略条目内嵌在出行那一行里，和票一样。
+//
+// ---- 排到哪一天是一个数字 ----
+//
+// `day` 存的是**第几天**（1 起），不是日期。理由和出行那一行存
+// 'YYYY-MM-DD' 而不是时间戳是一回事的反面：这里要的恰恰是相对位置。
+// 出发日期一改，整份攻略跟着挪，不必逐条改日期 —— 而改出发日期这件事，
+// 在定下来之前是常事。
+//
+// `day` 为 0 表示还没排进哪一天。**这是常态不是缺失**：两个人一人想起一个
+// 地方先记下来，排进哪天是后面的事。
+//
+// ---- 谁加的要记着 ----
+//
+// `by` 记这一条是你加的、角色在对话里提的、还是检索出来的。
+// 「一起做攻略」这件事，看得见谁加了什么才成立 —— 一份分不出谁是谁的清单
+// 和一个人列的没有区别。
+
+export const SPOT = 'spot';     // 景点
+export const MEAL = 'meal';     // 吃饭
+export const STAY = 'stay';     // 住
+export const MOVE = 'move';     // 路上
+export const OTHER = 'other';   // 其余
+
+export const PLAN_KINDS = [
+  { id: SPOT, label: '景点', icon: 'compass' },
+  { id: MEAL, label: '餐饮', icon: 'cup' },
+  { id: STAY, label: '住宿', icon: 'home' },
+  { id: MOVE, label: '交通', icon: 'map' },
+  { id: OTHER, label: '其他', icon: 'bookmark' },
+];
+export const planKindOf = id => PLAN_KINDS.find(k => k.id === id) || PLAN_KINDS[0];
+
+// 时段沿用「一天」那一套的五档。同一件事只有一套说法
+export const SLOTS = [
+  { id: '', label: '不限' },
+  { id: 'morning', label: '上午' },
+  { id: 'noon', label: '中午' },
+  { id: 'afternoon', label: '下午' },
+  { id: 'evening', label: '晚上' },
+];
+export const slotLabel = id => (SLOTS.find(s => s.id === id) || SLOTS[0]).label;
+
+export const BY_ME = 'me';
+export const BY_CHAR = 'char';
+export const BY_SEARCH = 'search';
+
+export const planOf = id => (get(id)?.plan || []);
+export const planItemOf = (id, pid) => planOf(id).find(p => p.id === pid) || null;
+
+const planRow = (r, i, at, by, src) => ({
+  id: `pl_${at.toString(36)}_${i}`,
+  title: trim(r?.title, 40),
+  kind: PLAN_KINDS.some(k => k.id === r?.kind) ? r.kind : SPOT,
+  day: Math.max(0, Math.round(Number(r?.day) || 0)),
+  slot: SLOTS.some(s => s.id === r?.slot) ? r.slot : '',
+  place: trim(r?.place, 40),
+  price: Math.max(0, Number(r?.price) || 0),
+  open: trim(r?.open, 30),
+  note: trim(r?.note, 80),
+  by, src,
+  done: false,
+  at,
+});
+
+/** 加几条。**追加不覆盖**，和票、备忘录同一条规矩。 */
+export function addPlan(id, rows, { by = BY_ME, src = MANUAL } = {}) {
+  const row = get(id);
+  if (!row) return [];
+  const at = Date.now();
+  const have = new Set(planOf(id).map(p => p.title));
+  const clean = (rows || [])
+    .map((r, i) => planRow(r, i, at, by, src))
+    .filter(p => p.title && !have.has(p.title) && (have.add(p.title) || true));
+  if (!clean.length) return [];
+  trips.update(id, { plan: [...planOf(id), ...clean] });
+  return clean;
+}
+
+export const updatePlan = (id, pid, patch) => trips.update(id, {
+  plan: planOf(id).map(p => (p.id === pid ? { ...p, ...patch } : p)),
+});
+
+export const removePlan = (id, pid) => trips.update(id, {
+  plan: planOf(id).filter(p => p.id !== pid),
+});
+
+/**
+ * 按天分组。第 0 组是还没排进哪一天的。
+ * 每一天里按时段排，同一时段按加进来的先后。
+ */
+export function planByDay(id) {
+  const row = get(id);
+  if (!row) return [];
+  const order = SLOTS.map(s => s.id);
+  const days = Math.max(1, nights(row));
+  const bucket = n => planOf(id)
+    .filter(p => (p.day || 0) === n)
+    .sort((a, b) => (order.indexOf(a.slot) - order.indexOf(b.slot)) || (a.at - b.at));
+  const out = [{ day: 0, items: bucket(0) }];
+  for (let d = 1; d <= days; d += 1) out.push({ day: d, items: bucket(d) });
+  // 天数改短之后，排在后面那几天的条目不能凭空消失
+  const over = planOf(id).filter(p => (p.day || 0) > days);
+  if (over.length) out.push({ day: -1, items: over });
+  return out;
+}
+
+/**
+ * 攻略合计。**按两个人算** —— 门票、餐费这些是按人头的。
+ * 票款不在其中：那一笔在账本里，各有各的地方（见 spentOn）。
+ */
+export const planCost = id => Math.round(
+  planOf(id).reduce((n, p) => n + (p.price || 0), 0) * 2 * 100) / 100;
+
 // ---- 会话里那条提议 ----
 //
 // 和请客、转账同构：一条消息带着状态，收到的那一方表态，表完态落一行提示，

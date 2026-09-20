@@ -203,9 +203,15 @@ export const CAPS = [
     // 有一条提议挂着就必须是热的：它得知道「同行」「不去」怎么写，才表得了态
     hot: ({ msgs }) => usedRecently(msgs, /^trip$|[[【]旅行/)
       || hasPending(msgs, 'trip', 'trip', trip.PENDING),
-    line: () => 'Propose going somewhere together: write a line on its own,'
+    // 攻略那一行**只在有一次活着的出行时才给**。没有出行的时候告诉它
+    // 「可以往攻略里加一条」，它会往一份不存在的清单里加
+    line: ({ chat }) => 'Propose going somewhere together: write a line on its own,'
       + ' [旅行：place | when];'
-      + ' for one they proposed, write [同行] or [不去]',
+      + ' for one they proposed, write [同行] or [不去]'
+      + (chat && trip.currentOf(chat.id)
+        ? '; add somewhere to the plan for the trip already agreed with'
+          + ' [攻略：place]'
+        : ''),
     detail: () => template('skeleton.trip'),
   },
   {

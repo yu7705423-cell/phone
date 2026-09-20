@@ -4,6 +4,7 @@ import { NewPage } from './pages/NewPage.js';
 import { TripPage } from './pages/TripPage.js';
 import { TicketsPage } from './pages/TicketsPage.js';
 import { GrabPage } from './pages/GrabPage.js';
+import { PlanPage } from './pages/PlanPage.js';
 
 // 出行。**一次旅行、一场演出、一场比赛，是同一个东西。**
 //
@@ -27,6 +28,8 @@ import { GrabPage } from './pages/GrabPage.js';
 // 两个方向走的是同一套（system/trip.js 里那一段 propose/settle）。
 
 export default function TravelApp({ route }) {
+  const pl = String(route || '').match(/^\/plan\/(.+)$/);
+  if (pl) return html`<${PlanPage} tripId=${pl[1]}/>`;
   const gb = String(route || '').match(/^\/grab\/([^/]+)\/(.+)$/);
   if (gb) return html`<${GrabPage} tripId=${gb[1]} ticketId=${gb[2]}/>`;
   const tk = String(route || '').match(/^\/tickets\/(.+)$/);

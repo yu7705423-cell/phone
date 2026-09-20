@@ -115,3 +115,57 @@ export async function findTickets(tripId,
   if (!rows.length) throw new Error('这一次没有找到票，可以再试一次');
   return trip.addTickets(tripId, rows, useWeb ? trip.SEARCHED : trip.GUESSED);
 }
+
+// ---- 攻略 ----
+//
+// 和找票同一个两档：联网那一档问真实的景点、门票价与开放时间；
+// 没有联网接口就由模型按它知道的写，标成估算。
+//
+// **不问「先去哪个后去哪个」。** 排进哪一天、哪个时段，是你们两个自己的事
+// （第 16 条：不替它作判断）。模型给的每一条都落在「未排期」里，
+// 由人往某一天里放。给的 day 一律不收。
+
+/** 生成攻略条目。一次请求。 */
+export async function makePlan(tripId, { count = 8, web = true, query = '' } = {}) {
+  const row = trip.get(tripId);
+  if (!row) throw new Error('这次出行已经不在了');
+  if (!chats.get(row.chatId)) throw new Error('这段对话已经不在了');
+  const n = Math.max(1, Math.round(count) || 0);
+  const useWeb = web && searchReady();
+  if (web && !useWeb) throw new Error('尚未配置会联网搜索的接口');
+  const q = String(query || '').trim().slice(0, 80);
+  if (!q && !row.place && !row.title) throw new Error('请先填写检索内容');
+
+  const cur = currency.current();
+  const vars = {
+    place: q || row.place || row.title,
+    days: trip.nights(row) || 1,
+    count: n,
+    currency: cur.code === 'none' ? 'CNY' : cur.code,
+    existing: trip.planOf(tripId).map(p => `- ${p.title}`).join('\n') || '（还没有条目）',
+  };
+
+  const out = useWeb
+    ? await runJSONWithPreset(searchConfig(), {
+      system: fillTemplate(template('task.trip-plan'), vars),
+      key: `trip-plan:${tripId}:${Date.now()}`, maxTokens: 400 + n * 100,
+    })
+    : await runJSONTask('trip.plan', {
+      system: fillTemplate(template('task.trip-plan-guess'), vars),
+      key: `trip-plan:${tripId}:${Date.now()}`, maxTokens: 400 + n * 100,
+    });
+
+  const rows = (Array.isArray(out?.items) ? out.items : []).map(r => ({
+    title: str(r?.title),
+    kind: str(r?.kind),
+    place: str(r?.place),
+    price: Math.max(0, Number(r?.price) || 0),
+    open: str(r?.open),
+    note: str(r?.note),
+    // day 一律不收：排进哪一天是人的事
+  })).filter(r => r.title);
+
+  if (!rows.length) throw new Error('这一次没有生成出条目，可以再试一次');
+  return trip.addPlan(tripId, rows,
+    { by: trip.BY_SEARCH, src: useWeb ? trip.SEARCHED : trip.GUESSED });
+}

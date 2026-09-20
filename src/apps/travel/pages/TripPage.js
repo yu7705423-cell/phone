@@ -15,9 +15,7 @@ const { db, nav, trip, ledger, intent } = phone;
 // 还差多少**。三个数都从账本折出来。没绑账本就写明白，给一个过去绑的入口
 // —— 不在这儿另记一个「已攒多少」，那样同一笔钱会有两处。
 //
-// 票单独一页：检索、购买、退票都在那儿，这一页只摆一行摘要。
-// 攻略还没有做，所以这一页**不画那个入口** —— 画一个点进去什么也没有的
-// 格子，等于让人白点一次。
+// 票与攻略各自一页，这一页只摆一行摘要。
 
 export function TripPage({ tripId }) {
   useStore(db.trips.store);
@@ -149,6 +147,20 @@ export function TripPage({ tripId }) {
           onClick=${() => nav.push(`/tickets/${tripId}`)}/>
       <//>
 
+      <${List} title="攻略">
+        <${ListItem} title="想去的地方" arrow multiline
+          subtitle=${(() => {
+            const all = trip.planOf(tripId);
+            if (!all.length) return '还没有条目。双方都可以添加，也可以检索目的地的景点';
+            const un = all.filter(p => !p.day).length;
+            const cost = trip.planCost(tripId);
+            return `${all.length} 条${un ? `，其中 ${un} 条未排期` : ''}`
+              + `${cost > 0 ? `，合计 ${ledger.money(saving?.book?.id, cost)}` : ''}`;
+          })()}
+          left=${html`<${Icon} name="compass" size=${18}/>`}
+          onClick=${() => nav.push(`/plan/${tripId}`)}/>
+      <//>
+
       <${List} title="费用">
         ${saving ? html`
           <${ListItem} title="共同账户" multiline
@@ -195,8 +207,7 @@ export function TripPage({ tripId }) {
       </div>
 
       <div class="settings-foot">
-        进行中与已结束由日期计算得出，不需要手动切换。<br/>
-        攻略尚未提供。
+        进行中与已结束由日期计算得出，不需要手动切换。
       </div>
     <//>`;
 }

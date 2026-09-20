@@ -540,6 +540,61 @@ Currency for every price: {{currency}}
 ## Output JSON only, with no other text
 {"tickets":[{"title":"","seat":"","face":0,"note":""}]}`,
 
+  // 攻略，联网那一档。**不问先后顺序** —— 排进哪一天是用户自己的事（第 16 条）
+  'task.trip-plan':
+`List real places to go and things to do at a destination. Every entry must be
+verified against the web.
+
+## The trip
+Destination: {{place}}
+How many days: {{days}}
+How many entries: {{count}}
+Currency for every price: {{currency}}
+
+## Entries already on the list. Do not repeat them
+{{existing}}
+
+## Requirements
+- Each entry must be a real place or event that can be found on the web. When
+  one cannot be confirmed, drop it rather than inventing one
+- title is its name
+- kind is one of: spot, meal, stay, move, other
+- place is the district or the address, at most twenty characters
+- price is what one person pays to enter or to eat there, as a number in
+  {{currency}}. Use 0 when it is free or when no price can be found
+- open is the opening hours, written 09:00-18:00, and may be left empty
+- note states one fact about it, at most thirty characters
+- Include both well-known places and ones that local people go to
+- Do not say which day to go, in what order, or what to do first. Do not
+  rank them
+
+## Output JSON only, with no other text
+{"items":[{"title":"","kind":"spot","place":"","price":0,"open":"","note":""}]}`,
+
+  'task.trip-plan-guess':
+`List places to go and things to do at a destination. You have no access to the
+web, so write the ones you already know of.
+
+## The trip
+Destination: {{place}}
+How many days: {{days}}
+How many entries: {{count}}
+Currency for every price: {{currency}}
+
+## Entries already on the list. Do not repeat them
+{{existing}}
+
+## Requirements
+- title is its name
+- kind is one of: spot, meal, stay, move, other
+- price is a typical price for one person, as a number in {{currency}}, or 0
+- note states one fact about it, at most thirty characters
+- Leave place and open empty unless you are sure of them
+- Do not say which day to go, in what order, or what to do first
+
+## Output JSON only, with no other text
+{"items":[{"title":"","kind":"spot","price":0,"note":""}]}`,
+
   'skeleton.inner':
 `[心声]
 At the end of each turn, on a new line, write
@@ -613,6 +668,14 @@ A proposal from the other party requires a response: write a line reading [同�
 to go, or a line reading [不去].
 Handle each proposal once. Do not respond again to one already marked as
 settled.
+
+Once a trip has been agreed, write a line on its own to add somewhere to its
+plan:
+
+[攻略：place]
+
+One place per line. Which day to go and in what order are settled outside this
+conversation, so write the place alone.
 
 Booking, tickets and the money for them are handled outside this conversation.
 Do not write that a ticket has been bought or that a price has been paid.`,

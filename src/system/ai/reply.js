@@ -29,7 +29,7 @@ import { cropKept } from './tasks/phone.js';
 // 中英文冒号都认，方括号也认全角。
 // 「约定完成」必须排在「约定」前面 —— 交替是从左往右试的，反过来写
 // 「约定完成：早点睡」会先被「约定」吃掉，剩下「完成：早点睡」当成内容。
-const MARK = /[[【]\s*(图片|照片|image|pic|语音|voice|audio|表情|sticker|emoji|转账|transfer|位置|定位|location|礼物|gift|点歌|建歌单|约定完成|约定|pact|信|letter|事项完成|事项取消|心声|换头像|外卖|请客|代付|申请|亲属卡)\s*[:：]\s*([^\]】]+)[\]】]/gi;
+const MARK = /[[【]\s*(图片|照片|image|pic|语音|voice|audio|表情|sticker|emoji|转账|transfer|位置|定位|location|礼物|gift|点歌|建歌单|约定完成|约定|pact|信|letter|事项完成|事项取消|心声|换头像|外卖|请客|代付|申请|亲属卡|旅行|攻略)\s*[:：]\s*([^\]】]+)[\]】]/gi;
 
 const IMAGE_KINDS = new Set(['图片', '照片', 'image', 'pic']);
 const STICKER_KINDS = new Set(['表情', 'sticker', 'emoji']);
@@ -48,6 +48,7 @@ const WEAR_KINDS = new Set(['换头像']);
 const TAKEOUT_KINDS = new Map([['外卖', takeout.SELF], ['请客', takeout.TREAT], ['代付', takeout.ASK]]);
 const LIST_KINDS = new Set(['建歌单']);
 const TRIP_KINDS = new Set(['旅行']);
+const PLAN_KINDS = new Set(['攻略']);
 const ASK_KINDS = new Set(['申请']);
 const CARD_KINDS = new Set(['亲属卡']);
 
@@ -395,6 +396,8 @@ export function splitReply(raw) {
         // 去哪儿读不出来就整条丢掉。一次没有目的地的出行比少发一条更怪
         const o = trip.parse(body);
         if (o && o.where) push({ type: 'trip', ...o });
+      } else if (PLAN_KINDS.has(kind)) {
+        push({ type: 'plan', title: body.slice(0, 40) });
       } else if (TAKEOUT_KINDS.has(kind)) {
         const o = takeout.parse(body);
         // 吃什么读不出来就整条丢掉。一单没有内容的外卖比少发一条更怪
@@ -673,6 +676,19 @@ export function materialize(part, base, char) {
     return trip.propose({
       chatId: base.chatId, role: base.role, authorId: base.authorId,
       where: part.where, when: part.when, extra: row,
+    });
+  }
+  if (part.type === 'plan') {
+    // 加进眼下那一次出行的攻略里。没有活着的出行就当没说过 ——
+    // 往一份不存在的清单里加，加到哪儿去都不对
+    const live = trip.currentOf(base.chatId);
+    if (!live) return null;
+    const got = trip.addPlan(live.id, [{ title: part.title }],
+      { by: trip.BY_CHAR, src: trip.MANUAL });
+    if (!got.length) return null;
+    return messages.create({
+      ...row, kind: 'notice', status: 'done',
+      content: `[已加入攻略：${part.title}]`, tripId: live.id,
     });
   }
   if (part.type === 'trip-go') {

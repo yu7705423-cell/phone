@@ -30,7 +30,7 @@ const ROUTES = {
     '/real/:char/:chat', '/real/:char/nope', '/real/nope/:chat',
     '/lock/:char', '/lock/nope', '/make/nope',
     '/home/nope', '/shelf/nope', '/body/nope', '/day/nope'],
-  travel: ['/', '/new', '/trip/:trip', '/trip/nope', '/tickets/:trip', '/tickets/nope', '/grab/:trip/nope', '/grab/nope/nope'],
+  travel: ['/', '/new', '/trip/:trip', '/trip/nope', '/tickets/:trip', '/tickets/nope', '/grab/:trip/nope', '/grab/nope/nope', '/plan/:trip', '/plan/nope'],
   music: ['/', '/library', '/list/1'],
   bill: ['/', '/books', '/accounts', '/rules'],
   theater: ['/', '/videos', '/books', '/settings', '/watch/:chat', '/book/:ebook',
