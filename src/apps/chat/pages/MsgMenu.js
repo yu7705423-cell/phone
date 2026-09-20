@@ -139,6 +139,21 @@ export function MsgMenu({ msg, char, onClose, onRegenerate, onQuote, onMultiSele
     close();
   };
 
+  // 存成我自己的备忘。和下面那条「记住这句」是两件事：
+  // 那一条进角色的记忆、会被注入 prompt；这一条只进我的备忘，角色看不见。
+  // 存完跳到那一条的编辑页，接着写几句；退回来还是这段对话。
+  const keepNote = () => {
+    const body = (textOf(fresh) || '').trim();
+    if (!body) { toast('这一条没有可记的正文', 'error'); return; }
+    const who = fresh.role === 'user' ? '我' : (char?.name || '对方');
+    const row = phone.note.add(`${who}：${body}`, {
+      from: phone.note.FROM_CHAT,
+      chatId: fresh.chatId, charId: fresh.authorId || char?.id || '',
+    });
+    close();
+    phone.intent.open('todo', { route: `/note/${row.id}`, back: true });
+  };
+
   // 「这句你给我记住」。
   //
   // 最该被记住的那句话，永远是刚刚说完的那句。而从前要记一条得退出对话、
@@ -198,6 +213,10 @@ export function MsgMenu({ msg, char, onClose, onRegenerate, onQuote, onMultiSele
             subtitle="存成一条记忆，接着可以填关键词，或者钉成一直记着的"
             left=${html`<${Icon} name="brain" size=${18}/>`}
             onClick=${remember}/>
+          <${ListItem} title="存成备忘" multiline arrow
+            subtitle="存进「待办」中的备忘，供自己查阅。角色不会看到这一条"
+            left=${html`<${Icon} name="notes" size=${18}/>`}
+            onClick=${keepNote}/>
           ${!gone && (fresh.imageId || fresh.stickerId) ? html`
             <${ListItem} title="保存到相册" arrow multiline
               subtitle="存进相册，可在相册中归类。会话里这一条不受影响"

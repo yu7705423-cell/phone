@@ -3,7 +3,7 @@ import { phone, useStore } from '../../sdk/index.js';
 import { Page, List, ListItem, Button, Icon, IconButton, Field, Input, Textarea,
          Switch, Sheet, EmptyState, toast, confirm, prompt } from '../../ui/index.js';
 
-const { db, nav, todo, alarm, when } = phone;
+const { db, nav, todo, alarm, when, note } = phone;
 
 // 待办。用户自己的那一份 —— 角色的日程在「日常」，你们之间的约定在「你们之间」。
 //
@@ -74,6 +74,8 @@ function MainPage() {
   return html`
     <${Page} title="待办"
       right=${html`
+        <${IconButton} name="notes" label="备忘"
+          onClick=${() => nav.push('/notes')}/>
         <${IconButton} name="bell" label="系统闹钟"
           onClick=${() => nav.push('/alarm')}/>
         <${IconButton} name="settings" label="识别设置"
@@ -420,8 +422,103 @@ function AlarmPage() {
     <//>`;
 }
 
+
+// ---- 备忘 ----
+//
+// 和待办同一个 app 的两个标签页。待办是「要做的事」，备忘是「要留着的字」。
+// 角色手机里那份备忘录是角色的，和这一份无关（见 system/note.js 开头）。
+
+function NotePage() {
+  useStore(db.notes.store);
+  const [q, setQ] = useState('');
+  const list = note.search(q);
+  const total = db.notes.count();
+
+  const add = () => {
+    const row = note.add('');
+    nav.push(`/note/${row.id}`);
+  };
+
+  return html`
+    <${Page} title="备忘" onBack=${nav.pop}
+      right=${html`<button class="nav-text press" onClick=${add}>新建</button>`}>
+      ${total ? html`
+        <div class="pad-x pad-t">
+          <${Input} value=${q} placeholder="搜索备忘" onInput=${setQ}/>
+        </div>` : null}
+
+      ${list.length ? html`
+        <${List}>
+          ${list.map(r => html`
+            <${ListItem} key=${r.id} multiline title=${note.titleOf(r)}
+              subtitle=${[note.restOf(r), note.fromLabel(r.from), dayText(r.updatedAt)]
+                .filter(Boolean).join(' · ')}
+              left=${html`<${Icon} name="notes" size=${18}/>`}
+              arrow onClick=${() => nav.push(`/note/${r.id}`)}/>`)}
+        <//>`
+      : html`<${EmptyState} icon="notes"
+          title=${q ? '没有匹配的备忘' : '暂无备忘'}
+          desc=${q ? '换一个词再试。'
+            : '可在此处新建，或在对话中长按消息选择「存成备忘」。'}
+          action=${q ? null
+            : html`<${Button} size="sm" icon="plus" onClick=${add}>新建备忘<//>`}/>`}
+    <//>`;
+}
+
+function NoteEdit({ id }) {
+  useStore(db.notes.store);
+  const row = note.get(id);
+  const [busy, setBusy] = useState(false);
+  if (!row) {
+    return html`<${Page} title="备忘" onBack=${nav.pop}>
+      <${EmptyState} title="该条备忘已被删除"/><//>`;
+  }
+
+  const send = async () => {
+    setBusy(true);
+    try {
+      const done = await note.shareOut(row);
+      if (done) toast('已递给系统分享面板', 'ok');
+    } catch (err) {
+      toast(String(err.message || err), 'error', 5000);
+    } finally { setBusy(false); }
+  };
+
+  return html`
+    <${Page} title="备忘" onBack=${nav.pop}>
+      <div class="pad">
+        <${Textarea} rows=${14} value=${row.text} placeholder="随手记"
+          onInput=${v => note.update(id, v)}/>
+        <div class="settings-foot">
+          ${note.fromLabel(row.from)} · 更新于 ${dayText(row.updatedAt)}
+        </div>
+
+        ${note.canShare() ? html`
+          <${Button} full variant="ghost" icon="upload" disabled=${busy} onClick=${send}>
+            存到系统备忘录
+          <//>
+          <div class="settings-foot">
+            通过系统分享面板送出，在面板中选择「备忘录」即存入该应用。
+            系统未开放直接写入的接口，因此需要在面板中选择一次。
+          </div>` : html`
+          <div class="settings-foot">
+            当前环境没有系统分享面板，无法送入其他应用。
+          </div>`}
+
+        <${Button} full variant="danger" onClick=${async () => {
+          if (!await confirm({ title: '删除这条备忘', danger: true })) return;
+          note.remove(id);
+          nav.pop();
+        }}>删除<//>
+      </div>
+    <//>`;
+}
+
 export default function TodoApp({ route }) {
   if (route === '/detect') return html`<${DetectPage}/>`;
   if (route === '/alarm') return html`<${AlarmPage}/>`;
+  if (route === '/notes') return html`<${NotePage}/>`;
+  const one = route?.match(/^\/note\/(.+)$/);
+  if (one) return html`<${NoteEdit} id=${one[1]}/>`;
   return html`<${MainPage}/>`;
 }

@@ -38,7 +38,7 @@ const ROUTES = {
     '/reviews/book/:ebook', '/reviews/video/:video', '/para/book/:ebook/0', '/para/video/:video/1'],
   album: ['/', '/album/:alb', '/photo/:pho', '/photo/:card'],
   health: ['/', '/log', '/cycle', '/meds', '/settings', '/char/:char'],
-  todo: ['/', '/detect', '/alarm'],
+  todo: ['/', '/detect', '/alarm', '/notes'],
   settings: ['/', '/api', '/voice', '/image', '/embed', '/notify', '/music',
     '/appearance', '/storage', '/storage/files', '/trace', '/vision', '/asr', '/limits', '/search', '/translate', '/memoryapi', '/rerank', '/ban'],
 };

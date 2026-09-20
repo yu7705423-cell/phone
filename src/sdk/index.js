@@ -88,6 +88,7 @@ import * as banApi from '../system/ban.js';
 import * as todoApi from '../system/todo.js';
 import * as alarmApi from '../system/alarm.js';
 import * as whenApi from '../system/when.js';
+import * as noteApi from '../system/note.js';
 import * as grabApi from '../system/grab.js';
 import * as phoneTask from '../system/ai/tasks/phone.js';
 import * as tripTask from '../system/ai/tasks/trip.js';
@@ -265,6 +266,7 @@ export const phone = {
   todo: todoApi,
   alarm: alarmApi,
   when: whenApi,
+  note: noteApi,
   grab: grabApi,
   cardshot: cardshotApi,
   review: reviewApi,

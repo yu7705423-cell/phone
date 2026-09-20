@@ -26,6 +26,9 @@ export const events     = makeCollection('events', 'ev', { indexBy: 'cell' });
 export const days       = makeCollection('days', 'day', { indexBy: 'charId' });
 // 用户自己的待办。角色的日程是 days，你们之间的约定在 spaceItems
 export const todos      = makeCollection('todos', 'td');
+// 用户自己的备忘。和待办同一个 app 里的两个标签页，但不是一回事：
+// 待办是「要做的事」，备忘是「要留着的字」，混在一域里两边的查询都会互相绊
+export const notes      = makeCollection('notes', 'nt');
 // 食谱库按地区分，地区留空的是通用的。吃饭记录按角色分，抽的时候要回头看。
 export const recipes    = makeCollection('recipes', 'rc', { indexBy: 'region' });
 export const meals      = makeCollection('meals', 'ml', { indexBy: 'charId' });
@@ -54,7 +57,7 @@ export const phoneChats = makeCollection('phoneChats', 'pc', { indexBy: 'charId'
 // 攻略条目与票内嵌在行里：那两样总是跟着一次出行一起读、一起删
 export const trips      = makeCollection('trips', 'tr', { indexBy: 'chatId' });
 
-const COLLECTIONS = { characters, lorebooks, memories, chats, messages, moments, stickers, looks, personas, songs, playlists, videos, spaceItems, events, days, todos, recipes, meals, books, entries, ebooks, reviews, readnotes, health, cycles, meds, albums, photos, shots, phones, phoneChats, trips };
+const COLLECTIONS = { characters, lorebooks, memories, chats, messages, moments, stickers, looks, personas, songs, playlists, videos, spaceItems, events, days, todos, notes, recipes, meals, books, entries, ebooks, reviews, readnotes, health, cycles, meds, albums, photos, shots, phones, phoneChats, trips };
 
 // ---- kv: settings / persona / layout ----
 function makeKV(key, fallback, { deep = false } = {}) {
@@ -146,7 +149,7 @@ window.addEventListener('pagehide', () => { images.revokeAll(); files.revokeAll(
 
 export const db = {
   characters, lorebooks, memories, chats, messages, moments, stickers, looks, personas,
-  songs, playlists, videos, spaceItems, events, days, todos, recipes, meals,
+  songs, playlists, videos, spaceItems, events, days, todos, notes, recipes, meals,
   books, entries, ebooks, reviews, readnotes, health, cycles, meds,
   albums, photos, shots, phones, phoneChats, trips,
   images, files, settings, persona, layout,
