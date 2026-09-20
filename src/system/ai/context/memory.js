@@ -83,7 +83,9 @@ export const lineOf = m => {
   const day = dayOf(m);
   const ago = agoText(m);
   const when = day ? `${day}${ago ? ` (${ago})` : ''} ` : '';
-  return `- ${when}${m.content}`;
+  // 挂了日子的待办，把那一天也写上：这件事什么时候到，是客观事实
+  const due = m.dueAt ? ` (due ${m.dueAt})` : '';
+  return `- ${when}${m.content}${due}`;
 };
 
 // ---- 综合打分 ----
@@ -127,7 +129,39 @@ export function weightOf(m) {
   return Math.min(2, (RANK_W[m?.rank] ?? 1) * (CAT_W[m?.category] ?? 1) / 1.2);
 }
 
-export const isOpen = m => m?.category === 'pending' && !/已完结/.test(m?.content || '');
+/**
+ * 还没了结的事。
+ *
+ * 挂了日子的，**过了那一天就不再算**。一条「下周三面试」放到三个月后
+ * 还每轮往上顶，角色问一句「面试准备得怎么样」就露馅了。过期的改由
+ * 「记忆体检」那一页提出来等人复查（标已完结，或者改个日子）。
+ */
+export const DUE_GRACE = 3;
+export function isOpen(m, now = Date.now()) {
+  if (m?.category !== 'pending' || /已完结/.test(m?.content || '')) return false;
+  const due = dueTime(m);
+  return !due || now <= due + DUE_GRACE * 86400000;
+}
+
+/** 挂的那个日子。按当天结束算 —— 「周三」那天当天不算过期。 */
+export function dueTime(m) {
+  const d = String(m?.dueAt || '');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return 0;
+  const t = new Date(`${d}T23:59:59`).getTime();
+  return Number.isFinite(t) ? t : 0;
+}
+
+/**
+ * 过了期还没了结的那几条。体检页列出来等人处理。
+ *
+ * charId 留空表示不挑角色，全都要 —— listFor 的空值语义是「只要没绑角色的
+ * 那些老数据」，正好相反，所以这里不走它。
+ */
+export const overdue = (charId = '') =>
+  memories.where(m => m.category === 'pending'
+    && (!charId || !m.charId || m.charId === charId)
+    && !m.supersededBy && !/已完结/.test(m.content || '')
+    && dueTime(m) && Date.now() > dueTime(m) + DUE_GRACE * 86400000);
 
 const hourOf = t => (t ? new Date(t).getHours() : -1);
 
@@ -264,13 +298,49 @@ function note(ctx, sctx, rows, items, mode) {
 /**
  * 这一轮召回哪几条。S 级不再逐条进来 —— 它们已经压进关系底色了（见 bond.js）。
  */
+/**
+ * 保底名额。
+ *
+ * 光按分数挑会有两种偏食：
+ *
+ *   **稳定事实分普遍更高**（新近、强度都占优），于是「她是什么样的人」
+ *   把「那天发生了什么」全挤掉。可人说话时正是靠后者点睛 ——
+ *   「你上次说你怕打雷」比「你是个怕打雷的人」动人得多。
+ *
+ *   **关于她的比关于你的多**（对话里她说得多），于是角色永远在讲自己。
+ *   而恋爱里最动人的一下，是她记得你的事。
+ *
+ * 所以各留一个名额：挑完之后要是一条都没有，就把分最低的那条换下来。
+ */
+const EPISODIC = new Set(['emotion', 'relation', 'pending']);
+function quota(picked, pool, n) {
+  if (!n || picked.length < n) return picked;
+  const out = picked.slice();
+  const want = [
+    { has: r => EPISODIC.has(r.m.category), pick: r => EPISODIC.has(r.m.category) },
+    { has: r => r.m.about === 'user', pick: r => r.m.about === 'user' },
+  ];
+  for (const q of want) {
+    if (out.some(q.has)) continue;
+    const cand = pool.find(r => q.pick(r) && !out.includes(r));
+    if (!cand) continue;
+    // 换下分最低、而且不是另一个保底名额占着的那一条
+    for (let i = out.length - 1; i >= 0; i--) {
+      if (want.some(o => o !== q && o.has(out[i]) && out.filter(o.has).length === 1)) continue;
+      out.splice(i, 1, cand);
+      break;
+    }
+  }
+  return out;
+}
+
 export function recall(ctx) {
   const { settings, budgets } = ctx;
   if (!settings.memoryEnabled) return [];
   const { rows, sctx } = candidates(ctx);
   const kept = dedupe(rows, 0.55);
   const n = Math.max(0, Math.round(Number(settings.memoryTopK) || 0));
-  const picked = n ? kept.slice(0, n) : kept;
+  const picked = quota(n ? kept.slice(0, n) : kept, kept, n);
   const { items } = takeTopWithin(picked.map(x => x.m), budgets.memory, lineOf);
   note(ctx, sctx, rows, items);
   return items;

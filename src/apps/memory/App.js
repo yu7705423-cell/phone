@@ -22,6 +22,8 @@ const ownerName = m => m.charId
 function MemoryList() {
   useStore(db.memories.store);
   useStore(db.characters.store);
+  useStore(db.settings.store);
+  useStore(db.chats.store);
   const [filter, setFilter] = useState('all');
   const [who, setWho] = useState('all');
 
@@ -44,6 +46,32 @@ function MemoryList() {
   const stats = RANKS.map(r => ({ r, n: db.memories.where(m => m.rank === r).length }));
   const injected = db.memories.where(m => (m.rank === 'A' || m.rank === 'B') && !m.supersededBy).length;
   const dup = phone.memcheck.pairs('', '', 20).length;
+
+  // 自动总结默认是关的（第 15 条：会让一条消息变两次请求）。但关着的时候
+  // 从前只有会话菜单里写着一行，人翻不到那儿就永远不知道 ——
+  // 「聊了三百条，她什么都不记得」，机制上是一次提取都没发生过。
+  // 账摆在看得见的地方，开不开由用户决定。
+  const every = db.settings.get().autoSummarizeInterval || 0;
+  const auto = {
+    on: every > 0,
+    every,
+    pending: db.chats.all().reduce((n, c) => n + ai.memory.pendingOf(c.id).length, 0),
+  };
+  const toggleAuto = async () => {
+    if (auto.on) {
+      if (!await confirm({ title: '关闭自动总结',
+        message: '关闭后对话不再自动生成记忆，可在会话菜单中手动总结。' })) return;
+      db.settings.set({ autoSummarizeInterval: 0 });
+      toast('已关闭', 'ok');
+      return;
+    }
+    if (!await confirm({ title: '开启自动总结',
+      message: '每累计 6 轮角色回复自动总结一次，每次额外调用一次接口。'
+        + '轮数可在「上下文与记忆」中调整。',
+      okText: '开启' })) return;
+    db.settings.set({ autoSummarizeInterval: 6 });
+    toast('已开启', 'ok');
+  };
 
   const add = () => {
     const charId = who !== 'all' && who !== 'none' ? who : (chars[0]?.id || null);
@@ -73,6 +101,14 @@ function MemoryList() {
           （当前 ${injected} 条可被召回）；C 级仅存档。
           召回按线索、新近、分量等多项加权挑选，可在「上一轮召回」中查看当轮的选取过程。
         </div>
+        <${ListItem} title=${auto.on ? `自动总结：每 ${auto.every} 轮一次` : '自动总结：未开启'}
+          multiline arrow
+          subtitle=${auto.on
+            ? `各段对话共有 ${auto.pending} 条尚未总结。总结时额外调用一次接口。`
+            : `各段对话共有 ${auto.pending} 条尚未总结，这些内容不会成为记忆。`
+              + '开启后每累计若干轮回复自动总结一次，每次额外调用一次接口。'}
+          left=${html`<${Icon} name=${auto.on ? 'check' : 'clock'} size=${18}/>`}
+          onClick=${toggleAuto}/>
         ${dup ? html`
           <${ListItem} title=${`发现 ${dup} 组可能重复的记忆`} arrow multiline
             subtitle="同一件事留两条时，召回可能把两个版本一起送进去。点击逐组处理。"

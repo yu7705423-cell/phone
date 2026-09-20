@@ -43,6 +43,7 @@ export function CheckPage() {
   const [n, setN] = useState(0);
   const pairs = memcheck.pairs();
   const gone = memcheck.superseded();
+  const over = phone.ai.memory.overdue();
 
   return html`
     <${Page} title="记忆体检" onBack=${nav.pop}>
@@ -60,6 +61,24 @@ export function CheckPage() {
         : html`<${EmptyState} icon="check" title="没有发现重复"
             desc="库中暂时没有内容高度重合的条目。"/>`}
 
+      ${over.length ? html`
+        <${List} title=${`过期的待办 ${over.length} 条`}>
+          ${over.map(m => html`
+            <${ListItem} key=${m.id} multiline title=${m.content}
+              subtitle=${`原定 ${m.dueAt}，已经过去。不再当作未了结的事上场，等你确认`}
+              right=${html`
+                <div class="tk-acts">
+                  <${Button} size="sm" variant="ghost" onClick=${() => {
+                    db.memories.update(m.id, { content: `${m.content}（已完结）` });
+                    toast('已标为完结', 'ok');
+                  }}>已完结<//>
+                  <${Button} size="sm" variant="ghost" onClick=${() => {
+                    db.memories.update(m.id, { dueAt: '' });
+                    toast('已取消日期', 'ok');
+                  }}>去掉日期<//>
+                </div>`}/>`)}
+        <//>` : null}
+
       ${gone.length ? html`
         <${List} title=${`已让位 ${gone.length} 条`}>
           ${gone.map(m => html`
@@ -70,6 +89,7 @@ export function CheckPage() {
         <//>` : null}
 
       <div class="settings-foot">
+        挂了日期的待办过期三天后不再作为未了结的事参与召回，列在此处等待确认。<br/>
         提取记忆时会自动处理两种情况：同一槽位（职业、常住地等只有一个值的项）
         的新条目直接取代旧条目；内容几乎完全一致的两条自动合并。
         其余情况一律列在此处，由你决定。

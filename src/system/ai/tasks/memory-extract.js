@@ -126,6 +126,12 @@ export async function extract(chatId) {
       // 这件事当时的情绪强度。它是内容的客观属性（当时双方反应有多大），
       // 不是替角色判断该有多在意 —— 后者是第 16 条禁的那种
       weight: Math.min(2, Math.max(0, Number(r.weight) || 0)),
+      // 这条是关于谁的。角色记得**你**的事才是最动人的那一下，
+      // 所以召回时给「关于你的」留一个保底名额（见 context/memory.js 的配额）
+      about: ['user', 'char', 'both'].includes(r.about) ? r.about : '',
+      // 待办上挂的日子。过了就不再当成「还没了结」，改为等人复查 ——
+      // 不然三个月后它还在问面试准备得怎么样
+      dueAt: /^\d{4}-\d{2}-\d{2}$/.test(String(r.dueAt || '')) ? r.dueAt : '',
       source: 'auto',
       // 记的时间是**这批消息**发生的时间，不是总结的时间。
       // 迁进来一堆半年前的历史，今天补总结，全戳成今天就不对了 ——

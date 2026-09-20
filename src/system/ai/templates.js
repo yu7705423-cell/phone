@@ -776,6 +776,9 @@ C is for material worth filing but not worth bringing into conversation.
   0.5 for something mentioned in passing, 1 for an ordinary exchange,
   2 for a quarrel, a confession, or tears. Report what the conversation shows,
   and do not rate how important the entry ought to be
+- about says whose life the entry concerns: "user", "char", or "both"
+- dueAt applies to a pending entry with a date attached, as YYYY-MM-DD.
+  Leave it empty when the conversation gives no date
 
 ## Also extract spending mentioned in the conversation
 Every amount of money either party states they spent or received. Each entry:
@@ -789,7 +792,8 @@ was not stated, and do not convert a vague description into a figure.
 Return an empty array when none were mentioned.
 
 ## Output JSON only, with no other text
-{"memories":[{"content":"","category":"fact","rank":"A","keywords":[],"slot":"","weight":1,"updateId":""}],
+{"memories":[{"content":"","category":"fact","rank":"A","keywords":[],"slot":"","weight":1,
+               "about":"char","dueAt":"","updateId":""}],
  "spending":[{"amount":0,"note":"","who":"user","at":""}]}`,
 
   // 关系底色。S 级记忆压成几句「你们到哪一步了」——
