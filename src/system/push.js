@@ -183,21 +183,59 @@ export async function unsubscribe() {
   settings.set({ push: { ...(settings.get().push || {}), endpoint: '' } });
 }
 
+// 点通知要跳到哪一页。三条路进来（外壳、SW、冷启动那个地址），出口只有这一个
+const PENDING = 'notify-open';
+const jump = d => { if (d && d.appId) openIntent(d.appId, d.route ? { route: d.route } : null); };
+
+/**
+ * 补上在 js 起来之前点的那一下。
+ *
+ * **点通知这件事常常跑在网页前面**：外壳（或系统）先把网页重新载入，
+ * 再喊 phoneNotifyOpen；那一下落在 index.html 里那个占位函数上，存下来。
+ * 启动时不来兑现，人看到的就是「点了通知，手机只是重新刷一遍，还停在原处」。
+ *
+ * sessionStorage 那一份是为了熬过启动时那次自愈重载（见 main.js）。
+ */
+function drainPending() {
+  let d = window.__notifyOpen || null;
+  window.__notifyOpen = null;
+  if (!d) {
+    try { d = JSON.parse(sessionStorage.getItem(PENDING) || 'null'); } catch { d = null; }
+  }
+  try { sessionStorage.removeItem(PENDING); } catch { /* 隐私模式会抛 */ }
+  jump(d);
+}
+
+/**
+ * 冷启动时地址里带着要去哪儿：`#n=appId|route`。
+ *
+ * app 整个没在跑的时候，SW 只能新开一个窗口，没有谁可以 postMessage。
+ * 所以把去处写在地址上，这边读完就抹掉 —— 留着的话下次刷新又跳一次。
+ */
+function fromHash() {
+  const m = String(location.hash || '').match(/^#n=(.+)$/);
+  if (!m) return;
+  try { history.replaceState(null, '', location.pathname + location.search); } catch { /* 忽略 */ }
+  const [appId, ...rest] = decodeURIComponent(m[1]).split('|');
+  if (appId) jump({ appId, route: rest.join('|') });
+}
+
 // 点系统通知回到这边，交给 intents 统一跳转，和横幅、锁屏那条路一样
 export function installClickBridge() {
   // 原生那边点开通知之后喊这个。和下面 SW 那条走同一个出口
   if (native()) {
-    window.phoneNotifyOpen = d => {
-      if (d && d.appId) openIntent(d.appId, d.route ? { route: d.route } : null);
-    };
+    window.phoneNotifyOpen = d => jump(d);
+    drainPending();
     return;
   }
-  if (!('serviceWorker' in navigator)) return;
+  fromHash();
+  if (!('serviceWorker' in navigator)) { drainPending(); return; }
   navigator.serviceWorker.addEventListener('message', e => {
     const d = e.data || {};
     if (d.type !== 'notification-click') return;
-    if (d.appId) openIntent(d.appId, d.route ? { route: d.route } : null);
+    jump(d);
   });
+  drainPending();
 }
 
 // 系统通知开着、而且页面不在前台时，就交给系统弹，不再弹应用内横幅

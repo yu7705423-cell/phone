@@ -10,7 +10,7 @@ import { settings } from '../db/index.js';
 // **方括号标记保持中文。** 它们不是文案，是协议：reply.js 按它们切分，
 // 库里几万条历史消息里也存着它们。改了等于把旧数据全废掉。
 //
-// 提示词的编写与修订，感谢 我厌 老师的帮助。
+// 提示词的编写与修订，感谢 啵茶、我厌 两位老师的帮助。
 
 export const DEFAULT_TEMPLATES = {
 
@@ -89,6 +89,13 @@ Directly below each message you send, write one line on its own,
 [译文：that message in {{lang}}].
 One line of translation per message, in the same order, neither merged nor
 omitted.
+
+Write the line out in full, including the brackets and the 「译文：」 prefix.
+Keep each translation on that one line, however long it runs, and close the
+bracket on the same line.
+Write the translation for a message immediately after that message, before the
+next one. Do not collect them at the end of the reply.
+Do not number these lines, and do not write the prefix on a line by itself.
 
 Translate only the content of that message: no explanation, no phonetic
 annotation, no restatement of the original.

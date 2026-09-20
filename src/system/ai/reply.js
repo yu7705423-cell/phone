@@ -108,9 +108,39 @@ const KEEP_LINE = /^[[【(（]?\s*(?:存图|存照片)\s*[:：]\s*(.+?)[\]】)�
 // 引用单独成行，挂在它下面那一条上，不自己占一个气泡。
 const QUOTE_LINE = /^[[【(（]?\s*(?:引用|回复|quote)\s*[:：]\s*([^\n\]】)）]+)[\]】)）]?\s*$/i;
 
-// 译文也单独成行，但挂在它**上面**那一条上 —— 先有原文才有译文。
-// 同样不占气泡，收在消息的 translation 字段里，点原文气泡才展开。
-const TRANS_LINE = /^[[【(（]?\s*(?:译文|翻译|译|translation)\s*[:：]\s*(.+?)[\]】)）]?\s*$/i;
+// 译文也单独成行，不占气泡，收在消息的 translation 字段里，点原文气泡才展开。
+//
+// ---- 认得宽一点，宁可认错也不要漏 ----
+//
+// 认不出来的那一行会当正文渲染出去，于是屏幕上原文后面紧跟着一条一模一样
+// 意思的消息 —— 用户看到的就是「莫名其妙重复发了一遍译文」。所以这里把
+// 模型真会写出来的那几种走样都认下来：
+//
+//   1. [译文：…]   照模板写的
+//   2. 译文：…      方括号掉了
+//   3. 1. [译文：…] 前面自己加了序号
+//   4. [译文]       标签单独一行，正文在下一行
+//   5. [译文：这一句很长      整段没收尾，右括号落在下一行
+//
+// 标签四种写法（译文 / 翻译 / 译 / translation），冒号全角半角都认。
+const TRANS_HEAD = /^(?:\d+\s*[.、)）]\s*)?([[【(（]?)\s*(?:译文|翻译|译|translation)\s*([:：]?)\s*([\s\S]*)$/i;
+const CLOSER = { '[': ']', '【': '】', '(': ')', '（': '）' };
+
+/**
+ * 这一行是不是一句译文。是就给出正文，以及**这个括号在这一行里收没收口**。
+ * 没收口的要接着读下一行 —— 不然后半截会当成一条消息发出去。
+ */
+function transOf(line) {
+  const m = String(line).match(TRANS_HEAD);
+  if (!m) return null;
+  // 冒号和方括号总得有一个。两样都没有的「翻译」是角色说的话，不是标记
+  if (!m[1] && !m[2]) return null;
+  const close = CLOSER[m[1] || ''];
+  let body = (m[3] || '').trim();
+  const closed = !close || body.endsWith(close);
+  if (close && closed) body = body.slice(0, -close.length).trim();
+  return { body, close, closed };
+}
 
 // 时间行同理。让模型自己写一遍当地时间，是目前最靠谱的时间感知 ——
 // 写过一遍才算真看见。但它是给模型自己定位用的，不该显示给用户，
@@ -282,9 +312,41 @@ export function splitReply(raw) {
   // 行内译文那几条正则整轮编译一次，不要每行都重来
   const inlineForms = translate.compiled();
 
+  // 读到的译文在等一条正文（模型先写了译文、后写原文时会这样）
+  let pendingTrans = null;
+  // 括号没收口的那一句译文，接着往下读
+  let waitTrans = null;
+  // 只写了「[译文]」这个标签，正文在下一行
+  let transNext = false;
+
   const push = part => {
     if (pendingQuote) { part.quote = pendingQuote; pendingQuote = null; }
+    if (pendingTrans && part.type === 'text' && !part.translation) {
+      part.translation = pendingTrans; pendingTrans = null;
+    }
     parts.push(part);
+  };
+
+  /**
+   * 一句译文挂到哪一条上。
+   *
+   * **按出现的先后一一对上**：第 n 句译文配第 n 条还没有译文的正文。
+   * 从前是「挂到刚落下的那一条」，那只在原文与译文交替出现时才对；
+   * 模型很常见的另一种写法是**先把几条正文写完，再把译文一起补在后面**，
+   * 那时每一句译文都挂在最后那一条上，前面几条就全是空的 ——
+   * 看起来就是「一直在掉翻译」。按顺序配两种写法都对。
+   *
+   * 正文还没出现（译文写在原文上面）就先记着，下一条正文落下来时补上。
+   */
+  const attachTrans = body => {
+    const text = String(body || '').trim();
+    if (!text) return;
+    const at = parts.find(p => p.type === 'text' && !p.translation);
+    if (at) { at.translation = text; return; }
+    // 一条正文都还没有：译文写在了原文上面，记着，下一条正文落下来时补上。
+    // 已经有别的东西（图片、表情那种标记）却没有正文可配，就丢掉 ——
+    // 硬挂到后面某一条上，那一条拿到的是别人的译文，比没有更糟
+    if (!parts.length) pendingTrans = text;
   };
 
   // 按空行分段。模型经常只按单换行分，那样整轮会黏成一条 ——
@@ -295,6 +357,18 @@ export function splitReply(raw) {
     segments(chunk).forEach(seg => {
       const t = seg.trim();
       if (!t) return;
+
+      // 上一行那句译文还没收口，这一行是它的后半截。
+      // 三行还没收口就按已经读到的算数 —— 再等下去只会把正文也吞进来
+      if (waitTrans) {
+        const done = t.endsWith(waitTrans.close);
+        waitTrans.body = `${waitTrans.body} ${done ? t.slice(0, -waitTrans.close.length) : t}`.trim();
+        waitTrans.left -= 1;
+        if (done || waitTrans.left <= 0) { attachTrans(waitTrans.body); waitTrans = null; }
+        return;
+      }
+      // 上一行只写了「[译文]」这个标签，这一行就是译文正文
+      if (transNext) { transNext = false; attachTrans(t); return; }
       // 整行是个引用标记的，记下来挂到下一条上，自己不占气泡
       const q = t.match(QUOTE_LINE);
       if (q) { pendingQuote = q[1].trim(); return; }
@@ -349,11 +423,11 @@ export function splitReply(raw) {
         return;
       }
 
-      // 译文相反，挂到刚刚那一条上。前面没有正文就只能丢掉。
-      const tr = t.match(TRANS_LINE);
-      if (tr) {
-        const prev = parts[parts.length - 1];
-        if (prev) prev.translation = tr[1].trim();
+      // 译文。挂到第几条上由 attachTrans 按顺序配，这一行自己不占气泡。
+      const tv = transOf(t);
+      if (tv) {
+        if (!tv.closed) { waitTrans = { body: tv.body, close: tv.close, left: 3 }; return; }
+        if (tv.body) attachTrans(tv.body); else transNext = true;
         return;
       }
 
@@ -361,11 +435,7 @@ export function splitReply(raw) {
       // 和上面那条一样挂到上面那一条上 —— 只是它没有标签，所以得靠配置认。
       // 前面没有正文的丢掉：一句没有原文的译文挂不到任何地方
       const tline = translate.transLine(t, inlineForms);
-      if (tline) {
-        const prev = parts[parts.length - 1];
-        if (prev) prev.translation = tline;
-        return;
-      }
+      if (tline) { attachTrans(tline); return; }
 
       // 到这儿还没被任何标记认走，才轮到行内译文：用户自己配的那几个形状
       // （原文（译文）、原文｜译文 之类）。**放在最后** —— 前面那些标记的
@@ -449,6 +519,9 @@ export function splitReply(raw) {
     last = m.index + m[0].length;
   }
   pushText(text.slice(last));
+  // 括号一直没收口就按已经读到的那半句算。少半个括号也好过把半句译文
+  // 当成一条消息发出去
+  if (waitTrans) { attachTrans(waitTrans.body); waitTrans = null; }
 
   // 整轮只拆出一条纯文字、而且很长：模型没照「换行即分条」办，本地补一刀。
   // 只在这一种情况下动手 —— 它自己分好条的不碰。

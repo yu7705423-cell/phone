@@ -48,16 +48,29 @@ function boot() {
 //
 // index.html 是导航请求，浏览器对它的重新验证比对子资源积极得多，
 // 所以拿 HTML 里那行 meta 当「真实版本」，和 version.js 一比就知道缓存有没有落后。
-// 对不上就把代码全换一遍再重开。每个会话只自愈一次，免得来回刷。
+// 对不上就把代码全换一遍再重开。同一个构建号只自愈一次，免得来回刷。
 const declared = document.querySelector('meta[name="build"]')?.content || '';
 const HEALED = 'build-healed';
 
-let healedBefore = false;
-try { healedBefore = sessionStorage.getItem(HEALED) === declared; } catch { /* 隐私模式会抛 */ }
+// 记在 localStorage 里，**按构建号记**：这一版自愈过一次就不再愈第二次。
+//
+// 从前记在 sessionStorage 里。外壳重新载入网页（回到前台、点通知进来、
+// 网页进程被系统回收）都会开一个新的 session，那一份记号跟着没了，于是
+// 每次进来都要再自愈、再重载一次 —— 人看到的就是「点一下通知，小手机
+// 自己刷新了一遍」。构建号一变，这个键的值也变，该愈的下一版照样会愈。
+const readHealed = () => {
+  try { if (localStorage.getItem(HEALED) === declared) return true; } catch { /* 隐私模式会抛 */ }
+  try { return sessionStorage.getItem(HEALED) === declared; } catch { return false; }
+};
+const markHealed = () => {
+  try { localStorage.setItem(HEALED, declared); } catch { /* 同上 */ }
+  try { sessionStorage.setItem(HEALED, declared); } catch { /* 同上 */ }
+};
+const healedBefore = readHealed();
 
 if (declared && declared !== BUILD && !healedBefore) {
   console.warn(`[boot] 代码版本对不上：页面声明 ${declared}，实际加载 ${BUILD}。正在更新`);
-  try { sessionStorage.setItem(HEALED, declared); } catch { /* 同上 */ }
+  markHealed();
   render(html`
     <div class="boot">
       <span class="spinner"></span>

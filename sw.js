@@ -38,8 +38,13 @@ self.addEventListener('notificationclick', event => {
         return;
       }
     }
+    // 一个窗口都没有：只能新开一个，那就把去处写在地址里 ——
+    // 冷启动没有谁可以 postMessage，不带着这一段，点开就只是回到锁屏
     if (self.clients.openWindow) {
-      await self.clients.openWindow(info.url || './index.html');
+      const to = info.appId && info.route
+        ? `./index.html#n=${encodeURIComponent(`${info.appId}|${info.route}`)}`
+        : (info.url || './index.html');
+      await self.clients.openWindow(to);
     }
   })());
 });

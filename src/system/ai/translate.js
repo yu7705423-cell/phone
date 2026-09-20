@@ -48,6 +48,26 @@ export function payload(texts, { lang, extra } = {}) {
 }
 
 /**
+ * 把模型回来的东西理成一个数组。
+ *
+ * 要的是 `{"lines":[…]}`，但真跑起来常见另外三种：整个就是一个数组、
+ * 换了个键名、或者**整批挤在一条里用换行分开**。这三种都还原得回来，
+ * 还原不了才算没翻出来 —— 少一行译文，用户看到的就是「又掉翻译了」。
+ *
+ * 顺带把「1. 」这种序号去掉：送过去的原文是编了号的，模型常照抄回来。
+ */
+function rowsOf(out, want) {
+  let rows = Array.isArray(out) ? out
+    : Array.isArray(out?.lines) ? out.lines
+      : Array.isArray(out?.translations) ? out.translations
+        : Array.isArray(out?.output) ? out.output : [];
+  if (rows.length === 1 && want > 1 && /\n/.test(String(rows[0]))) {
+    rows = String(rows[0]).split('\n').map(x => x.trim()).filter(Boolean);
+  }
+  return rows.map(x => String(x ?? '').trim().replace(/^\d+\s*[.、)）]\s*/, ''));
+}
+
+/**
  * 翻一批。回来的数组与传入的一一对应；某一条没翻出来就是空字符串，
  * 不拿原文顶上去 —— 原文当译文比没有译文更难发现出了问题。
  */
@@ -63,7 +83,7 @@ export async function run(texts, opts = {}) {
     maxTokens: Math.max(600, list.join('').length * 4),
   });
 
-  const rows = Array.isArray(r?.lines) ? r.lines : [];
+  const rows = rowsOf(r, list.length);
   return list.map((_, i) => String(rows[i] ?? '').trim());
 }
 

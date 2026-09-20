@@ -145,7 +145,7 @@ export function TemplatesPage() {
       <//>
 
       <div class="settings-foot">
-        提示词的编写与修订，感谢 我厌 老师的帮助。
+        提示词的编写与修订，感谢 啵茶、我厌 两位老师的帮助。
       </div>
     <//>`;
 }
