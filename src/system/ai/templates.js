@@ -45,6 +45,16 @@ conform to them.`,
 `[消息规则]
 Write each reply as 3 to 5 separate messages, one per line.`,
 
+  // 用户自己列的禁写词（system/ban.js）。**内容全是用户填的**，这里只提供
+  // 装它的那句话。列表为空时整段不出现。
+  'skeleton.ban':
+`[不要写这些]
+The expressions listed below, and close variants of them, are not to appear
+anywhere in your reply:
+{{list}}
+Where one would have been used, write that line some other way. Nothing else
+about how you write changes.`,
+
   'skeleton.core':
 `[核心设定]
 {{core}}

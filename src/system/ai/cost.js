@@ -71,6 +71,13 @@ export const EXTRA_CALLS = [
     when: '每一轮各取一次查询向量（走向量接口，不是聊天接口）',
   },
   {
+    id: 'banReroll',
+    label: '写了禁写词就重新生成',
+    setting: 'banReroll', off: 0,
+    on: s => Number(s.banReroll) > 0 && (Array.isArray(s.banPhrases) ? s.banPhrases.length : 0) > 0,
+    when: s => `角色的回复命中禁写词时，最多再生成 ${Math.max(0, Math.round(Number(s.banReroll) || 0))} 次`,
+  },
+  {
     id: 'reviewAuto',
     label: '看完自动写一篇评',
     setting: 'reviewAuto', off: false,

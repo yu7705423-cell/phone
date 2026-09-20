@@ -84,6 +84,7 @@ import * as albumApi from '../system/album.js';
 import * as theirsApi from '../system/theirs.js';
 import * as tripApi from '../system/trip.js';
 import * as memcheckApi from '../system/memcheck.js';
+import * as banApi from '../system/ban.js';
 import * as grabApi from '../system/grab.js';
 import * as phoneTask from '../system/ai/tasks/phone.js';
 import * as tripTask from '../system/ai/tasks/trip.js';
@@ -257,6 +258,7 @@ export const phone = {
   theirs: theirsApi,
   trip: tripApi,
   memcheck: memcheckApi,
+  ban: banApi,
   grab: grabApi,
   cardshot: cardshotApi,
   review: reviewApi,

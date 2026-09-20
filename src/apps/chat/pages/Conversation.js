@@ -172,6 +172,9 @@ const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, onSwipe,
             <${Icon} name="refresh" size=${13}/> 重试
           </button>` : null}
 
+        ${!mine && msg.ban?.length ? html`
+          <div class="msg-ban">命中禁写：${msg.ban.join('、')}</div>` : null}
+
         ${!mine && swipes.length > 1 && msg.status === 'done' ? html`
           <div class="swipes">
             <button class="swipe-btn press" onClick=${() => onSwipe(msg, -1)}>
@@ -412,12 +415,23 @@ export function Conversation({ chatId, focusId = '' }) {
     // 不属于消息流 —— 聊天记录里凭空多一个空泡，是这个界面在说自己的事。
     // 气泡等内容真的好了再出现。
     try {
-      const text = await ai.streamReply({ chat, char });
-      const clean = String(text || '').trim();
+      // 命中禁写词就再要一次。**默认一次都不重**（第 15 条：每一次都是一整次
+      // 接口调用），要重几次在「设置 - 不要写这些」里自己填。
+      // 重掷掉的那几版留在候选里 —— 已经付过钱的东西不悄悄扔掉。
+      const tries = [];
+      let clean = '';
+      const rerolls = phone.ban.rerollMax();
+      for (let i = 0; i <= rerolls; i++) {
+        const t = String(await ai.streamReply({ chat, char }) || '').trim();
+        if (!t) break;
+        tries.push(t);
+        clean = t;
+        if (!phone.ban.scan(t).length) break;
+      }
       if (!clean) throw new Error('模型返回了空内容');
 
       const turnId = reuseTurn || phone.uid('turn');
-      const swipes = prevSwipes ? [...prevSwipes, clean] : [clean];
+      const swipes = [...(prevSwipes || []), ...tries];
       // notify：人不在这个会话里（切到别的 app、锁屏、页面在后台）时，
       // 每落一条弹一条。页面不在前台时会转成系统通知，见 system/push.js
       const made = await ai.reply.renderTurn({

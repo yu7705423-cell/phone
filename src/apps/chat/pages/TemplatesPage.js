@@ -15,6 +15,7 @@ const LABELS = {
   'skeleton.sticker': '骨架 · 可用表情',
   'skeleton.quote': '骨架 · 引用某一句',
   'skeleton.time': '骨架 · 先写出时间',
+  'skeleton.ban': '骨架 · 不要写这些',
   'skeleton.translate': '骨架 · 顺带给出译文',
   'skeleton.translate-tail': '骨架 · 译文提醒（贴着输出）',
   'task.translate': '任务 · 单独的翻译接口',

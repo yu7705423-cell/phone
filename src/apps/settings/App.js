@@ -15,6 +15,7 @@ import { VisionPage } from './VisionPage.js';
 import { AsrPage } from './AsrPage.js';
 import { MusicPage } from './MusicPage.js';
 import { LimitsPage } from './LimitsPage.js';
+import { BanPage } from './BanPage.js';
 import { SearchApiPage } from './SearchApiPage.js';
 import { TranslateApiPage } from './TranslateApiPage.js';
 import { MemoryApiPage } from './MemoryApiPage.js';
@@ -27,6 +28,7 @@ function Home() {
   // 保活现在到底在不在跑。开关打开之后屏幕上得有个地方看得出来
   const ka = useStore(phone.keepAlive.state);
   const svc = phone.ai.services;
+  const banN = phone.ban.list().length;
   const ai = phone.ai;
   const chat = svc.services().chat;
   const active = svc.activeChat();
@@ -146,6 +148,18 @@ function Home() {
           onClick=${() => nav.push('/appearance')}/>
       <//>
 
+      <${List} title="文字">
+        <${ListItem} title="不要写这些" arrow multiline
+          left=${html`<${Icon} name="filter" size=${18}/>`}
+          subtitle=${banN
+            ? `已列出 ${banN} 条，对所有角色生效。`
+              + (Number(s.banReroll) > 0
+                ? `命中时最多重新生成 ${Math.max(0, Math.round(Number(s.banReroll) || 0))} 次`
+                : '命中时在该条消息下方标注')
+            : '列出不希望角色使用的词句。列出后写入每一轮的提示词，并在回复落地时本地比对'}
+          onClick=${() => nav.push('/ban')}/>
+      <//>
+
       <${List} title="用量">
         <${ListItem} title="用量与上限" arrow multiline
           left=${html`<${Icon} name="filter" size=${18}/>`}
@@ -205,6 +219,7 @@ export default function SettingsApp({ route }) {
   if (route === '/asr') return html`<${AsrPage}/>`;
   if (route === '/music') return html`<${MusicPage}/>`;
   if (route === '/limits') return html`<${LimitsPage}/>`;
+  if (route === '/ban') return html`<${BanPage}/>`;
   if (route === '/search') return html`<${SearchApiPage}/>`;
   if (route === '/translate') return html`<${TranslateApiPage}/>`;
   if (route === '/memoryapi') return html`<${MemoryApiPage}/>`;

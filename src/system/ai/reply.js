@@ -18,6 +18,7 @@ import * as dayStore from '../day.js';
 import * as extras from '../extras.js';
 import * as avatar from '../avatar.js';
 import * as takeout from '../takeout.js';
+import * as ban from '../ban.js';
 import * as trip from '../trip.js';
 import * as translate from './translate.js';
 import * as ledger from '../ledger.js';
@@ -881,7 +882,11 @@ export function materialize(part, base, char) {
     generateVoice(msg.id, part.text, char);
     return msg;
   }
-  return messages.create({ ...row, kind: 'text', content: part.text });
+  // 命中禁写词的在消息上留个记号，气泡下方标出来。
+  // 这一道是本地扫的，不依赖模型听不听话（见 system/ban.js）
+  const banned = ban.scan(part.text);
+  return messages.create({ ...row, kind: 'text', content: part.text,
+    ...(banned.length ? { ban: banned } : {}) });
 }
 
 // 这一轮消息该不该弹通知。人正盯着这个会话看就不弹 ——

@@ -124,6 +124,10 @@ export const DEFAULT_SETTINGS = {
   // 代价是**没命中的那一次要按一点二五倍计**，所以隔很久才说一句话的人
   // 反而更贵。摆在「用量与上限」里，写清楚这笔账。
   promptCache: true,
+  // 不要写这些。默认空着 —— 内置一份就是替所有角色定文风（第 16 条）
+  banPhrases: [],
+  // 命中之后自动重掷几次。0 为只标出来，不重掷（第 15 条）
+  banReroll: 0,
 
   // 记忆
   memoryEnabled: true,

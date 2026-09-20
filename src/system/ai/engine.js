@@ -17,6 +17,7 @@ import { enqueue, cancel, isRunning, isAbort } from './queue.js';
 import { parseJSON } from './sse.js';
 import { estimate, takeLatestWithin } from './tokens.js';
 import * as trace from './trace.js';
+import * as ban from '../ban.js';
 
 // 接口协议要求带 max_tokens，取一个足够大的值，等同于不限制
 export const MAX_OUTPUT = 32000;
@@ -227,6 +228,9 @@ export function buildChatSystem(chat, char, msgs, opts = {}) {
   // 提示词代判（见 CLAUDE.md 第 16 条）。
   const core = String(char.core || '').trim();
   if (core) out += '\n\n' + fillTemplate(template('skeleton.core'), { core });
+  // 禁写词也放这儿，理由同上：它是一条约束，离输出越近越管得住。
+  // 列表空着就整段不出现 —— 默认就是空的（见 system/ban.js）
+  if (ban.on()) out += '\n\n' + fillTemplate(template('skeleton.ban'), { list: ban.promptLines() });
   if (gender) out += '\n\n' + gender;
 
   // 「对方换了头像」只该说一次。这一轮说完就记下是哪一张，下一轮它就不新了。
