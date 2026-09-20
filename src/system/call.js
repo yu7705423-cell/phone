@@ -113,6 +113,7 @@ async function playOne(text, char) {
   if (canUseApi(char)) {
     try {
       const url = await voice.speak({ text, voiceId: char.voiceId, speed: char.voiceSpeed || 1,
+        ...voice.styleFor(char),
         key: `call-tts:${Date.now()}:${Math.random()}` });
       await new Promise(resolve => {
         player = new Audio(url);

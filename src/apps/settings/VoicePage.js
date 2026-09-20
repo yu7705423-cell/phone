@@ -120,6 +120,33 @@ export function VoicePage() {
           <${Input} type="password" value=${v.apiKey} onInput=${x => svc.setVoice({ apiKey: x })}/>
         <//>
 
+        <${Field} label="语种"
+          desc=${kind.id === 'openai'
+            ? '没有单独的参数，会并入下面的风格说明一并发送。'
+            : kind.id === 'eleven'
+              ? '以语言代码发送，仅部分模型支持。'
+              : '发送给接口的语种。列表之外的写法可直接填写。'}>
+          <${Input} value=${v.lang || ''} placeholder="留空为自动"
+            onInput=${x => svc.setVoice({ lang: x })}/>
+          <div class="chip-row pad-t">
+            ${ai.voice.LANGS.map(l => html`
+              <button key=${l.id} class=${`chip${(v.lang || '') === l.id ? ' is-active' : ''}`}
+                onClick=${() => svc.setVoice({ lang: l.id })}>${l.label}</button>`)}
+          </div>
+        <//>
+
+        <${Field} label="语音风格"
+          desc=${kind.id === 'openai'
+            ? '一段说明，描述希望的语气、语速与情绪，随每次合成一并发送。'
+            : kind.id === 'minimax'
+              ? '该接口只接受固定的情绪值：高兴、难过、生气、害怕、厌恶、惊讶、平静、流畅、中性。'
+                + '填写其中之一即生效，填写其他内容不会发送。'
+              : '该接口不支持风格说明，此处填写的内容不会发送。'}>
+          <${Input} value=${v.prompt || ''}
+            placeholder=${kind.id === 'minimax' ? '例如：平静' : '例如：语速偏慢，语气温和'}
+            onInput=${x => svc.setVoice({ prompt: x })}/>
+        <//>
+
         <${Field} label="模型"
           desc=${kind.needModel ? '' : '可以留空，留空则用该账号的默认模型。'}>
           <${Input} value=${v.model} placeholder="语音合成模型名称"

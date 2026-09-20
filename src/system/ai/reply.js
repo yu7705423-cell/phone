@@ -1091,7 +1091,9 @@ async function generateVoice(msgId, text, char) {
   }
   try {
     const url = await voiceSvc.speak({
-      text, voiceId: char.voiceId, speed: char.voiceSpeed || 1, key: `msg-tts:${msgId}`,
+      text, voiceId: char.voiceId, speed: char.voiceSpeed || 1,
+      ...voiceSvc.styleFor(char),
+      key: `msg-tts:${msgId}`,
     });
     const blob = await (await fetch(url)).blob();
     URL.revokeObjectURL(url);

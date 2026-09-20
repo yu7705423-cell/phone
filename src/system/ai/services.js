@@ -5,7 +5,8 @@ import { uid } from '../store.js';
 export const EMPTY_SERVICES = {
   chat:  { presets: [], activeId: null, fallbackId: null },
   image: { presets: [], activeId: null },
-  voice: { enabled: false, kind: 'minimax', baseUrl: '', groupId: '', apiKey: '', model: '' },
+  voice: { enabled: false, kind: 'minimax', baseUrl: '', groupId: '', apiKey: '', model: '',
+    lang: '', prompt: '' },
   embed: { baseUrl: '', apiKey: '', model: '', dims: 0 },
   // 重排。向量粗筛出一批候选之后，再让它按相关度排一遍。
   // 每轮多一次请求，所以整项默认关着（rerankOn，见 ai/cost.js）

@@ -43,6 +43,65 @@ export const KINDS = [
 
 export const kindOf = id => KINDS.find(k => k.id === id) || KINDS[0];
 
+// ---- 语种 ----
+//
+// 各家收的写法不一样：MiniMax 要它自己那套英文名（language_boost），
+// ElevenLabs 要 ISO 码（language_code），OpenAI 没有这个参数、只能写进说明里。
+// 所以界面上给的是中文名，这张表负责翻成各家认的东西。
+//
+// **列表不是上限**（第 13 条）：填一个表里没有的，原样送给 MiniMax ——
+// 它认的名字比这张表长，没道理拦着。
+export const LANGS = [
+  { id: '', label: '自动', mm: '', iso: '' },
+  { id: 'zh', label: '中文', mm: 'Chinese', iso: 'zh' },
+  { id: 'yue', label: '粤语', mm: 'Chinese,Yue', iso: 'zh' },
+  { id: 'en', label: '英语', mm: 'English', iso: 'en' },
+  { id: 'ja', label: '日语', mm: 'Japanese', iso: 'ja' },
+  { id: 'ko', label: '韩语', mm: 'Korean', iso: 'ko' },
+  { id: 'es', label: '西班牙语', mm: 'Spanish', iso: 'es' },
+  { id: 'fr', label: '法语', mm: 'French', iso: 'fr' },
+  { id: 'de', label: '德语', mm: 'German', iso: 'de' },
+  { id: 'it', label: '意大利语', mm: 'Italian', iso: 'it' },
+  { id: 'pt', label: '葡萄牙语', mm: 'Portuguese', iso: 'pt' },
+  { id: 'ru', label: '俄语', mm: 'Russian', iso: 'ru' },
+  { id: 'ar', label: '阿拉伯语', mm: 'Arabic', iso: 'ar' },
+  { id: 'id', label: '印尼语', mm: 'Indonesian', iso: 'id' },
+  { id: 'th', label: '泰语', mm: 'Thai', iso: 'th' },
+  { id: 'vi', label: '越南语', mm: 'Vietnamese', iso: 'vi' },
+];
+export const langOf = v => LANGS.find(l => l.id === v || l.label === v) || null;
+
+// MiniMax 的风格只收这几个固定的值，不是自由文本。填的是它认得的词就送过去，
+// 别的就不送 —— 送一个它不认的值，整个请求会被退回来。
+const MOODS = {
+  happy: 'happy', 高兴: 'happy', 开心: 'happy',
+  sad: 'sad', 难过: 'sad', 伤心: 'sad', 低落: 'sad',
+  angry: 'angry', 生气: 'angry', 愤怒: 'angry',
+  fearful: 'fearful', 害怕: 'fearful', 恐惧: 'fearful',
+  disgusted: 'disgusted', 厌恶: 'disgusted',
+  surprised: 'surprised', 惊讶: 'surprised', 吃惊: 'surprised',
+  calm: 'calm', 平静: 'calm', 冷静: 'calm',
+  fluent: 'fluent', 流畅: 'fluent',
+  neutral: 'neutral', 中性: 'neutral', 平淡: 'neutral',
+};
+export const moodOf = t => MOODS[String(t || '').trim().toLowerCase()]
+  || MOODS[String(t || '').trim()] || '';
+
+/**
+ * 这个角色该用什么风格、什么语种说话。
+ *
+ * 角色卡上填了就用角色卡的，没填就用「设置 - 语音」里那份全局的。
+ * 这是第 5 条那张表的做法：跟角色绑死的放角色身上，全局的放设置里，
+ * 两边不是二选一，是后者兜底。
+ */
+export function styleFor(char) {
+  const v = voiceConfig();
+  return {
+    prompt: String(char?.voicePrompt || v.prompt || '').trim(),
+    lang: String(char?.voiceLang || v.lang || '').trim(),
+  };
+}
+
 /** 配全了没有。**不把可选项算成必填** —— 那正是从前那个坑。 */
 export function isVoiceReady() {
   const v = voiceConfig();
@@ -87,15 +146,23 @@ async function ask(url, init, opts) {
 //
 // POST {base}/v1/t2a_v2，Bearer 鉴权。填了 GroupId 就带上（老账号要），
 // 没填就不带（新版 key 用不着）。回来的是十六进制串，不是二进制。
-async function minimax(v, { text, voiceId, speed, signal }) {
+async function minimax(v, { text, voiceId, speed, prompt, lang, signal }) {
   const base = baseOf(v.baseUrl, 'https://api.minimaxi.com');
   const q = v.groupId ? `?GroupId=${encodeURIComponent(v.groupId)}` : '';
+  // 语种：表里有就翻成它认的英文名，表里没有就原样送 —— 它认的名字比那张表长
+  const known = langOf(lang);
+  const boost = known ? known.mm : String(lang || '').trim();
+  const mood = moodOf(prompt);
   const res = await ask(`${base}/v1/t2a_v2${q}`, {
     method: 'POST', signal,
     headers: { 'content-type': 'application/json', authorization: `Bearer ${v.apiKey}` },
     body: JSON.stringify({
       model: v.model, text, stream: false,
-      voice_setting: { voice_id: voiceId || '', speed, vol: 1, pitch: 0 },
+      voice_setting: {
+        voice_id: voiceId || '', speed, vol: 1, pitch: 0,
+        ...(mood ? { emotion: mood } : {}),
+      },
+      ...(boost ? { language_boost: boost } : {}),
       audio_setting: { format: 'mp3', sample_rate: 32000 },
     }),
   });
@@ -112,15 +179,22 @@ async function minimax(v, { text, voiceId, speed, signal }) {
 // ---- OpenAI 兼容 ----
 //
 // POST {base}/audio/speech，回来的直接就是音频字节。中转站基本都实现了这个。
-async function openai(v, { text, voiceId, speed, signal }) {
+async function openai(v, { text, voiceId, speed, prompt, lang, signal }) {
   const base = baseOf(v.baseUrl, 'https://api.openai.com/v1');
   const url = /\/v\d+$/.test(base) ? `${base}/audio/speech` : `${base}/v1/audio/speech`;
+  // 这一家的风格是**自由文本**（instructions）。语种它没有单独的参数，
+  // 所以拼进同一句里 —— 那本来就是一句给模型看的说明
+  // 「自动」是「不指定」，不是一个语种名 —— 表里那一条的 id 是空的
+  const known = langOf(lang);
+  const name = known ? (known.id ? known.label : '') : String(lang || '').trim();
+  const say = [prompt, name ? `用${name}朗读。` : ''].filter(Boolean).join(' ').trim();
   const res = await ask(url, {
     method: 'POST', signal,
     headers: { 'content-type': 'application/json', authorization: `Bearer ${v.apiKey}` },
     body: JSON.stringify({
       model: v.model, input: text,
       voice: voiceId || 'alloy', speed, response_format: 'mp3',
+      ...(say ? { instructions: say } : {}),
     }),
   });
   return new Blob([await res.arrayBuffer()], { type: 'audio/mpeg' });
@@ -130,7 +204,7 @@ async function openai(v, { text, voiceId, speed, signal }) {
 //
 // POST {base}/v1/text-to-speech/{voiceId}，鉴权走 xi-api-key 这个自家的头，
 // 不是 Bearer。同样直接回音频字节。
-async function eleven(v, { text, voiceId, speed, signal }) {
+async function eleven(v, { text, voiceId, speed, lang, signal }) {
   const base = baseOf(v.baseUrl, 'https://api.elevenlabs.io');
   if (!voiceId) throw new Error('这一家要求填写音色 id');
   const res = await ask(`${base}/v1/text-to-speech/${encodeURIComponent(voiceId)}`, {
@@ -139,6 +213,8 @@ async function eleven(v, { text, voiceId, speed, signal }) {
     body: JSON.stringify({
       text,
       ...(v.model ? { model_id: v.model } : {}),
+      // 这一家收的是 ISO 码，而且只有部分模型认。没有自由文本那种风格参数
+      ...(langOf(lang)?.iso ? { language_code: langOf(lang).iso } : {}),
       voice_settings: { stability: 0.5, similarity_boost: 0.75, speed },
     }),
   });
@@ -148,12 +224,15 @@ async function eleven(v, { text, voiceId, speed, signal }) {
 const RUN = { minimax, openai, eleven };
 
 /** 合成一段。回来的是一个可以直接播的 URL。 */
-export function speak({ text, voiceId, speed = 1, key }) {
+export function speak({ text, voiceId, speed = 1, prompt = '', lang = '', key }) {
   const v = voiceConfig();
   if (!v.apiKey) throw new Error('还没有配置语音接口');
+  // 没指名道姓给风格和语种时，用全局那份 —— 试听、以及任何不带角色的调用
+  // 都该和真正说话时是同一套，不然听到的和用到的不是一回事
+  const style = { prompt: prompt || v.prompt || '', lang: lang || v.lang || '' };
   const run = RUN[kindOf(v.kind).id];
   return enqueue(key || `tts:${Date.now()}`, async signal => {
-    const blob = await run(v, { text, voiceId, speed, signal });
+    const blob = await run(v, { text, voiceId, speed, ...style, signal });
     return URL.createObjectURL(blob);
   }, { retries: 0 });
 }

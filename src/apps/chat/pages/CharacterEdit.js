@@ -104,6 +104,25 @@ export function CharacterEdit({ id }) {
             onInput=${v => patch({ voiceId: v })}/>
         <//>
 
+        <${Field} label="语种"
+          desc="留空则使用「设置 - 语音」中的全局语种。列表之外的写法可直接填写。">
+          <${Input} value=${char.voiceLang || ''} placeholder="留空则跟随全局"
+            onInput=${v => patch({ voiceLang: v })}/>
+          <div class="chip-row pad-t">
+            ${phone.ai.voice.LANGS.filter(l => l.id).map(l => html`
+              <button key=${l.id} class=${`chip${char.voiceLang === l.id ? ' is-active' : ''}`}
+                onClick=${() => patch({ voiceLang: char.voiceLang === l.id ? '' : l.id })}
+                >${l.label}</button>`)}
+          </div>
+        <//>
+
+        <${Field} label="语音风格"
+          desc=${'这个角色说话的语气，随每次合成一并发送。留空则使用「设置 - 语音」中的全局风格。'
+            + '各家接口支持的程度不同，具体在那一页中说明。'}>
+          <${Input} value=${char.voicePrompt || ''} placeholder="留空则跟随全局"
+            onInput=${v => patch({ voicePrompt: v })}/>
+        <//>
+
         <${Field} label=${`语速　${(char.voiceSpeed ?? 1).toFixed(2)}`} desc="1 为正常语速">
           <input type="range" min="0.5" max="2" step="0.05" value=${char.voiceSpeed ?? 1}
             onInput=${e => patch({ voiceSpeed: parseFloat(e.target.value) })}/>
