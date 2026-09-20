@@ -50,7 +50,7 @@ export function NotifyPage() {
     const char = chat ? db.characters.get((chat.characterIds || [])[0]) : null;
     notify({
       title: char?.name || '林晓',
-      body: char ? '在干嘛' : '这是一条测试通知，点一下会跳进聊天',
+      body: char ? '这是一条测试通知' : '这是一条测试通知，点击后会进入聊天',
       icon: 'message', appId: 'chat', avatar: char?.avatar,
       payload: chat ? { route: `/chat/${chat.id}` } : null,
     });

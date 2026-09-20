@@ -118,7 +118,7 @@ export function FoodPage({ region = '' }) {
         <div class="pad-x pad-t">
           <div class="hint-box">
             共 ${list.length} 条。角色吃到的是「所在地区」这一批加上不分地区的那一批。
-            最近吃过的会被压一压，但不会被封杀 —— 爱吃的仍然会常出现。
+            最近吃过的会被降低权重，但不会被排除，偏好的食物仍然会常出现。
           </div>
         </div>
         <${List}>
@@ -135,7 +135,7 @@ export function FoodPage({ region = '' }) {
       : html`<${EmptyState} icon="cup" title="这一批还是空的"
           desc=${region
             ? `${region}的常见食物。可以手动添加，也可以批量生成。`
-            : '哪儿都吃得到的那些。所有角色都会从这一批里抽。'}
+            : '各地都常见的那些。所有角色都会从这一批里抽取。'}
           action=${html`<${Button} size="sm" onClick=${() => setGen(true)}>批量生成<//>`}/>`}
 
       <${Editor} open=${open} region=${region} item=${editing}

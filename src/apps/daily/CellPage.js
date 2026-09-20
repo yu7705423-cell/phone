@@ -25,7 +25,7 @@ function Editor({ open, domain, tone, item, onClose }) {
     <${Sheet} open=${open} onClose=${onClose} title=${item ? '编辑词条' : '添加词条'}>
       <div class="pad">
         <${Field} label="事件"
-          desc="一句话，写事情本身。不写心情，不写是谁 —— 抽中后它会落到某个角色的那一天。">
+          desc="一句话，写事情本身。不写心情，不写是谁。抽中后它会落到某个角色的那一天。">
           <${Input} value=${cur.text} onInput=${v => set({ text: v })}
             placeholder="例如：地铁误点了二十分钟"/>
         <//>

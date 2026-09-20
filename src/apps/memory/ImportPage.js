@@ -112,7 +112,7 @@ export function ImportPage() {
           <//>
         </div>
         <div class="settings-foot">
-          拆分用的是聊天接口那个模型，不是向量接口 —— 向量接口只负责把文字变成向量。<br/>
+          拆分使用聊天接口的模型，不是向量接口。向量接口只负责把文字转换为向量。<br/>
           ${vecHint}
         </div>
       `}

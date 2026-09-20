@@ -1066,7 +1066,7 @@ export function Conversation({ chatId, focusId = '' }) {
             subtitle=${(() => {
               const mode = pace.modeOf(chat);
               const m = mode === pace.NOW ? '发完就回'
-                : mode === pace.PACED ? '过一会儿才回' : '按按钮才回';
+                : mode === pace.PACED ? '延迟回复' : '按按钮才回';
               return `${m}${autoReply.bannerOf(chat) ? ' · ' + autoReply.bannerOf(chat) : ''}`;
             })()}
             left=${html`<${Icon} name="clock" size=${18}/>`}

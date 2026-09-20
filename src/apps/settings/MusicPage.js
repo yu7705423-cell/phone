@@ -62,7 +62,7 @@ export function MusicPage() {
       <div class="pad">
         <${Field} label="接口地址"
           desc=${`指向一个 NeteaseCloudMusicApi 服务，填写至端口为止。`
-            + `可以自行部署，也可以填写他人公开的实例 —— 后者不需要维护，`
+            + `可以自行部署，也可以填写他人公开的实例。后者不需要维护，`
             + `但随时可能停止服务或限流。填写后请先测试。`}>
           <${Input} value=${cfg.baseUrl} placeholder="https://music.example.com"
             onInput=${v => { svc.setNetease({ baseUrl: v }); setRows(null); }}/>

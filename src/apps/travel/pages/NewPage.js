@@ -74,7 +74,7 @@ export function NewPage() {
         <//>
       </div>
 
-      <${List} title="和谁一起">
+      <${List} title="同行的人">
         ${pairs.map(p => html`
           <${ListItem} key=${p.chat.id} title=${p.char.name}
             left=${html`<${Avatar} name=${p.char.name} size=${32}/>`}
@@ -84,14 +84,14 @@ export function NewPage() {
       <//>
 
       <div class="pad-x pad-t">
-        <${Field} label=${k.what} desc="地点或场馆所在的城市。">
+        <${Field} label=${k.what} desc="地点，或场馆所在的城市。">
           <${Input} value=${place} onInput=${setPlace}/>
         <//>
         <${Field} label="名称" desc="留空时使用上面填写的地点。">
           <${Input} value=${title} onInput=${setTitle}/>
         <//>
-        <${Field} label="什么时候"
-          desc="提议时说给对方听的时间，可以写得笼统。确切的出发日期在详情页中填写。">
+        <${Field} label="时间"
+          desc="向对方提出的时间，可以不精确。确切的出发日期在详情页中填写。">
           <${Input} value=${when} onInput=${setWhen}/>
         <//>
       </div>

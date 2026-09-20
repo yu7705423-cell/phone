@@ -19,8 +19,8 @@ export function TripBubble({ msg, onSettle }) {
   const actionable = pending && msg.role !== 'user' && onSettle;
   const row = msg.tripId ? trip.get(msg.tripId) : null;
   const foot = pending ? (actionable ? '点击回应' : '等待回应')
-    : msg.trip === trip.JOINED ? (row ? '已说好 · 点击查看' : '已说好')
-    : '没有去成';
+    : msg.trip === trip.JOINED ? (row ? '已同意 · 点击查看' : '已同意')
+    : '未同意';
   const open = () => {
     if (actionable) { onSettle(msg); return; }
     if (row) intent.open('travel', { route: `/trip/${row.id}`, back: true });
@@ -47,15 +47,15 @@ export function TripSettleSheet({ msg, onClose }) {
   return html`
     <${Sheet} open=${!!msg} onClose=${onClose}
       title=${`${char?.name || '对方'}提议一起去${msg.where}`}>
-      ${msg.when ? html`<div class="settings-foot">说的时间：${msg.when}</div>` : null}
+      ${msg.when ? html`<div class="settings-foot">提出的时间：${msg.when}</div>` : null}
       <${List} inset=${false}>
         <${ListItem} title="同行" arrow
           left=${html`<${Icon} name="check" size=${18}/>`} onClick=${() => act(true)}/>
-        <${ListItem} title="不去" arrow
+        <${ListItem} title="不同行" arrow
           left=${html`<${Icon} name="close" size=${18}/>`} onClick=${() => act(false)}/>
       <//>
       <div class="settings-foot">
-        答应之后会在「出行」中建立一次出行，日期与预算在那里填写。回应结果会告知对方。
+        同意后会在「出行」中建立一次出行，日期与预算在该处填写。回应结果会告知对方。
       </div>
     <//>`;
 }

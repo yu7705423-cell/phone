@@ -52,7 +52,7 @@ export function TranslateApiPage() {
   return html`
     <${Page} title="翻译" onBack=${nav.pop}>
       <div class="pad">
-        <${Field} label="译文从哪儿来"
+        <${Field} label="译文的来源"
           desc=${mode === 'api'
             ? '每轮回复另外调用一次下面这套接口，只发送原文与翻译规则。'
               + '角色人设、记忆与对话历史不会发送给它。费用与聊天接口分开计算。'

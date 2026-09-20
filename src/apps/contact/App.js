@@ -412,7 +412,7 @@ function MePage({ id }) {
         <div class="settings-foot">
           这是「${accounts.rootOf(me.id)?.name}」的小号。<br/>
           用它去找角色聊天时，角色自己的经历和它跟大号之间的事都还记得，
-          但不知道眼前这个人就是大号 —— 对它来说你是个陌生人。
+          但不知道眼前这个人就是大号。对它来说你是陌生人。
         </div>` : html`
         <${List} title=${`小号 · ${alts.length}`}>
           ${alts.map(a => html`

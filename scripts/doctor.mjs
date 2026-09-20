@@ -9,6 +9,7 @@ import { check as build } from './check-build.mjs';
 import { check as longpress } from './check-longpress.mjs';
 import { check as dead } from './check-dead.mjs';
 import { check as promptTone } from './check-prompt-tone.mjs';
+import { check as uiTone } from './check-ui-tone.mjs';
 import { check as calls } from './check-calls.mjs';
 import { check as backupAll } from './check-backup.mjs';
 
@@ -22,6 +23,7 @@ failed += report('模块边界', boundaries());
 failed += report('设计令牌', tokens());
 failed += report('长按禁选', longpress());
 failed += report('提示词是书面语', promptTone());
+failed += report('界面文案是书面语', uiTone());
 failed += report('接口调用次数', calls());
 failed += report('备份完整性', backupAll());
 failed += report('死导出', dead());

@@ -72,7 +72,7 @@ function AddSheet({ open, onClose }) {
       ` : html`
         <div class="pad-x pad-t">
           <${Field} label="选一个文件"
-            desc="支持 txt 与 epub。txt 会自动判断编码，GBK 与 UTF-8 都读得了。">
+            desc="支持 txt 与 epub。txt 会自动判断编码，GBK 与 UTF-8 均可读取。">
             <${Button} full variant="ghost" icon="upload" disabled=${busy}
               onClick=${() => fileRef.current?.click()}>
               ${busy ? html`<${Spinner} size=${15}/> 正在读` : '选文件'}

@@ -34,7 +34,7 @@ function subtitleOf(row) {
   } else if (row.from) {
     bits.push(row.from);
   }
-  if (phase === trip.TALKING && !row.agreed) bits.push('对方还没答应');
+  if (phase === trip.TALKING && !row.agreed) bits.push('对方尚未回应');
   return bits.join(' · ');
 }
 
@@ -57,7 +57,7 @@ export function ListPage() {
     return html`
       <${Page} title="出行" right=${add}>
         <${EmptyState} icon="compass" title="还没有出行计划"
-          desc="新建一次出行，或者在聊天中由角色提出。出行的花费记在这段对话绑定的账本上。"
+          desc="新建一次出行，或在聊天中由角色提出。出行的支出记在该段对话绑定的账本上。"
           action=${html`<${Button} size="sm" icon="plus"
             onClick=${() => nav.push('/new')}>新建<//>`}/>
       <//>`;
@@ -79,8 +79,8 @@ export function ListPage() {
           <//>`;
       })}
       <div class="settings-foot">
-        进行中与待出发由出发日期算出，不需要手动切换。
-        出行的花费记在该段对话绑定的账本上，此处不另记金额。
+        进行中与待出发由出发日期计算得出，不需要手动切换。
+        出行的支出记在该段对话绑定的账本上，此处不另记金额。
       </div>
     <//>`;
 }

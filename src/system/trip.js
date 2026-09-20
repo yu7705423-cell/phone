@@ -33,9 +33,9 @@ export const TRIP = 'trip';     // 旅行
 export const SHOW = 'show';     // 看演出
 export const MATCH = 'match';   // 看比赛
 export const KINDS = [
-  { id: TRIP, label: '旅行', icon: 'compass', what: '去哪儿' },
-  { id: SHOW, label: '看演出', icon: 'music', what: '看谁' },
-  { id: MATCH, label: '看比赛', icon: 'star', what: '看哪一场' },
+  { id: TRIP, label: '旅行', icon: 'compass', what: '目的地' },
+  { id: SHOW, label: '看演出', icon: 'music', what: '演出' },
+  { id: MATCH, label: '看比赛', icon: 'star', what: '赛事' },
 ];
 export const kindOf = id => KINDS.find(k => k.id === id) || KINDS[0];
 
@@ -267,8 +267,8 @@ export function namesOf(chat) {
 // 上下文里的写法。模型读到的和它自己该写的是同一套格式
 function contentOf({ where, when, state }) {
   const head = `[旅行：${where}${when ? ` | ${when}` : ''}]`;
-  if (state === JOINED) return `${head}（说好了）`;
-  if (state === REFUSED) return `${head}（没去成）`;
+  if (state === JOINED) return `${head}（已同意）`;
+  if (state === REFUSED) return `${head}（未同意）`;
   return head;
 }
 
@@ -285,7 +285,7 @@ export function parse(body) {
 /** 提一次。谁提的看 role。 */
 export function propose({ chatId, role, authorId, where, when = '', extra = {} }) {
   const w = trim(where, 40);
-  if (!w) throw new Error('请填写去哪儿');
+  if (!w) throw new Error('请填写目的地');
   const msg = messages.create({
     chatId, role, authorId, kind: 'trip',
     where: w, when: trim(when, 40), trip: PENDING,
@@ -343,7 +343,7 @@ export function settle(msgId, join, extra = {}) {
         chatId: m.chatId,
         title: m.where,
         place: m.where,
-        note: m.when ? `说好的时间：${m.when}` : '',
+        note: m.when ? `约定的时间：${m.when}` : '',
         proposedBy: m.role === 'user' ? 'me' : 'char',
         agreed: true,
       });
@@ -358,7 +358,7 @@ export function settle(msgId, join, extra = {}) {
     role: byUser ? 'user' : 'char',
     authorId: byUser ? 'me' : charId,
     kind: 'notice', settledId: msgId, settledKind: 'trip', tripId, tripMade: made,
-    content: `[${who}${join ? '答应一起去' : '没有答应去'}${m.where}]`,
+    content: `[${who}${join ? '同意一同前往' : '未同意前往'}${m.where}]`,
     status: 'done', ...extra,
   });
   chats.update(m.chatId, { lastMessageAt: Date.now() });

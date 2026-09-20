@@ -8,14 +8,14 @@ const { db, nav, pace, autoReply } = phone;
 const MODES = [
   { value: pace.MANUAL, label: '按按钮' },
   { value: pace.NOW, label: '发完就回' },
-  { value: pace.PACED, label: '过一会儿' },
+  { value: pace.PACED, label: '延迟回复' },
 ];
 
 // 三档一次列全，不是只讲当前那一档：选之前就该看得见各自什么行为。
 const MODE_DESC = `按按钮：发出去只是发出去，什么时候回由你按发送键右边那个按钮决定。
 发完就回：消息一发出去就立刻生成回复。
-过一会儿：消息发出去后等一段时间再回。等多久由本地计算，不消耗额外的接口调用，
-也不由模型决定 —— 时段、角色当时的安排、运势、以及这条消息本身是长是短、
+延迟回复：消息发出后等待一段时间再回。等待时长由本地计算，不消耗额外的接口调用，
+也不由模型决定。时段、角色当时的安排、运势、以及这条消息本身是长是短、
 有没有问号，都会影响。`;
 
 const toLocalInput = ms => {
@@ -51,7 +51,7 @@ function AutoSide({ chatId, chat, side, title, desc }) {
 
       <${Field} label="最多回几条"
         desc=${`一个开启窗口内最多自动回这么多条，达到后自动关闭并在对话中留下提示。`
-          + `填 0 表示不限条数 —— 双方都开着自动回复时会一直回下去，请谨慎。`}>
+          + `填 0 表示不限条数。双方同时开启自动回复时会持续往返，请谨慎设置。`}>
         <${NumberInput} unit="条" value=${c.max} placeholder="不限"
           onChange=${v => set({ max: v })}/>
       <//>
@@ -137,7 +137,7 @@ export function PacePage({ chatId }) {
 
       <div class="settings-foot">
         双方的自动回复不会互相触发，因此不会来回刷屏。条数与结束时间任一达到即自动关闭，
-        并在对话中留下一行提示 —— 以免长时间开着而不自知。
+        并在对话中留下一行提示，以免长时间开启而不自知。
         角色是否在深夜主动发起对话，在「主动发起对话」中设置。
       </div>
     <//>`;

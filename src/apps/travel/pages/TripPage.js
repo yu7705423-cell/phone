@@ -11,7 +11,7 @@ const { db, nav, trip, ledger, intent } = phone;
 // 那几个不是存的字段，是按日期现算的 —— 存了就要有人负责在日子过去时
 // 把它改掉，而那个人迟早会漏（和余额不入库同一条理由）。
 //
-// 钱那一段只显示，不在这里记：**共同账户里有多少、这次已经花了多少、
+// 费用那一段只显示，不在这里记：**共同账户里有多少、这次已经花了多少、
 // 还差多少**。三个数都从账本折出来。没绑账本就写明白，给一个过去绑的入口
 // —— 不在这儿另记一个「已攒多少」，那样同一笔钱会有两处。
 //
@@ -43,14 +43,14 @@ export function TripPage({ tripId }) {
   const set = patch => trip.update(tripId, patch);
 
   const doBook = () => {
-    try { trip.book(tripId); toast('已定下来', 'ok'); }
+    try { trip.book(tripId); toast('行程已确定', 'ok'); }
     catch (e) { toast(String(e.message || e), 'error', 4000); }
   };
 
   const doDrop = async () => {
     if (!await confirm({
       title: '取消这次出行', danger: true, okText: '取消出行',
-      message: '记录会保留，可以重新启用。已经记在账本上的花费不受影响。',
+      message: '记录会保留，可以重新启用。已记入账本的支出不受影响。',
     })) return;
     trip.drop(tripId);
   };
@@ -58,7 +58,7 @@ export function TripPage({ tripId }) {
   const doRemove = async () => {
     if (!await confirm({
       title: '删除这次出行', danger: true, okText: '删除',
-      message: '删除后无法恢复。已经记在账本上的花费会保留在账本中。',
+      message: '删除后无法恢复。已记入账本的支出将保留在账本中。',
     })) return;
     trip.remove(tripId);
     nav.pop();
@@ -66,7 +66,7 @@ export function TripPage({ tripId }) {
 
   // 上面那一行状态：写算出来的数，不写形容
   const head = (() => {
-    if (phase === trip.TALKING) return row.agreed ? '已说好，等定日期' : '商量中';
+    if (phase === trip.TALKING) return row.agreed ? '已同意，待确定日期' : '商量中';
     if (phase === trip.SOON) {
       const d = trip.daysUntil(row);
       return d === 0 ? '今天出发' : d != null ? `还有 ${d} 天出发` : '已定，日期待定';
@@ -108,15 +108,15 @@ export function TripPage({ tripId }) {
           <${Field} label="场馆" desc="看演出或看比赛时填写。旅行可以留空。">
             <${Input} value=${row.venue} onInput=${v => set({ venue: v })}/>
           <//>
-          <${Field} label="出发日期" desc="格式为 2026-10-03。定下来之前可以留空。">
+          <${Field} label="出发日期" desc="格式为 2026-10-03。确定行程之前可以留空。">
             <${Input} value=${row.from} placeholder="2026-10-03"
               onInput=${v => set({ from: v })}/>
           <//>
-          <${Field} label="返回日期" desc="留空按一天算。填反了会自动调换。">
+          <${Field} label="返回日期" desc="留空时按一天计算。两个日期顺序颠倒时会自动调换。">
             <${Input} value=${row.to} placeholder="2026-10-07"
               onInput=${v => set({ to: v })}/>
           <//>
-          <${Field} label="预算" desc="这次出行打算花多少。用于算还差多少，不限制实际花费。">
+          <${Field} label="预算" desc="本次出行的预算金额。用于计算尚缺金额，不限制实际支出。">
             <${Input} type="number" inputmode="decimal" value=${row.budget || ''}
               onInput=${v => set({ budget: v })}/>
           <//>
@@ -127,8 +127,8 @@ export function TripPage({ tripId }) {
 
       <${List} title="同行">
         <${ListItem} title=${char?.name || '这段对话已经不在了'}
-          subtitle=${row.agreed ? '已答应同行'
-            : row.proposedBy === 'char' ? '由该角色提出' : '尚未答应'}
+          subtitle=${row.agreed ? '已同意同行'
+            : row.proposedBy === 'char' ? '由该角色提出' : '对方尚未回应'}
           left=${html`<${Icon} name="users" size=${18}/>`}
           arrow=${!!chat}
           onClick=${chat
@@ -136,38 +136,38 @@ export function TripPage({ tripId }) {
             : null}/>
       <//>
 
-      <${List} title="钱">
+      <${List} title="费用">
         ${saving ? html`
           <${ListItem} title="共同账户" multiline
             subtitle=${saving.joint
               ? `余额 ${money(saving.have)}`
-              : '这本账上还没有共同账户。出行的花费需要一个共同账户来结算'}
+              : '这本账上还没有共同账户。出行的支出需要一个共同账户来结算'}
             left=${html`<${Icon} name="wallet" size=${18}/>`}
             arrow onClick=${() => intent.open('bill', { route: '/accounts', back: true })}/>
-          <${ListItem} title="这次已花" multiline
+          <${ListItem} title="本次支出" multiline
             subtitle=${spent > 0
               ? `${money(spent)}，共 ${trip.entriesOf(tripId).length} 笔`
-              : '还没有记在这次出行名下的花费'}
+              : '尚无记在本次出行名下的支出'}
             left=${html`<${Icon} name="filter" size=${18}/>`}/>
           ${row.budget > 0 ? html`
-            <${ListItem} title="还差" multiline
+            <${ListItem} title="尚缺" multiline
               subtitle=${saving.short > 0
-                ? `${money(saving.short)}。预算 ${money(row.budget)}，共同账户里有 ${money(saving.have)}`
-                : `够了。预算 ${money(row.budget)}，共同账户里有 ${money(saving.have)}`}
+                ? `${money(saving.short)}。预算 ${money(row.budget)}，共同账户余额 ${money(saving.have)}`
+                : `预算已满足。预算 ${money(row.budget)}，共同账户余额 ${money(saving.have)}`}
               left=${html`<${Icon} name="check" size=${18}/>`}/>` : null}`
         : html`
           <${ListItem} title="这段对话还没有账本" multiline
-            subtitle="出行的花费记在账本上，攒钱用的是共同账户。在「记账」中新建一本并绑定这段对话。"
+            subtitle="本次出行的支出记在账本上，储蓄使用共同账户。请在「记账」中新建一本并绑定这段对话。"
             left=${html`<${Icon} name="wallet" size=${18}/>`}
             arrow onClick=${() => intent.open('bill', { route: '/books', back: true })}/>`}
       <//>
 
       <div class="pad">
         ${phase === trip.TALKING ? html`
-          <${Button} full onClick=${doBook}>定下来<//>` : null}
+          <${Button} full onClick=${doBook}>确定行程<//>` : null}
         ${phase === trip.SOON || phase === trip.GOING ? html`
           <${Button} full variant="ghost"
-            onClick=${() => trip.undoBook(tripId)}>改回商量中<//>` : null}
+            onClick=${() => trip.undoBook(tripId)}>恢复为商量中<//>` : null}
         ${phase === trip.DROPPED ? html`
           <${Button} full variant="ghost"
             onClick=${() => trip.undrop(tripId)}>重新启用<//>` : null}
@@ -182,8 +182,8 @@ export function TripPage({ tripId }) {
       </div>
 
       <div class="settings-foot">
-        进行中与已结束由日期算出，不需要手动切换。<br/>
-        票与攻略尚未做到这一批，这一页暂时只有行程与钱。
+        进行中与已结束由日期计算得出，不需要手动切换。<br/>
+        票务与攻略尚未提供，本页目前只包含行程与费用。
       </div>
     <//>`;
 }

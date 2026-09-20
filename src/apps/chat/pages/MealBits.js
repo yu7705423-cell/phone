@@ -149,12 +149,12 @@ export function ShareSheet({ open, chatId, onClose }) {
             </div>` : html`
             <div class="hint-box">两端都填好之后才算得出距离。</div>`}
 
-          <${SpotFields} label="我在哪儿"
+          <${SpotFields} label="我的位置"
             desc="坐标只存在本机，不上传。点城市可一键填入，也可以手动填写经纬度。"
             spot=${st.me} onLocate=${useHere}
             onChange=${v => geo.setSpot(chatId, 'me', v)}/>
 
-          <${SpotFields} label=${`${char?.name || '角色'}在哪儿`}
+          <${SpotFields} label=${`${char?.name || '角色'}的位置`}
             desc="按角色的设定填。角色自己不会改这一项。"
             spot=${st.char}
             onChange=${v => geo.setSpot(chatId, 'char', v)}/>
