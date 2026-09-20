@@ -1,9 +1,9 @@
-import { html, useState } from '../../lib.js';
+import { html, useState, useEffect } from '../../lib.js';
 import { phone, useStore } from '../../sdk/index.js';
 import { Page, List, ListItem, Button, Icon, IconButton, Field, Input, Textarea,
          Switch, Sheet, EmptyState, toast, confirm, prompt } from '../../ui/index.js';
 
-const { db, nav, todo } = phone;
+const { db, nav, todo, alarm } = phone;
 
 // 待办。用户自己的那一份 —— 角色的日程在「日常」，你们之间的约定在「你们之间」。
 //
@@ -17,6 +17,23 @@ const dayText = ms => {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 };
 
+const timeText = ms => {
+  if (!ms) return '';
+  const d = new Date(ms);
+  const p = n => String(n).padStart(2, '0');
+  return `${dayText(ms)} ${p(d.getHours())}:${p(d.getMinutes())}`;
+};
+
+// 这条上的时刻怎么说。挂了闹钟的和只写了时刻的要分得清 ——
+// 前者关掉 app 也会响，后者只在开着的时候提醒
+const remindText = row => {
+  const ms = alarm.timeOf(row);
+  if (!ms) return '';
+  const when = timeText(ms);
+  if (row.alarmId) return `${when} 系统闹钟`;
+  return alarm.isFuture(ms) ? `${when} 提醒` : `${when} 已过`;
+};
+
 const chatName = row => {
   if (!row.charId) return '';
   return db.characters.get(row.charId)?.name || '已删除的角色';
@@ -26,7 +43,7 @@ function Row({ row, onOpen }) {
   const done = row.state === todo.DONE;
   return html`
     <${ListItem} multiline title=${row.text}
-      subtitle=${[todo.fromLabel(row.from), chatName(row), row.dueAt,
+      subtitle=${[remindText(row), todo.fromLabel(row.from), chatName(row), row.dueAt,
         done ? `完成于 ${dayText(row.doneAt)}` : ''].filter(Boolean).join(' · ')}
       left=${html`
         <button class="press todo-tick" aria-label=${done ? '标为未完成' : '标为已完成'}
@@ -57,6 +74,8 @@ function MainPage() {
   return html`
     <${Page} title="待办"
       right=${html`
+        <${IconButton} name="bell" label="系统闹钟"
+          onClick=${() => nav.push('/alarm')}/>
         <${IconButton} name="settings" label="识别设置"
           onClick=${() => nav.push('/detect')}/>
         <button class="nav-text press" onClick=${add}>添加</button>`}>
@@ -121,6 +140,7 @@ function EditSheet({ id, onClose }) {
             <${Input} value=${row.dueAt || ''} placeholder="2026-09-30"
               onInput=${v => patch({ dueAt: v.trim() })}/>
           <//>
+          <${Clock} row=${row}/>
           <${List}>
             <${ListItem} title="已完成"
               right=${html`<${Switch} checked=${row.state === todo.DONE}
@@ -136,6 +156,68 @@ function EditSheet({ id, onClose }) {
           }}>删除<//>
         </div>
     <//>`;
+}
+
+/**
+ * 一条待办上的时刻与闹钟。
+ *
+ * 分两层说清楚，因为它们的可靠程度差很远：
+ *   写了时刻          本应用开着的时候到点提醒。关掉就不响 —— 网页没有后台调度
+ *   排进系统闹钟      交给系统，关掉也响，穿透静音。要装成 ipa 且系统够新
+ */
+function Clock({ row }) {
+  const ms = alarm.timeOf(row);
+  const d = ms ? new Date(ms) : null;
+  const p = n => String(n).padStart(2, '0');
+  const [date, setDate] = useState(d ? `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}` : (row.dueAt || ''));
+  const [time, setTime] = useState(d ? `${p(d.getHours())}:${p(d.getMinutes())}` : '');
+  const [busy, setBusy] = useState(false);
+  const native = alarm.available();
+
+  const apply = async (nextDate, nextTime) => {
+    const at = alarm.at(nextDate, nextTime);
+    if (!at) { db.todos.update(row.id, { remindAt: 0, rungAt: 0 }); return; }
+    setBusy(true);
+    try {
+      await alarm.reschedule(row.id, at);
+      db.todos.update(row.id, { rungAt: 0 });
+    } catch (err) {
+      toast(String(err.message || err), 'error', 5000);
+    } finally { setBusy(false); }
+  };
+
+  return html`
+    <${Field} label="提醒时刻"
+      desc=${'填写日期与时刻后生效。'
+        + (native
+          ? '本应用会将其排入系统闹钟，关闭应用后仍会在设定的时刻响铃。'
+          : '当前环境无法排入系统闹钟，仅在本应用运行时到点提醒。'
+            + '安装为应用并使用 iOS 26 或更新的系统后可排入系统闹钟。')}>
+      <div class="chip-row">
+        <${Input} value=${date} placeholder="2026-09-30"
+          onInput=${v => { setDate(v.trim()); apply(v.trim(), time); }}/>
+        <${Input} value=${time} placeholder="07:30"
+          onInput=${v => { setTime(v.trim()); apply(date, v.trim()); }}/>
+      </div>
+    <//>
+    ${ms ? html`
+      <${List}>
+        <${ListItem} title=${row.alarmId ? '已排入系统闹钟' : '尚未排入系统闹钟'} multiline
+          subtitle=${row.alarmId
+            ? `将于 ${timeText(ms)} 响铃，关闭本应用后仍然有效。`
+            : (alarm.isFuture(ms)
+              ? `将于 ${timeText(ms)} 在本应用内提醒，关闭本应用后不再提醒。`
+              : '该时刻已经过去。')}
+          left=${html`<${Icon} name="bell" size=${18}/>`}
+          right=${busy ? null : html`
+            <button class="nav-text press"
+              onClick=${async () => {
+                if (row.alarmId) { await alarm.cancel(row.id); toast('已撤销系统闹钟', 'ok'); return; }
+                const r = await alarm.schedule(row.id);
+                toast(r.native ? '已排入系统闹钟' : '当前环境无法排入系统闹钟',
+                  r.native ? 'ok' : 'plain', 4000);
+              }}>${row.alarmId ? '撤销' : '排入'}</button>`}/>
+      <//>` : null}`;
 }
 
 function DetectPage() {
@@ -210,7 +292,88 @@ function DetectPage() {
     <//>`;
 }
 
+/**
+ * 系统闹钟这一页只干一件事：**对账**。
+ *
+ * 排了没响是这类功能里最难查的一种 —— 屏幕上写着「已排入」，到点没动静，
+ * 而你分不清是没排上、没授权、还是系统把它清了。所以把两边的数都摆出来：
+ * 本应用以为排了几个，系统那边实际挂着几个。
+ */
+function AlarmPage() {
+  useStore(db.todos.store);
+  const [sys, setSys] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const native = alarm.available();
+
+  const refresh = async () => {
+    if (!native) { setSys({ status: 'unsupported' }); return; }
+    setBusy(true);
+    try {
+      const [st, ls] = await Promise.all([alarm.status(), alarm.listNative()]);
+      setSys({ ...st, ids: ls.ids || [] });
+    } catch (err) {
+      setSys({ status: 'error', error: String(err.message || err) });
+    } finally { setBusy(false); }
+  };
+
+  useEffect(() => { refresh(); }, []);
+
+  const next = alarm.upcoming();
+  const mine = db.todos.where(r => r.alarmId);
+  const statusText = {
+    granted: '已授权',
+    denied: '已拒绝。可在系统设置中重新开启',
+    notDetermined: '尚未询问',
+    unsupported: '当前环境不支持',
+    error: '读取失败',
+  };
+
+  return html`
+    <${Page} title="系统闹钟" onBack=${nav.pop}
+      right=${html`<button class="nav-text press" onClick=${refresh}>刷新</button>`}>
+      <div class="pad-x pad-t">
+        <div class="hint-box">
+          系统闹钟由系统在设定的时刻响铃，关闭本应用后仍然有效，并可穿透静音与专注模式。
+          该能力需要将本应用安装为应用，且系统为 iOS 26 或更新的版本。
+          不满足时，待办的时刻仅在本应用运行时提醒。
+        </div>
+      </div>
+
+      <${List} title="当前状态">
+        <${ListItem} title="系统闹钟通道" multiline
+          subtitle=${native ? '可用' : '不可用。当前为浏览器环境，或系统版本不满足要求'}
+          left=${html`<${Icon} name=${native ? 'check' : 'close'} size=${18}/>`}/>
+        <${ListItem} title="授权状态" multiline
+          subtitle=${busy ? '正在读取' : (statusText[sys?.status] || '未知')
+            + (sys?.error ? `：${sys.error}` : '')}
+          left=${html`<${Icon} name="lock" size=${18}/>`}
+          right=${native && sys?.status !== 'granted' ? html`
+            <button class="nav-text press" onClick=${async () => {
+              try { await alarm.request(); } catch (err) { toast(String(err.message || err), 'error', 5000); }
+              refresh();
+            }}>请求授权</button>` : null}/>
+        <${ListItem} title="两边对账" multiline
+          subtitle=${`本应用记录已排入 ${mine.length} 个`
+            + (sys?.ids ? `，系统中实际挂着 ${sys.ids.length} 个。`
+              + (sys.ids.length === mine.length ? '两边一致。' : '两边不一致，可逐条撤销后重新排入。')
+              : '。系统一侧的数目需要在支持的环境中读取。')}
+          left=${html`<${Icon} name="layers" size=${18}/>`}/>
+      <//>
+
+      ${next.length ? html`
+        <${List} title=${`即将到时 ${next.length} 条`}>
+          ${next.map(r => html`
+            <${ListItem} key=${r.id} multiline title=${r.text}
+              subtitle=${remindText(r)}
+              left=${html`<${Icon} name="bell" size=${18}/>`}/>`)}
+        <//>`
+      : html`<${EmptyState} icon="clock" title="没有即将到时的待办"
+          desc="在待办的编辑面板中填写提醒时刻后，此处会列出。"/>`}
+    <//>`;
+}
+
 export default function TodoApp({ route }) {
   if (route === '/detect') return html`<${DetectPage}/>`;
+  if (route === '/alarm') return html`<${AlarmPage}/>`;
   return html`<${MainPage}/>`;
 }

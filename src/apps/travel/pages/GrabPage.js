@@ -47,6 +47,10 @@ export function GrabPage({ tripId, ticketId }) {
   }
 
   const odds = grab.oddsOf(tripId, ticketId);
+  // 这一局的场馆容量与想看人数是查来的还是编的。编的照样能算，
+  // 只是每一处数字旁边都标着「虚拟」—— 算得出来和算得准不是一回事
+  const made = !!t.numsMade;
+  const mark = made ? '（虚拟）' : '';
   const book = ledger.bookOfChat(row.chatId);
   const joint = book && ledger.defaultFor(book.id, ledger.JOINT);
   const money = n => (book ? ledger.money(book.id, n) : String(n));
@@ -125,13 +129,18 @@ export function GrabPage({ tripId, ticketId }) {
 
       ${odds ? html`
         <${List} title="这一档的账">
-          <${ListItem} title="本档放票" subtitle=${`约 ${odds.pool} 张，按场馆 ${t.capacity} 人计算`}
+          <${ListItem} title=${`本档放票${mark}`}
+            subtitle=${`约 ${odds.pool} 张，按场馆 ${t.capacity} 人计算`}
             left=${html`<${Icon} name="bookmark" size=${18}/>`}/>
-          <${ListItem} title="抢这一档的人" subtitle=${`约 ${odds.rivals} 人，按想看 ${t.demand} 人分摊`}
+          <${ListItem} title=${`抢这一档的人${mark}`}
+            subtitle=${`约 ${odds.rivals} 人，按想看 ${t.demand} 人分摊`}
             left=${html`<${Icon} name="users" size=${18}/>`}/>
           <${ListItem} title="抢到的概率" multiline
             subtitle=${`一场下来 ${pct(odds.p1)}，每次尝试 ${pct(odds.each)}。`
-              + '该数值由上面两项算出，不是估计值'}
+              + (made
+                ? '该数值由上面两项算出。上面两项未能检索到，为模型给出的虚拟数，'
+                  + '因此这一概率同样是虚拟的'
+                : '该数值由上面两项算出，不是估计值')}
             left=${html`<${Icon} name="filter" size=${18}/>`}/>
           <${ListItem} title="余票" multiline
             subtitle=${odds.left > 0

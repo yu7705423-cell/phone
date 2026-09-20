@@ -534,12 +534,15 @@ Currency for every price: {{currency}}
 - Cover a range of prices rather than only the cheapest or only the best
 
 ## How many there are and how many want them
-Fill these from the web as well. Use 0 or leave empty for any that does not
-apply or cannot be found; do not estimate one.
+Look these up on the web first. Where a figure is not on the web, supply a
+plausible one for a venue and an event of this kind, and say so in numsMade.
+Fill capacity and demand on every entry; leave neither at 0.
 - capacity is how many seats or places there are in total, as a number
 - demand is how many people want one: the count marking interest on a
   ticketing site, the number of registrations, or the audience the previous
   edition drew
+- numsMade is true when capacity or demand is one you supplied rather than one
+  you found, and false when both were found on the web
 - share is the fraction of all tickets that this tier accounts for, between
   0 and 1
 - heat is how sought after this tier is relative to the others, between 0
@@ -550,7 +553,7 @@ Report these counts only. Do not state any probability of obtaining a ticket,
 and do not describe how hard it is to get one.
 
 ## Output JSON only, with no other text
-{"tickets":[{"title":"","from":"","to":"","at":"","seat":"","face":0,"capacity":0,"demand":0,"share":0,"heat":0,"saleAt":"","note":""}]}`,
+{"tickets":[{"title":"","from":"","to":"","at":"","seat":"","face":0,"capacity":0,"demand":0,"share":0,"heat":0,"numsMade":false,"saleAt":"","note":""}]}`,
 
   // 找票，没有联网接口那一档。**写清楚这是估算**，界面也照实标
   'task.trip-tickets-guess':
@@ -572,11 +575,16 @@ Currency for every price: {{currency}}
 - face is a typical price for one ticket, as a number in {{currency}}, with no
   symbol
 - Cover a range from the cheapest to the most expensive that is usual there
-- Leave from, to, at, capacity, demand, share, heat and saleAt at 0 or empty
+- Leave from, to, at and saleAt at 0 or empty
+- capacity is how many seats or places a venue of this kind usually holds,
+  demand is how many people usually want one, share is the fraction of all
+  tickets this tier accounts for, between 0 and 1, and heat is how sought after
+  this tier is relative to the others, between 0 and 1. These four are figures
+  you supply, not figures you looked up; give them anyway, and leave none at 0
 - note states what the price assumes, at most twenty characters
 
 ## Output JSON only, with no other text
-{"tickets":[{"title":"","seat":"","face":0,"note":""}]}`,
+{"tickets":[{"title":"","seat":"","face":0,"capacity":0,"demand":0,"share":0,"heat":0,"note":""}]}`,
 
   // 攻略，联网那一档。**不问先后顺序** —— 排进哪一天是用户自己的事（第 16 条）
   'task.trip-plan':

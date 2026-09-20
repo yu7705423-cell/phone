@@ -340,6 +340,11 @@ export function addTickets(id, rows, src = SEARCHED) {
     demand: Math.round(num(r?.demand)),
     share: rate(r?.share),
     heat: rate(r?.heat),
+    // 这两个数是查来的还是编的。**编的也要**：查不到就算不出概率，
+    // 那一页只能写「无法计算」，整个抢票就废了。编可以，瞒不行 ——
+    // 界面上照实标着「虚拟」，用户看得见这一局是按什么数算的。
+    // 没联网那一档整批都是编的，不必问模型
+    numsMade: src === GUESSED ? true : !!r?.numsMade,
     saleAt: trim(r?.saleAt, 20),
     need: r?.need === true,
     note: trim(r?.note, 80),

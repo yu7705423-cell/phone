@@ -11,6 +11,8 @@ import { AppSwitcher } from '../screens/AppSwitcher.js';
 import { CallLayer } from '../screens/CallLayer.js';
 import { AppHost } from '../system/runtime.js';
 import { closeTopOverlay } from '../ui/overlay.js';
+import * as alarm from '../system/alarm.js';
+import { notify } from '../system/notify.js';
 import { useImage } from '../system/db/useImage.js';
 import { applyLook, applyCustomCSS } from '../system/look.js';
 import { apply as applyFonts } from '../system/fonts.js';
@@ -80,6 +82,13 @@ export function Root() {
     keepAlive.start();
     return keepAlive.install(() => settings.get().keepAlive);
   }, [cfg.keepAlive]);
+
+  // 待办到点。**这是浏览器那一半** —— 关着 app 就不跑，那种要靠系统闹钟
+  // （见 system/alarm.js 开头）。两边都在时会各响一次，位置不同，不算重复
+  useEffect(() => alarm.start(row => notify({
+    title: '待办', body: row.text, icon: 'bell', appId: 'todo',
+    payload: { route: '/' },
+  })), []);
 
   // 全场唯一的 Esc 监听。开着浮层时 Esc 归浮层 —— 只关最上面那一层，
   // 不退出当前页；一层都没开才轮到「返回」。见 ui/overlay.js 顶上那段。

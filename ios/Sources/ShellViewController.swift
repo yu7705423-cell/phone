@@ -21,6 +21,7 @@ final class ShellViewController: UIViewController {
     private let notifyBridge = NotifyBridge()
     /// 保活。网页那头是 system/keepalive.js
     private let keepAliveBridge = KeepAliveBridge()
+    private let alarmBridge = AlarmBridge()
 
     // MARK: - 站点地址
 
@@ -110,11 +111,13 @@ final class ShellViewController: UIViewController {
         //                    网页那套在这儿一律「不支持」，见 NotifyBridge
         //   phoneKeepAlive   保活也走这一层。零音量的网页音频在 app 里占不到音频焦点，
         //                    见 KeepAliveBridge
+        //   phoneAlarm       这套构建带得动系统闹钟（要 iOS 26，见 AlarmBridge）
         cfg.userContentController.addUserScript(WKUserScript(
             source: "window.phoneNativeBack = true;"
                 + "window.phoneNotify = true;"
                 + "window.phoneKeepAlive = true;"
-                + "window.phoneHealth = \(HealthBridge.available);",
+                + "window.phoneHealth = \(HealthBridge.available);"
+                + "window.phoneAlarm = \(AlarmBridge.available);",
             injectionTime: .atDocumentStart,
             forMainFrameOnly: false))
         cfg.userContentController.addScriptMessageHandler(
@@ -123,6 +126,8 @@ final class ShellViewController: UIViewController {
             notifyBridge, contentWorld: .page, name: "notify")
         cfg.userContentController.addScriptMessageHandler(
             keepAliveBridge, contentWorld: .page, name: "keepalive")
+        cfg.userContentController.addScriptMessageHandler(
+            alarmBridge, contentWorld: .page, name: "alarm")
 
         let w = WKWebView(frame: view.bounds, configuration: cfg)
         w.navigationDelegate = self

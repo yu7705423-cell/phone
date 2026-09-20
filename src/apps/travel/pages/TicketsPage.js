@@ -132,7 +132,9 @@ export function TicketsPage({ tripId }) {
     const o = grab.oddsOf(tripId, t.id);
     const share = t.share ? `，本档约占 ${Math.round(t.share * 100)}%` : '';
     const p = o ? `。抢到的概率 ${(o.p1 * 100).toFixed(o.p1 < 0.01 ? 2 : 1)}%` : '';
-    return `场馆容量 ${t.capacity} 人，想看 ${t.demand} 人${share}${p}`;
+    // 编出来的数照样摆出来，只是标着。见 system/trip.js 的 numsMade
+    const made = t.numsMade ? '（虚拟）' : '';
+    return `场馆容量 ${t.capacity} 人，想看 ${t.demand} 人${made}${share}${p}`;
   };
 
   return html`

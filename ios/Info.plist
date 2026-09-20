@@ -78,6 +78,8 @@
   <key>NSHealthShareUsageDescription</key>
   <string>用于把「健康」中的睡眠、步数、体重与饮水同步到本应用的健康记录。</string>
 
+  <key>NSAlarmKitUsageDescription</key>
+  <string>用于把待办按设定的时刻排成系统闹钟，到点提醒。</string>
   <key>NSLocalNetworkUsageDescription</key>
   <string>用于连接局域网内自行搭建的站点。</string>
 

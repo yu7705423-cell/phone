@@ -41,6 +41,16 @@ echo "版本      $VERSION ($BUILD_NUM)，最低 iOS $MIN_IOS"
 
 # ---- 1. 编可执行文件 ----
 SDK="$(xcrun --sdk iphoneos --show-sdk-path)"
+# AlarmKit（系统闹钟）要 iOS 26 的 SDK。这套 SDK 里没有的话 AlarmBridge.swift
+# 那段 #if canImport 整个不编，app 照常能装，只是「系统闹钟」那一项写着不可用。
+# 在日志里说一声，免得回头查「为什么排不了闹钟」时无从下手。
+if [ -d "$SDK/System/Library/Frameworks/AlarmKit.framework" ] \
+   || [ -f "$SDK/usr/lib/swift/AlarmKit.swiftmodule" ] \
+   || ls "$SDK"/usr/lib/swift/*/AlarmKit* >/dev/null 2>&1; then
+  echo "AlarmKit   在这套 SDK 里，系统闹钟可用"
+else
+  echo "AlarmKit   这套 SDK 里没有（需要 iOS 26 SDK / Xcode 26），系统闹钟不可用"
+fi
 xcrun -sdk iphoneos swiftc \
   -target "arm64-apple-ios$MIN_IOS" \
   -sdk "$SDK" \
