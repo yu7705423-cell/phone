@@ -127,15 +127,55 @@ export function untilSale(t, now = Date.now()) {
   return Math.max(0, ms - now);
 }
 
+// ---- 抢不到，有好几种抢不到 ----
+//
+// 真实的抢票不是一次「中/不中」。**多数人根本没走到抽签那一步**：
+// 点进去一直转圈，排队排不进去，好不容易进去了提交时票已经没了。
+// 只回一句「未抢到」，把这段经历里最难受的部分抹平了。
+//
+// 所以一次尝试分四关，每一关都可能栽在那儿：
+//
+//   进门   排队人数过多 / 页面响应超时   —— 连抽签的资格都没拿到
+//   余票   提交的时候这一档刚好没了
+//   抽签   提交成功，没中
+//   支付   订单生成了，支付没在时限内完成，票被放回
+//
+// **每一关的概率都是从供需比算出来的**，不是拍脑袋给的定值 —— 和「抢到的
+// 概率」同一个出处（见文件开头那段）。人越多，卡在门口的比例越高，这正是
+// 大麦上那种「一直加载」的来历：不是网差，是同时有三十万人在点同一个按钮。
+//
+// 栽在哪一关都算用掉一次尝试，余票照样往下掉 —— 你卡在门口的这几秒，
+// 别人买走了。这一条不能松：松了就成了「慢慢点总能点到」。
+
+/** 挤成什么样。供需比 1 是不挤，比值越大越挤，上不封顶但收敛到 1。 */
+export const pressure = ratio => (ratio > 1 ? 1 - 1 / ratio : 0);
+
+/** 各关的失败率。系数是这几关的相对权重，乘上挤的程度。 */
+const DOOR_QUEUE = 0.5;   // 挤到极致时，一半的尝试连页面都打不开
+const DOOR_SLOW = 0.2;    // 再有两成是转圈转到超时
+const PAY_DROP = 0.08;    // 中了也可能付不上，这一关最轻
+
+/** 每种结果在界面上怎么说。写成购票页会说的那种话。 */
+export const REASONS = {
+  queue: '排队人数过多，未能进入购票页',
+  slow: '页面响应超时，本次尝试未能提交',
+  gone: '提交时本档已无余票',
+  miss: '提交成功，未能购得',
+  pay: '订单已生成，支付未在时限内完成，票已放回',
+  soldout: '本档已售罄',
+  got: '已购得，款项已从共同账户扣除',
+};
+export const reasonText = r => REASONS[r] || '未购得';
+
 /**
  * 抢一次。
  *
- * **不调接口**，掷一次骰子而已，所以次数不设上限、也不进 EXTRA_CALLS。
+ * **不调接口**，掷几次骰子而已，所以次数不设上限、也不进 EXTRA_CALLS。
  *
  * 抢中直接扣钱（和直接购买同一条路），所以**抢之前先看余额** ——
  * 抢到了却付不起，那张票要么凭空作废要么挂成第三种状态，两样都更糟。
  *
- * 返回 { ok, left, reason }。
+ * 返回 { ok, left, reason, stage }。stage 是栽在哪一关，界面拿它画过程。
  */
 export function grabOnce(tripId, ticketId, { random = Math.random, ignoreSale = false } = {}) {
   const row = trip.get(tripId);
@@ -161,19 +201,43 @@ export function grabOnce(tripId, ticketId, { random = Math.random, ignoreSale = 
   }
 
   const tries = (t.tries || 0) + 1;
-  const hit = random() < odds.each;
   trip.updateTicket(tripId, ticketId, { tries });
 
-  if (hit) {
-    trip.buyTicket(tripId, ticketId);
-    return { ok: true, left: oddsOf(tripId, ticketId)?.left ?? 0, reason: 'got' };
-  }
+  // 这一次栽在哪一关。**先掷门口那两关** —— 多数人就是卡在这儿的。
+  //
+  // 掷出来的数一律「小的走运」：抽签那一关是 random() >= each 才算没中，
+  // 门口这两关也照这个方向写。不统一的话，同一个 random 在这个函数里
+  // 一会儿代表运气好一会儿代表运气坏，测起来和读起来都要拐一道弯。
+  const jam = pressure(odds.ratio);
+  const door = random();
+  const passQueue = 1 - jam * DOOR_QUEUE;
+  const passSlow = passQueue - jam * DOOR_SLOW;
+  const stuck = door >= passQueue ? 'queue' : door >= passSlow ? 'slow' : '';
+
+  // 余票在这一次尝试之后还剩多少。卡在门口也算，别人照样在买
   const after = oddsOf(tripId, ticketId);
-  if (after && after.left <= 0) {
+  const left = after?.left ?? 0;
+  const dry = () => {
     trip.updateTicket(tripId, ticketId, { state: trip.MISSED });
-    return { ok: false, left: 0, reason: 'soldout' };
+    return { ok: false, left: 0, reason: 'soldout', stage: 'soldout' };
+  };
+
+  if (stuck) {
+    if (left <= 0) return dry();
+    return { ok: false, left, reason: stuck, stage: stuck };
   }
-  return { ok: false, left: after?.left ?? 0, reason: 'miss' };
+  // 进得去，但提交的那一刻这一档刚好没了
+  if (left <= 0) return { ...dry(), reason: 'gone' };
+
+  if (random() >= odds.each) return { ok: false, left, reason: 'miss', stage: 'draw' };
+
+  // 中了。最后还有支付这一关 —— 没付上票就放回去，不扣钱
+  if (random() > 1 - jam * PAY_DROP) {
+    return { ok: false, left, reason: 'pay', stage: 'pay' };
+  }
+
+  trip.buyTicket(tripId, ticketId);
+  return { ok: true, left: oddsOf(tripId, ticketId)?.left ?? 0, reason: 'got', stage: 'got' };
 }
 
 /**

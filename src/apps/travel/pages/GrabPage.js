@@ -32,6 +32,8 @@ export function GrabPage({ tripId, ticketId }) {
   useStore(db.books.store);
   const [busy, setBusy] = useState(false);
   const [log, setLog] = useState([]);
+  // 这一次走到哪一步了。抢票的过程本身就是要给人看的
+  const [step, setStep] = useState('');
   // 开售倒计时要自己走针。hook 一律无条件调用
   const [, tick] = useState(0);
   useEffect(() => {
@@ -60,16 +62,31 @@ export function GrabPage({ tripId, ticketId }) {
 
   const say = s => setLog(v => [s, ...v].slice(0, 20));
 
-  const once = () => {
+  // 抢一次。**过程要走出来**，不是掷完骰子直接给个结果。
+  //
+  // 真实的抢票，难受的地方不在「没抢到」这三个字，在点下去之后那几秒：
+  // 转圈、排队、页面没反应，然后告诉你没了。所以这里一步一步显示，
+  // 每一步停多久由挤的程度决定 —— 人越多转得越久（见 system/grab.js）。
+  //
+  // 结果本身仍然是 grabOnce 一次算完的，这里只是把它演出来：
+  // 演的时长不影响结果，手速也不影响，这一条不能破（见那个文件开头）。
+  const hold = ms => new Promise(r => setTimeout(r, ms));
+  const once = async () => {
     setBusy(true);
     try {
+      const jam = odds ? grab.pressure(odds.ratio) : 0;
+      const beat = 260 + Math.round(jam * 900);
+      setStep('正在连接购票页');
+      await hold(beat);
       const r = grab.grabOnce(tripId, ticketId);
-      if (r.ok) { say('已抢到，款项已从共同账户扣除'); toast('已抢到', 'ok'); }
-      else if (r.reason === 'soldout') say('本档已售罄');
-      else say(`未抢到，本档剩余 ${r.left} 张`);
+      if (r.stage === 'queue') { setStep('正在排队'); await hold(beat); }
+      else if (r.stage === 'slow') { setStep('正在加载'); await hold(beat * 2); }
+      else { setStep('正在提交订单'); await hold(beat); }
+      say(grab.reasonText(r.reason) + (r.ok || r.left <= 0 ? '' : `，本档剩余 ${r.left} 张`));
+      toast(r.ok ? '已抢到' : grab.reasonText(r.reason), r.ok ? 'ok' : 'plain', 4000);
     } catch (e) {
       toast(String(e.message || e), 'error', 5000);
-    } finally { setBusy(false); }
+    } finally { setStep(''); setBusy(false); }
   };
 
   // 一次跑完整场。和连点「抢票」到底是同一件事 —— 同一套概率、同一套扣款，
@@ -85,8 +102,8 @@ export function GrabPage({ tripId, ticketId }) {
     try {
       const r = grab.simulate(tripId, ticketId);
       say(r.ok
-        ? `模拟结束：第 ${r.tries} 次尝试抢到，款项已从共同账户扣除`
-        : `模拟结束：尝试 ${r.tries} 次，本档已售罄`);
+        ? `模拟结束：第 ${r.tries} 次尝试购得，款项已从共同账户扣除`
+        : `模拟结束：尝试 ${r.tries} 次，${grab.reasonText(r.reason)}`);
       toast(r.ok ? '已抢到' : '未抢到，本档已售罄', r.ok ? 'ok' : 'plain', 4000);
     } catch (e) {
       toast(String(e.message || e), 'error', 5000);
@@ -159,8 +176,9 @@ export function GrabPage({ tripId, ticketId }) {
       ${log.length ? html`
         <${List} title="记录">
           ${log.map((l, i) => html`
-            <${ListItem} key=${i} title=${l}
-              left=${html`<${Icon} name=${/已抢到|已.*购得/.test(l) ? 'check' : 'close'} size=${18}/>`}/>`)}
+            <${ListItem} key=${i} title=${l} multiline
+              left=${html`<${Icon} name=${/已购得/.test(l) ? 'check'
+                : /排队|响应超时/.test(l) ? 'clock' : 'close'} size=${18}/>`}/>`)}
         <//>` : null}
 
       <div class="pad">
@@ -172,7 +190,7 @@ export function GrabPage({ tripId, ticketId }) {
         : gone || quit ? null
         : html`
           <${Button} full disabled=${busy || !odds} onClick=${once}>
-            ${busy ? '正在尝试' : '抢票'}
+            ${busy ? (step || '正在尝试') : '抢票'}
           <//>`}
       </div>
 
