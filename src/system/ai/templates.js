@@ -85,22 +85,33 @@ That line stands alone, with nothing else before or after it on the same line.`,
   // 没配翻译接口时的回落：让它在回复里顺带给译文。见 ai/translate.js
   'skeleton.translate':
 `[顺带给出译文]
-Directly below each message you send, write one line on its own,
-[译文：that message in {{lang}}].
-One line of translation per message, in the same order, neither merged nor
-omitted.
-
+Every message you send is a pair of lines: the message itself, then on the next
+line its translation into {{lang}}, written as
+[译文：that message in {{lang}}]
 Write the line out in full, including the brackets and the 「译文：」 prefix.
-Keep each translation on that one line, however long it runs, and close the
-bracket on the same line.
-Write the translation for a message immediately after that message, before the
-next one. Do not collect them at the end of the reply.
-Do not number these lines, and do not write the prefix on a line by itself.
+Keep it to one line, close the bracket on that line, and place it directly
+below its message, before the next message begins.
+A message and its translation line together count as one message for the
+message rule above.
+
+The shape of a reply with two messages:
+<first message>
+[译文：<first message in {{lang}}>]
+<second message>
+[译文：<second message in {{lang}}>]
 
 Translate only the content of that message: no explanation, no phonetic
 annotation, no restatement of the original.
-Marker lines such as [图片：…], [语音：…], and [表情：…] are not translated;
-skip them.`,
+Marker lines such as [图片：…], [语音：…], and [表情：…] stand alone, with no
+translation line.`,
+
+  // 贴着输出放的一句提醒。设定区里那一段离输出隔着整段历史，长对话里会被
+  // 忘掉；各家的长上下文指引都是同一句话：关键的格式要求在开头说一遍，
+  // 末尾再说一遍。这一句由 buildHistory 插在最后一条消息之前。
+  'skeleton.translate-tail':
+`[译文提醒]
+Each message in this reply is followed on the next line by its own
+[译文：…] line in {{lang}}.`,
 
   // 单独那套翻译接口用的。**只送原文与这份规则**，人设、记忆、对话历史
   // 一概不送（见 ai/translate.js）—— 给了人设，模型就开始按角色的性格改写，

@@ -9,7 +9,7 @@ import { fillTemplate, template } from './templates.js';
 import { capabilityBlock } from './capabilities.js';
 import { embedQuery, embedReady } from './embed.js';
 import { getProvider } from './providers/index.js';
-import { activeChat, fallbackChat, visionMode, memoryConfig, memoryMode } from './services.js';
+import { activeChat, fallbackChat, visionMode, memoryConfig, memoryMode, translateMode } from './services.js';
 import { images } from '../db/images.js';
 import * as avatarLib from '../avatar.js';
 import { toDataUrl } from '../audio.js';
@@ -348,6 +348,11 @@ export function buildHistory(chat, char, msgs, opts = {}) {
 
   const pics = opts.images || null;
   const view = (byTurn || !capped) ? kept : kept.slice(-s.historyLimit);
+  // 行内译文开着时，角色自己的旧消息要带着那一行 [译文：…] 回到历史里。
+  // 模型最听自己前几轮的样子：历史里一条译文都没有，等于每一轮都在示范
+  // 「不必翻」，设定区里那段规则拗不过几十个反例 —— 掉翻译多半是这么掉的。
+  // 界面上那一行是从消息里剥出来单独存的（reply.js），这里再拼回去。
+  const inlineTrans = !!chat.translateTo && translateMode() === 'inline';
   const view2 = view.map((m, i) => {
     const mine = m.role === 'char' && m.authorId === char.id;
     const text = timeLine(m, view[i - 1]) + withQuote(m);
@@ -355,7 +360,10 @@ export function buildHistory(chat, char, msgs, opts = {}) {
       const pic = pics && pics.get(m.id);
       return pic ? { role: 'user', content: text, image: pic } : { role: 'user', content: text };
     }
-    if (mine) return { role: 'assistant', content: text };
+    if (mine) {
+      const tr = inlineTrans ? String(m.translation || '').trim() : '';
+      return { role: 'assistant', content: tr ? `${text}\n[译文：${tr}]` : text };
+    }
     // 群里别人说的话,以旁白形式并入 user 侧,避免被当成自己说过的
     const who = characters.get(m.authorId)?.name || '某人';
     return { role: 'user', content: isGroup ? `${who}：${text}` : text };
@@ -374,10 +382,13 @@ export function buildHistory(chat, char, msgs, opts = {}) {
   //
   // 召回排在状态后面 —— 越靠近最后一条消息越不容易被忽略，而召回是这一段
   // 里最该被看见的。
+  //
+  // 译文提醒排最后：格式要求在开头说一遍、末尾再说一遍，长对话里才不会丢。
   const md = memoryDepth(s);
   const tail = [
     String(opts.volatile || '').trim(),
     md > 0 && opts.recall?.length ? recallText(opts.recall) : '',
+    inlineTrans ? fillTemplate(template('skeleton.translate-tail'), { lang: chat.translateTo }) : '',
   ].filter(Boolean).join('\n\n');
   if (tail) depths.set(md || 1, [...(depths.get(md || 1) || []), { content: tail, raw: true }]);
   return insertLore(mergeAdjacent(view2), depths);
