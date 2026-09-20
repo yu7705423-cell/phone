@@ -75,16 +75,43 @@ final class AlarmBridge: NSObject {
     private func requestAuth() async -> [String: Any] {
         #if canImport(AlarmKit)
         guard #available(iOS 26.0, *) else { return unsupported() }
-        do {
-            let state = try await AlarmManager.shared.requestAuthorization()
-            return ["status": state == .authorized ? "granted" : "denied"]
-        } catch {
-            return ["error": error.localizedDescription]
-        }
+        if let bad = await ensureAuth() { return ["error": bad] }
+        return ["status": "granted"]
         #else
         return unsupported()
         #endif
     }
+
+    #if canImport(AlarmKit)
+    /// 确保拿到授权。回来的是错误原文，nil 表示可以往下走。
+    ///
+    /// **第一次弹询问表那一下 requestAuthorization 会抛** —— 界面上看到的是
+    /// 「AlarmKitCore.AuthorizationManager.AuthorizationError 错误 1」。人这时候
+    /// 还在看那张表，一下都没点呢：那一抛不代表被拒了，只代表这一次调用没等到
+    /// 结果。照它的字面报上去，用户看到一句看不懂的话，还得自己再点一次「排入」。
+    ///
+    /// 所以抛完不当场认输：隔半秒读一次系统那边的状态，读到 authorized 就继续，
+    /// 读到 denied 才算真拒。一次点击就成。
+    ///
+    /// 等到三十秒为止 —— 再久多半是人把那张表晾在那儿了，照实说一句，别一直挂着。
+    @available(iOS 26.0, *)
+    private func ensureAuth() async -> String? {
+        if AlarmManager.shared.authorizationState == .authorized { return nil }
+        var thrown: String?
+        do { _ = try await AlarmManager.shared.requestAuthorization() }
+        catch { thrown = error.localizedDescription }
+
+        for _ in 0..<60 {
+            switch AlarmManager.shared.authorizationState {
+            case .authorized: return nil
+            case .denied:     return "系统没有授予闹钟权限。可在「设置」中重新开启"
+            default: break
+            }
+            try? await Task.sleep(nanoseconds: 500_000_000)
+        }
+        return thrown ?? "等待授权超时，请再试一次"
+    }
+    #endif
 
     /// 排一个。at 是毫秒时间戳，和网页那边一致。
     private func schedule(id: String, title: String, at ms: Double) async -> [String: Any] {
@@ -95,13 +122,8 @@ final class AlarmBridge: NSObject {
         guard when > Date() else { return ["error": "这个时刻已经过去了"] }
 
         // 没授权先要一次。**自动要**：用户刚点了「排进系统闹钟」，
-        // 这时候弹询问表正是他预期的那一下
-        if AlarmManager.shared.authorizationState != .authorized {
-            let got = await requestAuth()
-            if got["status"] as? String != "granted" {
-                return ["error": (got["error"] as? String) ?? "系统没有授予闹钟权限"]
-            }
-        }
+        // 这时候弹询问表正是他预期的那一下。等他点完再接着排（见 ensureAuth）
+        if let bad = await ensureAuth() { return ["error": bad] }
 
         let label = title.isEmpty ? "待办" : title
         // 停止那个按钮要自己给，没有现成的 .stopButton
