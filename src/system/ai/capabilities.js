@@ -14,6 +14,7 @@ import * as dayStore from '../day.js';
 import * as extras from '../extras.js';
 import * as avatarLib from '../avatar.js';
 import * as watchStore from '../watch.js';
+import * as trip from '../trip.js';
 import * as ledger from '../ledger.js';
 import { PENDING as REQ_PENDING } from '../request.js';
 import { PENDING as MEAL_PENDING } from '../takeout.js';
@@ -194,6 +195,18 @@ export const CAPS = [
     line: () => 'Make a promise: write a line on its own, [约定：the thing];'
       + ' when it is fulfilled, write [约定完成：the thing]',
     detail: () => template('skeleton.pact'),
+  },
+  {
+    id: 'trip',
+    label: '出行',
+    on: ({ char }) => trip.onFor(char),
+    // 有一条提议挂着就必须是热的：它得知道「同行」「不去」怎么写，才表得了态
+    hot: ({ msgs }) => usedRecently(msgs, /^trip$|[[【]旅行/)
+      || hasPending(msgs, 'trip', 'trip', trip.PENDING),
+    line: () => 'Propose going somewhere together: write a line on its own,'
+      + ' [旅行：place | when];'
+      + ' for one they proposed, write [同行] or [不去]',
+    detail: () => template('skeleton.trip'),
   },
   {
     id: 'letter',

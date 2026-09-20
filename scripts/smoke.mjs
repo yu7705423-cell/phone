@@ -30,6 +30,7 @@ const ROUTES = {
     '/real/:char/:chat', '/real/:char/nope', '/real/nope/:chat',
     '/lock/:char', '/lock/nope', '/make/nope',
     '/home/nope', '/shelf/nope', '/body/nope', '/day/nope'],
+  travel: ['/', '/new', '/trip/:trip', '/trip/nope'],
   music: ['/', '/library', '/list/1'],
   bill: ['/', '/books', '/accounts', '/rules'],
   theater: ['/', '/videos', '/books', '/settings', '/watch/:chat', '/book/:ebook',
@@ -199,8 +200,11 @@ const ids = await page.evaluate(async () => {
   db.reviews.create({ kind: 'book', subjectId: ebk.id, charId: a.id, title: '雨城旧事',
     text: '看完之后想起一件事。\n第二段。', at: 10, createdAt: Date.now() });
 
+  const tripMod = await import('/src/system/trip.js');
+  const trRow = tripMod.create({ chatId: chat.id, title: '京都', place: '京都' });
+
   return { char: a.id, chat: chat.id, mem: mem.id, persona: me.id, book: bk.id, ebook: ebk.id, video: vid.id, lore: lore.id,
-    alb: book1.id, pho: pho.id, card: cardPhoto.id };
+    alb: book1.id, pho: pho.id, card: cardPhoto.id, trip: trRow.id };
 });
 await page.waitForTimeout(400);
 

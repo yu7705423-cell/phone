@@ -524,6 +524,23 @@ Do not write [收款] or [收下]; those two handle transfers, and the order wil
 not be processed if you use them.
 Handle each order once. Do not handle ones already marked as accepted or paid.`,
 
+  'skeleton.trip':
+`[出行]
+Write a line on its own to propose going somewhere together:
+
+[旅行：place | when]
+
+The part before the vertical bar is where, the part after it is when. The when
+may be left out, and need not be an exact date.
+
+A proposal from the other party requires a response: write a line reading [同行]
+to go, or a line reading [不去].
+Handle each proposal once. Do not respond again to one already marked as
+settled.
+
+Booking, tickets and the money for them are handled outside this conversation.
+Do not write that a ticket has been bought or that a price has been paid.`,
+
   'skeleton.group':
 `This is a group chat. The other members are: {{members}}.
 Recent messages are prefixed with the speaker. Say only your own lines; do not

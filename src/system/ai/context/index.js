@@ -8,6 +8,7 @@ import * as geoBlock from './geo.js';
 import * as musicBlock from './music.js';
 import * as watchBlock from './watch.js';
 import * as billBlock from './bill.js';
+import * as tripBlock from './trip.js';
 import * as healthBlock from './health.js';
 
 export const BLOCKS = {
@@ -28,10 +29,11 @@ export const BLOCKS = {
   music: { meta: musicBlock.meta, build: musicBlock.build },
   watch: { meta: watchBlock.meta, build: watchBlock.build },
   bill: { meta: billBlock.meta, build: billBlock.build },
+  trip: { meta: tripBlock.meta, build: tripBlock.build },
   health: { meta: healthBlock.meta, build: healthBlock.build },
 };
 
-export const DEFAULT_ORDER = ['lorebook', 'bond', 'character', 'loreAfter', 'user', 'time', 'day', 'avatar', 'geo', 'music', 'watch', 'bill', 'health', 'memory', 'space'];
+export const DEFAULT_ORDER = ['lorebook', 'bond', 'character', 'loreAfter', 'user', 'time', 'day', 'avatar', 'geo', 'music', 'watch', 'trip', 'bill', 'health', 'memory', 'space'];
 
 // 读出一份干净的顺序:丢掉不认识的 id,补上配置里缺失的。
 // 没有这一步,以后每新增一个区块,老用户配置里就少一项,该区块永远不注入,

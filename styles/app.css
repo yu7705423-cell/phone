@@ -1955,3 +1955,18 @@ button.search-bar { width: 100%; border: none; }
   border-radius: var(--r-sm); background: var(--surface);
   box-shadow: var(--shadow-1);
 }
+
+/* ---- 出行 ---- */
+/* 详情页顶上那一块。写的是算出来的数（还有几天、第几天），不写形容 */
+.trip-head {
+  display: flex; align-items: center; gap: var(--sp-3);
+  padding: var(--sp-4); border-radius: var(--r-md);
+  background: var(--surface); border: 1px solid var(--border);
+  color: var(--text-2);
+}
+.trip-head > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.trip-head b { font-size: var(--fs-15); font-weight: var(--fw-semi); color: var(--text); }
+.trip-head span { font-size: var(--fs-12); color: var(--text-3); }
+
+/* 会话里那条出行提议。和外卖那一条共用 tr-top / tr-body / tr-foot 那几层 */
+.bubble-trip { min-width: 190px; }

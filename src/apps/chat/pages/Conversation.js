@@ -11,6 +11,7 @@ import { MsgMenu } from './MsgMenu.js';
 import { PactBubble, LetterBubble, LetterSheet, PactSheet } from './SpaceBits.js';
 import { DiceBubble, InnerVoice, DiceSheet } from './ExtrasBits.js';
 import { TakeoutBubble, TakeoutSheet, MealSettleSheet, ShareSheet, MoreSheet } from './MealBits.js';
+import { TripBubble, TripSettleSheet } from './TripBits.js';
 import { PhotoSource } from './PhotoSource.js';
 import { TransferBubble, NoticeLine, TransferSheet, SettleSheet,
          LocationBubble, LocationSheet, CallBubble, CallLogSheet,
@@ -141,6 +142,8 @@ const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, onSwipe,
           ? html`<${DiceBubble} msg=${msg}/>`
           : msg.kind === 'takeout'
           ? html`<${TakeoutBubble} msg=${msg} onSettle=${selecting ? null : onSettle}/>`
+          : msg.kind === 'trip'
+          ? html`<${TripBubble} msg=${msg} onSettle=${selecting ? null : onSettle}/>`
           : msg.kind === 'sticker'
           ? html`<div class="bubble-sticker">
               ${sticker ? html`<${StickerImg} sticker=${sticker} size=${112}/>`
@@ -234,6 +237,7 @@ export function Conversation({ chatId, focusId = '' }) {
   const [sharing, setSharing] = useState(false);    // 共享位置面板开着
   const [more, setMore] = useState(false);          // 面板的「更多」开着
   const [meal, setMeal] = useState(null);           // 正在处理的那一单
+  const [going, setGoing] = useState(null);         // 正在回应的那次出行
   // 只画最近这么多条。聊了两万条的会话一次性铺出来要一两秒，手机上十几秒，
   // 而且往上翻从来也不会翻到那么远。不够就按「查看更早的消息」再要一段。
   const [shown, setShown] = useState(pageSize);
@@ -693,6 +697,7 @@ export function Conversation({ chatId, focusId = '' }) {
   // 「处理对方发来的那一件」两种气泡共用一个入口，按 kind 分流。
   // 各给一个 prop 的话，气泡的记忆化就得多认一个函数身份。
   const settleAny = m => (m.kind === 'takeout' ? setMeal(m)
+    : m.kind === 'trip' ? setGoing(m)
     : m.kind === 'request' ? setVoting(m) : setSettling(m));
   latest.current = { onRetry, onSwipe, togglePick, onSettle: settleAny,
     onOpenLog: openLog, onUnwrap: setUnwrap,
@@ -996,6 +1001,7 @@ export function Conversation({ chatId, focusId = '' }) {
       <${TakeoutSheet} open=${ordering} chatId=${chatId} onClose=${() => setOrdering(false)}/>
       <${ShareSheet} open=${sharing} chatId=${chatId} onClose=${() => setSharing(false)}/>
       <${MealSettleSheet} msg=${meal} onClose=${() => setMeal(null)}/>
+      <${TripSettleSheet} msg=${going} onClose=${() => setGoing(null)}/>
       <${MoreSheet} open=${more} onClose=${() => setMore(false)} onTap=${runTap}/>
       <${PhotoSource} open=${picking === 'photo'} onClose=${() => setPicking(null)}
         onFile=${() => { setPicking(null); imgRef.current?.click(); }}

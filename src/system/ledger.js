@@ -438,8 +438,15 @@ export const recent = (id, limit = 0) => {
   return limit > 0 ? list.slice(0, limit) : list;
 };
 
+/**
+ * 记一笔。
+ *
+ * `tripId` 是这一笔属于哪一次出行。**花费不在出行那一行里记一个数**，
+ * 就是账本里挂着这个 id 的那几笔的和（见 system/trip.js 的 spentOn）——
+ * 记一个数的话，这里改一笔或删一笔，那边就悄悄错了。
+ */
 export function add({ bookId, accountId, amount, category = 'other', note = '',
-  at = Date.now(), src = 'manual', pending = false, ref = '' } = {}) {
+  at = Date.now(), src = 'manual', pending = false, ref = '', tripId = '' } = {}) {
   const book = get(bookId);
   if (!book) throw new Error('账本不存在');
   const acc = accountOf(bookId, accountId) || accountsOf(bookId)[0];
@@ -451,7 +458,7 @@ export function add({ bookId, accountId, amount, category = 'other', note = '',
     category: categoryOf(category).id,
     note: trim(note, 40),
     at: num(at) || Date.now(),
-    src, pending: !!pending, ref,
+    src, pending: !!pending, ref, tripId: String(tripId || ''),
   });
 }
 

@@ -18,6 +18,7 @@ import * as dayStore from '../day.js';
 import * as extras from '../extras.js';
 import * as avatar from '../avatar.js';
 import * as takeout from '../takeout.js';
+import * as trip from '../trip.js';
 import * as translate from './translate.js';
 import * as ledger from '../ledger.js';
 import * as request from '../request.js';
@@ -46,6 +47,7 @@ const WEAR_KINDS = new Set(['换头像']);
 // 三种点法各一个词。谁吃、谁付都写在词里，正文只剩「吃什么 多少钱」
 const TAKEOUT_KINDS = new Map([['外卖', takeout.SELF], ['请客', takeout.TREAT], ['代付', takeout.ASK]]);
 const LIST_KINDS = new Set(['建歌单']);
+const TRIP_KINDS = new Set(['旅行']);
 const ASK_KINDS = new Set(['申请']);
 const CARD_KINDS = new Set(['亲属卡']);
 
@@ -55,6 +57,10 @@ const AMOUNT = /^\s*(?:[¥￥$]\s*)?(\d+(?:\.\d{1,2})?)\s*(?:元|块)?\s*(.*)$/;
 // 收下或退回对方转过来的那一笔。必须带方括号 —— 不带的话，
 // 「退回」两个字单独成行的正常句子也会被当成指令。
 const SETTLE_LINE = /^[[【(（]\s*(收款|收下|接收|退回|退还)\s*[\]】)）]$/;
+
+// 答应或者不答应对方提的那次出行。同样和别的几样各用一套词
+const JOIN_LINE = /^[[【(（]\s*(?:同行|一起去|去)\s*[\]】)）]$/;
+const SKIP_LINE = /^[[【(（]\s*(?:不去|去不了|算了)\s*[\]】)）]$/;
 
 // 处理对方点的那一单。和收款、拆礼物各用一套词：一段对话里转账、礼物、
 // 外卖可能同时挂着，共用一个词就分不清在处理哪一个。
@@ -317,6 +323,11 @@ export function splitReply(raw) {
       if (TAKE_LINE.test(t)) { push({ type: 'meal', take: true }); return; }
       if (NOPE_LINE.test(t)) { push({ type: 'meal', take: false }); return; }
 
+      // 对方提的那次出行，同行或者不去。和外卖、转账各用一套词 ——
+      // 一段对话里可能同时挂着好几样，共用一个词就分不清在处理哪一个
+      if (JOIN_LINE.test(t)) { push({ type: 'trip-go', join: true }); return; }
+      if (SKIP_LINE.test(t)) { push({ type: 'trip-go', join: false }); return; }
+
       // 共同账户与亲属卡：开通、批准、驳回各一行，都不占气泡
       if (JOINT_LINE.test(t)) { push({ type: 'request', kind: request.JOINT }); return; }
       if (OKAY_LINE.test(t)) { push({ type: 'vote', ok: true }); return; }
@@ -380,6 +391,10 @@ export function splitReply(raw) {
         push({ type: 'pick', name: body });
       } else if (LIST_KINDS.has(kind)) {
         push({ type: 'newlist', name: body });
+      } else if (TRIP_KINDS.has(kind)) {
+        // 去哪儿读不出来就整条丢掉。一次没有目的地的出行比少发一条更怪
+        const o = trip.parse(body);
+        if (o && o.where) push({ type: 'trip', ...o });
       } else if (TAKEOUT_KINDS.has(kind)) {
         const o = takeout.parse(body);
         // 吃什么读不出来就整条丢掉。一单没有内容的外卖比少发一条更怪
@@ -654,6 +669,17 @@ export function materialize(part, base, char) {
       kind: part.kind, item: part.item, amount: part.amount, extra: row,
     });
   }
+  if (part.type === 'trip') {
+    return trip.propose({
+      chatId: base.chatId, role: base.role, authorId: base.authorId,
+      where: part.where, when: part.when, extra: row,
+    });
+  }
+  if (part.type === 'trip-go') {
+    // 处理的是对方提的那一次。对方是谁看这一轮是谁在说话
+    const target = trip.pendingFrom(base.chatId, base.role === 'user' ? 'char' : 'user');
+    return target ? trip.settle(target.id, part.join, row) : null;
+  }
   if (part.type === 'meal') {
     // 处理的是对方那一单。对方是谁看这一轮是谁在说话。
     const target = takeout.pendingFrom(base.chatId, base.role === 'user' ? 'char' : 'user');
@@ -786,6 +812,7 @@ const BODY_OF = {
   image: '[图片]', voice: '[语音]', sticker: '[表情]', transfer: '[转账]', gift: '[礼物]',
   location: '[位置]', call: '[通话]', listen: '[一起听]', watch: '[一起看]',
   takeout: '[外卖]', request: '[申请]', share: '[分享]', dice: '[骰子]',
+  trip: '[旅行]',
   pact: '[约定]', letter: '[信]', vote: '[投票]',
 };
 const bodyOf = m => (m.kind === 'text' ? m.content : BODY_OF[m.kind]) || '发来一条消息';
@@ -882,6 +909,7 @@ export function dropMessage(id) {
   if (m.kind === 'notice' && m.settledId) {
     if (m.settledKind === 'pact') space.unsettlePact(id);
     else if (m.settledKind === 'takeout') takeout.unsettle(id);
+    else if (m.settledKind === 'trip') trip.unsettle(id);
     else if (m.settledKind === 'request') request.unsettle(id);
     else (m.settledKind === 'gift' ? gift : transfer).unsettle(id);
   }

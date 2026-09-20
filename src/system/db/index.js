@@ -48,8 +48,11 @@ export const phones     = makeCollection('phones', 'ph', { indexBy: 'charId' });
 // 那台手机里的聊天。一条会话一行，消息内嵌 —— 生成出来的会话就几十句，
 // 不值得再开一个消息域；而且「进去之后再生成」改的正好是一整行。
 export const phoneChats = makeCollection('phoneChats', 'pc', { indexBy: 'charId' });
+// 一次出行。挂在一段会话上 ——「一起去」这件事长在关系上，和情侣空间同一个理由。
+// 攻略条目与票内嵌在行里：那两样总是跟着一次出行一起读、一起删
+export const trips      = makeCollection('trips', 'tr', { indexBy: 'chatId' });
 
-const COLLECTIONS = { characters, lorebooks, memories, chats, messages, moments, stickers, looks, personas, songs, playlists, videos, spaceItems, events, days, recipes, meals, books, entries, ebooks, reviews, readnotes, health, cycles, meds, albums, photos, shots, phones, phoneChats };
+const COLLECTIONS = { characters, lorebooks, memories, chats, messages, moments, stickers, looks, personas, songs, playlists, videos, spaceItems, events, days, recipes, meals, books, entries, ebooks, reviews, readnotes, health, cycles, meds, albums, photos, shots, phones, phoneChats, trips };
 
 // ---- kv: settings / persona / layout ----
 function makeKV(key, fallback, { deep = false } = {}) {
@@ -143,7 +146,7 @@ export const db = {
   characters, lorebooks, memories, chats, messages, moments, stickers, looks, personas,
   songs, playlists, videos, spaceItems, events, days, recipes, meals,
   books, entries, ebooks, reviews, readnotes, health, cycles, meds,
-  albums, photos, shots, phones, phoneChats,
+  albums, photos, shots, phones, phoneChats, trips,
   images, files, settings, persona, layout,
   messagesOf, lastMessageOf, ready,
 };

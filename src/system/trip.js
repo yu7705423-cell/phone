@@ -1,0 +1,419 @@
+import { trips, chats, characters, messages } from './db/index.js';
+import * as accounts from './accounts.js';
+import * as ledger from './ledger.js';
+import * as clock from './time.js';
+
+// 一次出行。
+//
+// ---- 为什么它要自己一个数据域 ----
+//
+// 情侣空间那一节立过一条：**会话里发生过的事不另存一份**（礼物、位置、
+// 一起听、约定都是消息，不是记录）。这一条对出行不成立 ——
+// 一次出行是一个跨很多轮、有自己状态的东西：定了没、票买了没、攒够没、
+// 出发了没。这几样从消息里折不出来，所以它得有自己的一行。
+//
+// **但凡折得出来的，一律不存。** 现在是第几阶段（还在商量 / 快到了 /
+// 正在路上 / 结束了）由日期现算，不存字段 —— 存了就要有人负责在日子过去时
+// 把它改掉，而那个人迟早会漏。这和余额不入库是同一条理由。
+//
+// 钱同理：**这次出行花了多少，是账本里那几笔流水的和**，不在这一行里记一个数。
+//
+// ---- 一次出行挂在一段会话上 ----
+//
+// 「一起去」这件事长在关系上，和情侣空间同一个理由：人设不同关系就不同，
+// 不必再拿 人设 × 角色 拼一张表。
+//
+// ---- 三种出行是同一个对象 ----
+//
+// 旅行、看演出、看比赛，`kind` 不同而已。看演唱会不一定要去外地，
+// 去外地也可能就是为了看那一场；拆成两个数据域只会两边各写一遍同样的
+// 日期、预算、票。
+
+export const TRIP = 'trip';     // 旅行
+export const SHOW = 'show';     // 看演出
+export const MATCH = 'match';   // 看比赛
+export const KINDS = [
+  { id: TRIP, label: '旅行', icon: 'compass', what: '去哪儿' },
+  { id: SHOW, label: '看演出', icon: 'music', what: '看谁' },
+  { id: MATCH, label: '看比赛', icon: 'star', what: '看哪一场' },
+];
+export const kindOf = id => KINDS.find(k => k.id === id) || KINDS[0];
+
+// 存下来的状态只有三种。别的都是算出来的
+export const TALKING = 'talking';   // 还在商量
+export const BOOKED = 'booked';     // 定了
+export const DROPPED = 'dropped';   // 不去了
+
+// 现算出来的阶段。**不存**，见开头那一段
+export const SOON = 'soon';         // 定了，还没到日子
+export const GOING = 'going';       // 正在路上
+export const DONE = 'done';         // 过去了
+
+export const PHASES = {
+  [TALKING]: '商量中',
+  [SOON]: '待出发',
+  [GOING]: '进行中',
+  [DONE]: '已结束',
+  [DROPPED]: '已取消',
+};
+
+const trim = (v, n) => String(v ?? '').trim().slice(0, n);
+
+// ---- 日期 ----
+//
+// 存 'YYYY-MM-DD' 这样的字符串，不存时间戳。一次出行说的是「十月三号那天」，
+// 那是个日历上的日子，不是某个时刻 —— 存时间戳就要挑一个时区，
+// 而出发地和目的地的时区还不是同一个。
+
+const DATE = /^\d{4}-\d{2}-\d{2}$/;
+export const isDate = v => DATE.test(String(v || ''));
+
+/** 今天，按用户自己那一头算。 */
+export function today() {
+  const d = new Date(clock.now());
+  const p = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+/** a 和 b 差几天。都是 'YYYY-MM-DD'。 */
+export function daysBetween(a, b) {
+  if (!isDate(a) || !isDate(b)) return null;
+  return Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86400000);
+}
+
+// ---- 取 ----
+
+export const get = id => trips.get(id);
+
+/** 这段会话上的全部出行，新的在前。 */
+export const listOf = chatId => trips.byIndex(chatId)
+  .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
+export const all = () => trips.all()
+  .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
+/**
+ * 现在到哪一步了。存的状态只有三种，剩下的按日期算。
+ *
+ * 没填日期的「已定」仍然算 soon —— 定了但还没挑日子是常有的事，
+ * 不能因为日期空着就说它结束了。
+ */
+export function phaseOf(row) {
+  if (!row) return null;
+  if (row.state === DROPPED) return DROPPED;
+  if (row.state !== BOOKED) return TALKING;
+  const now = today();
+  const from = isDate(row.from) ? row.from : '';
+  const to = isDate(row.to) ? row.to : from;
+  if (!from) return SOON;
+  if (now < from) return SOON;
+  if (now > to) return DONE;
+  return GOING;
+}
+
+/** 还有几天出发。已经出发或没填日期都返回 null。 */
+export function daysUntil(row) {
+  if (phaseOf(row) !== SOON || !isDate(row?.from)) return null;
+  return daysBetween(today(), row.from);
+}
+
+/** 正在路上的话，今天是第几天（从 1 数起）。 */
+export function dayIndex(row) {
+  if (phaseOf(row) !== GOING || !isDate(row?.from)) return null;
+  return (daysBetween(row.from, today()) || 0) + 1;
+}
+
+/** 一共几天。没填到期日就按一天算。 */
+export function nights(row) {
+  if (!isDate(row?.from)) return 0;
+  if (!isDate(row?.to)) return 1;
+  return Math.max(1, (daysBetween(row.from, row.to) || 0) + 1);
+}
+
+/**
+ * 这段会话里眼下要紧的那一次。商量中与待出发按日期先后，进行中排最前。
+ * 注入与角色手机那类「一句话摘要」读它，不必自己挑。
+ */
+export function currentOf(chatId) {
+  const live = listOf(chatId).filter(r => {
+    const p = phaseOf(r);
+    return p === TALKING || p === SOON || p === GOING;
+  });
+  const rank = { [GOING]: 0, [SOON]: 1, [TALKING]: 2 };
+  return live.sort((a, b) => {
+    const d = rank[phaseOf(a)] - rank[phaseOf(b)];
+    if (d) return d;
+    return String(a.from || '9999').localeCompare(String(b.from || '9999'));
+  })[0] || null;
+}
+
+// ---- 改 ----
+
+export function create({ chatId, kind = TRIP, title, place = '', venue = '',
+  from = '', to = '', note = '', proposedBy = 'me', agreed = false } = {}) {
+  if (!chats.get(chatId)) throw new Error('这段对话已经不在了');
+  const t = trim(title, 40);
+  if (!t) throw new Error('请填写名称');
+  return trips.create({
+    chatId,
+    kind: KINDS.some(k => k.id === kind) ? kind : TRIP,
+    title: t,
+    place: trim(place, 40),
+    venue: trim(venue, 40),
+    from: isDate(from) ? from : '',
+    to: isDate(to) ? to : '',
+    note: trim(note, 200),
+    state: TALKING,
+    proposedBy: proposedBy === 'char' ? 'char' : 'me',
+    agreed: agreed === true,
+    plan: [],        // 攻略条目（批 4）
+    tickets: [],     // 票（批 2、3）
+    budget: 0,
+    createdAt: Date.now(),
+  });
+}
+
+export function update(id, patch) {
+  const row = trips.get(id);
+  if (!row) return null;
+  const next = { ...patch };
+  if ('title' in next) next.title = trim(next.title, 40);
+  if ('place' in next) next.place = trim(next.place, 40);
+  if ('venue' in next) next.venue = trim(next.venue, 40);
+  if ('note' in next) next.note = trim(next.note, 200);
+  if ('from' in next) next.from = isDate(next.from) ? next.from : '';
+  if ('to' in next) next.to = isDate(next.to) ? next.to : '';
+  if ('budget' in next) next.budget = Math.max(0, Number(next.budget) || 0);
+  // 日子反了就掉个个儿，不报错 —— 两个日期选择器谁先谁后是很容易点反的
+  const from = 'from' in next ? next.from : row.from;
+  const to = 'to' in next ? next.to : row.to;
+  if (isDate(from) && isDate(to) && to < from) { next.from = to; next.to = from; }
+  return trips.update(id, next);
+}
+
+export const remove = id => trips.remove(id);
+
+/**
+ * 定下来。**没填出发日期不让定** —— 「已定」这个状态底下挂着买票、
+ * 攒钱、出发提醒，全都要日期；定了却没有日期，那几样一律算不出来。
+ */
+export function book(id) {
+  const row = trips.get(id);
+  if (!row) return null;
+  if (!isDate(row.from)) throw new Error('请先填写出发日期');
+  return trips.update(id, { state: BOOKED });
+}
+
+export const undoBook = id => trips.update(id, { state: TALKING });
+export const drop = id => trips.update(id, { state: DROPPED });
+export const undrop = id => trips.update(id, { state: TALKING });
+
+/** 对方答应了没有。角色在会话里写 [同行] 就是这一下。 */
+export const agree = (id, yes = true) => trips.update(id, { agreed: yes === true });
+
+// ---- 这次出行花了多少 ----
+//
+// **不在这一行里记一个数。** 花费就是账本里挂着这次出行的那几笔流水的和 ——
+// 记一个数的话，进账本改一笔或删一笔，这边那个数就悄悄错了，
+// 而且没有任何人会发现。和余额不入库是同一条理由。
+
+/** 账本里这次出行的那几笔。靠流水上的 tripId 认。 */
+export function entriesOf(id) {
+  const row = trips.get(id);
+  const book = row && ledger.bookOfChat(row.chatId);
+  if (!book) return [];
+  return ledger.allEntries(book.id).filter(e => e.tripId === id);
+}
+
+/** 已经花掉多少（正数）。 */
+export function spentOn(id) {
+  return entriesOf(id).reduce((n, e) => n + (e.amount < 0 ? -e.amount : 0), 0);
+}
+
+/**
+ * 攒钱那一栏。**钱只有一处：账本的共同账户。**
+ *
+ * 没绑账本就返回 null，界面据此引导去绑一本 —— 不在行程里另记一个
+ * 「已攒多少」，那样同一笔钱会有两处，迟早对不上。
+ */
+export function savingOn(id) {
+  const row = trips.get(id);
+  if (!row) return null;
+  const book = ledger.bookOfChat(row.chatId);
+  if (!book) return null;
+  const joint = ledger.defaultFor(book.id, ledger.JOINT);
+  if (!joint) return { book, joint: null, have: 0, need: row.budget || 0, short: row.budget || 0 };
+  const have = ledger.balanceOf(book.id, joint.id);
+  const need = Math.max(0, (row.budget || 0) - spentOn(id));
+  return { book, joint, have, need, short: Math.max(0, need - have) };
+}
+
+// ---- 会话里那条提议 ----
+//
+// 和请客、转账同构：一条消息带着状态，收到的那一方表态，表完态落一行提示，
+// 提示行被删就当没表过态（见 4.675）。区别只有一个 —— **答应了要建一行**，
+// 因为出行是个会活很久的东西，不是一条消息就完了。
+
+export const PENDING = 'pending';
+export const JOINED = 'joined';
+export const REFUSED = 'refused';
+
+export function namesOf(chat) {
+  const persona = (chat && accounts.get(chat.personaId)) || accounts.current();
+  const char = characters.get((chat?.characterIds || [])[0]);
+  return { me: persona?.name || '我', char: char?.name || '角色' };
+}
+
+// 上下文里的写法。模型读到的和它自己该写的是同一套格式
+function contentOf({ where, when, state }) {
+  const head = `[旅行：${where}${when ? ` | ${when}` : ''}]`;
+  if (state === JOINED) return `${head}（说好了）`;
+  if (state === REFUSED) return `${head}（没去成）`;
+  return head;
+}
+
+/** 模型写的那一行拆成两段：竖线前是去哪儿，后面是什么时候。 */
+export function parse(body) {
+  const t = String(body || '').trim();
+  if (!t) return null;
+  const i = t.search(/[|｜]/);
+  return i < 0
+    ? { where: trim(t, 40), when: '' }
+    : { where: trim(t.slice(0, i), 40), when: trim(t.slice(i + 1), 40) };
+}
+
+/** 提一次。谁提的看 role。 */
+export function propose({ chatId, role, authorId, where, when = '', extra = {} }) {
+  const w = trim(where, 40);
+  if (!w) throw new Error('请填写去哪儿');
+  const msg = messages.create({
+    chatId, role, authorId, kind: 'trip',
+    where: w, when: trim(when, 40), trip: PENDING,
+    content: contentOf({ where: w, when, state: PENDING }),
+    status: 'done', ...extra,
+  });
+  chats.update(chatId, { lastMessageAt: Date.now() });
+  return msg;
+}
+
+/** 这段对话里，某一方提的、还等着对方表态的最近一条。 */
+export function pendingFrom(chatId, role) {
+  const list = messages.byIndex(chatId)
+    .filter(m => m.kind === 'trip' && m.role === role && m.trip === PENDING)
+    .sort((a, b) => a.createdAt - b.createdAt);
+  return list[list.length - 1] || null;
+}
+
+/**
+ * 同行 / 不去。
+ *
+ * 答应了要有一行出行 —— 那一行才是后面买票、攒钱挂的地方。**但不一定是新建的**：
+ *
+ *   角色提的    会话里只有一条消息，答应之后才建那一行
+ *   你在 app 里提的  行已经在了（提议消息上带着 tripId），这一下只是标成「答应了」
+ *
+ * 分不清这两种就会建出第二行来：app 里一行，角色答应时再一行，
+ * 同一次出行出现两次，而且两边各记各的票。
+ */
+export function settle(msgId, join, extra = {}) {
+  const m = messages.get(msgId);
+  if (!m || m.kind !== 'trip' || m.trip !== PENDING) return null;
+
+  const state = join ? JOINED : REFUSED;
+  messages.update(msgId, {
+    trip: state,
+    content: contentOf({ where: m.where, when: m.when, state }),
+  });
+
+  const chat = chats.get(m.chatId);
+  const { me, char } = namesOf(chat);
+  const charId = (chat?.characterIds || [])[0] || m.authorId;
+  const byUser = m.role !== 'user';          // 表态的人和提议的人相反
+  const who = byUser ? me : char;
+
+  // 这条提议上已经挂着一行了吗（你在 app 里提的那种）
+  const had = m.tripId && trips.get(m.tripId) ? m.tripId : '';
+  let tripId = had;
+  let made = false;
+  if (join) {
+    if (had) {
+      agree(had, true);
+    } else {
+      const row = create({
+        chatId: m.chatId,
+        title: m.where,
+        place: m.where,
+        note: m.when ? `说好的时间：${m.when}` : '',
+        proposedBy: m.role === 'user' ? 'me' : 'char',
+        agreed: true,
+      });
+      tripId = row.id;
+      made = true;
+      messages.update(msgId, { tripId });
+    }
+  }
+
+  const notice = messages.create({
+    chatId: m.chatId,
+    role: byUser ? 'user' : 'char',
+    authorId: byUser ? 'me' : charId,
+    kind: 'notice', settledId: msgId, settledKind: 'trip', tripId, tripMade: made,
+    content: `[${who}${join ? '答应一起去' : '没有答应去'}${m.where}]`,
+    status: 'done', ...extra,
+  });
+  chats.update(m.chatId, { lastMessageAt: Date.now() });
+  return notice;
+}
+
+/**
+ * 提示行被删掉就当这次表态没发生过。和转账、礼物、约定同一条规矩。
+ *
+ * **只删这一下自己建出来的那一行。** 你在 app 里先建好、角色后来答应的那种，
+ * 那一行不是这次表态建的，删掉就等于删了你自己建的行程 —— 只把它改回
+ * 「还没答应」。tripMade 记的就是这个区别。
+ */
+export function unsettle(noticeId) {
+  const n = messages.get(noticeId);
+  const m = n && messages.get(n.settledId);
+  if (!m || m.kind !== 'trip') return false;
+  if (n.tripMade && n.tripId && trips.get(n.tripId)) {
+    trips.remove(n.tripId);
+    messages.update(m.id, { tripId: '' });
+  } else if (n.tripId && trips.get(n.tripId)) {
+    agree(n.tripId, false);
+  }
+  messages.update(m.id, {
+    trip: PENDING,
+    content: contentOf({ where: m.where, when: m.when, state: PENDING }),
+  });
+  return true;
+}
+
+// ---- 注入 ----
+//
+// **只在有一次活着的出行时才占那一段。** 没有出行的时候一个字都不写 ——
+// 「你们没有出行计划」对模型没有任何用处，只是每轮都花掉几十个 token。
+
+export function context(chatId) {
+  const row = currentOf(chatId);
+  if (!row) return null;
+  const phase = phaseOf(row);
+  const k = kindOf(row.kind);
+  return {
+    kind: k.label,
+    title: row.title,
+    place: row.place,
+    venue: row.venue,
+    phase: PHASES[phase],
+    from: row.from,
+    to: row.to,
+    days: nights(row),
+    until: daysUntil(row),
+    dayIndex: dayIndex(row),
+    agreed: row.agreed,
+    note: row.note,
+  };
+}
+
+/** 角色卡上的开关。和别的能力一样，默认开着。 */
+export const onFor = char => !!char && char.canTrip !== false;

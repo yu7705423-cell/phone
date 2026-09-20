@@ -82,6 +82,7 @@ import * as healthApi from '../system/health.js';
 import * as healthkitApi from '../system/healthkit.js';
 import * as albumApi from '../system/album.js';
 import * as theirsApi from '../system/theirs.js';
+import * as tripApi from '../system/trip.js';
 import * as phoneTask from '../system/ai/tasks/phone.js';
 import * as cardshotApi from '../system/cardshot.js';
 import * as reviewApi from '../system/review.js';
@@ -250,6 +251,7 @@ export const phone = {
   healthkit: healthkitApi,
   album: albumApi,
   theirs: theirsApi,
+  trip: tripApi,
   cardshot: cardshotApi,
   review: reviewApi,
   booksearch: booksearchApi,
