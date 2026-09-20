@@ -100,8 +100,16 @@ export function settleNew(row) {
  *
  * 只给还在生效的那些配对，已经让过位的不再参与 —— 它们已经有结论了。
  */
+// 两两比是平方级的。八百条是 32 万次比对，还能在一次渲染里跑完；
+// 再多就只看最近改动过的八百条 —— 更早的那些要么早就体检过，要么本来
+// 也没人再改它。记忆首页每次渲染都要问一遍有没有重复，不能让它卡住整页。
+export const MAX_SCAN = 800;
+
 export function pairs(charId = '', personaId = '', limit = 50) {
-  const list = poolOf(charId, personaId);
+  const all = poolOf(charId, personaId);
+  const list = all.length > MAX_SCAN
+    ? all.slice().sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0)).slice(0, MAX_SCAN)
+    : all;
   const grams = list.map(m => gramsOf(m.content || ''));
   const out = [];
   for (let i = 0; i < list.length; i++) {
