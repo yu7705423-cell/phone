@@ -6,6 +6,7 @@ import { EntrySheet } from './EntrySheet.js';
 import { BooksPage } from './BooksPage.js';
 import { AccountsPage } from './AccountsPage.js';
 import { RulesPage } from './RulesPage.js';
+import { SpendPage } from './SpendPage.js';
 
 const { db, nav, ledger } = phone;
 
@@ -108,12 +109,14 @@ function Home() {
           以上条目由对话总结时提取，尚未计入余额与本月收支。确认后生效，删除后不再出现。
         </div>` : null}
 
-      ${st.byCategory.length ? html`
-        <${List} title="本月支出分类">
-          ${st.byCategory.map(c => html`
-            <${ListItem} key=${c.id} title=${c.label}
-              right=${html`<${Money} bookId=${bookId} amount=${-c.amount}/>`}/>`)}
-        <//>` : null}
+      <${List}>
+        <${ListItem} title="支出构成" arrow multiline
+          subtitle=${st.byCategory.length
+            ? `本月${st.byCategory.slice(0, 3).map(c => `${c.label} ${ledger.money(bookId, c.amount)}`).join('　')}`
+            : '按分类查看每个月的支出构成、占比与笔数'}
+          left=${html`<${Icon} name="filter" size=${18}/>`}
+          onClick=${() => nav.push('/spend')}/>
+      <//>
 
       ${rows.length ? html`
         <div class="bl-list">
@@ -139,5 +142,6 @@ export default function BillApp({ route }) {
   if (route === '/books') return html`<${BooksPage}/>`;
   if (route === '/accounts') return html`<${AccountsPage}/>`;
   if (route === '/rules') return html`<${RulesPage}/>`;
+  if (route === '/spend') return html`<${SpendPage}/>`;
   return html`<${Home}/>`;
 }

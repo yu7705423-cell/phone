@@ -112,19 +112,66 @@ const already = (text, chatId) => {
  * **两道监督都走这里**，谁都不能直接写成已计入 —— 这一条是这个功能的全部
  * 分寸所在：它在替你记事，不是在替你决定。
  */
-export function propose({ text, chatId = '', charId = '', srcMsgId = '', from = FROM_LOCAL }) {
+/**
+ * 时刻和事情常常不在同一句话里。
+ *
+ *     我：明天七点
+ *     我：叫我起来跑步
+ *
+ * 两条消息各自都不成立：前一条没有事，后一条没有时刻。所以认不出时刻的时候
+ * 往回翻几句，看看刚才有没有说过一个点钟。
+ *
+ * 两道闸都要：**隔得太多句**不算（中间隔了一段别的话，那个时刻多半是说别的），
+ * **隔得太久**也不算（半小时前提过的七点，和现在这句没关系）。
+ */
+const NEAR_LINES = 4;
+const NEAR_MS = 10 * 60000;
+
+function timeNear(near) {
+  for (const line of (near || []).slice(-NEAR_LINES).reverse()) {
+    const got = when.parse(String(line || ''));
+    if (got?.hasTime && got.at > Date.now()) return got.at;
+  }
+  return 0;
+}
+
+export function propose({ text, chatId = '', charId = '', srcMsgId = '',
+  from = FROM_LOCAL, near = [] }) {
   const t = String(text || '').trim().slice(0, 200);
   if (!t || already(t, chatId)) return null;
   // 「明天七点去跑步」里那个时刻顺手认出来（见 system/when.js）。
   // **只认说到点钟的**：一句话里顺口带了个「今天」不算约了时间，
   // 那种只会平白给人挂上一个凌晨零点的闹钟
   const got = when.parse(t);
-  const at = got?.hasTime ? got.at : 0;
+  const own = got?.hasTime && got.at > Date.now() ? got.at : 0;
   return todos.create({
     text: t, chatId, charId, srcMsgId, from,
-    state: PENDING, dueAt: '', remindAt: at > Date.now() ? at : 0,
+    state: PENDING, dueAt: '', remindAt: own || timeNear(near),
     createdAt: Date.now(),
   });
+}
+
+/**
+ * 反过来那一半：先说了事，后补一句时刻。
+ *
+ *     我：记得叫我买牛奶      这一句已经落成待确认了，没有时刻
+ *     我：明天七点            这一句什么事都没说，只有一个点钟
+ *
+ * 所以一句话里只有时刻、没有线索词时，回头看这段对话里还等着确认、
+ * 又没挂时刻的那一条，把时刻补给它。回来的是补上的那一条，没补成回 null。
+ */
+export function attachTime(chatId, text) {
+  const got = when.parse(String(text || ''));
+  if (!got?.hasTime || got.at <= Date.now()) return null;
+  // 这句话本身要是也带线索词，它自己会落一条，不该再去动别人的
+  if (detect(text)) return null;
+  const now = Date.now();
+  const row = pendingOf(chatId)
+    .filter(r => !r.remindAt && now - (r.createdAt || 0) <= NEAR_MS)
+    .pop();
+  if (!row) return null;
+  todos.update(row.id, { remindAt: got.at });
+  return todos.get(row.id);
 }
 
 /** 用户自己加的一条，不经过确认那一步 —— 他刚刚亲手写完。 */

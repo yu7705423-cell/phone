@@ -293,6 +293,17 @@ input[type="range"] {
 }
 .todo-bar .nav-text { flex: none; }
 .todo-acts { display: flex; align-items: center; gap: var(--sp-2); }
+/* 账户下面那一排「存入 / 取出」。贴着它自己那一行，不另起一段 */
+.acc-money {
+  display: flex; gap: var(--sp-2);
+  padding: 0 var(--sp-4) var(--sp-3);
+}
+/* 支出分类那一条占比。细细一道，看的是长短不是数字 */
+.sp-bar {
+  display: block; height: 3px; border-radius: var(--r-full);
+  background: var(--surface-3); margin: var(--sp-1) 0;
+}
+.sp-bar > span { display: block; height: 100%; border-radius: var(--r-full); background: var(--accent); }
 .todo-tick { display: flex; color: var(--text-3); padding: var(--sp-1); }
 
 /* 引用栏：正要引着谁说话，压在输入框上面 */

@@ -3,6 +3,7 @@ import { phone, useStore } from '../../sdk/index.js';
 import { Page, List, ListItem, Field, Input, Button, Segmented, Switch, Icon,
   Sheet, toast, confirm } from '../../ui/index.js';
 import { Money } from './parts.js';
+import { EntrySheet } from './EntrySheet.js';
 
 const { db, nav, ledger } = phone;
 
@@ -15,6 +16,9 @@ export function AccountsPage() {
   const [editing, setEditing] = useState(null);
   const [card, setCard] = useState(null);
   const [guess, setGuess] = useState(null);
+  // 存入 / 取出。**这件事的入口就该在账户旁边**（第 5 条）：
+  // 想给某个账户加钱的人正看着那个账户，不该让他退回去「记一笔」再挑一遍
+  const [moving, setMoving] = useState(null);
   const bookId = ledger.currentId();
   const book = ledger.get(bookId);
   if (!book) return html`<${Page} title="账户" onBack=${nav.pop}/>`;
@@ -55,10 +59,23 @@ export function AccountsPage() {
                 right=${a.secret && !ledger.unlocked(a)
                   ? html`<span class="li-hint">锁着</span>`
                   : html`<${Money} bookId=${bookId} amount=${ledger.balanceOf(bookId, a.id)}/>`}
-                onClick=${() => (a.secret && !ledger.unlocked(a) ? setGuess(a) : setEditing(a))}/>`)}
+                onClick=${() => (a.secret && !ledger.unlocked(a) ? setGuess(a) : setEditing(a))}/>
+              ${a.secret && !ledger.unlocked(a) ? null : html`
+                <div key=${`m-${a.id}`} class="acc-money">
+                  <button class="chip press"
+                    onClick=${() => setMoving({ accountId: a.id, side: 'in', title: `存入 ${a.name}` })}
+                    >存入</button>
+                  <button class="chip press"
+                    onClick=${() => setMoving({ accountId: a.id, side: 'out', title: `取出 ${a.name}` })}
+                    >取出</button>
+                </div>`}`)}
             ${!rows.length ? html`<${ListItem} title="还没有账户"/>` : null}
           <//>`;
       })}
+
+      ${moving ? html`
+        <${EntrySheet} bookId=${bookId} preset=${moving}
+          onClose=${() => setMoving(null)}/>` : null}
 
       <${List} title="亲属卡">
         ${ledger.cardsOf(bookId).map(c => html`

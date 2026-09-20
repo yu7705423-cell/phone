@@ -485,10 +485,15 @@ export function Conversation({ chatId, focusId = '' }) {
     if (phone.todo.localOn()) {
       const hit = phone.todo.detect(text);
       if (hit) {
+        // 时刻常常在上一句里（「明天七点」「叫我起来跑步」），往回翻几句
         phone.todo.propose({
           text: hit.text, chatId, charId: char.id, srcMsgId: msg.id,
           from: phone.todo.FROM_LOCAL,
+          near: db.messagesOf(chatId).slice(-6, -1).map(m => m.content),
         });
+      } else {
+        // 反过来：先说了事，这一句才补上时刻
+        phone.todo.attachTime(chatId, text);
       }
     }
     afterSend(text);

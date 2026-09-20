@@ -16,13 +16,16 @@ const toLocal = at => {
 };
 
 // 记一笔。新建和修改共用这一张 —— 两边字段完全一样，写两份迟早走岔。
-export function EntrySheet({ bookId, entryId, onClose }) {
+//
+// preset 给「从别处进来」的那几个入口用：在账户页点某个账户的「存入」，
+// 进来时那个账户和收入那一档就该是选好的，不必让人再挑一遍自己刚点过的东西。
+export function EntrySheet({ bookId, entryId, preset, onClose }) {
   const old = entryId ? phone.db.entries.get(entryId) : null;
   const accs = ledger.accountsOf(bookId);
-  const [side, setSide] = useState(old && old.amount > 0 ? 'in' : 'out');
+  const [side, setSide] = useState(old ? (old.amount > 0 ? 'in' : 'out') : (preset?.side || 'out'));
   const [amount, setAmount] = useState(old ? String(Math.abs(old.amount)) : '');
-  const [accountId, setAccountId] = useState(old?.accountId || accs[0]?.id || '');
-  const [category, setCategory] = useState(old?.category || 'food');
+  const [accountId, setAccountId] = useState(old?.accountId || preset?.accountId || accs[0]?.id || '');
+  const [category, setCategory] = useState(old?.category || preset?.category || 'food');
   const [note, setNote] = useState(old?.note || '');
   const [at, setAt] = useState(toLocal(old?.at || Date.now()));
 
@@ -47,7 +50,7 @@ export function EntrySheet({ bookId, entryId, onClose }) {
   };
 
   return html`
-    <${Sheet} open title=${old ? '修改这一笔' : '记一笔'} onClose=${onClose}>
+    <${Sheet} open title=${old ? '修改这一笔' : (preset?.title || '记一笔')} onClose=${onClose}>
       <div class="pad">
         <${Segmented} value=${side} items=${SIDES} onChange=${setSide}/>
       </div>

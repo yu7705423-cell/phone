@@ -516,6 +516,47 @@ const monthKey = at => {
 export const thisMonth = () => monthKey(Date.now());
 
 /** 某个月的收支。month 形如 2026-09，不给就是本月。 */
+/**
+ * 这本账有流水的那几个月，新的在前。统计页上拿它翻月份 ——
+ * 翻到一个空月份没有意义，有数的月份就这么几个。
+ */
+export function months(bookId) {
+  const set = new Set();
+  for (const e of allEntries(bookId)) if (counted(e)) set.add(monthKey(e.at));
+  const now = thisMonth();
+  set.add(now);
+  return [...set].sort().reverse();
+}
+
+/**
+ * 钱都花在哪儿了：按分类摊开，带占比。
+ *
+ * `stats` 里那个 byCategory 只给当月、只给金额。这一份多两样：
+ * **占比**（光看数字比不出哪一项吃掉了大半）与**笔数**（三千块是一次买的，
+ * 还是三十次凑出来的，是两回事）。
+ */
+export function spending(bookId, month = thisMonth()) {
+  const by = new Map();
+  let total = 0;
+  for (const e of allEntries(bookId)) {
+    if (!counted(e) || monthKey(e.at) !== month || e.amount >= 0) continue;
+    const v = -e.amount;
+    const had = by.get(e.category) || { amount: 0, count: 0 };
+    by.set(e.category, { amount: had.amount + v, count: had.count + 1 });
+    total += v;
+  }
+  const code = get(bookId)?.currency;
+  const rows = [...by.entries()]
+    .map(([id, v]) => ({
+      id, label: categoryOf(id).label,
+      amount: currency.round(v.amount, code),
+      count: v.count,
+      share: total ? v.amount / total : 0,
+    }))
+    .sort((a, b) => b.amount - a.amount);
+  return { month, total: currency.round(total, code), rows };
+}
+
 export function stats(bookId, month = thisMonth()) {
   let income = 0, expense = 0;
   const byCategory = new Map();

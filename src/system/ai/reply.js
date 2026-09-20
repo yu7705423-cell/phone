@@ -648,6 +648,8 @@ export function materialize(part, base, char) {
     todo.propose({
       text: part.text, chatId: base.chatId, charId: char?.id,
       from: todo.FROM_CHAR,
+      // 时刻可能在前面几句里说过，角色这一条只写了事（见 system/todo.js）
+      near: messagesOf(base.chatId).slice(-6).map(m => m.content),
     });
     return null;
   }
