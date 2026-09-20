@@ -103,7 +103,9 @@ export async function schedule(id) {
   // 顶上，于是界面照样写「已排入系统闹钟」—— 那是虚报：本地记着有，系统里
   // 一个都没有，而人要等到那个时刻没响才发现
   if (!got.alarmId) return { native: false, reason: 'noid' };
-  todos.update(id, { alarmId: got.alarmId });
+  // alarmAt 记的是「排出去的是哪个时刻」。光有 alarmId 判断不了时刻改没改过，
+  // 而改过却没重排是最容易让人白等一场的那种
+  todos.update(id, { alarmId: got.alarmId, alarmAt: ms });
   return { native: true, alarmId: got.alarmId };
 }
 
@@ -115,8 +117,19 @@ export async function cancel(id) {
     try { await call('cancel', { id: row.alarmId }); }
     catch (err) { console.warn('[alarm] 撤闹钟没成:', err.message || err); }
   }
-  todos.update(id, { alarmId: '' });
+  todos.update(id, { alarmId: '', alarmAt: 0 });
   return true;
+}
+
+/** 排出去的那个时刻和现在填的还是不是同一个。改过就得重排，不然白等。 */
+export const stale = row =>
+  !!row?.alarmId && Number(row.alarmAt || 0) !== timeOf(row);
+
+/** 全撤了。攒了一堆对不上的时候用这个推倒重来。 */
+export async function cancelAll() {
+  const rows = todos.where(r => r.alarmId);
+  for (const r of rows) await cancel(r.id);
+  return rows.length;
 }
 
 /**
@@ -125,7 +138,15 @@ export async function cancel(id) {
  * 不做「改一下参数」那种原地修改 —— 系统那边认的是 id，撤了重排是唯一
  * 保证两边一致的写法。
  */
+let busy = new Set();
+
 export async function reschedule(id, ms) {
+  if (busy.has(id)) return { native: false, reason: 'busy' };
+  busy.add(id);
+  try { return await redo(id, ms); } finally { busy.delete(id); }
+}
+
+async function redo(id, ms) {
   await cancel(id);
   todos.update(id, { remindAt: Number(ms) || 0 });
   return schedule(id);

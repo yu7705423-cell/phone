@@ -175,15 +175,31 @@ function Clock({ row }) {
   const read = when.parse(text);
   const at = read?.hasTime ? read.at : 0;
 
-  const apply = async v => {
+  // **只写本地，不碰系统闹钟。**
+  //
+  // 从前这里每按一个键就 cancel 一次再 schedule 一次：打「明天七点」就是四五轮，
+  // 而且都是不等前一轮结束就发下一轮，几个异步调用撞在同一个闹钟编号上。
+  // 屏幕上于是糊满了报错。排进系统这件事交给下面那个按钮，按一下才发一次。
+  const apply = v => {
     setText(v);
     const got = when.parse(v);
-    const next = got?.hasTime ? got.at : 0;
-    if (!next) { db.todos.update(row.id, { remindAt: 0, rungAt: 0, whenText: v }); return; }
+    db.todos.update(row.id, {
+      remindAt: got?.hasTime ? got.at : 0, rungAt: 0, whenText: v,
+    });
+  };
+
+  const changed = alarm.stale(row);
+  const put = async () => {
     setBusy(true);
     try {
-      await alarm.reschedule(row.id, next);
-      db.todos.update(row.id, { rungAt: 0, whenText: v });
+      if (row.alarmId && !changed) {
+        await alarm.cancel(row.id);
+        toast('已撤销系统闹钟', 'ok');
+        return;
+      }
+      const r = await alarm.reschedule(row.id, ms);
+      toast(r.native ? '已排入系统闹钟' : '当前环境无法排入系统闹钟',
+        r.native ? 'ok' : 'plain', 4000);
     } catch (err) {
       toast(String(err.message || err), 'error', 5000);
     } finally { setBusy(false); }
@@ -208,21 +224,20 @@ function Clock({ row }) {
     <//>
     ${ms ? html`
       <${List}>
-        <${ListItem} title=${row.alarmId ? '已排入系统闹钟' : '尚未排入系统闹钟'} multiline
-          subtitle=${row.alarmId
-            ? `将于 ${timeText(ms)} 响铃，关闭本应用后仍然有效。`
-            : (alarm.isFuture(ms)
-              ? `将于 ${timeText(ms)} 在本应用内提醒，关闭本应用后不再提醒。`
-              : '该时刻已经过去。')}
+        <${ListItem} multiline
+          title=${changed ? '时刻已改，尚未重新排入'
+            : row.alarmId ? '已排入系统闹钟' : '尚未排入系统闹钟'}
+          subtitle=${changed
+            ? `系统中仍是 ${timeText(row.alarmAt)}。点击右侧重新排入。`
+            : row.alarmId
+              ? `将于 ${timeText(ms)} 响铃，关闭本应用后仍然有效。`
+              : (alarm.isFuture(ms)
+                ? `将于 ${timeText(ms)} 在本应用内提醒，关闭本应用后不再提醒。`
+                : '该时刻已经过去。')}
           left=${html`<${Icon} name="bell" size=${18}/>`}
           right=${busy ? null : html`
-            <button class="nav-text press"
-              onClick=${async () => {
-                if (row.alarmId) { await alarm.cancel(row.id); toast('已撤销系统闹钟', 'ok'); return; }
-                const r = await alarm.schedule(row.id);
-                toast(r.native ? '已排入系统闹钟' : '当前环境无法排入系统闹钟',
-                  r.native ? 'ok' : 'plain', 4000);
-              }}>${row.alarmId ? '撤销' : '排入'}</button>`}/>
+            <button class="nav-text press" onClick=${put}>
+              ${changed ? '重新排入' : row.alarmId ? '撤销' : '排入'}</button>`}/>
       <//>` : null}`;
 }
 
@@ -366,6 +381,21 @@ function AlarmPage() {
               : '。系统一侧的数目需要在支持的环境中读取。')}
           left=${html`<${Icon} name="layers" size=${18}/>`}/>
       <//>
+
+      ${mine.length ? html`
+        <div class="pad">
+          <${Button} full variant="ghost" disabled=${busy} onClick=${async () => {
+            if (!await confirm({ title: '撤销全部系统闹钟',
+              message: `将撤销 ${mine.length} 个系统闹钟。待办本身与其上的时刻保留，可逐条重新排入。`,
+              danger: true })) return;
+            setBusy(true);
+            try { toast(`已撤销 ${await alarm.cancelAll()} 个`, 'ok'); }
+            finally { setBusy(false); refresh(); }
+          }}>撤销全部系统闹钟<//>
+          <div class="settings-foot">
+            两边对不上时，可先全部撤销再逐条重新排入。
+          </div>
+        </div>` : null}
 
       ${pairs.length ? html`
         <${List} title=${`逐条对账 ${pairs.length} 条`}>
