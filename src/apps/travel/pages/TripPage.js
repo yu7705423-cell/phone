@@ -15,8 +15,9 @@ const { db, nav, trip, ledger, intent } = phone;
 // 还差多少**。三个数都从账本折出来。没绑账本就写明白，给一个过去绑的入口
 // —— 不在这儿另记一个「已攒多少」，那样同一笔钱会有两处。
 //
-// 票与攻略是后面两批的事，这一页先把位置留出来，但**不画空壳** ——
-// 画一个点进去什么也没有的入口，等于让人白点一次。
+// 票单独一页：检索、购买、退票都在那儿，这一页只摆一行摘要。
+// 攻略还没有做，所以这一页**不画那个入口** —— 画一个点进去什么也没有的
+// 格子，等于让人白点一次。
 
 export function TripPage({ tripId }) {
   useStore(db.trips.store);
@@ -136,6 +137,18 @@ export function TripPage({ tripId }) {
             : null}/>
       <//>
 
+      <${List} title="票">
+        <${ListItem} title="机票、车票与门票" arrow multiline
+          subtitle=${(() => {
+            const all = trip.ticketsOf(tripId);
+            if (!all.length) return '还没有检索过。检索结果只作参考，不是实时票价';
+            const got = all.filter(t => t.state === trip.BOUGHT);
+            return `${all.length} 条备选，已购买 ${got.length} 张`;
+          })()}
+          left=${html`<${Icon} name="bookmark" size=${18}/>`}
+          onClick=${() => nav.push(`/tickets/${tripId}`)}/>
+      <//>
+
       <${List} title="费用">
         ${saving ? html`
           <${ListItem} title="共同账户" multiline
@@ -183,7 +196,7 @@ export function TripPage({ tripId }) {
 
       <div class="settings-foot">
         进行中与已结束由日期计算得出，不需要手动切换。<br/>
-        票务与攻略尚未提供，本页目前只包含行程与费用。
+        攻略尚未提供。
       </div>
     <//>`;
 }

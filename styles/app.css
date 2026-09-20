@@ -1970,3 +1970,5 @@ button.search-bar { width: 100%; border: none; }
 
 /* 会话里那条出行提议。和外卖那一条共用 tr-top / tr-body / tr-foot 那几层 */
 .bubble-trip { min-width: 190px; }
+/* 票那一行右边的两个动作。按钮与删除挨着，不各占一行 */
+.tk-acts { display: flex; align-items: center; gap: var(--sp-2); }

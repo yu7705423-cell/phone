@@ -84,6 +84,7 @@ import * as albumApi from '../system/album.js';
 import * as theirsApi from '../system/theirs.js';
 import * as tripApi from '../system/trip.js';
 import * as phoneTask from '../system/ai/tasks/phone.js';
+import * as tripTask from '../system/ai/tasks/trip.js';
 import * as cardshotApi from '../system/cardshot.js';
 import * as reviewApi from '../system/review.js';
 import * as booksearchApi from '../system/booksearch.js';
@@ -189,6 +190,7 @@ export const phone = {
     charAlt: charAltApi,
     card: cardApi,
     phone: phoneTask,
+    trip: tripTask,
     eventBatch,
     dayTask,
     inner: innerTask,

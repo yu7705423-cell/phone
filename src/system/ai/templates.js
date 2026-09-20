@@ -464,6 +464,82 @@ Count: {{count}}
 ## Output JSON only, with no other text
 {"dishes":[{"name":"","place":"","note":"","price":0}]}`,
 
+  // 找票，联网那一档。**只问查得到的事实，不问概率** —— 抢不抢得到由
+  // capacity 与 demand 在本地算（见 tasks/trip.js 开头那一段）。
+  'task.trip-tickets':
+`List real {{kind}} options for a trip. Every entry must be verified against
+the web.
+
+## The trip
+Destination: {{place}}
+Venue: {{venue}}
+What it is for: {{target}}
+Dates: {{when}}
+How many entries: {{count}}
+Currency for every price: {{currency}}
+
+## Requirements
+- Each entry must be a real option that can be found on the web. When one
+  cannot be confirmed, drop it rather than inventing one
+- title names the option: the carrier and number for a flight, the service
+  number for a train, the site or the performance otherwise
+- from and to are the departure and arrival points; leave both empty when the
+  entry is not a journey
+- at is the date, written 2026-10-03, and for a performance the time as well,
+  written 2026-10-03 19:30
+- seat is the class or the tier, for example the cabin, the carriage class, or
+  the section of the venue
+- face is the price of one ticket at face value, as a number in {{currency}},
+  with no symbol
+- note states one fact that distinguishes this entry, at most twenty
+  characters, and may be left empty
+- Cover a range of prices rather than only the cheapest or only the best
+
+## How many there are and how many want them
+Fill these from the web as well. Use 0 or leave empty for any that does not
+apply or cannot be found; do not estimate one.
+- capacity is how many seats or places there are in total, as a number
+- demand is how many people want one: the count marking interest on a
+  ticketing site, the number of registrations, or the audience the previous
+  edition drew
+- share is the fraction of all tickets that this tier accounts for, between
+  0 and 1
+- heat is how sought after this tier is relative to the others, between 0
+  and 1, where the best seats are highest
+- saleAt is the moment tickets go on sale, written 2026-10-03 19:30
+
+Report these counts only. Do not state any probability of obtaining a ticket,
+and do not describe how hard it is to get one.
+
+## Output JSON only, with no other text
+{"tickets":[{"title":"","from":"","to":"","at":"","seat":"","face":0,"capacity":0,"demand":0,"share":0,"heat":0,"saleAt":"","note":""}]}`,
+
+  // 找票，没有联网接口那一档。**写清楚这是估算**，界面也照实标
+  'task.trip-tickets-guess':
+`Estimate what {{kind}} for this trip would cost. You have no access to the
+web, so these are typical prices rather than current ones.
+
+## The trip
+Destination: {{place}}
+Venue: {{venue}}
+What it is for: {{target}}
+Dates: {{when}}
+How many entries: {{count}}
+Currency for every price: {{currency}}
+
+## Requirements
+- title names a plausible option in general terms rather than a specific
+  carrier, service number or performance
+- seat is the class or the tier
+- face is a typical price for one ticket, as a number in {{currency}}, with no
+  symbol
+- Cover a range from the cheapest to the most expensive that is usual there
+- Leave from, to, at, capacity, demand, share, heat and saleAt at 0 or empty
+- note states what the price assumes, at most twenty characters
+
+## Output JSON only, with no other text
+{"tickets":[{"title":"","seat":"","face":0,"note":""}]}`,
+
   'skeleton.inner':
 `[心声]
 At the end of each turn, on a new line, write

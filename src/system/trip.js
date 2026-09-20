@@ -248,6 +248,169 @@ export function savingOn(id) {
   return { book, joint, have, need, short: Math.max(0, need - have) };
 }
 
+// ---- 票 ----
+//
+// 一张票内嵌在出行那一行里（和角色手机的备忘录一样：不多，而且总是跟着
+// 一次出行一起读、一起删）。
+//
+// ---- 候选票和已买的票是同一个对象 ----
+//
+// 搜回来的是候选（found），买下来变成 bought，没抢到变成 missed。
+// 分成两个数组会立刻出现「同一张票在两边各有一份」的问题。
+//
+// ---- 存的是客观数字，不是概率 ----
+//
+// `capacity`（场馆能坐多少）、`demand`（多少人想看）、`share`（这一档占
+// 多少票）、`heat`（这一档多抢手）**全部来自搜索，是查得到的事实**。
+//
+// **抢不抢得到的概率不存，也不问模型。** 它由这几个数在本地算出来
+// （第三批）。理由和随机事件那一条一样：点数、距离、金额不是模型的活，
+// 供需比同理 —— 交给模型给一个「百分之十二」，它给的是它的印象，不是算术。
+//
+// 46000 人的场、38 万人想看，内场那一档占 8% 的票却吸走三成的人，
+// 于是三千多张票对十来万人。**抢不到是这几个数算出来的结果**，
+// 不是谁拍的一个数。
+//
+// ---- 价是什么时候的价 ----
+//
+// `src` 记这一条哪儿来的：联网搜的、模型估的、还是手填的。
+// `foundAt` 记搜到的时刻。**界面必须把这两样写出来** —— 搜出来的是模型
+// 看到的网页上的数字，不是实时票价，这个 app 也不订票。装成订票系统
+// 是不诚实的。
+
+export const FLIGHT = 'flight';   // 机票
+export const TRAIN = 'train';     // 车票
+export const ENTRY = 'entry';     // 门票
+export const SHOW_TICKET = 'showticket';   // 演出票
+export const MATCH_TICKET = 'matchticket'; // 比赛票
+
+// `cat` 是记进账本时归哪一类。**用账本已有的那十类，不为出行另开一类** ——
+// 记账那一页的月度统计按类分，多一类只会让「交通」少一块
+export const TICKET_KINDS = [
+  { id: FLIGHT, label: '机票', icon: 'compass', grab: false, cat: 'transit' },
+  { id: TRAIN, label: '车票', icon: 'compass', grab: false, cat: 'transit' },
+  { id: ENTRY, label: '门票', icon: 'bookmark', grab: false, cat: 'fun' },
+  { id: SHOW_TICKET, label: '演出票', icon: 'music', grab: true, cat: 'fun' },
+  { id: MATCH_TICKET, label: '比赛票', icon: 'star', grab: true, cat: 'fun' },
+];
+export const ticketKindOf = id =>
+  TICKET_KINDS.find(k => k.id === id) || TICKET_KINDS[0];
+
+// 这次出行默认找哪几种票
+export const KINDS_FOR = {
+  [TRIP]: [FLIGHT, TRAIN, ENTRY],
+  [SHOW]: [SHOW_TICKET, FLIGHT, TRAIN],
+  [MATCH]: [MATCH_TICKET, FLIGHT, TRAIN],
+};
+
+export const FOUND = 'found';
+export const BOUGHT = 'bought';
+export const MISSED = 'missed';
+export const GIVENUP = 'givenup';
+
+export const SEARCHED = 'search';   // 联网搜出来的
+export const GUESSED = 'guess';     // 普通接口估的
+export const MANUAL = 'manual';     // 手填的
+
+const num = (v, max = 1e9) => Math.min(max, Math.max(0, Number(v) || 0));
+const rate = v => Math.min(1, Math.max(0, Number(v) || 0));
+
+export const ticketsOf = id => (get(id)?.tickets || []);
+export const ticketOf = (id, tid) => ticketsOf(id).find(t => t.id === tid) || null;
+
+/** 加几张候选票。**追加不覆盖**：再搜一次是往后加，不是把上一次的抹掉。 */
+export function addTickets(id, rows, src = SEARCHED) {
+  const row = get(id);
+  if (!row) return [];
+  const at = Date.now();
+  const clean = (rows || []).map((r, i) => ({
+    id: `tk_${at.toString(36)}_${i}`,
+    kind: TICKET_KINDS.some(k => k.id === r?.kind) ? r.kind : FLIGHT,
+    title: trim(r?.title, 60),
+    from: trim(r?.from, 30),
+    to: trim(r?.to, 30),
+    at: trim(r?.at, 20),
+    seat: trim(r?.seat, 30),
+    face: num(r?.face),
+    qty: Math.max(1, Math.round(Number(r?.qty) || 2)),
+    // 抢票那几个客观数字
+    capacity: Math.round(num(r?.capacity)),
+    demand: Math.round(num(r?.demand)),
+    share: rate(r?.share),
+    heat: rate(r?.heat),
+    saleAt: trim(r?.saleAt, 20),
+    need: r?.need === true,
+    note: trim(r?.note, 80),
+    state: FOUND,
+    paid: 0,
+    entryId: '',
+    src,
+    foundAt: at,
+  })).filter(t => t.title);
+  if (!clean.length) return [];
+  trips.update(id, { tickets: [...ticketsOf(id), ...clean] });
+  return clean;
+}
+
+export const updateTicket = (id, tid, patch) => trips.update(id, {
+  tickets: ticketsOf(id).map(t => (t.id === tid ? { ...t, ...patch } : t)),
+});
+
+export const removeTicket = (id, tid) => trips.update(id, {
+  tickets: ticketsOf(id).filter(t => t.id !== tid),
+});
+
+/** 这张票一共要多少钱。加价买的时候传一个倍数（第三批用）。 */
+export const costOf = (t, times = 1) =>
+  Math.round(num(t?.face) * Math.max(1, t?.qty || 1) * Math.max(1, times) * 100) / 100;
+
+/**
+ * 买一张。
+ *
+ * **钱从共同账户扣，扣不动就不让买**（ledger.affordable 那道关）。
+ * 落的是账本里一条带 tripId 的流水 —— 花费不在票上记一个数，
+ * 和「这次花了多少」是同一条理由。
+ *
+ * 需要抢的那几种这一批不从这里走：见 grabRequired。
+ */
+export function buyTicket(id, tid, { times = 1 } = {}) {
+  const row = get(id);
+  const t = ticketOf(id, tid);
+  if (!row || !t) throw new Error('这张票已经不在了');
+  if (t.state === BOUGHT) throw new Error('这张票已经买过了');
+
+  const book = ledger.bookOfChat(row.chatId);
+  if (!book) throw new Error('这段对话还没有账本，先在「记账」中绑定一本');
+  const joint = ledger.defaultFor(book.id, ledger.JOINT);
+  if (!joint) throw new Error('这本账上还没有共同账户');
+
+  const cost = costOf(t, times);
+  if (!cost) throw new Error('这张票没有价格，请先填写');
+  if (ledger.strictOn(book) && ledger.balanceOf(book.id, joint.id) < cost) {
+    throw new Error('共同账户余额不足，需要先存入');
+  }
+
+  const entry = ledger.add({
+    bookId: book.id, accountId: joint.id, amount: -cost,
+    category: ticketKindOf(t.kind).cat, tripId: id,
+    note: `${ticketKindOf(t.kind).label} ${t.title}`.slice(0, 40),
+  });
+  updateTicket(id, tid, { state: BOUGHT, paid: cost, entryId: entry.id });
+  return entry;
+}
+
+/** 退掉。账本里那一笔一并撤销 —— 留着的话票没了钱还是花出去的。 */
+export function refundTicket(id, tid) {
+  const t = ticketOf(id, tid);
+  if (!t) return null;
+  if (t.entryId) ledger.drop(t.entryId);
+  return updateTicket(id, tid, { state: FOUND, paid: 0, entryId: '' });
+}
+
+/** 这张票要不要抢。票种说要抢、而且搜到了供需数字，才算数。 */
+export const grabRequired = t =>
+  !!t && (t.need || ticketKindOf(t.kind).grab);
+
 // ---- 会话里那条提议 ----
 //
 // 和请客、转账同构：一条消息带着状态，收到的那一方表态，表完态落一行提示，
