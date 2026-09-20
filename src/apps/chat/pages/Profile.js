@@ -18,6 +18,7 @@ export function Profile({ subjectId, embedded }) {
   const me = phone.accounts.current() || db.persona.get();
   const subject = isMe ? me : db.characters.get(subjectId);
   const avatar = useImage(subject?.avatar);
+  const baseFace = useImage(subject?.avatarBase);
   const cover = useImage(subject?.cover);
   const coverRef = useRef(null);
   const avatarRef = useRef(null);
@@ -38,9 +39,27 @@ export function Profile({ subjectId, embedded }) {
     if (!file) return;
     try {
       const id = await db.images.put(file, max);
-      if (subject[key]) db.images.remove(subject[key]);
-      patch({ [key]: id });
+      // 头像那一张**留着**：原本长什么样是找得回来的（见 system/avatar.js）。
+      // 从前换一张就把旧的删了，于是「换回去」这件事根本无从做起。
+      // 封面不是脸，照旧换掉就删。
+      if (key === 'avatar') {
+        const keepBase = subject.avatarBase || subject.avatar || '';
+        patch({ avatar: id, ...(keepBase ? { avatarBase: keepBase } : {}) });
+      } else {
+        if (subject[key]) db.images.remove(subject[key]);
+        patch({ [key]: id });
+      }
     } catch (err) { toast('图片处理失败：' + err.message, 'error'); }
+  };
+
+  // 原本那张与现在这张。角色在对话里自己换过、或者自己手动换过，两张才不一样
+  const faces = phone.avatarLink.facesOf(subject);
+  const restore = () => {
+    const old = subject.avatarBase;
+    if (!old || old === subject.avatar) return;
+    if (subject.avatar) db.images.remove(subject.avatar);
+    patch({ avatar: old, avatarBase: '' });
+    toast('已换回原本的头像', 'ok');
   };
 
   const del = async () => {
@@ -75,6 +94,11 @@ export function Profile({ subjectId, embedded }) {
         <button class="press" onClick=${() => isMe && avatarRef.current?.click()}>
           <${Avatar} src=${avatar} name=${subject.name} size=${72} radius=${36}/>
         </button>
+        ${faces.changed ? html`
+          <button class="press face-base" onClick=${restore} aria-label="换回原本的头像">
+            <${Avatar} src=${baseFace} name=${subject.name} size=${34} radius=${17}/>
+            <span>原本的</span>
+          </button>` : null}
         <input type="file" accept="image/*" ref=${avatarRef}
           onChange=${pickImage(avatarRef, 'avatar', AVATAR_MAX)} style="display:none"/>
         <div class="profile-meta">

@@ -95,3 +95,24 @@ export function nfetch(url, init = {}, { prefer = 'auto' } = {}) {
 /** 这一次会走哪条路。界面上要说清楚，别让人猜。 */
 export const routeOf = url =>
   (canNative() && !sameOrigin(url) ? 'native' : 'direct');
+
+/**
+ * 浏览器里发失败之后，再问一句：**到底是连不上，还是连上了不让读？**
+ *
+ * `fetch` 失败时抛的永远是同一句 `Failed to fetch` —— 域名解析不了是它，
+ * 连接被拒是它，跨域被拦也是它。可这三种的下一步完全不同，混成一句等于没说。
+ *
+ * 分辨的办法是再发一次 `mode: 'no-cors'`。那种请求浏览器不要求对方点头，
+ * 回来的东西读不了（opaque），但**发得出去就说明服务器是活的**：
+ *
+ *   no-cors 成了  服务器可达，是跨域被拦下了 —— 换中转地址，或者装成 app
+ *   no-cors 也败  根本没联系上 —— 地址错了、域名解析不了、或者网不通
+ *
+ * 只在浏览器直连那条路上问。外壳那条本来就没有跨域一说。
+ */
+export async function reachable(url) {
+  try {
+    await fetch(url, { method: 'GET', mode: 'no-cors', cache: 'no-store' });
+    return true;
+  } catch { return false; }
+}

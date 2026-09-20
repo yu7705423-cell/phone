@@ -152,6 +152,34 @@ export function wear(charId, name) {
     return t && (t.includes(q) || q.includes(t));
   });
   if (!hit || hit.imageId === char.avatar) return null;
-  characters.update(charId, { avatar: hit.imageId });
+  // 第一次被换掉时，把原来那张记下来。**不记就找不回来了** ——
+  // 角色自己换头像是它的自由，但「它本来长什么样」是另一件事，
+  // 那张是你当初给它选的，不该被它一句话覆盖掉
+  const patch = { avatar: hit.imageId };
+  if (!char.avatarBase && char.avatar) patch.avatarBase = char.avatar;
+  characters.update(charId, patch);
   return hit;
+}
+
+/**
+ * 原本那张与现在这张。
+ *
+ * `avatar` 一直是**现在在用的**那张 —— 界面上到处都读它，换个字段等于把每一处
+ * 显示都改一遍，漏一处就是两张脸。所以原本那张单独记在 `avatarBase`，
+ * 没被换过时它是空的，那时两张就是同一张。
+ *
+ * 用户自己那边同理（`persona.avatarBase`）。
+ */
+export function facesOf(who) {
+  const now = who?.avatar || null;
+  const base = who?.avatarBase || null;
+  return { now, base: base || now, changed: !!(base && base !== now) };
+}
+
+/** 换回原本那张。没换过就什么都不做。 */
+export function restoreFace(charId) {
+  const char = characters.get(charId);
+  if (!char?.avatarBase || char.avatarBase === char.avatar) return false;
+  characters.update(charId, { avatar: char.avatarBase, avatarBase: '' });
+  return true;
 }

@@ -305,6 +305,14 @@ input[type="range"] {
 }
 .sp-bar > span { display: block; height: 100%; border-radius: var(--r-full); background: var(--accent); }
 /* 通话里那句「为什么没有这个角色的声音」。和字幕同一列，低一档 */
+/* 两张脸：原本的与现在在用的。并排摆，一眼看得出换过 */
+.face-pair { display: flex; gap: var(--sp-5); justify-content: center; }
+.face-one { display: flex; flex-direction: column; align-items: center; gap: var(--sp-1); }
+.face-one span { font-size: var(--fs-11); color: var(--text-3); }
+/* 主页上那张小的，贴在大头像旁边，点一下换回去 */
+.face-base { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.face-base span { font-size: var(--fs-11); color: var(--text-3); }
+
 .call-why {
   flex: none; text-align: center; font-size: var(--fs-11);
   color: var(--text-3); padding: 0 var(--sp-4) var(--sp-2);

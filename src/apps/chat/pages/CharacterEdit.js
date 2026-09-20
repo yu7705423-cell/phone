@@ -24,6 +24,9 @@ export function CharacterEdit({ id }) {
   const faceRef = useRef(null);
   const char = db.characters.get(id);
   const avatar = useImage(char?.avatar);
+  // 原本那张与现在这张。角色在对话里自己换过头像时，两张才不一样
+  const faces = phone.avatarLink.facesOf(char);
+  const baseFace = useImage(faces.base);
   const scene = useImage(char?.callImage);
   const face = useImage(char?.faceImage);
   const stickerCount = db.stickers.count();
@@ -63,9 +66,30 @@ export function CharacterEdit({ id }) {
     <${Page} title="角色卡" onBack=${nav.pop}>
       <div class="pad">
         <div class="avatar-picker">
-          <${Avatar} src=${avatar} name=${char.name} size=${76}/>
+          ${faces.changed ? html`
+            <div class="face-pair">
+              <div class="face-one">
+                <${Avatar} src=${baseFace} name=${char.name} size=${64}/>
+                <span>原本的</span>
+              </div>
+              <div class="face-one">
+                <${Avatar} src=${avatar} name=${char.name} size=${64}/>
+                <span>对话中在用</span>
+              </div>
+            </div>`
+          : html`<${Avatar} src=${avatar} name=${char.name} size=${76}/>`}
           <div class="char-name">${char.name}</div>
         </div>
+
+        ${faces.changed ? html`
+          <${List} inset=${false}>
+            <${ListItem} title="换回原本的头像" multiline
+              subtitle="当前这张是角色在对话中自己换上的。换回之后，原本那张重新成为它的样子。"
+              left=${html`<${Icon} name="refresh" size=${18}/>`}
+              right=${html`<button class="nav-text press"
+                onClick=${() => { phone.avatarLink.restoreFace(id); toast('已换回原本的头像', 'ok'); }}
+                >换回</button>`}/>
+          <//>` : null}
 
         <${List} inset=${false}>
           <${ListItem} title="人设、情境、开场白、对话示例" arrow multiline

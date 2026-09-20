@@ -1,7 +1,7 @@
 import { baseOf } from './url.js';
 import { voiceConfig } from './services.js';
 import { enqueue } from './queue.js';
-import { nfetch, routeOf, canNative } from '../net.js';
+import { nfetch, routeOf, canNative, reachable } from '../net.js';
 
 /**
  * 语音合成。
@@ -181,15 +181,24 @@ export async function testVoice() {
   } catch (err) {
     const msg = String(err.message || err);
     const cant = /连不上语音接口/.test(msg);
+    if (!cant) {
+      return { ...out, ok: false, step: '接口报错', detail: msg,
+        hint: '已经连上了，是对方拒绝了这次请求。多半是密钥、模型名或音色 id 不对。' };
+    }
+    if (canNative()) {
+      return { ...out, ok: false, step: '没连上', detail: msg,
+        hint: '请求由外壳发出，与跨域无关。多半是地址填错或网络不通。' };
+    }
+    // 浏览器那句 Failed to fetch 三种情况共用，再问一次才分得清（见 net.js）
+    const live = await reachable(base);
     return {
       ...out, ok: false,
-      step: cant ? '没连上' : '接口报错',
+      step: live ? '被跨域拦下' : '没连上',
       detail: msg,
-      hint: cant
-        ? (canNative()
-          ? '请求由外壳发出，与跨域无关。多半是地址填错或网络不通。'
-          : '浏览器可能拦下了跨域请求。可改填中转地址，或安装为应用后重试。')
-        : '已经连上了，是对方拒绝了这次请求。多半是密钥、模型名或音色 id 不对。',
+      hint: live
+        ? '服务器是通的，但它没有允许网页直接调用。'
+          + '这一条我们改不了，需改填一个允许跨域的中转地址；安装为应用后由外壳发送则不受此限。'
+        : '没有联系上这个地址。请检查地址是否填写正确、域名是否可解析、网络是否可达。',
     };
   }
 }
