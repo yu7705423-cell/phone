@@ -1,7 +1,7 @@
 import { html, useState } from '../../lib.js';
 import { phone, useStore } from '../../sdk/index.js';
 import { Page, List, ListItem, Button, Icon, IconButton, Field, Input, Textarea,
-         Segmented, EmptyState, toast, confirm } from '../../ui/index.js';
+         Segmented, Switch, EmptyState, toast, confirm } from '../../ui/index.js';
 
 import { ImportPage } from './ImportPage.js';
 import { LastPage } from './LastPage.js';
@@ -96,7 +96,11 @@ function MemoryList() {
         <${List}>
           ${list.map(m => html`
             <${ListItem} key=${m.id} multiline title=${m.content || '（空）'}
-              subtitle=${`${ownerName(m)} · ${CATEGORIES[m.category] || m.category}${m.keywords?.length ? ' · ' + m.keywords.join('、') : ''}${m.source === 'auto' ? ' · 自动提取' : ''}`}
+              subtitle=${[ownerName(m), CATEGORIES[m.category] || m.category,
+                m.pinned ? '一直记着' : '', m.taboo ? '不主动提起' : '',
+                m.supersededBy ? '已让位' : '',
+                m.keywords?.length ? m.keywords.join('、') : '',
+                m.source === 'auto' ? '自动提取' : ''].filter(Boolean).join(' · ')}
               left=${html`<span class=${`rank rank-${m.rank}`}>${m.rank}</span>`}
               arrow onClick=${() => nav.push(`/edit/${m.id}`)}/>`)}
         <//>`
@@ -141,6 +145,19 @@ function EditPage({ id }) {
               <button key=${c.value} class=${`chip${m.category === c.value ? ' is-active' : ''}`}
                 onClick=${() => patch({ category: c.value })}>${c.label}</button>`)}
           </div>
+        <//>
+
+        <${List}>
+          <${ListItem} title="一直记着" multiline
+            subtitle=${'钉住之后每轮常驻，不再参与相关度挑选。'
+              + '适合放「不要叫她全名」这类每次都该生效的小事。'}
+            right=${html`<${Switch} checked=${!!m.pinned}
+              onChange=${v => patch({ pinned: v, taboo: v ? false : m.taboo })}/>`}/>
+          <${ListItem} title="不要主动提起" multiline
+            subtitle=${'同样每轮常驻，但写明角色不主动提这件事；对方先提起时可以回应。'
+              + '适合放前任、某次争执这类话题。'}
+            right=${html`<${Switch} checked=${!!m.taboo}
+              onChange=${v => patch({ taboo: v, pinned: v ? false : m.pinned })}/>`}/>
         <//>
 
         <${Field} label="关键词"

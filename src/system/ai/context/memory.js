@@ -179,7 +179,9 @@ export function scoreOf(m, ctx) {
  * 对方刚好提到了它。
  */
 function poolFor(charId, personaId, ctx) {
-  const all = listFor(charId, personaId).filter(m => m.rank !== 'S' && !m.supersededBy);
+  // 钉住的与忌讳的已经常驻了（buildPinned），不再来挤这几个名额
+  const all = listFor(charId, personaId)
+    .filter(m => m.rank !== 'S' && !m.supersededBy && !m.pinned && !m.taboo);
   // 这段关系最早的那几条，给一点永久加成
   const early = new Set(all.slice()
     .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0))
@@ -189,7 +191,7 @@ function poolFor(charId, personaId, ctx) {
   for (const m of all) {
     const row = early.has(m.id) ? { ...m, early: true } : m;
     const s = scoreOf(row, ctx);
-    if (s.cue >= floor || isOpen(m) || m.pinned) out.push({ m: row, ...s });
+    if (s.cue >= floor || isOpen(m)) out.push({ m: row, ...s });
   }
   out.sort((a, b) => b.total - a.total);
   return out;
@@ -399,6 +401,53 @@ export function buildBond(ctx) {
   const text = bond.textOf(ctx.char, ctx.persona?.id);
   return text ? `\n\n[你们之间的关系]\n${text}` : '';
 }
+
+// ---- 一直记着的那几条 ----
+//
+// 关系底色只吃 S 级，而 S 级的定义明确排除了日常。于是「不要叫她全名」
+// 「她怕黑」「十一点必须睡」这类全是 A 级，要靠每轮召回碰运气 ——
+// **大事记得，小事一次次冒犯**，恋爱里最伤的恰恰是后者。
+//
+// 所以给一条别的路：任意一条记忆都可以钉住，钉住的常驻，不再去挤召回
+// 那几个名额（poolFor 里把它们排除掉了，不然等于占两份）。
+//
+// 忌讳是同一层的另一半。**记得不要提，和记得一样重要** —— 前任、某次
+// 吵架、某个她讨厌的称呼。这一段是用户自己钉的设定，不是内置提示词在
+// 替角色作判断（第 16 条管的是后者）。
+
+/** 钉住的与忌讳的。上限是默认值不是封顶，填 0 就是全都要（第 13 条）。 */
+export function pinnedOf(charId, personaId, cap = 8) {
+  const all = listFor(charId, personaId)
+    .filter(m => !m.supersededBy && (m.pinned || m.taboo))
+    .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+  const n = Math.max(0, Math.round(Number(cap) || 0));
+  const keep = n ? all.slice(0, n) : all;
+  return {
+    keep: keep.filter(m => !m.taboo),
+    taboo: keep.filter(m => m.taboo),
+    over: n ? Math.max(0, all.length - n) : 0,
+  };
+}
+
+export function buildPinned(ctx) {
+  const cap = ctx.settings?.pinnedMax;
+  const { keep, taboo } = pinnedOf(ctx.char?.id, ctx.persona?.id,
+    cap === undefined ? 8 : cap);
+  if (!keep.length && !taboo.length) return '';
+  const out = [];
+  if (keep.length) out.push(keep.map(m => `- ${m.content}`).join('\n'));
+  if (taboo.length) {
+    out.push('Do not raise the following yourself. If the other party raises one,'
+      + ' you may respond to it.\n'
+      + taboo.map(m => `- ${m.content}`).join('\n'));
+  }
+  return `\n\n[一直记着]\n${out.join('\n\n')}`;
+}
+
+export const metaPinned = {
+  id: 'pinned', label: '一直记着',
+  desc: '钉住的记忆与忌讳的话题，每轮常驻。在记忆条目上单独设置',
+};
 
 export const metaBond = {
   id: 'bond', label: '关系底色',

@@ -21,6 +21,8 @@ export const BLOCKS = {
   time,
   // 记忆分两层：底色常驻在设定区，召回按深度插进对话（见 4.91）
   bond: { meta: memory.metaBond, build: memory.buildBond },
+  // 钉住的与忌讳的。和底色一样常驻，所以挨着它放
+  pinned: { meta: memory.metaPinned, build: memory.buildPinned },
   memory: { meta: memory.meta, build: memory.build },
   space: { meta: spaceBlock.meta, build: spaceBlock.build },
   day: { meta: dayBlock.meta, build: dayBlock.build },
@@ -33,7 +35,7 @@ export const BLOCKS = {
   health: { meta: healthBlock.meta, build: healthBlock.build },
 };
 
-export const DEFAULT_ORDER = ['lorebook', 'bond', 'character', 'loreAfter', 'user', 'time', 'day', 'avatar', 'geo', 'music', 'watch', 'trip', 'bill', 'health', 'memory', 'space'];
+export const DEFAULT_ORDER = ['lorebook', 'bond', 'pinned', 'character', 'loreAfter', 'user', 'time', 'day', 'avatar', 'geo', 'music', 'watch', 'trip', 'bill', 'health', 'memory', 'space'];
 
 // 读出一份干净的顺序:丢掉不认识的 id,补上配置里缺失的。
 // 没有这一步,以后每新增一个区块,老用户配置里就少一项,该区块永远不注入,

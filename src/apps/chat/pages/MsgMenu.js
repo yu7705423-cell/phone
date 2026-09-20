@@ -139,6 +139,31 @@ export function MsgMenu({ msg, char, onClose, onRegenerate, onQuote, onMultiSele
     close();
   };
 
+  // 「这句你给我记住」。
+  //
+  // 最该被记住的那句话，永远是刚刚说完的那句。而从前要记一条得退出对话、
+  // 进记忆 app、自己打字 —— 走完那一圈，当时那股劲已经过去了。
+  //
+  // 不调接口：内容就是这句话本身，等级给 A（长期有效），来源记成手写
+  // （召回打分里手写的比自动提取的可信一档）。存完直接跳到那一条的编辑页，
+  // 关键词和「一直记着」在那儿现调，退回来还是这段对话。
+  const remember = () => {
+    const body = (textOf(fresh) || '').trim();
+    if (!body) { toast('这一条没有可记的正文', 'error'); return; }
+    const charId = fresh.role === 'user' ? (char?.id || '') : (fresh.authorId || char?.id || '');
+    if (!charId) { toast('这段对话还没有角色', 'error'); return; }
+    const who = fresh.role === 'user' ? '我' : (char?.name || '对方');
+    const row = db.memories.create({
+      charId,
+      personaId: db.chats.get(fresh.chatId)?.personaId || phone.accounts.currentId(),
+      content: `${who}说：${body}`.slice(0, 300),
+      category: 'fact', rank: 'A', keywords: [], source: 'manual',
+      createdAt: fresh.createdAt || Date.now(), updatedAt: Date.now(),
+    });
+    close();
+    phone.intent.open('memory', { route: `/edit/${row.id}`, back: true });
+  };
+
   const del = async () => {
     if (!await confirm({ title: '删除这条消息', message: '删除后不再进入上下文。', danger: true })) return;
     onDelete(msg.id);
@@ -169,6 +194,10 @@ export function MsgMenu({ msg, char, onClose, onRegenerate, onQuote, onMultiSele
             onClick=${() => { close(); onQuote(fresh); }}/>
           <${ListItem} title="复制" arrow
             left=${html`<${Icon} name="copy" size=${18}/>`} onClick=${copy}/>
+          <${ListItem} title="记住这句" multiline arrow
+            subtitle="存成一条记忆，接着可以填关键词，或者钉成一直记着的"
+            left=${html`<${Icon} name="brain" size=${18}/>`}
+            onClick=${remember}/>
           ${!gone && (fresh.imageId || fresh.stickerId) ? html`
             <${ListItem} title="保存到相册" arrow multiline
               subtitle="存进相册，可在相册中归类。会话里这一条不受影响"

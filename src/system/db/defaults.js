@@ -127,6 +127,8 @@ export const DEFAULT_SETTINGS = {
 
   // 记忆
   memoryEnabled: true,
+  // 常驻那一层最多带几条（钉住的与忌讳的合计）。0 = 不限（第 13 条）
+  pinnedMax: 8,
   memoryVector: false,            // 按语义检索。每轮多取一次查询向量，所以默认关着（第 15 条）
   // 一轮召回几条。**六条模型分得清主次，十二条开始平均用力。**
   // 这是默认值不是上限（第 13 条），填 0 就是不限
