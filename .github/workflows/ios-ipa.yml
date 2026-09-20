@@ -14,9 +14,9 @@ on:
         required: false
         default: com.example.xiaoshouji
       version:
-        description: 版本号
+        description: 版本号。留空则按构建序号自动递增
         required: false
-        default: 1.0.0
+        default: ''
   push:
     tags:
       - 'ios-v*'
@@ -48,7 +48,9 @@ jobs:
           else
             V="${{ inputs.version }}"
           fi
-          echo "version=${V:-1.0.0}" >> "$GITHUB_OUTPUT"
+          # 留空就按构建序号递增。**不要写死一个默认版本号** —— 那样每次打出来
+          # 的包版本都一样，装到手机上分不出哪个是哪个，也看不出装成功没有。
+          echo "version=${V:-1.0.$GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
 
       - name: 打包
         env:

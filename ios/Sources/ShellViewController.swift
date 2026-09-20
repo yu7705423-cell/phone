@@ -23,6 +23,14 @@ final class ShellViewController: UIViewController {
     private let keepAliveBridge = KeepAliveBridge()
     private let alarmBridge = AlarmBridge()
 
+    /// 「1.0.17 (17)」这种。前一个是版本号，括号里是构建序号。
+    static var appVersion: String {
+        let info = Bundle.main.infoDictionary
+        let short = info?["CFBundleShortVersionString"] as? String ?? "?"
+        let build = info?["CFBundleVersion"] as? String ?? "?"
+        return "\(short) (\(build))"
+    }
+
     // MARK: - 站点地址
 
     /// 用户在外壳菜单里改过就用用户填的，否则用打包时写进 Info.plist 的那个。
@@ -112,12 +120,16 @@ final class ShellViewController: UIViewController {
         //   phoneKeepAlive   保活也走这一层。零音量的网页音频在 app 里占不到音频焦点，
         //                    见 KeepAliveBridge
         //   phoneAlarm       这套构建带得动系统闹钟（要 iOS 26，见 AlarmBridge）
+        //   phoneAppVersion  这只 app 自己的版本。网页那份构建号是从站点取的，
+        //                    说明不了手机上装的是哪一版外壳 —— 而外壳里那半边
+        //                    （闹钟、通知、健康）只能靠重装才会变
         cfg.userContentController.addUserScript(WKUserScript(
             source: "window.phoneNativeBack = true;"
                 + "window.phoneNotify = true;"
                 + "window.phoneKeepAlive = true;"
                 + "window.phoneHealth = \(HealthBridge.available);"
-                + "window.phoneAlarm = \(AlarmBridge.available);",
+                + "window.phoneAlarm = \(AlarmBridge.available);"
+                + "window.phoneAppVersion = \"\(Self.appVersion)\";",
             injectionTime: .atDocumentStart,
             forMainFrameOnly: false))
         cfg.userContentController.addScriptMessageHandler(
