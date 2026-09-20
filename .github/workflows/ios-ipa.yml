@@ -26,12 +26,19 @@ permissions:
 
 jobs:
   build:
-    runs-on: macos-14
+    # AlarmKit（系统闹钟）要 iOS 26 的 SDK，也就是 Xcode 26 —— macos-14 那台上
+    # 没有，编出来的 ipa 里那一项是关着的（build.sh 会在日志里说一声）。
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
 
       - name: 选一个 Xcode
-        run: sudo xcode-select -s /Applications/Xcode.app
+        # 挑装着的里头最新的那个，不写死路径 —— runner 镜像换代时那个软链
+        # 未必指向最新，而 AlarmKit 要的正是最新那套 SDK
+        run: |
+          NEWEST="$(ls -d /Applications/Xcode*.app 2>/dev/null | sort -V | tail -1)"
+          sudo xcode-select -s "${NEWEST:-/Applications/Xcode.app}"
+          xcodebuild -version
 
       - name: 定版本号
         id: meta
