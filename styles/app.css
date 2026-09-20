@@ -605,6 +605,7 @@ input[type="range"] {
 
 .stk-group-head { display: flex; align-items: center; justify-content: space-between; }
 .stk-group-head button { color: var(--text-3); display: flex; padding: var(--sp-1); }
+.stk-group-acts { display: flex; align-items: center; gap: var(--sp-1); }
 .stk-edit-preview { display: flex; justify-content: center; padding: var(--sp-3) 0 var(--sp-4); }
 .stk-edit-preview .stk-img, .stk-edit-preview .stk-miss { width: 96px; height: 96px; }
 

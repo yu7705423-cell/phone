@@ -1,4 +1,4 @@
-import { stickers, images } from './db/index.js';
+import { stickers, images, settings } from './db/index.js';
 import { readZip } from './unzip.js';
 
 export const DEFAULT_GROUP = '默认';
@@ -135,8 +135,56 @@ export function suggest(text, limit = 12) {
   return scored.sort((a, b) => a[0] - b[0] || a[1] - b[1]).slice(0, limit).map(x => x[2]);
 }
 
-export function groups() {
+// ---- 分组 ----
+//
+// 分组本来是**从表情身上折出来的**：谁的 group 字段写着什么，就有哪几个组。
+// 折出来的东西有一个毛病 —— **空的组不存在**。想先建一个组、再往里放几个，
+// 建完那一下屏幕上什么也没发生，因为组里还没有表情，它就折不出来。
+//
+// 所以自己建的那几个名字单独存一份（settings.stickerGroups），列出来时
+// 两边取并集。表情自带的那些不必存：它们本来就折得出来，存了反而要管两处。
+
+const saved = () => (settings.get().stickerGroups || [])
+  .map(x => String(x || '').trim()).filter(Boolean);
+
+/** 建一个空分组。已经有了就当建过，返回规范化之后的名字。 */
+export function addGroup(name) {
+  const g = String(name || '').trim().slice(0, 20);
+  if (!g) return '';
+  const list = saved();
+  if (!list.includes(g) && g !== DEFAULT_GROUP) settings.set({ stickerGroups: [...list, g] });
+  return g;
+}
+
+/** 把这个名字从自己建的那一份里划掉。组里的表情由调用方处置。 */
+export function removeGroup(name) {
+  const g = String(name || '').trim();
+  const list = saved();
+  if (list.includes(g)) settings.set({ stickerGroups: list.filter(x => x !== g) });
+}
+
+/** 改名。组里的表情跟着走，自己建的那一份里也改掉。 */
+export function renameGroup(from, to) {
+  const a = String(from || '').trim();
+  const b = String(to || '').trim().slice(0, 20);
+  if (!a || !b || a === b) return a;
+  inGroup(a).forEach(s => stickers.update(s.id, { group: b }));
+  const list = saved();
+  if (list.includes(a) || a !== DEFAULT_GROUP) {
+    settings.set({ stickerGroups: [...new Set([...list.filter(x => x !== a), b])] });
+  }
+  return b;
+}
+
+/**
+ * 列出分组。
+ *
+ * `onlyUsed` 为真时只给真的有表情的那几个 —— 发送面板上摆一个空标签页，
+ * 点进去什么也没有，那是管理页才该看见的东西。
+ */
+export function groups({ onlyUsed = false } = {}) {
   const set = new Set(stickers.all().map(s => (s.group || '').trim() || DEFAULT_GROUP));
+  if (!onlyUsed) saved().forEach(g => set.add(g));
   return [...set].sort((a, b) => a === DEFAULT_GROUP ? -1 : b === DEFAULT_GROUP ? 1 : a.localeCompare(b, 'zh'));
 }
 

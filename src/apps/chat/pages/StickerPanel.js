@@ -7,7 +7,9 @@ const { db, nav, stickers: api } = phone;
 
 export function StickerPanel({ onSend }) {
   useStore(db.stickers.store);
-  const groups = api.groups();
+  // 面板上只列真的有表情的分组。空分组是管理页上的半成品，摆在这里
+  // 只会让人点进去看见一片空白
+  const groups = api.groups({ onlyUsed: true });
   const [group, setGroup] = useState(groups[0] || api.DEFAULT_GROUP);
   const list = api.inGroup(groups.includes(group) ? group : (groups[0] || group));
 

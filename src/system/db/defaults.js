@@ -150,6 +150,11 @@ export const DEFAULT_SETTINGS = {
   // 见 ai/translate.js
   translateFormats: '',
 
+  // 表情包的分组名。分组本来是从表情身上折出来的（谁的 group 写着什么），
+  // 但那样**空分组不存在** —— 先建一个空组再往里放，建完什么也没发生。
+  // 所以自己建的那几个单独存一份，两边取并集。见 system/stickers.js
+  stickerGroups: [],
+
   // 角色把你发的照片存进自己相册时，按它写的那句话去裁。
   // **会多打一次识图接口**，所以默认关（第 15 条，登记在 ai/cost.js）
   cropKeptPhoto: false,
