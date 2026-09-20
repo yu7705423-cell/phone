@@ -5,6 +5,7 @@ import { Page, List, ListItem, Button, Icon, IconButton, Field, Input, Textarea,
 
 import { ImportPage } from './ImportPage.js';
 import { LastPage } from './LastPage.js';
+import { CheckPage } from './CheckPage.js';
 
 const { db, nav, ai } = phone;
 const { CATEGORIES, RANKS } = ai.memory;
@@ -41,7 +42,8 @@ function MemoryList() {
     ...(loose ? [{ v: 'none', label: `没绑定角色 ${loose}` }] : []),
   ];
   const stats = RANKS.map(r => ({ r, n: db.memories.where(m => m.rank === r).length }));
-  const injected = db.memories.where(m => m.rank === 'A' || m.rank === 'B').length;
+  const injected = db.memories.where(m => (m.rank === 'A' || m.rank === 'B') && !m.supersededBy).length;
+  const dup = phone.memcheck.pairs('', '', 20).length;
 
   const add = () => {
     const charId = who !== 'all' && who !== 'none' ? who : (chars[0]?.id || null);
@@ -67,9 +69,14 @@ function MemoryList() {
             <div key=${s.r} class="stat-chip"><b>${s.n}</b><span>${s.r} 级</span></div>`)}
         </div>
         <div class="hint-box">
-          S 级压缩进「关系底色」常驻，不再逐条注入；A 与 B 级按相关度召回（当前 ${injected} 条可被召回），
-          其中 B 级须命中关键词；C 级仅存档。
+          S 级压缩进「关系底色」常驻，不再逐条注入；A 与 B 级参与每轮召回
+          （当前 ${injected} 条可被召回）；C 级仅存档。
+          召回按线索、新近、分量等多项加权挑选，可在「上一轮召回」中查看当轮的选取过程。
         </div>
+        ${dup ? html`
+          <${ListItem} title=${`发现 ${dup} 组可能重复的记忆`} arrow multiline
+            subtitle="同一件事留两条时，召回可能把两个版本一起送进去。点击逐组处理。"
+            onClick=${() => nav.push('/check')}/>` : null}
       </div>
 
       <div class="pad-x">
@@ -162,6 +169,7 @@ function EditPage({ id }) {
 export default function MemoryApp({ route }) {
   if (route === '/import') return html`<${ImportPage}/>`;
   if (route === '/last') return html`<${LastPage}/>`;
+  if (route === '/check') return html`<${CheckPage}/>`;
   const edit = route?.match(/^\/edit\/(.+)$/);
   if (edit) return html`<${EditPage} id=${edit[1]}/>`;
   return html`<${MemoryList}/>`;

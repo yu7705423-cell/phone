@@ -769,6 +769,13 @@ C is for material worth filing but not worth bringing into conversation.
 - Return an empty array when there is nothing new
 - Write content as a concise third-person statement, in the same language as
   the conversation above
+- slot marks an entry that can only hold one value at a time. Use one of
+  occupation, location, birthday, school, family, contact, and leave it empty
+  for everything else. A new entry in a slot replaces the old one
+- weight is how strongly the two of them reacted at the time, from 0 to 2:
+  0.5 for something mentioned in passing, 1 for an ordinary exchange,
+  2 for a quarrel, a confession, or tears. Report what the conversation shows,
+  and do not rate how important the entry ought to be
 
 ## Also extract spending mentioned in the conversation
 Every amount of money either party states they spent or received. Each entry:
@@ -782,7 +789,7 @@ was not stated, and do not convert a vague description into a figure.
 Return an empty array when none were mentioned.
 
 ## Output JSON only, with no other text
-{"memories":[{"content":"","category":"fact","rank":"A","keywords":[],"updateId":""}],
+{"memories":[{"content":"","category":"fact","rank":"A","keywords":[],"slot":"","weight":1,"updateId":""}],
  "spending":[{"amount":0,"note":"","who":"user","at":""}]}`,
 
   // 关系底色。S 级记忆压成几句「你们到哪一步了」——

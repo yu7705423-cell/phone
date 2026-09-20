@@ -4,6 +4,7 @@ import { template, runJSONTask, MAX_OUTPUT } from '../engine.js';
 import { fillTemplate } from '../templates.js';
 import { listFor, CATEGORIES, RANKS, dayOf } from '../context/memory.js';
 import { uid } from '../../store.js';
+import * as memcheck from '../../memcheck.js';
 import * as accounts from '../../accounts.js';
 
 // 未总结的对话 = memoryUpTo 之后的消息。
@@ -100,7 +101,7 @@ export async function extract(chatId) {
   }
 
   const rows = Array.isArray(result?.memories) ? result.memories : [];
-  let added = 0, updated = 0;
+  let added = 0, updated = 0, gone = 0;
   // 这一批最后一条消息的时间，就当这批记忆发生的时间
   const at = Number(pending[pending.length - 1]?.createdAt) || Date.now();
 
@@ -119,6 +120,12 @@ export async function extract(chatId) {
     }
     const row = memories.create({
       id: uid('mem'), charId, content: r.content, category, rank, keywords,
+      // 天生只该有一个值的那几样（职业、常住地……）。同一个槽位来了新的，
+      // 旧的自动让位 —— 把矛盾在结构上消灭掉，比事后打捞省事
+      slot: memcheck.SLOTS[r.slot] ? r.slot : '',
+      // 这件事当时的情绪强度。它是内容的客观属性（当时双方反应有多大），
+      // 不是替角色判断该有多在意 —— 后者是第 16 条禁的那种
+      weight: Math.min(2, Math.max(0, Number(r.weight) || 0)),
       source: 'auto',
       // 记的时间是**这批消息**发生的时间，不是总结的时间。
       // 迁进来一堆半年前的历史，今天补总结，全戳成今天就不对了 ——
@@ -128,6 +135,9 @@ export async function extract(chatId) {
       personaId: chats.get(chatId)?.personaId || accounts.currentId(),
     });
     touchVec(row.id);
+    // 模型没认出「这条取代那条」时，本地再兜一道。取代不是删除：
+    // 旧那条留在库里，只是不再参与召回（见 system/memcheck.js）
+    gone += memcheck.settleNew(row).length;
     added++;
   }
 
@@ -139,7 +149,7 @@ export async function extract(chatId) {
 
   const lastId = pending[pending.length - 1].id;
   chats.update(chatId, { memoryUpTo: lastId, memoryTriedId: null });
-  return { added, updated, total: rows.length, spent };
+  return { added, updated, gone, total: rows.length, spent };
 }
 
 // 每累计 N 轮角色回复触发一次。0 为关闭。

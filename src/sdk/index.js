@@ -83,6 +83,7 @@ import * as healthkitApi from '../system/healthkit.js';
 import * as albumApi from '../system/album.js';
 import * as theirsApi from '../system/theirs.js';
 import * as tripApi from '../system/trip.js';
+import * as memcheckApi from '../system/memcheck.js';
 import * as grabApi from '../system/grab.js';
 import * as phoneTask from '../system/ai/tasks/phone.js';
 import * as tripTask from '../system/ai/tasks/trip.js';
@@ -255,6 +256,7 @@ export const phone = {
   album: albumApi,
   theirs: theirsApi,
   trip: tripApi,
+  memcheck: memcheckApi,
   grab: grabApi,
   cardshot: cardshotApi,
   review: reviewApi,
