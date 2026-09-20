@@ -242,6 +242,46 @@ export async function fillChat(chatId, { count = 12 } = {}) {
 }
 
 /**
+ * 登着它的手机给某人发了一句之后，对面回一句。
+ *
+ * **一次发送一次请求**，不重试、不顺带做别的（第 15 条）。发出去的那一句
+ * 由界面先落库，这里只负责要回话 —— 所以请求失败时你打的那句还在，
+ * 按一下「让对方回复」再试就是了。
+ *
+ * 走副用接口：这不是你正盯着屏幕等的那两件事之一（第 15 条那张表）。
+ */
+export async function replyInChat(chatId) {
+  const row = theirs.chat(chatId);
+  if (!row) throw new Error('这条会话已经不在了');
+  const char = characters.get(row.charId);
+  if (!char) throw new Error('角色不存在');
+  const npc = row.npcId ? characters.get(row.npcId) : null;
+
+  // 只带最近这一段。整条会话发过去越长越贵，而回一句用不着从头看起
+  const lines = (row.lines || []).slice(-30)
+    .map(l => `${l.from === 'char' ? char.name || '该角色' : row.name}: ${l.text}`)
+    .join('\n') || '（还没有说过话）';
+
+  const out = await runJSONTask('phone.reply', {
+    system: fillTemplate(template('task.phone-reply'), {
+      charName: char.name || '该角色',
+      charPersona: personaOf(char),
+      other: row.name,
+      otherPersona: npc ? personaOf(npc) : '（没有更多设定，按上面的对话推断）',
+      history: lines,
+    }),
+    key: `phone-reply:${chatId}:${Date.now()}`,
+    maxTokens: 400,
+  });
+
+  const rows = (Array.isArray(out?.lines) ? out.lines : [])
+    .map(l => str(l?.text)).filter(Boolean);
+  if (!rows.length) throw new Error('这一次没有回话，可以再试一次');
+  rows.forEach(text => theirs.addLine(chatId, { from: 'other', text }));
+  return rows.length;
+}
+
+/**
  * 相册里的照片。生成的是**一句描述**，不是图 —— 模型手里没有照片。
  * 真图可以事后自己挂上去，和书架上那本书接不接得上正文是同一个道理。
  */

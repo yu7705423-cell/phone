@@ -407,6 +407,38 @@ export const fillChat = (id, lines) => phoneChats.update(id, {
   filled: true,
 });
 
+/**
+ * 往一条会话后面接一句。**登着它的手机自己打的那一句走这儿。**
+ *
+ * 和 fillChat 的区别是接不是换：那一个是「这一整段是什么样」，这一个是
+ * 「又说了一句」。列表上那条最后一句与排序也跟着更新 —— 不更新的话，
+ * 刚说完话的那一条还排在底下，看着像没发出去。
+ */
+export function addLine(id, { from, text }) {
+  const row = phoneChats.get(id);
+  const t = cap(text, 300);
+  if (!row || !t) return null;
+  const line = { from: from === 'char' ? 'char' : 'other', text: t };
+  phoneChats.update(id, {
+    lines: [...(row.lines || []), line],
+    preview: cap(t, 80),
+    lastAt: Date.now(),
+    filled: true,
+  });
+  return line;
+}
+
+/** 空手起一条会话：登着它的手机给一个还没聊过的人发消息。 */
+export function startChat(charId, { npcId = '', name }) {
+  const n = cap(name, 40);
+  if (!n) throw new Error('请填写对方的名称');
+  if (chatNames(charId).includes(n)) throw new Error('这台手机上已经有这个人了');
+  return phoneChats.create({
+    charId, npcId: npcId || '', name: n, preview: '',
+    lines: [], lastAt: Date.now(), filled: true,
+  });
+}
+
 export const removeChat = id => phoneChats.remove(id);
 
 /** 这个角色那台手机整台清掉。 */

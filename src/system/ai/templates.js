@@ -923,6 +923,30 @@ phone.
 ## Output JSON only, with no other text
 {"lines":[{"from":"char","text":""}]}`,
 
+  'task.phone-reply':
+`You are the author of {{other}}'s settings. {{charName}} has just sent a
+message in the conversation between {{charName}} and {{other}} on
+{{charName}}'s phone. Write what {{other}} sends back.
+
+## Who {{charName}} is
+{{charPersona}}
+
+## Who {{other}} is
+{{otherPersona}}
+
+## The conversation so far
+{{history}}
+
+## Requirements
+- 1 to 3 lines, in order, all sent by {{other}}
+- Each line is one message as it was typed: short, and not every line is a
+  full sentence
+- Do not write narration, actions, or anything in brackets. Only what was typed
+- Write every line in the same language as the conversation above
+
+## Output JSON only, with no other text
+{"lines":[{"text":""}]}`,
+
   'skeleton.keepphoto':
 `Save a photo to your own phone: write a line on its own,
 [存图：what you are keeping].
