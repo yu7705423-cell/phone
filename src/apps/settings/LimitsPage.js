@@ -1,6 +1,7 @@
 import { html } from '../../lib.js';
 import { phone, useStore } from '../../sdk/index.js';
-import { Page, List, ListItem, Field, NumberInput, Switch, Icon } from '../../ui/index.js';
+import { Page, List, ListItem, Field, NumberInput, Switch, Icon,
+         prompt, toast } from '../../ui/index.js';
 
 const { db, nav, ai } = phone;
 
@@ -10,6 +11,13 @@ const { db, nav, ai } = phone;
 //
 // 这一页只放跟具体对象无关的旋钮。属于某个角色的（这个角色要不要主动找我、
 // 多久找一次）按第 5 条留在角色自己的页面里，不往这儿搬。
+// 召回打分那几项。标签是给人看的，键名和 ai/context/memory.js 的 WEIGHTS 对齐
+const WEIGHT_KEYS = [
+  ['cue', '线索'], ['recent', '新近'], ['strength', '强度'], ['weight', '分量'],
+  ['open', '未了结'], ['slot', '时段'], ['manual', '手写'], ['first', '最早'],
+  ['fatigue', '疲劳'],
+];
+
 export function LimitsPage() {
   const s = useStore(db.settings.store);
   const set = patch => db.settings.set(patch);
@@ -17,6 +25,23 @@ export function LimitsPage() {
   const extra = ai.cost.active();
   // 重试与换套是相乘的。这个数从 ai/cost.js 来，界面不自己再算一遍
   const attempts = ai.cost.attemptsPerCall();
+
+  // 权重当前值：用户改过的优先，没改过的显示内置那一份
+  const fmtW = (cur, k) => {
+    const w = { ...ai.memory.WEIGHTS, ...(cur.memoryWeights || {}) };
+    return (Math.round(Number(w[k]) * 100) / 100).toString();
+  };
+  const tune = async (k, label) => {
+    const cur = { ...ai.memory.WEIGHTS, ...(s.memoryWeights || {}) };
+    const v = await prompt({
+      title: `权重：${label}`, value: String(cur[k]),
+      message: '数值越大，这一项对得分的影响越大。填 0 表示不参与计分。',
+    });
+    if (v === null) return;
+    const n = Math.max(0, Number(v));
+    if (!Number.isFinite(n)) { toast('请填写数字', 'error'); return; }
+    set({ memoryWeights: { ...(s.memoryWeights || {}), [k]: n } });
+  };
 
   return html`
     <${Page} title="用量与上限" onBack=${nav.pop}>
@@ -94,6 +119,19 @@ export function LimitsPage() {
             此时后续所有内容的接口缓存会在每轮失效，费用与延迟都会上升。">
           <${NumberInput} value=${s.memoryDepth} unit="条" placeholder="放在设定区"
             onChange=${v => set({ memoryDepth: v })}/>
+        <//>
+
+        <${Field} label="召回打分的权重"
+          desc="决定一条记忆这一轮有多容易被想起。留空的项使用内置默认值。
+            线索是与当前对话的关联，未了结是尚未兑现的约定，
+            疲劳是刚注入过的条目本轮降权。改动后可在「记忆 - 上一轮召回」中查看效果。">
+          <div class="chip-row">
+            ${WEIGHT_KEYS.map(([k, label]) => html`
+              <button key=${k} class="chip" onClick=${() => tune(k, label)}>
+                ${label} ${fmtW(s, k)}
+              </button>`)}
+            <button class="chip" onClick=${() => set({ memoryWeights: {} })}>恢复默认</button>
+          </div>
         <//>
 
         <${Field} label="通话每轮回复上限"

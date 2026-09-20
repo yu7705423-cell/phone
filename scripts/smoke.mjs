@@ -18,7 +18,7 @@ const ROUTES = {
      '/bond/:chat'],
   contact: ['/', '/import', '/me', '/me/:persona', '/char/:char',
     '/edit/:char', '/profile/:char', '/net/:char', '/npc/:char'],
-  memory: ['/', '/import', '/edit/:mem'],
+  memory: ['/', '/import', '/last', '/edit/:mem'],
   lorebook: ['/', '/preview', '/map', '/book/:lore', '/entry/:lore/e1'],
   space: ['/', '/space/:chat', '/days/:chat', '/pacts/:chat', '/mail/:chat',
     '/log/:chat/gift', '/log/:chat/location', '/log/:chat/listen', '/log/:chat/call'],

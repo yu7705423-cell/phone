@@ -4,6 +4,7 @@ import { Page, List, ListItem, Button, Icon, IconButton, Field, Input, Textarea,
          Segmented, EmptyState, toast, confirm } from '../../ui/index.js';
 
 import { ImportPage } from './ImportPage.js';
+import { LastPage } from './LastPage.js';
 
 const { db, nav, ai } = phone;
 const { CATEGORIES, RANKS } = ai.memory;
@@ -55,6 +56,8 @@ function MemoryList() {
   return html`
     <${Page} title="记忆"
       right=${html`
+        <${IconButton} name="search" label="上一轮召回"
+          onClick=${() => nav.push('/last')}/>
         <${IconButton} name="upload" label="从文字导入"
           onClick=${() => nav.push('/import')}/>
         <button class="nav-text press" onClick=${add}>新建</button>`}>
@@ -158,6 +161,7 @@ function EditPage({ id }) {
 
 export default function MemoryApp({ route }) {
   if (route === '/import') return html`<${ImportPage}/>`;
+  if (route === '/last') return html`<${LastPage}/>`;
   const edit = route?.match(/^\/edit\/(.+)$/);
   if (edit) return html`<${EditPage} id=${edit[1]}/>`;
   return html`<${MemoryList}/>`;

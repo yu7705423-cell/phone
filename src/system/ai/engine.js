@@ -3,7 +3,8 @@ import * as accounts from '../accounts.js';
 import * as clock from '../time.js';
 import { assemble } from './context/index.js';
 import { activate as activateLore, split as splitLore, textOf as loreText } from './context/lorebook.js';
-import { recallAsync as recallMemory, recallText, depthOf as memoryDepth } from './context/memory.js';
+import { recallAsync as recallMemory, recallText, depthOf as memoryDepth,
+  markRecalled } from './context/memory.js';
 import { fillTemplate, template } from './templates.js';
 import { capabilityBlock } from './capabilities.js';
 import { embedQuery, embedReady } from './embed.js';
@@ -482,6 +483,10 @@ export function streamReply({ chat, char, onDelta }) {
     const text = await runWith('chat.reply', c => send('chat.reply', c,
       { system, messages: history, maxTokens: c.maxTokens, signal, onDelta: oneShot ? undefined : onDelta },
       oneShot ? 'complete' : 'stream'));
+    // 这几条记忆真的送出去了，记一笔：往后它们更容易被想起（强度），
+    // 而接下来几轮会被压下去（疲劳）。请求成功之后才记 —— 拼好了没发成
+    // 不算想起过
+    if (recall?.length) markRecalled(recall);
     // 不 await：描述是给以后几轮用的，这一轮模型已经看过原图了，
     // 让它拖住回复的返回没有意义。
     if (pics) describeCarried(pics);

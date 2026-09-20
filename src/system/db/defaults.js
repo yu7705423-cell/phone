@@ -131,7 +131,10 @@ export const DEFAULT_SETTINGS = {
   // 一轮召回几条。**六条模型分得清主次，十二条开始平均用力。**
   // 这是默认值不是上限（第 13 条），填 0 就是不限
   memoryTopK: 6,
-  memoryThreshold: 0.22,          // 相似度低于这个就不要了
+  memoryThreshold: 0.22,          // 线索低于这个就不算命中（但未了结的、钉住的照样上场）
+  // 召回打分的权重。留空就用内置那一组（见 ai/context/memory.js 的 WEIGHTS）。
+  // 摆出来是因为「她更该记得什么」不该由我替用户定（第 13 条）
+  memoryWeights: {},
   // 召回之后再让重排模型排一遍。每轮多一次请求，所以默认关着（第 15 条）
   rerankOn: false,
   rerankCandidates: 50,           // 送去重排的候选条数。0 = 全都送（第 13 条）
