@@ -85,6 +85,14 @@ export const EXTRA_CALLS = [
     when: '一起看或一起读收场时，各多写一篇',
   },
   {
+    // 挂在通话界面那个喇叭上，不是全局设置，所以没有 setting 要比对
+    id: 'callVoice',
+    label: '通话时出声',
+    setting: null,
+    on: () => settings.get().callSpeak === true && svc.voiceConfig().enabled,
+    when: '通话中角色每说一句，走一次语音合成接口（不是聊天接口）',
+  },
+  {
     id: 'translate',
     label: '单独的翻译接口',
     setting: null,

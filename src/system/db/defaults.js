@@ -87,7 +87,9 @@ export const DEFAULT_SETTINGS = {
   timeZoneUser: 'local',          // 我在哪个时区。角色的在各自角色卡上
 
   currency: 'CNY',                // 转账用哪种钱。只影响显示与小数位，不换算
-  callSpeak: false,               // 通话默认只出字幕，不发声
+  // null 表示这个人还没碰过这个喇叭 —— 那时按「配没配音色」决定开不开
+  // （见 system/call.js 的 prefs）。按过一次之后这里就是 true 或 false
+  callSpeak: null,
   callMic: false,                 // 通话默认打字，不开麦克风
   callSelfReal: false,            // 视频通话默认用虚拟头像，不开摄像头
 

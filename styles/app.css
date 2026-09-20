@@ -304,6 +304,11 @@ input[type="range"] {
   background: var(--surface-3); margin: var(--sp-1) 0;
 }
 .sp-bar > span { display: block; height: 100%; border-radius: var(--r-full); background: var(--accent); }
+/* 通话里那句「为什么没有这个角色的声音」。和字幕同一列，低一档 */
+.call-why {
+  flex: none; text-align: center; font-size: var(--fs-11);
+  color: var(--text-3); padding: 0 var(--sp-4) var(--sp-2);
+}
 .todo-tick { display: flex; color: var(--text-3); padding: var(--sp-1); }
 
 /* 引用栏：正要引着谁说话，压在输入框上面 */

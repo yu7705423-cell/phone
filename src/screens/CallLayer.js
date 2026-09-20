@@ -61,6 +61,8 @@ export function CallLayer() {
   // 拖垮的地方。hook 还是照常调，顺序不能变。
   const live = s.phase !== 'idle';
   const char = live ? characters.get(s.charId) : null;
+  // 开着喇叭却出不来「这个角色的声音」时，说清楚是哪一环没对
+  const why = live ? call.voiceWhy(char) : '';
   const me = live ? accounts.current() : null;
   const avatar = useImage(char?.avatar);
   const scene = useImage(char?.callImage);
@@ -108,6 +110,9 @@ export function CallLayer() {
 
       ${s.phase === 'active' && s.mic ? html`
         <div class="call-heard">${s.heard || (s.listening ? '正在聆听' : '麦克风未启用')}</div>` : null}
+
+      ${s.phase === 'active' && s.speak && why ? html`
+        <div class="call-why">${why}</div>` : null}
 
       ${s.phase === 'active' && !s.mic ? html`
         <div class="call-input">

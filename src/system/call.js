@@ -47,10 +47,34 @@ export const call = createStore({
   error: '',
 });
 
-// 喇叭和麦克风是通话控件，不是设置项，但要记住上次怎么用的
-function prefs() {
+// 喇叭和麦克风是通话控件，不是设置项，但要记住上次怎么用的。
+//
+// **喇叭那一项：没动过就看配没配。** 从前一律默认关着，理由是「没配语音接口
+// 的人照样能用，而且一分钱不多花」—— 对没配的人是对的，对配好了音色的人就
+// 不对了：他专门去配了一个声音，打通电话却是静音的，还得自己找到那个喇叭。
+// 所以改成：手动按过就记住他按的那次；从没按过，就看这个角色能不能真出声。
+function prefs(char) {
   const s = settings.get();
-  return { speak: s.callSpeak === true, mic: s.callMic === true, selfReal: s.callSelfReal === true };
+  const touched = typeof s.callSpeak === 'boolean';
+  return {
+    speak: touched ? s.callSpeak === true : canUseApi(char),
+    mic: s.callMic === true,
+    selfReal: s.callSelfReal === true,
+  };
+}
+
+/**
+ * 这一通为什么没有「这个角色的声音」。回来的是一句话，没问题就回空。
+ *
+ * 从前这一层是哑的：接口没配、角色没设音色、或者角色的语音被关掉，
+ * 三种情况都一声不吭地退回浏览器自带的合成 —— 听着像个机器人，而人不知道
+ * 是哪儿没对，只会觉得「配了语音怎么没用」。
+ */
+export function voiceWhy(char) {
+  if (!isVoiceReady()) return '尚未配置语音接口，当前使用浏览器自带的合成';
+  if (char && char.canSendVoice === false) return '该角色的语音已关闭，当前使用浏览器自带的合成';
+  if (!char?.voiceId) return '该角色尚未设置音色，当前使用浏览器自带的合成';
+  return '';
 }
 
 // 视频通话里，角色能不能看见我，取决于识图那一档。
@@ -181,7 +205,7 @@ export function dial(chatId, { video = false } = {}) {
   if (!isConfigured()) throw new Error('尚未配置模型接口');
 
   ended = false;
-  call.set({ ...prefs(), phase: 'dialing', chatId, charId: char.id, direction: 'out',
+  call.set({ ...prefs(char), phase: 'dialing', chatId, charId: char.id, direction: 'out',
     video, camera: false, lines: [], draft: '', heard: '', outcome: '', error: '' });
   framedAt = 0;
 
@@ -202,7 +226,7 @@ export function ring(chatId, { video = false } = {}) {
   if (active()) return null;
 
   ended = false;
-  call.set({ ...prefs(), phase: 'ringing', chatId, charId: char.id, direction: 'in',
+  call.set({ ...prefs(char), phase: 'ringing', chatId, charId: char.id, direction: 'in',
     video, camera: false, lines: [], draft: '', heard: '', outcome: '', error: '' });
   framedAt = 0;
 
