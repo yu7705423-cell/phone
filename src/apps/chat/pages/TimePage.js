@@ -1,8 +1,7 @@
 import { html, useState, useEffect } from '../../../lib.js';
 import { phone, useStore } from '../../../sdk/index.js';
 import { Page, List, ListItem, Field, Switch, Segmented, Button,
-         Icon, toast } from '../../../ui/index.js';
-import { ZonePicker } from './ZonePicker.js';
+         Icon, toast, ZonePicker} from '../../../ui/index.js';
 
 const { db, nav, clock } = phone;
 
@@ -22,6 +21,8 @@ function toLocalInput(ms) {
 export function TimePage() {
   const s = useStore(db.settings.store);
   useStore(db.characters.store);
+  useStore(db.trips.store);
+  useStore(db.chats.store);
   const [picking, setPicking] = useState(false);
   const [, tick] = useState(0);
 
@@ -43,7 +44,10 @@ export function TimePage() {
 
   // 时区不一样的角色列出来，省得为了确认一眼要翻遍所有角色卡
   // 按实际时差比，不按 id 比 —— 我选「本地」、她填「中国·上海」，那是同一个地方
-  const away = db.characters.all().filter(c => c.timezone && clock.zoneDiff(c.timezone, uz, now) !== 0);
+  // 取的是 charZone 而不是角色卡上那一栏：出行期间人在目的地，那才是他此刻的时区
+  const away = db.characters.all()
+    .map(c => ({ c, z: clock.charZone(c) }))
+    .filter(x => x.z && clock.zoneDiff(x.z, uz, now) !== 0);
 
   return html`
     <${Page} title="时间感知" onBack=${nav.pop}>
@@ -103,13 +107,14 @@ export function TimePage() {
         <//>
         <div class="settings-foot">
           角色所在时区在各自的角色卡中设置。未单独设置的角色，视为与本人处于同一时区。
+          出行期间，填写了目的地时区的角色按目的地计算。
         </div>
 
         ${away.length ? html`
           <${List} title="与本人存在时差的角色">
-            ${away.map(c => html`
-              <${ListItem} key=${c.id} title=${c.name} subtitle=${clock.zoneLabel(c.timezone)}
-                right=${html`<span class="zone-now">${clock.clockOnly(now, c.timezone)}</span>`}
+            ${away.map(({ c, z }) => html`
+              <${ListItem} key=${c.id} title=${c.name} subtitle=${clock.zoneLabel(z)}
+                right=${html`<span class="zone-now">${clock.clockOnly(now, z)}</span>`}
                 arrow onClick=${() => nav.push(`/edit/${c.id}`)}/>`)}
           <//>` : null}
 

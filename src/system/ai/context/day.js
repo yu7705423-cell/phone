@@ -1,5 +1,6 @@
 import * as day from '../../day.js';
 import * as events from '../../events.js';
+import * as trip from '../../trip.js';
 
 // 「你今天」那一段。
 //
@@ -27,6 +28,11 @@ const luckLine = n => {
 
 export function build({ char }) {
   if (!char) return '';
+  // **出行期间这一段整个让开。** 人在京都，而这里写着「今天要去邮局」——
+  // 那是它在家时排的日程，出行那几天照写就是错的。
+  // 这几天的安排由「这次出行」那一段给（见 context/trip.js）。
+  // 出行一结束自己就回来了：阶段是按日期算的，没有谁要去收拾。
+  if (trip.goingFor(char.id)) return '';
   const b = day.brief(char.id);
   if (!b) return '';
 

@@ -3,7 +3,7 @@ import { phone, useStore, useImage } from '../../sdk/index.js';
 import { Page, List, ListItem, Avatar, Button, Icon, IconButton, Spinner,
          Sheet, EmptyState, toast, confirm } from '../../ui/index.js';
 
-const { db, nav, day, events, food, ai } = phone;
+const { db, nav, day, events, food, ai, trip, intent } = phone;
 
 const TONE_TEXT = { good: '好事', bad: '坏事', plain: '不好不坏' };
 
@@ -11,7 +11,11 @@ function Row({ char, onClick }) {
   const url = useImage(char.avatar);
   const b = day.brief(char.id);
   const on = day.isOn(char);
-  const sub = !on ? '未开启当日日程'
+  // 出行期间这个角色的「今天」由攻略接管，当日日程整段让开（见 context/day.js）。
+  // 列表上照实写，不然看着还是一份不会被用到的日程
+  const away = trip.dayPlanFor(char.id);
+  const sub = away ? `出行中 · ${away.trip.place || away.trip.title} · 第 ${away.day} 天`
+    : !on ? '未开启当日日程'
     : b ? `${b.slot.label} · ${b.done} / ${b.total} 已完成`
     : '今天还没有安排';
   return html`
@@ -27,6 +31,8 @@ function Row({ char, onClick }) {
 export function TodayList() {
   useStore(db.characters.store);
   useStore(db.days.store);
+  useStore(db.trips.store);
+  useStore(db.chats.store);
   const list = db.characters.all().filter(c => !c.isNpc && !c.parentId);
 
   return html`
@@ -50,6 +56,8 @@ export function TodayList() {
 export function TodayPage({ charId }) {
   useStore(db.characters.store);
   useStore(db.days.store);
+  useStore(db.trips.store);
+  useStore(db.chats.store);
   const [busy, setBusy] = useState(false);
   const [log, setLog] = useState(false);
 
@@ -59,6 +67,9 @@ export function TodayPage({ charId }) {
   const today = char ? day.get(charId, date) : null;
   const b = char ? day.brief(charId) : null;
   const cur = char ? day.slotNow(char) : null;
+  // 出行期间「今天」由攻略接管。这一页跟着让开，否则屏幕上摆着一份
+  // 并不会写进上下文的日程
+  const away = trip.dayPlanFor(charId);
 
   if (!char) {
     return html`
@@ -96,7 +107,36 @@ export function TodayPage({ charId }) {
       right=${today ? html`<${IconButton} name="refresh" label="重新安排"
         onClick=${() => make(true)}/>` : null}>
 
-      ${!on ? html`
+      ${away ? html`
+        <div class="pad-x pad-t">
+          <div class="hint-box">
+            出行期间，这个角色当天的安排由「${away.trip.title}」的攻略给出，
+            当前为第 ${away.day} 天，共 ${away.days} 天。当日日程在此期间不写入上下文，
+            出行结束后恢复。
+          </div>
+        </div>
+
+        ${away.items.length ? html`
+          <${List} title="今天的安排">
+            ${away.items.map(it => html`
+              <${ListItem} key=${it.id} title=${it.title} multiline
+                subtitle=${[it.slot ? trip.slotLabel(it.slot) : '', it.place,
+                  it.done ? '已去过' : ''].filter(Boolean).join(' · ')}
+                left=${html`<${Icon} name=${it.done ? 'check' : 'compass'} size=${18}/>`}
+                onClick=${() => trip.togglePlanDone(away.trip.id, it.id)}/>`)}
+          <//>`
+        : html`<div class="settings-foot">攻略中没有排在今天的条目。</div>`}
+
+        <div class="pad">
+          <${Button} full variant="ghost"
+            onClick=${() => intent.open('travel', { route: `/plan/${away.trip.id}`, back: true })}>
+            查看这次出行的攻略
+          <//>
+        </div>
+        <div class="settings-foot">
+          点击任意一条标记是否已去过。已去过的条目仍会写入上下文，并标明已经去过。
+        </div>`
+      : !on ? html`
         <${EmptyState} icon="sparkle" title="这个角色还没有开启当日日程"
           desc=${`开启后，每天首次对话前会为这个角色安排一次当天的日程，`
             + `并把当前时段的安排带进上下文。每天一次单独的接口调用。`}

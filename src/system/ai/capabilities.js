@@ -236,7 +236,11 @@ export const CAPS = [
     label: '日程事项',
     // 今天没排日程就别提这回事。排了就常驻 —— 「你今天」那一段已经在上面了，
     // 不告诉它怎么标完成，那几条事项就只能一直挂着。
-    on: ({ char }) => !!dayStore.brief(char.id),
+    //
+    // **出行期间也不提。** 那几天「你今天」那一段整个让开了（见
+    // context/day.js），告诉它怎么标完成一份没注入的日程，只会让它去标
+    // 一件它看不见的事。
+    on: ({ char }) => !trip.goingFor(char.id) && !!dayStore.brief(char.id),
     always: true,
     detail: () => template('skeleton.agenda'),
   },

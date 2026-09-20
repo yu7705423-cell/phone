@@ -1,6 +1,7 @@
 // 角色人设 / 用户信息 / 时间情境
 import { isAlt } from '../../accounts.js';
 import * as clock from '../../time.js';
+import * as trip from '../../trip.js';
 
 export const character = {
   meta: { id: 'character', label: '角色人设', desc: '角色卡里写的设定' },
@@ -50,7 +51,11 @@ export const time = {
     if (!clock.enabled()) return '';
     const n = clock.now();
     const cz = clock.charZone(char);
-    const uz = clock.userZone();
+    // **一起出行的时候两个人在同一个地方，没有时差。** 用户这一头没有
+    // 「所在地」这个概念，它跟的是设备时区；出行期间照那个算，会算出
+    // 一个并不存在的时差，然后模型一本正经地说「你那边现在是半夜」。
+    const away = trip.zoneAway(char);
+    const uz = away || clock.userZone();
     // 角色**明确设过时区**才写地名。没设过时它跟的是你的设备时区，
     // 照着写就成了「你在中国」——一个日本角色会照这句话认下来。
     // 只给钟点，不替它认领一个地方。

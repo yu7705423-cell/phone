@@ -1,10 +1,14 @@
-import { html, useState } from '../../../lib.js';
-import { phone } from '../../../sdk/index.js';
-import { Sheet, List, ListItem, Icon } from '../../../ui/index.js';
-
-const { clock } = phone;
+import { html, useState } from '../lib.js';
+import * as clock from '../system/time.js';
+import { Sheet } from './overlay.js';
+import { List, ListItem } from './list.js';
+import { Icon } from '../icons/Icon.js';
 
 // 选时区。每行右边直接显示那边此刻几点 —— 与其让人回忆时差，不如直接给答案。
+//
+// 放在 ui/ 而不是某个 app 里：聊天要选（角色在哪儿、本人在哪儿），
+// 出行也要选（目的地在哪儿），而 app 之间不许互相 import（第 8 条）。
+// 与其抄第二份，不如认下它本来就是个通用控件。
 export function ZonePicker({ open, value, onPick, onClose, title = '选择时区', allowSame }) {
   const [q, setQ] = useState('');
   const key = q.trim().toLowerCase();

@@ -1,8 +1,7 @@
 import { html, useState, useRef } from '../../../lib.js';
 import { phone, useStore, useImage } from '../../../sdk/index.js';
 import { Page, Field, Input, Textarea, Avatar, List, ListItem,
-         Switch, Segmented, Icon, Button, QrLogin, CookiePaste, toast } from '../../../ui/index.js';
-import { ZonePicker } from './ZonePicker.js';
+         Switch, Segmented, Icon, Button, QrLogin, CookiePaste, toast, ZonePicker} from '../../../ui/index.js';
 import { AvatarPool } from './AvatarPool.js';
 
 const { db, nav, clock, extras } = phone;

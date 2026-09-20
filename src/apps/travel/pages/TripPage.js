@@ -1,9 +1,9 @@
 import { html, useState } from '../../../lib.js';
 import { phone, useStore } from '../../../sdk/index.js';
 import { Page, List, ListItem, Field, Input, Segmented, Button, Icon,
-         EmptyState, confirm, toast } from '../../../ui/index.js';
+         EmptyState, ZonePicker, confirm, toast } from '../../../ui/index.js';
 
-const { db, nav, trip, ledger, intent } = phone;
+const { db, nav, trip, clock, ledger, intent } = phone;
 
 // 一次出行的详情。
 //
@@ -25,6 +25,7 @@ export function TripPage({ tripId }) {
   useStore(db.books.store);
   useStore(db.messages.store);
   const [editing, setEditing] = useState(false);
+  const [picking, setPicking] = useState(false);
 
   const row = trip.get(tripId);
   if (!row) {
@@ -70,7 +71,10 @@ export function TripPage({ tripId }) {
       const d = trip.daysUntil(row);
       return d === 0 ? '今天出发' : d != null ? `还有 ${d} 天出发` : '已定，日期待定';
     }
-    if (phase === trip.GOING) return `进行中，第 ${trip.dayIndex(row)} 天，共 ${trip.nights(row)} 天`;
+    if (phase === trip.GOING) {
+      const z = row.zone ? `　${clock.zoneLabel(row.zone)} ${clock.clockOnly(clock.now(), row.zone)}` : '';
+      return `进行中，第 ${trip.dayIndex(row)} 天，共 ${trip.nights(row)} 天${z}`;
+    }
     if (phase === trip.DONE) return '已结束';
     return '已取消';
   })();
@@ -118,6 +122,12 @@ export function TripPage({ tripId }) {
           <${Field} label="预算" desc="本次出行的预算金额。用于计算尚缺金额，不限制实际支出。">
             <${Input} type="number" inputmode="decimal" value=${row.budget || ''}
               onInput=${v => set({ budget: v })}/>
+          <//>
+          <${Field} label="目的地时区"
+            desc="出行期间，角色那边的时刻、日期与星期按此计算。留空则不改变。">
+            <${Button} full variant="ghost" onClick=${() => setPicking(true)}>
+              ${row.zone ? clock.zoneLabel(row.zone) : '不改变'}
+            <//>
           <//>
           <${Field} label="备注" desc="会随这次出行一并写入对话上下文。">
             <${Input} value=${row.note} onInput=${v => set({ note: v })}/>
@@ -206,8 +216,14 @@ export function TripPage({ tripId }) {
         <${Button} full variant="ghost" danger onClick=${doRemove}>删除<//>
       </div>
 
+      <${ZonePicker} open=${picking} value=${row.zone || ''} allowSame
+        title="目的地时区"
+        onPick=${v => set({ zone: v })} onClose=${() => setPicking(false)}/>
+
       <div class="settings-foot">
-        进行中与已结束由日期计算得出，不需要手动切换。
+        进行中与已结束由日期计算得出，不需要手动切换。<br/>
+        填写目的地时区后，出行期间角色那边的时刻、日期与星期按目的地计算，
+        当天的安排改由攻略给出；出行结束后自动恢复。
       </div>
     <//>`;
 }

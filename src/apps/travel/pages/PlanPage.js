@@ -49,6 +49,8 @@ export function PlanPage({ tripId }) {
   const cost = trip.planCost(tripId);
   const web = ai.trip.canSearch();
   const days = Math.max(1, trip.nights(row));
+  // 出行期间才给「去过了」。没出发就勾，勾的是一件还没发生的事
+  const going = trip.phaseOf(row) === trip.GOING;
 
   const make = async () => {
     setBusy(true);
@@ -90,6 +92,7 @@ export function PlanPage({ tripId }) {
     : `第 ${g.day} 天　${g.items.length} 项`);
 
   const subOf = p => [
+    p.done ? '已去过' : '',
     trip.planKindOf(p.kind).label,
     p.slot ? trip.slotLabel(p.slot) : '',
     p.place,
@@ -111,6 +114,11 @@ export function PlanPage({ tripId }) {
               left=${html`<${Icon} name=${trip.planKindOf(p.kind).icon} size=${18}/>`}
               right=${html`
                 <div class="tk-acts">
+                  ${going ? html`
+                    <${Button} size="sm" variant="ghost"
+                      onClick=${() => trip.togglePlanDone(tripId, p.id)}>
+                      ${p.done ? '取消' : '去过了'}
+                    <//>` : null}
                   <${Button} size="sm" variant="ghost"
                     onClick=${() => setMoving(p)}>排期<//>
                   <button class="press" aria-label=${`删除 ${p.title}`}
@@ -150,6 +158,7 @@ export function PlanPage({ tripId }) {
           ? '检索到的门票价与开放时间来自模型在网络上看到的内容，可能已经过期。'
           : '尚未配置会联网搜索的接口，由模型按已知内容列出，价格为估算。'}<br/>
         检索结果一律落在「未排期」中。排进哪一天、先去哪一处，由你们自行安排。<br/>
+        出行期间，当天的条目会写入对话上下文，已去过的一并标明。<br/>
         检索使用副用接口，与聊天分开计费，每检索一次调用一次。
       </div>
 

@@ -12,6 +12,15 @@ import * as trip from '../../trip.js';
 // 票买了没、攒够没不写在这里：那是账本和票那两批的事，各有各的注入段，
 // 在这儿再抄一遍就是同一件事交两次（和情侣空间不重复礼物正文同一个理由）。
 //
+// ---- 进行中的时候，这一段替掉「你今天」 ----
+//
+// 人在京都，而「你今天」那一段写着「今天要去邮局」—— 那是它在家时排的日程。
+// 所以出行期间那一段整个让开（context/day.js 里那一句），今天的安排改由
+// 这里给：攻略里排在第几天的那几条。
+//
+// **已经去过的标出来，不删掉。** 删掉的话它就不知道今天上午已经去过清水寺了，
+// 下午还会再提一次。
+//
 // 一次出行只写一条。同时计划三次旅行是有的，但**眼下要紧的只有一次**
 // （trip.currentOf 挑的那一次）；三条一起写进去，模型就开始把三个地方说混。
 export const meta = {
@@ -39,6 +48,10 @@ export function build({ chat }) {
   } else {
     lines.push(`The two of you are in ${where} together.`);
     if (t.dayIndex) lines.push(`Today is day ${t.dayIndex} of ${t.days}.`);
+    if (t.plan && t.plan.length) {
+      lines.push('Planned for today:');
+      t.plan.forEach(p => lines.push(`- ${p}`));
+    }
   }
   if (t.note) lines.push(t.note);
 

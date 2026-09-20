@@ -163,6 +163,7 @@ export function create({ chatId, kind = TRIP, title, place = '', venue = '',
     from: isDate(from) ? from : '',
     to: isDate(to) ? to : '',
     note: trim(note, 200),
+    zone: '',        // 目的地时区。空着表示出行期间不改变角色那边的时刻
     state: TALKING,
     proposedBy: proposedBy === 'char' ? 'char' : 'me',
     agreed: agreed === true,
@@ -184,6 +185,7 @@ export function update(id, patch) {
   if ('from' in next) next.from = isDate(next.from) ? next.from : '';
   if ('to' in next) next.to = isDate(next.to) ? next.to : '';
   if ('budget' in next) next.budget = Math.max(0, Number(next.budget) || 0);
+  if ('zone' in next) next.zone = trim(next.zone, 40);
   // 日子反了就掉个个儿，不报错 —— 两个日期选择器谁先谁后是很容易点反的
   const from = 'from' in next ? next.from : row.from;
   const to = 'to' in next ? next.to : row.to;
@@ -411,6 +413,65 @@ export function refundTicket(id, tid) {
 /** 这张票要不要抢。票种说要抢、而且搜到了供需数字，才算数。 */
 export const grabRequired = t =>
   !!t && (t.need || ticketKindOf(t.kind).grab);
+
+// ---- 出行期间，人真的在那儿 ----
+//
+// 一次出行走到「进行中」的时候，角色那边的时刻、日期、星期都该按目的地算。
+// 这几样全走 `clock.charZone(char)` 一个口子（time.js 那一句），
+// 所以**只要那一个函数认得出「这个角色正在路上」，六处调用方一起对**。
+//
+// ---- 为什么目的地时区要自己选 ----
+//
+// 「京都在哪个时区」是个客观事实，模型答得出来。但那要多打一次接口，
+// 而这件事一次出行只发生一次、选一下就好 —— 和汇率自己填是同一条理由。
+//
+// **空着就是不改。** 没选目的地时区的出行，进行中也不动角色那边的时刻：
+// 国内出行本来就不该换，而「默认换成某个时区」是在替用户拿主意。
+
+/** 这个角色此刻正在进行中的那一次出行。没有就返回 null。 */
+export function goingFor(charId) {
+  if (!charId) return null;
+  for (const row of trips.all()) {
+    if (row.state !== BOOKED) continue;
+    if (phaseOf(row) !== GOING) continue;
+    const chat = chats.get(row.chatId);
+    if (chat && (chat.characterIds || []).includes(charId)) return row;
+  }
+  return null;
+}
+
+/**
+ * 出行期间该用哪个时区。没在路上、或者那次出行没选目的地时区，都返回空 ——
+ * 返回空时调用方走原来那一套（角色卡上的时区，再没有就跟设备）。
+ */
+export function zoneAway(char) {
+  const row = char && goingFor(char.id);
+  return (row && row.zone) || '';
+}
+
+/**
+ * 今天这一天的攻略。**出行期间「今天」由它接管**（见 ai/context/day.js）。
+ *
+ * 返回的是算出来的，不写库：哪一天是第几天由日期算，条目本来就存着。
+ * 出行一结束，这里返回 null，角色自己的日程原样回来 —— 不需要谁去收拾。
+ */
+export function dayPlanFor(charId) {
+  const row = goingFor(charId);
+  if (!row) return null;
+  const n = dayIndex(row);
+  if (!n) return null;
+  const order = SLOTS.map(s => s.id);
+  const items = planOf(row.id)
+    .filter(p => (p.day || 0) === n)
+    .sort((a, b) => (order.indexOf(a.slot) - order.indexOf(b.slot)) || (a.at - b.at));
+  return { trip: row, day: n, days: nights(row), items };
+}
+
+/** 去过了没有。出行期间在攻略页上勾。 */
+export const togglePlanDone = (id, pid) => {
+  const p = planItemOf(id, pid);
+  return p ? updatePlan(id, pid, { done: !p.done }) : null;
+};
 
 // ---- 攻略 ----
 //
@@ -679,7 +740,18 @@ export function context(chatId) {
   if (!row) return null;
   const phase = phaseOf(row);
   const k = kindOf(row.kind);
+  // 进行中才带今天的安排。时段与「去过了没有」一并写出来 ——
+  // 去过的不删掉，删了它下午还会再提一次
+  const n = dayIndex(row);
+  const order = SLOTS.map(s => s.id);
+  const plan = n ? planOf(row.id)
+    .filter(p => (p.day || 0) === n)
+    .sort((a, b) => (order.indexOf(a.slot) - order.indexOf(b.slot)) || (a.at - b.at))
+    .map(p => `${p.slot ? `${slotLabel(p.slot)} ` : ''}${p.title}`
+      + `${p.done ? '（已去过）' : ''}`)
+    : [];
   return {
+    plan,
     kind: k.label,
     title: row.title,
     place: row.place,

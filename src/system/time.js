@@ -1,4 +1,5 @@
 import { settings } from './db/index.js';
+import * as trip from './trip.js';
 
 // 时间感知。两件事：现在几点（可以是虚拟的），以及双方各在哪个时区。
 //
@@ -134,7 +135,20 @@ export function diffText(minutes) {
 export function userZone() { return settings.get().timeZoneUser || LOCAL; }
 
 // 角色没单独设就跟你同一个时区 —— 绝大多数情况本来就是同城
-export function charZone(char) { return (char && char.timezone) || userZone(); }
+/**
+ * 这个角色那边是哪个时区。
+ *
+ * **正在路上的时候按目的地算。** 时刻、日期、星期、那一天分几个时段，
+ * 六处调用方全走这一个函数，所以只要这里认得出「它正在出行」，六处一起对。
+ * 没在路上、或者那次出行没选目的地时区，照旧走角色卡上的那一个。
+ *
+ * 这里 import 了 trip.js，而 trip.js 也 import 了本文件 —— **是一个环**。
+ * 它是安全的：两边都只在函数体里用对方，模块顶层谁也不调谁。
+ * 加代码时守住这一条，不要在任何一边的模块顶层调用另一边。
+ */
+export function charZone(char) {
+  return trip.zoneAway(char) || (char && char.timezone) || userZone();
+}
 
 /**
  * 距上次说话多久。
