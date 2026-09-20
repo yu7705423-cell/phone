@@ -1,6 +1,7 @@
 import { html } from '../../../lib.js';
 import { phone, useStore } from '../../../sdk/index.js';
-import { Page, List, ListItem, Avatar, EmptyState } from '../../../ui/index.js';
+import { Page, List, ListItem, EmptyState } from '../../../ui/index.js';
+import { CharAvatar } from '../parts.js';
 
 const { db, nav, shelf, health, day, theirs } = phone;
 
@@ -40,7 +41,7 @@ export function PickPage() {
         ${chars.map(c => html`
           <${ListItem} key=${c.id} title=${c.name} arrow multiline
             subtitle=${bitsOf(c)}
-            left=${html`<${Avatar} src=${c.avatar} name=${c.name} size=${36}/>`}
+            left=${html`<${CharAvatar} subject=${c} size=${36}/>`}
             onClick=${() => nav.push(`/home/${c.id}`)}/>`)}
       <//>
       <div class="settings-foot">

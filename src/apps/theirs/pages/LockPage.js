@@ -1,8 +1,9 @@
 import { html, useState } from '../../../lib.js';
 import { phone, useStore, useImage } from '../../../sdk/index.js';
-import { Page, Icon, Avatar, EmptyState, toast, confirm } from '../../../ui/index.js';
+import { Page, Icon, EmptyState, toast, confirm } from '../../../ui/index.js';
+import { CharAvatar } from '../parts.js';
 
-const { db, nav, theirs, clock, day } = phone;
+const { db, nav, theirs } = phone;
 
 // 锁屏。**点进一个角色，看见的第一屏就是这里。**
 //
@@ -18,6 +19,10 @@ const { db, nav, theirs, clock, day } = phone;
 //
 // **解开之后只在这次打开应用期间有效**，不落库：存起来就等于「解过一次
 // 永远不用再解」，那这道锁只有第一次有用。
+//
+// 上面只放一张头像。原先那里还有时刻与星期，那是从主屏抄过来的 ——
+// 主屏上它是「这台手机此刻几点」，有用；锁屏上你是来输密码的，
+// 那两行只是占着地方。是谁的手机，一张脸就够了。
 
 const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', 'del'];
 
@@ -77,10 +82,7 @@ export function LockPage({ charId, onOpen }) {
       <div class=${`tp-lock${wall ? ' has-img' : ''}`}
         style=${wall ? `background-image:url(${wall})` : ''}>
         <div class="tp-lock-top">
-          <b class="tp-lock-time">${clock.clockOnly(clock.now(), clock.charZone(char))}</b>
-          <span>${day.weekdayOf(char)}</span>
-          <${Avatar} src=${char.avatar} name=${char.name} size=${48}/>
-          <span class="tp-lock-name">${char.name}</span>
+          <${CharAvatar} subject=${char} size=${88}/>
         </div>
 
         <div class="tp-lock-mid">

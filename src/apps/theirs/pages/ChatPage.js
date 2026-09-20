@@ -1,6 +1,7 @@
 import { html, useState, useEffect } from '../../../lib.js';
 import { phone, useStore } from '../../../sdk/index.js';
-import { Page, Avatar, Icon, Button, Spinner, EmptyState, toast } from '../../../ui/index.js';
+import { Page, Icon, Button, Spinner, EmptyState, toast } from '../../../ui/index.js';
+import { CharAvatar } from '../parts.js';
 
 const { db, nav, theirs, ai, intent } = phone;
 
@@ -54,7 +55,7 @@ export function ChatPage({ chatId }) {
       ${npc ? html`
         <div class="pad-x pad-t">
           <div class="tp-who" onClick=${() => intent.open('chat', { route: `/edit/${npc.id}` })}>
-            <${Avatar} src=${npc.avatar} name=${npc.name} size=${32}/>
+            <${CharAvatar} subject=${npc} size=${32}/>
             <span>${npc.name}</span>
             <${Icon} name="chevronRight" size=${15}/>
           </div>
@@ -76,10 +77,10 @@ export function ChatPage({ chatId }) {
           ${lines.map((l, i) => html`
             <div key=${i} class=${`tp-line${l.from === 'char' ? ' is-me' : ''}`}>
               ${l.from === 'char' ? null
-                : html`<${Avatar} src=${npc?.avatar} name=${row.name} size=${28}/>`}
+                : html`<${CharAvatar} subject=${npc} name=${row.name} size=${28}/>`}
               <span class="tp-bubble">${l.text}</span>
               ${l.from === 'char'
-                ? html`<${Avatar} src=${char?.avatar} name=${char?.name || ''} size=${28}/>` : null}
+                ? html`<${CharAvatar} subject=${char} size=${28}/>` : null}
             </div>`)}
         </div>` : null}
 

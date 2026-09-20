@@ -1892,13 +1892,9 @@ button.search-bar { width: 100%; border: none; }
   background: var(--scrim-strong); pointer-events: none;
 }
 .tp-lock > * { position: relative; }
-.tp-lock-top { display: flex; flex-direction: column; align-items: center; gap: var(--sp-2); }
-.tp-lock-time {
-  font-size: var(--fs-56); font-weight: var(--fw-semi); line-height: 1;
-  color: var(--text); font-variant-numeric: tabular-nums;
-}
-.tp-lock-top span { font-size: var(--fs-13); color: var(--text-3); }
-.tp-lock-name { font-size: var(--fs-14); color: var(--text-2); }
+/* 上面只有一张头像。时刻与星期撤了：主屏上它是「这台手机此刻几点」，
+   有用；锁屏上你是来输密码的，那两行只占地方 */
+.tp-lock-top { display: flex; align-items: center; justify-content: center; }
 
 /* 圆点与那一行说明是一件事，拢在一起 —— 分成两个 flex 子项的话
    space-between 会把它们撑开老远 */

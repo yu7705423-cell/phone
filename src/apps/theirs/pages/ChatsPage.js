@@ -1,7 +1,8 @@
 import { html } from '../../../lib.js';
 import { phone, useStore } from '../../../sdk/index.js';
-import { Page, List, ListItem, Avatar, Icon, EmptyState, Button,
+import { Page, List, ListItem, Icon, EmptyState, Button,
          confirm, toast } from '../../../ui/index.js';
+import { CharAvatar } from '../parts.js';
 
 const { db, nav, theirs, intent } = phone;
 
@@ -67,7 +68,7 @@ export function ChatsPage({ charId }) {
             return html`
               <${ListItem} key=${c.id} title=${me?.name || '我'} arrow multiline
                 subtitle=${previewOf(c)}
-                left=${html`<${Avatar} src=${me?.avatar} name=${me?.name || '我'} size=${36}/>`}
+                left=${html`<${CharAvatar} subject=${me} name=${me?.name || '我'} size=${36}/>`}
                 onClick=${() => intent.open('chat', { route: `/chat/${c.id}` })}/>`;
           })}
         <//>
@@ -81,7 +82,7 @@ export function ChatsPage({ charId }) {
               <${ListItem} key=${c.id} title=${c.name} arrow multiline
                 subtitle=${[c.preview || '还没有内容',
                   c.filled ? `${c.lines.length} 条` : '点击后生成'].filter(Boolean).join(' · ')}
-                left=${html`<${Avatar} src=${npc?.avatar} name=${c.name} size=${36}/>`}
+                left=${html`<${CharAvatar} subject=${npc} name=${c.name} size=${36}/>`}
                 right=${html`
                   <button class="press" aria-label=${`删除 ${c.name}`}
                     onClick=${ev => { ev.stopPropagation(); drop(c); }}>
