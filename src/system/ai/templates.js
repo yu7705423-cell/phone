@@ -473,7 +473,7 @@ the web.
 ## The trip
 Destination: {{place}}
 Venue: {{venue}}
-What it is for: {{target}}
+What to look for: {{target}}
 Dates: {{when}}
 How many entries: {{count}}
 Currency for every price: {{currency}}
@@ -522,7 +522,7 @@ web, so these are typical prices rather than current ones.
 ## The trip
 Destination: {{place}}
 Venue: {{venue}}
-What it is for: {{target}}
+What to look for: {{target}}
 Dates: {{when}}
 How many entries: {{count}}
 Currency for every price: {{currency}}

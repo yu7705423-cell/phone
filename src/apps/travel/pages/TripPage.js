@@ -138,7 +138,7 @@ export function TripPage({ tripId }) {
       <//>
 
       <${List} title="票">
-        <${ListItem} title="机票、车票与门票" arrow multiline
+        <${ListItem} title="机票、车票、门票与演出票" arrow multiline
           subtitle=${(() => {
             const all = trip.ticketsOf(tripId);
             if (!all.length) return '还没有检索过。检索结果只作参考，不是实时票价';

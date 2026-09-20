@@ -342,6 +342,7 @@ export function addTickets(id, rows, src = SEARCHED) {
     need: r?.need === true,
     note: trim(r?.note, 80),
     state: FOUND,
+    tries: 0,        // 抢了几次。余票由它算出来，不另存（见 system/grab.js）
     paid: 0,
     entryId: '',
     src,

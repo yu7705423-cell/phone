@@ -3,7 +3,7 @@ import { phone, useStore } from '../../../sdk/index.js';
 import { Page, List, ListItem, Field, Input, Segmented, Button, Icon,
          EmptyState, confirm, toast } from '../../../ui/index.js';
 
-const { db, nav, trip, ledger, ai, intent } = phone;
+const { db, nav, trip, grab, ledger, ai, intent } = phone;
 
 // 这次出行的票。
 //
@@ -12,12 +12,19 @@ const { db, nav, trip, ledger, ai, intent } = phone;
 // 是**模型在网上看到的数字**，不是实时票价。可能过期，可能是一个区间。
 // 每一条都标着来源与搜到的时刻，界面照实写。这个应用不订票，也不付款。
 //
-// ---- 需要抢的那几种暂时还买不了 ----
+// ---- 要抢的那几种 ----
 //
-// 演出票与比赛票搜回来带着场馆容量与想看人数，摆出来给你看，
-// 但「抢」这一步还没做。**不让它们走直接购买** ——
-// 让演唱会票像门票一样点一下就买到，等抢票接上时行为又要变一次，
-// 那比暂时不提供更糟。
+// 演出票与比赛票不走直接购买，走抢票（system/grab.js）。那一页把**算出来的
+// 数**摆出来：这一档多少张、多少人抢、一场下来抢到的概率、余票还剩多少。
+// 概率是本地算的，搜索只给场馆容量与想看人数这两个客观数字。
+//
+// 抢不到可以加价从转售买，倍数同样由供需比算出来 —— 三十倍超额的开天价，
+// 一点五倍的加一成，两种都不是拍出来的。
+//
+// ---- 检索内容自己填 ----
+//
+// 出行那一行上只有城市与场馆。要找某个人的某一场演出，那句话只有你写得出来，
+// 所以检索框默认填出行上已有的信息，但**可以改**。
 
 const STATES = {
   [trip.FOUND]: '',
@@ -49,12 +56,15 @@ export function TicketsPage({ tripId }) {
   const [kind, setKind] = useState('');
   const [count, setCount] = useState(6);
   const [busy, setBusy] = useState(false);
+  // 自己改过检索内容就用自己那一句，没改过跟着票种走
+  const [query, setQuery] = useState(null);
 
   // **选中的票种要现算，不能只靠 useState 的初值。** 从一次旅行的票页
   // 跳到一次演出的票页，组件是同一个实例，state 原样留着 —— 于是屏幕上
   // 第一个是「演出票」，实际拿去检索的却是上一页选的「机票」。
   // 选过的仍然作数，只是它不在这一次的选项里时退回第一个。
   const active = kinds.includes(kind) ? kind : (kinds[0] || trip.FLIGHT);
+  const q = query == null ? ai.trip.queryFor(row, active) : query;
 
   if (!row) {
     return html`<${Page} title="票" onBack=${nav.pop}>
@@ -70,7 +80,7 @@ export function TicketsPage({ tripId }) {
   const find = async () => {
     setBusy(true);
     try {
-      const got = await ai.trip.findTickets(tripId, { kind: active, count, web });
+      const got = await ai.trip.findTickets(tripId, { kind: active, count, web, query: q });
       toast(`找到 ${got.length} 条`, 'ok');
     } catch (e) {
       toast(String(e.message || e), 'error', 6000);
@@ -114,12 +124,15 @@ export function TicketsPage({ tripId }) {
     `${SRC[t.src] || ''} ${when(t.foundAt)}`,
   ].filter(Boolean).join(' · ');
 
-  // 需要抢的那几种，把搜回来的供需数字摆出来
+  // 需要抢的那几种，把搜回来的供需数字与算出来的概率摆出来。
+  // **不写「很难抢」这种形容** —— 形容是主观的，这几个数是算出来的
   const grabOf = t => {
     if (!trip.grabRequired(t)) return '';
     if (!t.capacity || !t.demand) return '需要抢票。未能检索到场馆容量与想看人数';
+    const o = grab.oddsOf(tripId, t.id);
     const share = t.share ? `，本档约占 ${Math.round(t.share * 100)}%` : '';
-    return `需要抢票。场馆容量 ${t.capacity} 人，想看 ${t.demand} 人${share}`;
+    const p = o ? `。抢到的概率 ${(o.p1 * 100).toFixed(o.p1 < 0.01 ? 2 : 1)}%` : '';
+    return `场馆容量 ${t.capacity} 人，想看 ${t.demand} 人${share}${p}`;
   };
 
   return html`
@@ -134,8 +147,13 @@ export function TicketsPage({ tripId }) {
 
       <div class="pad-x pad-t">
         <${Field} label="检索哪一种">
-          <${Segmented} value=${active} onChange=${setKind}
+          <${Segmented} value=${active}
+            onChange=${v => { setKind(v); setQuery(null); }}
             items=${kinds.map(id => ({ value: id, label: trip.ticketKindOf(id).label }))}/>
+        <//>
+        <${Field} label="检索内容"
+          desc="默认使用这次出行填写的地点与场馆。查找某一场演出或某一场比赛时，在此写明。">
+          <${Input} value=${q} onInput=${setQuery}/>
         <//>
         <${Field} label="一次检索多少条" desc="不设上限。条数越多，这一次请求越长。">
           <${Input} type="number" inputmode="numeric" value=${count}
@@ -163,7 +181,8 @@ export function TicketsPage({ tripId }) {
                     ? html`<${Button} size="sm" variant="ghost"
                         onClick=${() => refund(t)}>退票<//>`
                     : trip.grabRequired(t)
-                    ? html`<span class="tag">需抢票</span>`
+                    ? html`<${Button} size="sm" variant="ghost"
+                        onClick=${() => nav.push(`/grab/${tripId}/${t.id}`)}>抢票<//>`
                     : html`<${Button} size="sm" variant="ghost"
                         onClick=${() => buy(t)}>购买<//>`}
                   <button class="press" aria-label=${`删除 ${t.title}`}
@@ -187,8 +206,8 @@ export function TicketsPage({ tripId }) {
         </div>`}
 
       <div class="settings-foot">
-        演出票与比赛票需要抢票，抢票尚未提供，此处只显示检索到的场馆容量与
-        想看人数。<br/>
+        演出票与比赛票需要抢票，点击「抢票」进入。抢到的概率由场馆容量与
+        想看人数算出，不调用接口。<br/>
         检索使用副用接口，与聊天分开计费，每检索一次调用一次。购买不调用接口。
       </div>
     <//>`;
