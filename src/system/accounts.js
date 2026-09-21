@@ -1,4 +1,5 @@
-import { personas, chats, settings, spaceItems } from './db/index.js';
+import { personas, chats, settings } from './db/index.js';
+import { dropChat } from './purge.js';
 
 // 用户身份树。一个根账号（大号）下面挂若干小号。
 //
@@ -65,12 +66,10 @@ export function remove(id) {
   if (!p) return;
   const ids = [id, ...(p.parentId ? [] : altsOf(id).map(a => a.id))];
   ids.forEach(pid => {
-    chats.where(c => c.personaId === pid).forEach(c => {
-      // 空间里自己存的那两样（纪念日、没寄出的信）跟着会话一起走。
-      // 这里不走 space.js：它要用本模块，静态互引会成环。
-      spaceItems.byIndex(c.id).forEach(x => spaceItems.remove(x.id));
-      chats.remove(c.id);
-    });
+    // 会话连同挂在它身上的一切（消息、空间、线下、出行、段评）一起走。
+    // 从前这里只删会话行和空间，几千条消息留成孤儿，还占着图片和语音。
+    // purge 只依赖 db 与 looks，不会绕回本模块
+    chats.where(c => c.personaId === pid).forEach(c => dropChat(c.id));
     personas.remove(pid);
   });
   if (ids.includes(settings.get().activePersonaId)) {
