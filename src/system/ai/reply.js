@@ -13,6 +13,7 @@ import * as transfer from '../transfer.js';
 import * as place from '../place.js';
 import * as gift from '../gift.js';
 import * as music from '../music.js';
+import { releaseImages } from '../purge.js';
 import * as space from '../space.js';
 import * as dayStore from '../day.js';
 import * as extras from '../extras.js';
@@ -1008,11 +1009,11 @@ export async function renderTurn({ chat, char, raw, turnId, swipes, swipeIndex, 
 }
 
 // 删一条消息。图片和语音是另存的，跟着一起清掉，不然删完还占着空间。
+// 图要等消息删掉之后按引用表看：「保存到相册」和这条消息共用同一个 id
 export function dropMessage(id) {
   const m = messages.get(id);
   if (!m) return false;
   if (m.audioId) files.remove(m.audioId);
-  if (m.imageId) images.remove(m.imageId);
   // 「已收款」「已拆开」那一行就是这件事的记录，删了它就当没处理过，
   // 那笔钱、那件礼物回到待处理。重新生成角色那一轮时整轮清空，走的也是这里。
   if (m.kind === 'notice' && m.settledId) {
@@ -1022,7 +1023,9 @@ export function dropMessage(id) {
     else if (m.settledKind === 'request') request.unsettle(id);
     else (m.settledKind === 'gift' ? gift : transfer).unsettle(id);
   }
-  return messages.remove(id);
+  const ok = messages.remove(id);
+  releaseImages([m.imageId]);
+  return ok;
 }
 
 // 改完图片描述或语音文字之后重新生成那一份媒体
@@ -1031,8 +1034,8 @@ export function regenMedia(id) {
   if (!m) return;
   const char = characters.get(m.authorId);
   if (m.kind === 'image') {
-    if (m.imageId) images.remove(m.imageId);
     messages.update(id, { imageId: null, media: 'pending', mediaError: '' });
+    releaseImages([m.imageId]);
     generateImage(id, m.prompt, char);
   } else if (m.kind === 'voice') {
     if (m.audioId) files.remove(m.audioId);
