@@ -119,6 +119,11 @@ export function MessagesTab() {
             <${ListItem} title=${held.muted ? '取消免打扰' : '设为免打扰'} arrow
               left=${html`<${Icon} name="bell" size=${18}/>`}
               onClick=${() => { db.chats.update(held.id, { muted: !held.muted }); close(); }}/>
+            ${phone.skin.ofChat(held.id) ? html`
+              <${ListItem} title="清除这段会话的美化" arrow multiline
+                left=${html`<${Icon} name="sparkle" size=${18}/>`}
+                subtitle=${`当前挂着「${phone.skin.ofChat(held.id).name}」。清除只是取下，美化本身保留`}
+                onClick=${() => { phone.skin.detach(held.id); close(); }}/>` : null}
             <${ListItem} title="删除会话" danger arrow
               left=${html`<${Icon} name="trash" size=${18}/>`} onClick=${remove}/>
           <//>` : null}

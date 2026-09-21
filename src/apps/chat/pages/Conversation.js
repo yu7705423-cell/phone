@@ -22,7 +22,8 @@ import { SceneBlock, LookFloat } from './SceneInline.js';
 
 // panel 这个名字在本文件里已经被「当前开着哪个面板」占了（见下面的 useState），
 // 所以模块换个名字进来 —— 同名会被局部变量盖掉，读出来是 null。
-const { db, nav, ai, call, extras, pace, autoReply, panel: panelCfg, scene: sceneApi, stage } = phone;
+const { db, nav, ai, call, extras, pace, autoReply, panel: panelCfg,
+  scene: sceneApi, stage, skin } = phone;
 
 // 一屏装不下这么多，但往上翻几下够用；不够再按按钮要下一段。
 // 见 CLAUDE.md 第 13 条：这是默认值不是上限，设置里填 0 就一次画全。
@@ -50,7 +51,7 @@ function QuoteRef({ quote, onClick }) {
 
 // 记忆化：流式回复时只有最后那条在变，别的几百条没必要跟着重画。
 // 下面传给它的函数属性都是稳定身份的，见 Conversation 里的 stable。
-const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, onSwipe, onHold,
+export const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, onSwipe, onHold,
                   selecting, selected, onToggle, transOpen, onSettle, onOpenLog, onUnwrap,
                   onPat, innerStyle, fold, foldCount, onScene }) {
   const mine = msg.role === 'user';
@@ -287,6 +288,17 @@ export function Conversation({ chatId, focusId = '' }) {
   // 线下正在写的那一段。放在这儿而不是块里 —— 那个块是 memo 过的，
   // 每个 delta 都往里传会把整屏气泡一起重画
   const [sceneDraft, setSceneDraft] = useState('');
+
+  // 这段会话的美化。**只在这一页挂着**，离开就摘 —— 隔离靠的就是这个，
+  // 不是靠重写选择器（见 system/skin.js）。活过一帧就把「上次崩了」的
+  // 记号清掉；没清掉的话下次进来这一份不注入
+  const mySkin = chatId ? skin.ofChat(chatId) : null;
+  useEffect(() => {
+    if (mySkin) skin.mount(mySkin);
+    else skin.unmount();
+    const t = setTimeout(() => skin.settle(), 800);
+    return () => { clearTimeout(t); skin.unmount(); };
+  }, [mySkin && mySkin.id, mySkin && mySkin.updatedAt]);
 
   const chat = db.chats.get(chatId);
   const char = db.characters.get((chat?.characterIds || [])[0]);
@@ -1233,6 +1245,12 @@ export function Conversation({ chatId, focusId = '' }) {
             })()}
             left=${html`<${Icon} name="clock" size=${18}/>`}
             onClick=${() => { setMenu(false); nav.push(`/pace/${chatId}`); }}/>
+          <${ListItem} title="美化" arrow multiline
+            left=${html`<${Icon} name="sparkle" size=${18}/>`}
+            subtitle=${mySkin
+    ? `已挂「${mySkin.name}」。只在这段会话里生效`
+    : '为这段会话单独设定气泡、头像、顶栏底栏的尺寸，也可以写自定义 CSS'}
+            onClick=${() => { setMenu(false); nav.push(`/skin/${chatId}`); }}/>
           <${ListItem} title="翻译" arrow multiline
             subtitle=${chat.translateTo
               ? `每条同时给出${chat.translateTo}译文，${settings.translateOpen === 'always' ? '默认展开' : '点气泡展开'}`

@@ -23,6 +23,7 @@ import { ListenPage } from './pages/ListenPage.js';
 import { StageList, SceneEdit } from './pages/StageList.js';
 import { StageRead } from './pages/StageRead.js';
 import { StageSettings } from './pages/StageSettings.js';
+import { SkinPage } from './pages/SkinPage.js';
 
 const { db, nav } = phone;
 
@@ -98,6 +99,9 @@ export default function ChatApp({ route }) {
   if (bd) return html`<${BondPage} chatId=${bd[1]}/>`;
   const ex = route?.match(/^\/extras\/(.+)$/);
   if (ex) return html`<${ExtrasPage} chatId=${ex[1]}/>`;
+
+  const sk = route?.match(/^\/skin\/(.+)$/);
+  if (sk) return html`<${SkinPage} chatId=${sk[1]}/>`;
 
   const tr = route?.match(/^\/translate\/(.+)$/);
   if (tr) return html`<${TranslatePage} chatId=${tr[1]}/>`;

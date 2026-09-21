@@ -116,6 +116,17 @@
   --navbar-h:    48px;
   --tabbar-h:    54px;
 
+  /* 会话页那几个尺寸。原来写死在 app.css 里，提成令牌是为了「美化」能按
+     会话覆盖它们（见 system/skin.js）。值和从前一模一样，不改观感。 */
+  --composer-h:   38px;   /* 输入栏那几个圆按钮，也是输入框的最小高 */
+  --composer-pad: var(--sp-2);
+  --bubble-gap:   var(--sp-4);   /* 两轮消息之间 */
+  --bubble-gap-in: 5px;          /* 同一轮里两个气泡之间 */
+  --bubble-r:     var(--r-md);
+  --bubble-px:    var(--sp-3);
+  --bubble-py:    var(--sp-2);
+  --bubble-fs:    var(--fs-14);
+
   /* 安全区。由根容器换算，组件不自己算 */
   --safe-top:    0px;
   --safe-bottom: 0px;

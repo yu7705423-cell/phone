@@ -88,6 +88,7 @@ import * as banApi from '../system/ban.js';
 import * as todoApi from '../system/todo.js';
 import * as sceneApi from '../system/scene.js';
 import * as stageApi from '../system/stage.js';
+import * as skinApi from '../system/skin.js';
 import * as toneApi from '../system/tone.js';
 import * as alarmApi from '../system/alarm.js';
 import * as whenApi from '../system/when.js';
@@ -274,6 +275,7 @@ export const phone = {
   todo: todoApi,
   scene: sceneApi,
   stage: stageApi,
+  skin: skinApi,
   tone: toneApi,
   alarm: alarmApi,
   when: whenApi,

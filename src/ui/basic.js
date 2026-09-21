@@ -73,7 +73,10 @@ export const Segmented = ({ items, value, onChange }) => html`
 
 export const Avatar = ({ src, name = '', size = 44, radius }) => {
   const r = radius != null ? `${radius}px` : `${Math.round(size * .32)}px`;
-  const st = `width:${size}px;height:${size}px;border-radius:${r};font-size:${Math.round(size * .38)}px`;
+  // 圆角留一个变量口子。内联样式盖得过类选择器，不留口子的话「美化」
+  // 改不动头像形状，只能靠 !important（见 system/skin.js）
+  const st = `width:${size}px;height:${size}px;border-radius:var(--avatar-r, ${r});`
+    + `font-size:${Math.round(size * .38)}px`;
   return src
     ? html`<img class="avatar" src=${src} style=${st} alt=""/>`
     : html`<div class="avatar avatar-fallback" style=${st}>${(name || '?').slice(0, 1)}</div>`;

@@ -16,6 +16,7 @@ const ROUTES = {
     '/chat/:chat', '/translate/:chat', '/search', '/search/:chat', '/listen/:chat',
      '/profile/:char', '/edit/:char', '/proactive/:char', '/extras/:chat', '/pace/:chat',
      '/bond/:chat',
+    '/skin/:chat', '/skin/nope',
     '/stage/:chat', '/stage/nope', '/stage/settings', '/stage/settings/:scene',
     '/scene/:scene', '/scene/:scene/edit', '/scene/nope', '/scene/nope/edit'],
   contact: ['/', '/import', '/me', '/me/:persona', '/char/:char',

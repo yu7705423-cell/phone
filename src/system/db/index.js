@@ -60,8 +60,11 @@ export const trips      = makeCollection('trips', 'tr', { indexBy: 'chatId' });
 // 最后一段，内嵌意味着每个 delta 都要 put 一个几十 KB 的行。见 4.107
 export const scenes     = makeCollection('scenes', 'sc', { indexBy: 'chatId' });
 export const beats      = makeCollection('beats', 'bt', { indexBy: 'sceneId' });
+// 美化。一份是一整套（令牌覆盖 + 自由 CSS），会话指向它，可以几段会话共用一份。
+// 只在那段会话的页面开着时挂上去，离开就摘（见 system/skin.js）
+export const skins      = makeCollection('skins', 'sk');
 
-const COLLECTIONS = { characters, lorebooks, memories, chats, messages, moments, stickers, looks, personas, songs, playlists, videos, spaceItems, events, days, todos, notes, recipes, meals, books, entries, ebooks, reviews, readnotes, health, cycles, meds, albums, photos, shots, phones, phoneChats, trips, scenes, beats };
+const COLLECTIONS = { characters, lorebooks, memories, chats, messages, moments, stickers, looks, personas, songs, playlists, videos, spaceItems, events, days, todos, notes, recipes, meals, books, entries, ebooks, reviews, readnotes, health, cycles, meds, albums, photos, shots, phones, phoneChats, trips, scenes, beats, skins };
 
 // ---- kv: settings / persona / layout ----
 function makeKV(key, fallback, { deep = false } = {}) {
@@ -155,7 +158,7 @@ export const db = {
   characters, lorebooks, memories, chats, messages, moments, stickers, looks, personas,
   songs, playlists, videos, spaceItems, events, days, todos, notes, recipes, meals,
   books, entries, ebooks, reviews, readnotes, health, cycles, meds,
-  albums, photos, shots, phones, phoneChats, trips, scenes, beats,
+  albums, photos, shots, phones, phoneChats, trips, scenes, beats, skins,
   images, files, settings, persona, layout,
   messagesOf, lastMessageOf, ready,
 };
