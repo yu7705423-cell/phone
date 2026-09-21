@@ -604,6 +604,7 @@ export function buildSceneHistory(scene, chat, char, list, opts = {}) {
       ? fillTemplate(template('skeleton.scene-director'),
         { lines: dir.join('\n'), userName: me.name || '对方' })
       : '',
+    opts.more ? template('skeleton.scene-more') : '',
     // 贴着输出再说一遍。设定区那一段离这里隔着整场戏
     fillTemplate(template('skeleton.scene-tail'), { userName: me.name || '对方' }),
   ].filter(Boolean).join('\n\n');
@@ -615,9 +616,20 @@ export const sceneKey = id => `scene:${id}`;
 export const isWriting = id => isRunning(sceneKey(id));
 export const cancelScene = id => cancel(sceneKey(id));
 
-export function streamScene({ scene, chat, char, onDelta }) {
+/**
+ * 写一段。
+ *
+ * `more` 是续写：接着最后那一段往下写，不另起一段。
+ * `omitFrom` 是重写：把那一段连同它之后的都从历史里摘掉，重新写那一轮 ——
+ *   不摘的话模型看见的是「已经写过了」，交回来的就是接着它往下写。
+ */
+export function streamScene({ scene, chat, char, more = false, omitFrom = '', onDelta }) {
   return enqueue(sceneKey(scene.id), async signal => {
-    const list = beatsOf(scene.id);
+    let list = beatsOf(scene.id);
+    if (omitFrom) {
+      const i = list.findIndex(b => b.id === omitFrom);
+      if (i >= 0) list = list.slice(0, i);
+    }
     const s0 = settings.get();
     const scan = sceneScan(list, s0.sceneScan);
     const lore = activateLore(char, scan, budgets(sceneBudget()).lorebook).items;
@@ -628,7 +640,7 @@ export function streamScene({ scene, chat, char, onDelta }) {
       budgets: budgets(sceneBudget()), queryVec, persona: me,
     });
     const { system, volatile: hot } = buildSceneSystem(scene, chat, char, list, { queryVec, lore, recall });
-    const history = buildSceneHistory(scene, chat, char, list, { lore, recall, volatile: hot });
+    const history = buildSceneHistory(scene, chat, char, list, { lore, recall, volatile: hot, more });
     const oneShot = s0.streamMode === 'once';
     // maxTokens 默认 0：OpenAI 兼容那边整个字段都不送，服务端用自己的上限。
     // 填一个大数反而会被上限低的模型退回来（见 providers/openai.js）

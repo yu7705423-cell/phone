@@ -1,5 +1,6 @@
 import { html } from '../../../lib.js';
 import { useImage } from '../../../sdk/index.js';
+import { Icon } from '../../../ui/index.js';
 
 // 线下正文的展示层。见 ARCHITECTURE 4.107
 
@@ -101,12 +102,29 @@ export const Byline = ({ sign, no }) => {
 //
 // 每张自己是一个组件，因为头像要 useImage 解析 —— 在一个循环里调 hook
 // 是不行的（第 10 条）。
-export const Card = ({ page, sign, marks, drop, showSign, face, grow, onHold, onEnd }) => html`
+export const Card = ({ page, sign, marks, drop, showSign, face, grow, vers, onPick, onHold, onEnd }) => html`
   <article class=${`sg-card no-callout${grow ? '' : ' is-fixed'}`}
     onTouchStart=${onHold} onTouchEnd=${onEnd} onTouchMove=${onEnd} onTouchCancel=${onEnd}
     onContextMenu=${e => { e.preventDefault(); if (onHold) onHold(); }}>
     ${showSign && sign ? html`<${Sign} sign=${sign} no=${page.beatIndex} face=${face}/>` : null}
     <div class="sg-card-body">
       <${Prose} text=${page.text} marks=${marks} drop=${drop && page.first}/>
+      ${vers && page.page === page.pages - 1
+    ? html`<${Versions} n=${vers.n} at=${vers.at} onPick=${onPick}/>` : null}
     </div>
   </article>`;
+
+// 一段的第几版。重写不删旧的，往后添一版，在这里翻。
+// 只有一版时整条不出现。
+export const Versions = ({ n, at, onPick }) => (n > 1 ? html`
+  <div class="sg-vers">
+    <button class="sg-vers-btn press" disabled=${at <= 0}
+      onClick=${e => { e.stopPropagation(); onPick(at - 1); }} aria-label="上一版">
+      <${Icon} name="chevronLeft" size=${15}/>
+    <//>
+    <span class="sg-vers-no">${at + 1} / ${n}</span>
+    <button class="sg-vers-btn press" disabled=${at >= n - 1}
+      onClick=${e => { e.stopPropagation(); onPick(at + 1); }} aria-label="下一版">
+      <${Icon} name="chevronRight" size=${15}/>
+    <//>
+  </div>` : null);

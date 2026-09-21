@@ -2245,3 +2245,17 @@ button.search-bar { width: 100%; border: none; }
 /* 场次列表。每一条是一篇稿子的目录行，不画卡片 */
 .sc-row { display: flex; flex-direction: column; gap: 2px; }
 .sc-meta { font-size: var(--fs-12); color: var(--text-2); letter-spacing: .04em; }
+
+/* 一段的第几版。重写不删旧的，在这儿翻 */
+.sg-vers {
+  display: flex; align-items: center; justify-content: center; gap: var(--sp-2);
+  margin-top: var(--sp-5);
+  color: var(--sg-dim); font-size: 10px; letter-spacing: .16em;
+}
+.sg-vers-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; border-radius: var(--r-sm);
+  color: inherit; background: none; border: 1px solid var(--sg-line);
+}
+.sg-vers-btn:disabled { opacity: .35; }
+.sg-vers-no { font-variant-numeric: tabular-nums; }

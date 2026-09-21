@@ -57,15 +57,85 @@ export const beatsOf = sceneId => beats.byIndex(sceneId)
   .slice()
   .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
 
-export function addBeat({ sceneId, role, authorId = '', text = '', raw = '', think = '', at = '', swipes = null }) {
+export function addBeat({ sceneId, role, authorId = '', text = '', raw = '', think = '', at = '' }) {
+  const one = { text: String(text || ''), raw: String(raw || ''), think: String(think || ''), at: String(at || '') };
   const row = beats.create({
-    sceneId, role, authorId, text: String(text || ''), raw: String(raw || ''),
-    think: String(think || ''), at: String(at || ''),
-    swipes: swipes || (raw ? [raw] : []), swipeIndex: 0, pinned: false,
+    sceneId, role, authorId, ...one,
+    swipes: [one], swipeIndex: 0, pinned: false,
     createdAt: Date.now(),
   });
   update(sceneId, {});
   return row;
+}
+
+// ---- 一段的几个版本 ----
+//
+// 重写**不删旧的**，往后添一版，自己翻着挑。老的行里 swipes 存的是裸字符串，
+// 这里统一收成对象 —— 不收的话翻到那一版正文会变成 undefined。
+
+const asVersion = v => (typeof v === 'string'
+  ? { text: v, raw: v, think: '', at: '' }
+  : { text: '', raw: '', think: '', at: '', ...(v || {}) });
+
+export const versionsOf = beat => (Array.isArray(beat?.swipes) ? beat.swipes : []).map(asVersion);
+
+const face = v => ({ text: v.text, raw: v.raw, think: v.think, at: v.at });
+
+/** 添一版，并且切到它。 */
+export function addSwipe(id, v) {
+  const row = beats.get(id);
+  if (!row) return null;
+  const list = [...versionsOf(row), asVersion(v)];
+  return updateBeat(id, { swipes: list, swipeIndex: list.length - 1, ...face(asVersion(v)) });
+}
+
+/** 翻到第几版。 */
+export function pickSwipe(id, i) {
+  const row = beats.get(id);
+  const list = versionsOf(row);
+  const n = Math.max(0, Math.min(list.length - 1, Math.round(Number(i) || 0)));
+  if (!list.length) return null;
+  return updateBeat(id, { swipeIndex: n, ...face(list[n]) });
+}
+
+/** 删掉当前这一版。只剩一版时不动 —— 那等于删掉整段，走删除那一项。 */
+export function dropSwipe(id) {
+  const row = beats.get(id);
+  const list = versionsOf(row);
+  if (list.length < 2) return null;
+  const at = Math.max(0, Math.min(list.length - 1, Number(row.swipeIndex) || 0));
+  const left = list.filter((_, i) => i !== at);
+  const n = Math.min(at, left.length - 1);
+  return updateBeat(id, { swipes: left, swipeIndex: n, ...face(left[n]) });
+}
+
+/** 接着这一段往下写。续的是当前这一版，不另开一版。 */
+export function appendBeat(id, { text = '', raw = '', at = '' }) {
+  const row = beats.get(id);
+  if (!row) return null;
+  const add = String(text || '').trim();
+  if (!add) return row;
+  const merged = {
+    text: `${row.text}\n${add}`.trim(),
+    raw: `${row.raw || ''}\n${raw || ''}`.trim(),
+    think: row.think || '',
+    at: row.at || String(at || ''),
+  };
+  const list = versionsOf(row);
+  const i = Math.max(0, Math.min(list.length - 1, Number(row.swipeIndex) || 0));
+  if (list.length) list[i] = { ...list[i], ...merged };
+  return updateBeat(id, { ...merged, swipes: list.length ? list : [merged] });
+}
+
+/** 改写这一段的正文。改的是当前这一版。 */
+export function editBeat(id, text) {
+  const row = beats.get(id);
+  if (!row) return null;
+  const body = String(text || '').trim();
+  const list = versionsOf(row);
+  const i = Math.max(0, Math.min(list.length - 1, Number(row.swipeIndex) || 0));
+  if (list.length) list[i] = { ...list[i], text: body };
+  return updateBeat(id, { text: body, swipes: list.length ? list : [{ text: body, raw: '', think: '', at: row.at || '' }] });
 }
 
 export function updateBeat(id, patch) {

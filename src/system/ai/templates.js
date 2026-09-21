@@ -92,6 +92,12 @@ spoken in it, and no one in the scene is aware of them. Follow them.`,
 The lines above govern how this passage is written. They do not change who
 anyone is, or what happens.`,
 
+  // 续写。上一段就在对话的最后，接着它往下写就行 —— 不必把那一段再抄一遍。
+  'skeleton.scene-more':
+`[接着写]
+Continue the last passage from where it stops.
+Do not repeat what it already says, and do not begin it again.`,
+
   // 贴着输出放的一句。设定区那一段离输出隔着整场戏，长场次里会被忘掉 ——
   // 和译文提醒同一个理由。
   'skeleton.scene-tail':

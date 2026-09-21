@@ -2,7 +2,7 @@ import { html, useState, useRef, useEffect, useMemo } from '../../../lib.js';
 import { phone, useStore, useImage } from '../../../sdk/index.js';
 import { Page, IconButton, Icon, Button, Textarea, Switch, Field,
          Sheet, FullSheet, List, ListItem, Spinner, toast, confirm } from '../../../ui/index.js';
-import { Prose, Sign, Byline, Card } from './StageBits.js';
+import { Prose, Sign, Byline, Card, Versions } from './StageBits.js';
 
 const { db, nav, ai, scene: sceneApi, stage } = phone;
 
@@ -28,6 +28,7 @@ export function StageRead({ sceneId }) {
   const [menu, setMenu] = useState(false);
   const [notes, setNotes] = useState(null);
   const [picked, setPicked] = useState(null);
+  const [editing, setEditing] = useState(null);
 
   const liveRef = useRef(null);
   const bodyRef = useRef(null);
@@ -144,7 +145,12 @@ export function StageRead({ sceneId }) {
     if (cfg.spread) stage.set({ spread: false });
   };
 
-  const writeOne = async () => {
+  /**
+   * 写一段。
+   *   more     接着最后那一段往下写，不另起一段
+   *   rewrite  重写这一段。**不删旧的**，往后添一版，自己翻着挑
+   */
+  const writeOne = async ({ more = false, rewrite = '' } = {}) => {
     if (!char) { toast('这一场里还没有角色'); return; }
     if (!ai.isConfigured()) { toast('还没有配置接口'); return; }
     setWriting(true);
@@ -153,7 +159,7 @@ export function StageRead({ sceneId }) {
       // 窗口把老段落挡在外面时先压一遍。开关默认关着，关着就是一句 return
       await ai.scene.compressIfDue(sceneId).catch(() => {});
       const raw = String(await ai.streamScene({
-        scene: row, chat, char,
+        scene: row, chat, char, more, omitFrom: rewrite,
         onDelta: d => {
           buf += d;
           const node = liveRef.current;
@@ -165,7 +171,9 @@ export function StageRead({ sceneId }) {
       const { text, think } = ai.reply.stripThink(raw);
       const { text: body, stamp: at2 } = ai.reply.stripStamps(text);
       if (!body.trim()) throw new Error('模型返回了空内容');
-      sceneApi.addBeat({ sceneId, role: 'char', authorId: char.id, text: body, raw, think, at: at2 });
+      if (rewrite) sceneApi.addSwipe(rewrite, { text: body, raw, think, at: at2 });
+      else if (more) sceneApi.appendBeat(lastBeat?.id, { text: body, raw, at: at2 });
+      else sceneApi.addBeat({ sceneId, role: 'char', authorId: char.id, text: body, raw, think, at: at2 });
       // 线下发生的事也要进记忆，否则见了一整场面，回到线上什么都不记得。
       // 和线上共用同一个间隔，默认 0 就是关着的（第 15 条）
       const gap = db.settings.get().autoSummarizeInterval;
@@ -181,7 +189,19 @@ export function StageRead({ sceneId }) {
     }
   };
 
-  writeRef.current = writeOne;
+  writeRef.current = () => writeOne();
+
+  // 续写只对最后那一段有意义：接的就是它
+  const told = pages.filter(p => p.beat);
+  const lastBeat = told.length ? told[told.length - 1].beat : null;
+  const canMore = !!lastBeat && lastBeat.role === sceneApi.CHAR;
+  const versOf = beat => {
+    const list = sceneApi.versionsOf(beat);
+    return list.length > 1
+      ? { n: list.length, at: Math.min(list.length - 1, Number(beat.swipeIndex) || 0) }
+      : null;
+  };
+  const pickVer = (beat, i) => sceneApi.pickSwipe(beat.id, i);
 
   const submit = () => {
     const text = draft.trim();
@@ -199,8 +219,7 @@ export function StageRead({ sceneId }) {
     const beat = picked;
     setPicked(null);
     if (!beat || beat.role !== 'char') return;
-    sceneApi.dropBeat(beat.id);
-    await writeOne();
+    await writeOne({ rewrite: beat.id });
   };
 
   const branch = async () => {
@@ -272,6 +291,8 @@ export function StageRead({ sceneId }) {
             ${pages.map(p => html`
               <${Card} key=${p.key} page=${p} marks=${cfg.marks} drop=${cfg.drop} face
                 grow=${cfg.cardGrow !== false}
+                vers=${p.beat ? versOf(p.beat) : null}
+                onPick=${i => pickVer(p.beat, i)}
                 sign=${p.first ? sceneApi.signOf(p.beat, row) : null}
                 showSign=${p.first && cfg.sign !== 'none'}
                 onHold=${() => startHold(p.beat)} onEnd=${endHold}/>`)}
@@ -301,7 +322,9 @@ export function StageRead({ sceneId }) {
                     ${!cur?.text && cur?.notes?.length
     ? html`<div class="sg-eyebrow">这一张只有场外指示。</div>` : null}
                     ${!pages.length
-    ? html`<div class="sg-eyebrow">这一场还没有正文。</div>` : null}`}
+    ? html`<div class="sg-eyebrow">这一场还没有正文。</div>` : null}
+                    ${cur?.beat && cur.page === cur.pages - 1 && versOf(cur.beat)
+    ? html`<${Versions} ...${versOf(cur.beat)} onPick=${i => pickVer(cur.beat, i)}/>` : null}`}
               </div>
             </div>
           </div>`}
@@ -321,7 +344,12 @@ export function StageRead({ sceneId }) {
             <//>
             <button class="sg-act-btn press" onClick=${() => { setComposing('director'); setDraft(''); }}
               aria-label="场外指示">
-              <${Icon} name="edit" size=${18}/>
+              <${Icon} name="notes" size=${18}/>
+            <//>
+            <button class="sg-act-btn press" disabled=${writing || !canMore}
+              onClick=${writing ? undefined : () => writeOne({ more: true })}
+              aria-label="接着上一段往下写">
+              <${Icon} name="chevronDown" size=${18}/>
             <//>
             <button class="sg-act-btn press" disabled=${writing || !char}
               onClick=${writing ? undefined : writeOne}
@@ -351,6 +379,17 @@ export function StageRead({ sceneId }) {
         </div>
       <//>
 
+      <${FullSheet} open=${!!editing} onClose=${() => setEditing(null)} title="编辑这一段"
+        right=${html`<${Button} size="sm" onClick=${() => {
+    sceneApi.editBeat(editing.id, editing.text);
+    setEditing(null);
+  }}>保存<//>`}>
+        <div class="pad">
+          <${Textarea} rows=${16} value=${editing?.text || ''}
+            onInput=${v => setEditing(e => ({ ...e, text: v }))}/>
+        </div>
+      <//>
+
       <${Sheet} open=${!!notes} onClose=${() => setNotes(null)} title="场外指示">
         <${List}>
           ${(notes || []).map(n => html`
@@ -371,8 +410,15 @@ export function StageRead({ sceneId }) {
           <${ListItem} title=${picked?.pinned ? '取消钉住' : '钉住'}
             subtitle="钉住的段落不受窗口与预算限制，始终进入上下文"
             onClick=${() => { sceneApi.togglePin(picked.id); setPicked(null); }}/>
-          ${picked?.role === 'char' ? html`
-            <${ListItem} title="重写这一段" onClick=${rewrite}/>` : null}
+          <${ListItem} title="编辑" subtitle="改的是当前这一版"
+            onClick=${() => { setEditing({ id: picked.id, text: picked.text }); setPicked(null); }}/>
+          ${picked?.role === 'char' && picked?.id === lastBeat?.id ? html`
+            <${ListItem} title="重写这一段" multiline
+              subtitle="旧的那一版留着，写完在正文末尾翻着挑"
+              onClick=${rewrite}/>` : null}
+          ${sceneApi.versionsOf(picked).length > 1 ? html`
+            <${ListItem} title="删掉当前这一版" danger
+              onClick=${() => { sceneApi.dropSwipe(picked.id); setPicked(null); }}/>` : null}
           <${ListItem} title="从这一段分叉" subtitle="删除这一段及其之后的内容" onClick=${branch}/>
           <${ListItem} title="删除" danger onClick=${removeBeat}/>
         <//>
