@@ -6,6 +6,15 @@ const { db, nav, ai } = phone;
 
 const LABELS = {
   'skeleton.opening': '骨架 · 身份开场',
+  'skeleton.scene-opening': '线下 · 开场',
+  'skeleton.scene-rules': '线下 · 正文规则',
+  'skeleton.scene-length': '线下 · 篇幅',
+  'skeleton.scene-setup': '线下 · 场次设定',
+  'skeleton.scene-director': '线下 · 场外指示',
+  'skeleton.scene-style': '线下 · 文风',
+  'skeleton.scene-more': '线下 · 续写',
+  'skeleton.scene-tail': '线下 · 收尾提醒（贴着输出）',
+  'task.scene-summary': '任务 · 线下收场摘要',
   'task.bond': '任务 · 压缩关系底色',
   'task.core': '任务 · 压缩核心设定',
   'skeleton.gender': '骨架 · 性别锚点',

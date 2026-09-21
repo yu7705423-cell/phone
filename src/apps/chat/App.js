@@ -1,7 +1,7 @@
-import { html, useState } from '../../lib.js';
+import { html, useState, useEffect } from '../../lib.js';
 import { phone, useStore } from '../../sdk/index.js';
 import { Page, EmptyState } from '../../ui/index.js';
-import { myChats } from './helpers.js';
+import { myChats, chatFor } from './helpers.js';
 import { MessagesTab } from './pages/MessagesTab.js';
 import { ContactsTab } from './pages/ContactsTab.js';
 import { MomentsTab } from './pages/MomentsTab.js';
@@ -57,6 +57,15 @@ function Tabs({ initial }) {
     <//>`;
 }
 
+function OpenWith({ charId }) {
+  useEffect(() => {
+    const c = phone.db.characters.get(charId) ? chatFor(charId) : null;
+    if (c) phone.nav.replace(`/chat/${c.id}`);
+    else phone.nav.replace('/');
+  }, [charId]);
+  return null;
+}
+
 export default function ChatApp({ route }) {
   // /chat/<id> 或 /chat/<id>@<msgId>。后一种是从搜索结果跳过来的，
   // 进去之后滚到那一条。会话 id 里不会有 @，所以拿它当分隔符是安全的。
@@ -81,6 +90,11 @@ export default function ChatApp({ route }) {
 
   const prof = route?.match(/^\/profile\/(.+)$/);
   if (prof) return html`<${Profile} subjectId=${prof[1]}/>`;
+
+  // 别的 app 说「去和这个角色聊天」时走这里：找到（或建出）会话再换成它的路由。
+  // 从前落在消息列表首页上，新建的角色还没有会话，那一页是空的，人就卡在那儿
+  const withc = route?.match(/^\/with\/(.+)$/);
+  if (withc) return html`<${OpenWith} charId=${withc[1]}/>`;
 
   const edit = route?.match(/^\/edit\/(.+)$/);
   if (edit) return html`<${CharacterEdit} id=${edit[1]}/>`;

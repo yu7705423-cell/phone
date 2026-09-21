@@ -30,7 +30,7 @@ export function ProfilePage({ id }) {
   return html`
     <${Page} title="" onBack=${nav.pop}
       right=${html`<${IconButton} name="message" label="去聊天"
-        onClick=${() => phone.intent.open('chat', { route: '/' })}/>`}>
+        onClick=${() => phone.intent.open('chat', { route: `/with/${id}` })}/>`}>
       <div class="pf-head">
         <div class="pf-avatar"><${Avatar} src=${avatar} name=${char.name} size=${92}/></div>
         <div class="pf-name">${char.name || '未命名'}</div>

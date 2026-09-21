@@ -90,8 +90,11 @@ export function MessagesTab() {
   };
 
   if (!all.length) {
+    // 有角色没会话，和一个角色都没有，是两回事：前者差的是「点进去发一条」
     return html`<${EmptyState} icon="message" title="暂无会话"
-      desc="请先在「联系人」中创建角色卡。"/>`;
+      desc=${db.characters.count()
+        ? '在「联系人」标签页中选择角色，点击「发消息」开始会话。'
+        : '请先在「联系人」中创建角色卡。'}/>`;
   }
 
   return html`
