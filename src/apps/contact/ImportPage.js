@@ -26,6 +26,7 @@ export function ImportPage() {
           ? `含 ${pack.chats} 段会话、${pack.messages} 条消息、${pack.memories} 条记忆`
           : '只含角色卡，不含聊天记录与记忆',
         pack.scenes ? `含 ${pack.scenes} 场线下` : '',
+        pack.works ? `含 ${pack.works} 部「我们」里的作品` : '',
         pack.skins ? `含 ${pack.skins} 份美化，仅在带进来的会话里生效` : '',
         pack.extras ? `含 ${pack.extras} 条其余记录（出行、动态、日程、那台手机等）` : '',
         pack.alts ? `含 ${pack.alts} 个小号` : '',

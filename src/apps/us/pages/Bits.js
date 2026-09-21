@@ -1,0 +1,129 @@
+import { html } from '../../../lib.js';
+import { phone, useStore } from '../../../sdk/index.js';
+import { Field, Input, Textarea, Segmented, List, ListItem, Switch } from '../../../ui/index.js';
+
+const { db, work, tone } = phone;
+
+export const dateOf = ts => {
+  if (!ts) return '';
+  const d = new Date(ts);
+  return `${d.getMonth() + 1}月${d.getDate()}日`;
+};
+
+/** 一篇在列表上写几个字。长篇按章编号，番外按题目。 */
+export const chapterTitle = (w, c) => (w.kind === work.SAGA
+  ? `第 ${c.no} 章${c.title ? `　${c.title}` : ''}`
+  : (c.title || `第 ${c.no} 则`));
+
+/**
+ * 文风。和线下用同一份预设库 —— 那些预设写的是「怎么写一段散文」，
+ * 换个体裁不需要换一套（system/tone.js）。
+ */
+export function TonePick({ value, text, onChange }) {
+  useStore(db.settings.store);
+  const list = tone.list();
+  return html`
+    <${List} title="文风">
+      <${ListItem} title="不设定" multiline subtitle="不写入任何关于文风的内容"
+        right=${value ? null : '当前'} onClick=${() => onChange({ tone: '', toneText: '' })}/>
+      ${list.map(t => html`
+        <${ListItem} key=${t.id} title=${t.name} multiline
+          subtitle=${(t.text || '').slice(0, 40)}
+          right=${value === t.id ? '当前' : null}
+          onClick=${() => onChange({ tone: t.id, toneText: '' })}/>`)}
+      <${ListItem} title="这一部自己写" multiline
+        subtitle="只作用于这一部，不进预设库"
+        right=${value === 'custom' ? '当前' : null}
+        onClick=${() => onChange({ tone: 'custom' })}/>
+    <//>
+    ${value === 'custom' ? html`
+      <div class="pad-x">
+        <${Field} label="这一部的文风" desc="写给模型看的。一律用英文，中文写的指令会把措辞漏进正文。">
+          <${Textarea} rows=${5} value=${text || ''}
+            onInput=${v => onChange({ tone: 'custom', toneText: v })}/>
+        <//>
+      </div>` : null}`;
+}
+
+/** 新建与编辑共用的那一组输入框。 */
+export function WorkFields({ v, set, kind }) {
+  const saga = kind === work.SAGA;
+  return html`
+    <${Field} label="标题">
+      <${Input} value=${v.title} onInput=${x => set({ title: x })}
+        placeholder=${saga ? '这部作品叫什么' : '这一则小剧场叫什么'}/>
+    <//>
+    <${Field} label=${saga ? '主线' : '设定'}
+      desc=${saga
+    ? '这部作品讲的是什么、在什么世界、两个人是什么关系。每一章都会带上它。'
+    : '这一则的前提。例如另一种可能的走向，或者某一天发生的一件小事。'}>
+      <${Textarea} rows=${saga ? 6 : 4} value=${v.premise}
+        onInput=${x => set({ premise: x })}/>
+    <//>
+    ${saga ? html`
+      <${Field} label="角色在这部作品里的名字"
+        desc="留空表示沿用角色卡上的名字。">
+        <${Input} value=${v.charName} onInput=${x => set({ charName: x })}/>
+      <//>
+      <${Field} label="角色在这部作品里是谁"
+        desc="留空表示沿用角色卡上的人设。写了就在这部作品里替代它。">
+        <${Textarea} rows=${4} value=${v.charPersona} onInput=${x => set({ charPersona: x })}/>
+      <//>
+      <${Field} label="我在这部作品里的名字" desc="留空表示沿用当前账号的名字。">
+        <${Input} value=${v.meName} onInput=${x => set({ meName: x })}/>
+      <//>
+      <${Field} label="我在这部作品里是谁" desc="留空表示沿用当前账号的人设。">
+        <${Textarea} rows=${4} value=${v.mePersona} onInput=${x => set({ mePersona: x })}/>
+      <//>` : null}`;
+}
+
+/** 两个开关。番外没有第一个 —— 它就是这段关系的小剧场。 */
+export function WorkSwitches({ v, set, kind }) {
+  return html`
+    <div class="pad-x">
+      <${Field} label="新的一篇由谁开场"
+        desc="选择「让它开场」时，新建一篇后立即生成第一段，这会调用一次接口。">
+        <${Segmented} value=${v.opening || 'char'} onChange=${x => set({ opening: x })}
+          items=${[{ value: 'char', label: '让它开场' }, { value: 'me', label: '我自己写' }]}/>
+      <//>
+    </div>
+    <${List} title="这一部怎么写">
+      ${kind === work.SAGA ? html`
+        <${ListItem} title="带上原来的记忆与关系" multiline
+          subtitle=${v.carry
+    ? '角色记得聊天里发生过的事。适合「还是我们俩，只是换了个世界」。'
+    : '角色不知道聊天里发生过什么，也读不到记忆、关系底色与当前时刻。适合完全重新开始。'}
+          right=${html`<${Switch} checked=${!!v.carry} onChange=${x => set({ carry: x })}/>`}/>` : null}
+      <${ListItem} title="整篇由它写" multiline
+        subtitle=${v.solo
+    ? '它连「我」这个角色的言行一起写，读起来是小说。你仍然可以自己写一段插进去。'
+    : '它只写对方与周围，「我」那一段由你自己写。'}
+        right=${html`<${Switch} checked=${!!v.solo} onChange=${x => set({ solo: x })}/>`}/>
+    <//>`;
+}
+
+/** 挑一段会话。作品挂在关系上，所以先有关系才有作品。 */
+export function ChatPick({ value, onChange }) {
+  useStore(db.chats.store);
+  useStore(db.characters.store);
+  const list = db.chats.all()
+    .filter(c => (c.characterIds || []).length)
+    .sort((a, b) => (b.lastMessageAt || 0) - (a.lastMessageAt || 0));
+  return html`
+    <${List} title="和谁">
+      ${list.map(c => {
+    const names = (c.characterIds || []).map(id => db.characters.get(id)?.name)
+      .filter(Boolean).join('、');
+    return html`
+          <${ListItem} key=${c.id} title=${names || '已删除的角色'}
+            right=${value === c.id ? '当前' : null}
+            onClick=${() => onChange(c.id)}/>`;
+  })}
+    <//>`;
+}
+
+export const KindPick = ({ value, onChange }) => html`
+  <${Field} label="体裁" desc=${(work.KINDS.find(k => k.id === value) || {}).desc || ''}>
+    <${Segmented} value=${value} onChange=${onChange}
+      items=${work.KINDS.map(k => ({ value: k.id, label: k.label }))}/>
+  <//>`;

@@ -2368,3 +2368,11 @@ button.search-bar { width: 100%; border: none; }
   padding: 0 var(--sp-4) var(--sp-2);
   font-size: var(--fs-12); color: var(--text-2); line-height: 1.5;
 }
+
+/* ---- 我们：目录上那几个小按钮 ---- */
+.wk-ops { display: inline-flex; align-items: center; gap: 2px; }
+.wk-op {
+  flex: none; display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; border-radius: var(--r-sm);
+  color: var(--text-3); background: none; border: 0;
+}

@@ -1,6 +1,6 @@
 import { characters, lorebooks, memories, chats, messages, messagesOf, images, files,
          scenes, beats, trips, spaceItems, skins, days, meals, health, phones, phoneChats,
-         moments, reviews, readnotes, todos, ebooks, videos } from './db/index.js';
+         moments, reviews, readnotes, todos, ebooks, videos, works, chapters } from './db/index.js';
 import { DATA_VERSION } from './db/schema.js';
 import * as accounts from './accounts.js';
 import { uid } from './store.js';
@@ -51,7 +51,10 @@ export function collect(charId, { history = true } = {}) {
 
   // 挂在这几段会话上的
   const sceneRows = chatRows.flatMap(c => scenes.byIndex(c.id));
-  const beatRows = sceneRows.flatMap(sc => beats.byIndex(sc.id));
+  const workRows = chatRows.flatMap(c => works.byIndex(c.id));
+  const chapterRows = workRows.flatMap(w => chapters.byIndex(w.id));
+  // 线下的段与作品的段在同一个域里，一起带走（见 ARCHITECTURE 4.117）
+  const beatRows = [...sceneRows, ...chapterRows].flatMap(x => beats.byIndex(x.id));
   const tripRows = chatRows.flatMap(c => trips.byIndex(c.id));
   const spaceRows = chatRows.flatMap(c => spaceItems.byIndex(c.id));
   // 美化可以几段会话共用一份，去一次重
@@ -93,7 +96,7 @@ export function collect(charId, { history = true } = {}) {
   return {
     main, cast, books,
     chats: chatRows, messages: msgRows, memories: memRows,
-    scenes: sceneRows, beats: beatRows, trips: tripRows, spaceItems: spaceRows, skins: skinRows,
+    scenes: sceneRows, works: workRows, chapters: chapterRows, beats: beatRows, trips: tripRows, spaceItems: spaceRows, skins: skinRows,
     days: dayRows, meals: mealRows, health: healthRows,
     phones: phoneRows, phoneChats: phoneChatRows,
     moments: momentRows, reviews: reviewRows, readnotes: noteRows, todos: todoRows,
@@ -113,6 +116,8 @@ export function estimate(charId, opts) {
     messages: g.messages.length,
     memories: g.memories.length,
     scenes: g.scenes.length,
+    works: g.works.length,
+    chapters: g.chapters.length,
     extras: g.trips.length + g.spaceItems.length + g.days.length + g.meals.length
       + g.health.length + g.phones.length + g.phoneChats.length + g.moments.length
       + g.reviews.length + g.readnotes.length + g.todos.length,
@@ -138,6 +143,8 @@ export async function build(charId, { history = true, onProgress } = {}) {
     chats: g.chats,
     messages: g.messages,
     scenes: g.scenes,
+    works: g.works,
+    chapters: g.chapters,
     beats: g.beats,
     trips: g.trips,
     spaceItems: g.spaceItems,
@@ -208,6 +215,7 @@ export async function read(file) {
     messages: (data.messages || []).length,
     memories: (data.memories || []).length,
     scenes: (data.scenes || []).length,
+    works: (data.works || []).length,
     skins: (data.skins || []).length,
     // 那一堆按角色或会话挂着的小东西，界面上合成一句话，不逐项报数
     extras: EXTRA_KINDS.reduce((n, k) => n + (data[k] || []).length, 0),
@@ -306,20 +314,36 @@ export async function install(pack) {
   });
 
   // ---- 挂在会话上的那几域 ----
-  const sceneMap = new Map();
+  // 正文的归属：一场戏，或者一部作品的一篇。两种 id 都记在这一张表上
+  const proseMap = new Map();
   (data.scenes || []).forEach(sc => {
     const chatId = chatMap.get(sc.chatId);
     if (!chatId) return;
     scenes.put({
-      ...sc, id: fresh(sceneMap, scenes, sc, 'sc'), chatId,
+      ...sc, id: fresh(proseMap, scenes, sc, 'sc'), chatId,
       castIds: (sc.castIds || []).map(remap),
     });
   });
+  // 「我们」的作品与每一篇。正文和线下共用 beats，所以两张表一起查
+  const workMap = new Map();
+  (data.works || []).forEach(w => {
+    const chatId = chatMap.get(w.chatId);
+    if (!chatId) return;
+    works.put({
+      ...w, id: fresh(workMap, works, w, 'wk'), chatId,
+      castIds: (w.castIds || []).map(remap),
+    });
+  });
+  (data.chapters || []).forEach(c => {
+    const workId = workMap.get(c.workId);
+    if (!workId) return;
+    chapters.put({ ...c, id: fresh(proseMap, chapters, c, 'cp'), workId });
+  });
   (data.beats || []).forEach(b => {
-    const sceneId = sceneMap.get(b.sceneId);
-    if (!sceneId) return;
+    const owner = proseMap.get(b.sceneId);
+    if (!owner) return;
     const id = (copied || beats.has(b.id)) ? uid('bt') : b.id;
-    beats.put({ ...b, id, sceneId, authorId: who(b.authorId) });
+    beats.put({ ...b, id, sceneId: owner, authorId: who(b.authorId) });
   });
   (data.trips || []).forEach(t => {
     const chatId = chatMap.get(t.chatId);
@@ -395,6 +419,7 @@ export async function install(pack) {
     messages: (data.messages || []).length,
     memories: (data.memories || []).length,
     scenes: (data.scenes || []).length,
+    works: (data.works || []).length,
     media: mediaCount,
     dropped,
   };

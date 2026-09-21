@@ -1,7 +1,7 @@
 import { chats, characters, memories, messages, messagesOf, moments, personas, stickers,
          settings, layout, images, files, videos, songs, ebooks, phones, photos,
          spaceItems, scenes, beats, readnotes, trips, days, meals, health, reviews, todos,
-         phoneChats } from './db/index.js';
+         phoneChats, works, chapters } from './db/index.js';
 import { allImageIds } from './looks.js';
 
 // 把一个角色身上的东西清干净。
@@ -61,7 +61,7 @@ export function releaseImages(ids) {
 
 /**
  * 删掉一段会话，连同挂在它身上的一切：消息（及其语音、没人共用的图）、
- * 情侣空间里自己存的那两样、线下的场次与正文、出行。
+ * 情侣空间里自己存的那两样、线下的场次与正文、出行、「我们」里的作品。
  * 记忆不动 —— 它按角色存，不按会话；段评也不动，它挂在书上。
  *
  * 从前列表页和资料页各删各的，都只删消息和空间，线下、出行、段评留成孤儿，
@@ -81,6 +81,14 @@ export function dropChat(chatId) {
     scenes.remove(sc.id);
   });
   trips.byIndex(chatId).slice().forEach(t => trips.remove(t.id));
+  // 「我们」里挂在这段关系上的作品，连着每一篇与每一篇的正文
+  works.byIndex(chatId).slice().forEach(w => {
+    chapters.byIndex(w.id).slice().forEach(c => {
+      beats.byIndex(c.id).slice().forEach(b => beats.remove(b.id));
+      chapters.remove(c.id);
+    });
+    works.remove(w.id);
+  });
   chats.remove(chatId);
   releaseImages(imgs);
   return true;

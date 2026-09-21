@@ -1338,6 +1338,13 @@ export function Conversation({ chatId, focusId = '' }) {
             })()}
             left=${html`<${Icon} name="users" size=${18}/>`}
             onClick=${() => { setMenu(false); nav.push(`/bond/${chatId}`); }}/>
+          <${ListItem} title="我们" arrow multiline
+            subtitle=${(() => {
+              const n = phone.work.ofChat(chatId).length;
+              return n ? `这段关系下有 ${n} 部长篇或番外` : '长篇与番外。以成段的文字写，与聊天分开保存';
+            })()}
+            left=${html`<${Icon} name="book" size=${18}/>`}
+            onClick=${() => { setMenu(false); phone.intent.open('us', { route: `/chat/${chatId}`, back: true }); }}/>
           <${ListItem} title="每轮的接口调用" arrow multiline
             subtitle=${(() => {
               const n = ai.cost.perTurn(chatId);

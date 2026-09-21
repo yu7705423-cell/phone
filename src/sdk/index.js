@@ -87,6 +87,7 @@ import * as memcheckApi from '../system/memcheck.js';
 import * as banApi from '../system/ban.js';
 import * as todoApi from '../system/todo.js';
 import * as sceneApi from '../system/scene.js';
+import * as workApi from '../system/work.js';
 import * as stageApi from '../system/stage.js';
 import * as skinApi from '../system/skin.js';
 import * as receiptApi from '../system/receipt.js';
@@ -98,6 +99,7 @@ import * as grabApi from '../system/grab.js';
 import * as phoneTask from '../system/ai/tasks/phone.js';
 import * as tripTask from '../system/ai/tasks/trip.js';
 import * as sceneTask from '../system/ai/tasks/scene.js';
+import * as workTask from '../system/ai/tasks/work.js';
 import * as cardshotApi from '../system/cardshot.js';
 import * as reviewApi from '../system/review.js';
 import * as booksearchApi from '../system/booksearch.js';
@@ -173,6 +175,9 @@ export const phone = {
     streamScene: engine.streamScene,
     isWriting: engine.isWriting,
     cancelScene: engine.cancelScene,
+    streamWork: engine.streamWork,
+    isWritingWork: engine.isWritingWork,
+    cancelWork: engine.cancelWork,
     runJSONTask: engine.runJSONTask,
     runTextTask: engine.runTextTask,
     template: engine.template,
@@ -208,6 +213,7 @@ export const phone = {
     phone: phoneTask,
     trip: tripTask,
     scene: sceneTask,
+    work: workTask,
     eventBatch,
     dayTask,
     inner: innerTask,
@@ -275,6 +281,7 @@ export const phone = {
   ban: banApi,
   todo: todoApi,
   scene: sceneApi,
+  work: workApi,
   stage: stageApi,
   skin: skinApi,
   receipt: receiptApi,

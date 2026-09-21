@@ -19,6 +19,7 @@ import { estimate, takeLatestWithin } from './tokens.js';
 import * as trace from './trace.js';
 import * as ban from '../ban.js';
 import { beatsOf, timeOf, DIRECTOR, ME } from '../scene.js';
+import * as work from '../work.js';
 import * as tone from '../tone.js';
 import { markRead } from '../receipt.js';
 
@@ -97,6 +98,7 @@ const MEMORY_TASKS = new Set([
   'memory.import',     // 粘一大段文字拆成记忆
   'chat.summarize',    // 历史压缩
   'scene.summary',     // 线下一场的摘要，也是线下与线上之间唯一的通道
+  'work.summary',      // 「我们」一篇的摘要，也是章与章之间的通道
 ]);
 
 const memoryPreset = () => (memoryMode() === 'api'
@@ -646,6 +648,198 @@ export function streamScene({ scene, chat, char, more = false, omitFrom = '', on
     const oneShot = s0.streamMode === 'once';
     // maxTokens 默认 0：OpenAI 兼容那边整个字段都不送，服务端用自己的上限。
     // 填一个大数反而会被上限低的模型退回来（见 providers/openai.js）
+    const text = await runWith('scene.write', c => send('scene.write', c,
+      { system, messages: history, maxTokens: sceneMax(), signal, onDelta: oneShot ? undefined : onDelta },
+      oneShot ? 'complete' : 'stream'));
+    if (recall?.length) markRecalled(recall);
+    return text;
+  }, { replace: true, retries: 1 });
+}
+
+// ---- 我们（长篇与番外）----
+//
+// 和线下同一条链路：同一批 beats 函数、同一套分页、同一个流式写法。
+// 多出来的只有三件事，见 ARCHITECTURE 4.117：
+//
+//   1. 一部作品的设定（主线）
+//   2. 可以整套换掉的身份 —— 换的是名字与人设，不是那张脸
+//   3. 前面几篇写到哪儿了
+//
+// 还有一个开关：`carry`。关着时**这一篇看不见原来那段关系的任何东西** ——
+// 记忆、关系底色、当日日程、正在听什么、情侣空间、待办、聊天摘要，一样都不注入。
+// 「新的身份新的开始」就是这个意思。开着时和线下一模一样。
+
+/** 这部作品里换过的那套身份。两样都没换就整段不出现。 */
+function identityBlock(w, c, m) {
+  const lines = [];
+  if (c.renamed) lines.push(`${c.base?.name || '对方'} 在这部作品里是「${c.name}」`);
+  if (c.base && c.persona !== (c.base.persona || '')) lines.push(`${c.name}：${c.persona}`);
+  if (m.renamed) lines.push(`${m.base?.name || '我'} 在这部作品里是「${m.name}」`);
+  if (m.persona && m.persona !== (m.base?.description || '')) lines.push(`${m.name}：${m.persona}`);
+  if (!lines.length) return '';
+  return fillTemplate(template('skeleton.work-identity'), { lines: lines.join('\n') });
+}
+
+/** 这一篇的几件事实。是数据，不是指令。 */
+function chapterSetup(w, chapter) {
+  const lines = [];
+  if (w.kind === work.SAGA) {
+    lines.push(`第 ${chapter.no} 章${chapter.title ? `　${chapter.title}` : ''}`);
+  } else if (chapter.title) lines.push(`题：${chapter.title}`);
+  if (chapter.place) lines.push(`地点：${chapter.place}`);
+  const now = work.timeOf(chapter.id);
+  if (now) lines.push(`时刻：${now}`);
+  if (chapter.note) lines.push(`情境：${chapter.note}`);
+  if (!lines.length) return '';
+  return fillTemplate(template('skeleton.work-chapter'), { lines: lines.join('\n') });
+}
+
+/** 前面几篇写到哪儿了。有摘要用摘要，没有就截正文的末尾（不调接口）。 */
+function prevBlock(w, chapter) {
+  const s = settings.get();
+  const cap = Math.max(0, Math.round(Number(s.workPrevChars) || 0));
+  const list = work.chaptersOf(w.id).filter(c => (c.no || 0) < (chapter.no || 0));
+  if (!list.length) return '';
+  const lines = list.map(c => {
+    const body = work.digestOf(c.id, cap);
+    if (!body) return '';
+    const head = w.kind === work.SAGA
+      ? `第 ${c.no} 章${c.title ? `　${c.title}` : ''}`
+      : (c.title || `第 ${c.no} 则`);
+    return `${head}\n${body}`;
+  }).filter(Boolean);
+  if (!lines.length) return '';
+  return fillTemplate(template('skeleton.work-prev'), { lines: lines.join('\n\n') });
+}
+
+export function buildWorkSystem(w, chapter, char, list, opts = {}) {
+  const s = settings.get();
+  const chat = chats.get(w.chatId);
+  const c = work.charOf(w);
+  const m = work.meOf(w);
+  const names = { charName: c.name, userName: m.name };
+  const budget = sceneBudget();
+
+  let out = fillTemplate(template('skeleton.work-opening'), names);
+  let hot = '';
+  let failed = [];
+
+  if (w.carry) {
+    // 带着原来那段关系走。和线下同一套注入，一个区块都不少
+    const me = accounts.get(chat?.personaId) || accounts.current() || persona.get();
+    const ctx = {
+      side: 'scene',
+      char, chat, persona: me, settings: s,
+      messages: chat ? messagesOf(chat.id).filter(x => x.status !== 'error') : [],
+      scanText: sceneScan(list, s.sceneScan),
+      budgets: budgets(budget),
+      queryVec: opts.queryVec || null,
+      lore: opts.lore || null,
+      recall: opts.recall || null,
+    };
+    const got = assemble(s.injectOrder, ctx);
+    out += got.text;
+    hot = got.volatile;
+    failed = got.failed;
+    if (chat?.summary) out += `\n\n[更早之前发生过什么]\n${chat.summary}`;
+  } else if (c.persona) {
+    // 不带的那一档：角色是谁仍然要说，但说的是这部作品里的那一个
+    out += `\n\n[${c.name}]\n${c.persona}`;
+  }
+
+  // 世界书：作品自己挂的那几本。带原来的那一档已经在上面注入过角色的那几本了
+  if (!w.carry && opts.lore?.length) {
+    out += '\n\n' + fillTemplate(template('skeleton.world'), { text: loreText(splitLore(opts.lore).before) });
+  }
+
+  const ident = identityBlock(w, c, m);
+  if (ident) out += '\n\n' + ident;
+  if (w.premise) out += '\n\n' + fillTemplate(template('skeleton.work-premise'), { text: w.premise });
+
+  // 整篇它写，还是我写我的。两选一，不是两段都出现
+  out += '\n\n' + fillTemplate(template(w.solo ? 'skeleton.work-solo' : 'skeleton.scene-rules'), names);
+
+  const setup = chapterSetup(w, chapter);
+  if (setup) out += '\n\n' + setup;
+  const prev = prevBlock(w, chapter);
+  if (prev) out += '\n\n' + prev;
+  if (chapter.summary) out += `\n\n[这一篇之前发生过什么]\n${chapter.summary}`;
+
+  out += '\n\n' + template('skeleton.time');
+
+  const words = Math.max(0, Math.round(Number(s.sceneWords) || 0));
+  if (words) out += '\n\n' + fillTemplate(template('skeleton.scene-length'), { words });
+
+  const style = fillTemplate(tone.forScene(w), names);
+  if (style) out += '\n\n' + fillTemplate(template('skeleton.scene-style'), { text: style });
+
+  if (ban.on()) out += '\n\n' + fillTemplate(template('skeleton.ban'), { list: ban.promptLines() });
+
+  return { system: out, volatile: hot, failed, tokens: estimate(out) };
+}
+
+export function buildWorkHistory(w, chapter, char, list, opts = {}) {
+  const s = settings.get();
+  const m = work.meOf(w);
+  const body = list.filter(b => b.role !== DIRECTOR);
+  const n = Math.max(0, Math.round(Number(s.sceneWindow) || 0));
+  const scope = n > 0 ? body.slice(-n) : body;
+  const kept = takeLatestWithin(scope, sceneBudget(), b => b.text || '');
+  const inKept = new Set(kept.map(b => b.id));
+  const pinned = body.filter(b => b.pinned && !inKept.has(b.id));
+
+  const view = [...pinned, ...kept].map(b => (b.role === ME
+    ? { role: 'user', content: b.text }
+    : { role: 'assistant', content: b.text }));
+
+  const md = memoryDepth(s);
+  const dir = directorLines(list);
+  const tail = [
+    String(opts.volatile || '').trim(),
+    w.carry && md > 0 && opts.recall?.length ? recallText(opts.recall) : '',
+    dir.length
+      ? fillTemplate(template('skeleton.scene-director'), { lines: dir.join('\n'), userName: m.name })
+      : '',
+    opts.more ? template('skeleton.scene-more') : '',
+    // 整篇它写的那一档不提醒「不要写我」—— 那正是这一档允许的事
+    w.solo ? '' : fillTemplate(template('skeleton.scene-tail'), { userName: m.name }),
+  ].filter(Boolean).join('\n\n');
+
+  return mergeAdjacent(tail ? [...view, { role: 'user', content: tail }] : view);
+}
+
+export const workKey = id => `work:${id}`;
+export const isWritingWork = id => isRunning(workKey(id));
+export const cancelWork = id => cancel(workKey(id));
+
+/** 写一篇里的一段。参数与 streamScene 一一对应。 */
+export function streamWork({ work: w, chapter, more = false, omitFrom = '', onDelta }) {
+  return enqueue(workKey(chapter.id), async signal => {
+    let list = beatsOf(chapter.id);
+    if (omitFrom) {
+      const i = list.findIndex(b => b.id === omitFrom);
+      if (i >= 0) list = list.slice(0, i);
+    }
+    const s0 = settings.get();
+    const chat = chats.get(w.chatId);
+    const char = characters.get((w.castIds || [])[0]);
+    if (!char) throw new Error('这部作品的角色已经不在了');
+    const scan = sceneScan(list, s0.sceneScan);
+    // 不带原来那段关系时，世界书只认这部作品自己挂的那几本
+    const lore = activateLore(w.carry ? char : { lorebookIds: w.lorebookIds || [] },
+      scan, budgets(sceneBudget()).lorebook).items;
+    const me = accounts.get(chat?.personaId) || accounts.current();
+    const queryVec = w.carry ? await queryVecOf(scan) : null;
+    const recall = w.carry
+      ? await recallMemory({
+        settings: s0, char, scanText: scan, budgets: budgets(sceneBudget()),
+        queryVec, persona: me,
+        skip: new Set(recentMemories(char.id, me?.id, s0.memoryRecent).map(x => x.id)),
+      })
+      : null;
+    const { system, volatile: hot } = buildWorkSystem(w, chapter, char, list, { queryVec, lore, recall });
+    const history = buildWorkHistory(w, chapter, char, list, { lore, recall, volatile: hot, more });
+    const oneShot = s0.streamMode === 'once';
     const text = await runWith('scene.write', c => send('scene.write', c,
       { system, messages: history, maxTokens: sceneMax(), signal, onDelta: oneShot ? undefined : onDelta },
       oneShot ? 'complete' : 'stream'));

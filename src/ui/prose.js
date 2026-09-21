@@ -1,8 +1,12 @@
-import { html } from '../../../lib.js';
-import { useImage } from '../../../sdk/index.js';
-import { Icon } from '../../../ui/index.js';
+import { html } from '../lib.js';
+import { Icon } from './index.js';
 
-// 线下正文的展示层。见 ARCHITECTURE 4.107
+// 散文正文的展示层。线下与「我们」共用，所以放在 ui/ 而不是某个 app 里。
+// 见 ARCHITECTURE 4.107、4.117
+//
+// **这里一行都不碰 sdk。** ui/ 是横向基建，不依赖任何层（第 8 条的分层图）。
+// 署名上那张头像要把图片 id 解析成地址，而那要用 useImage —— 那是 sdk 的东西。
+// 所以头像由调用方传一个组件进来（`Face`），这一层只负责摆在哪儿。
 
 // 对白与动作**只在这里分样式**：不进 prompt、不改数据、可关。
 // 解析错了最多是颜色不对，弄不坏正文 —— 这是选它而不是让模型按格式写的理由。
@@ -73,16 +77,13 @@ const pad = n => String(Math.max(0, n) + 1).padStart(2, '0');
  * 刊物里的页码（folio）一向是小的、推到页边的，摆一个巨大的数字在开篇
  * 是模板做法，不是刊物做法。
  */
-export const Sign = ({ sign, no, face }) => {
-  // hook 要在提前 return 之前调完，否则这一块一会儿有一会儿没有，
-  // 数量就对不上了（第 10 条）
-  const src = useImage(face ? sign?.face : null);
+export const Sign = ({ sign, no, Face }) => {
   if (!sign) return null;
   const meta = [sign.place, clockOf(sign.time), pad(no || 0)].filter(Boolean).join('　');
   if (!sign.name && !meta) return null;
   return html`
     <div class=${`sg-sign${sign.mine ? ' is-mine' : ''}`}>
-      ${face && src ? html`<img class="sg-face" src=${src} alt=""/>` : null}
+      ${Face && sign.face ? html`<${Face} id=${sign.face}/>` : null}
       <div class="sg-sign-text">
         <div class="sg-sign-name">${sign.name}</div>
         <div class="sg-sign-meta">${meta}</div>
@@ -99,14 +100,12 @@ export const Byline = ({ sign, no }) => {
 };
 
 // 明信片那一档的一张。竖着滑，一张一张排下去。
-//
-// 每张自己是一个组件，因为头像要 useImage 解析 —— 在一个循环里调 hook
-// 是不行的（第 10 条）。
-export const Card = ({ page, sign, marks, drop, showSign, face, grow, vers, onPick, onHold, onEnd }) => html`
+// `Face` 原样递给署名，见文件开头。
+export const Card = ({ page, sign, marks, drop, showSign, Face, grow, vers, onPick, onHold, onEnd }) => html`
   <article class=${`sg-card no-callout${grow ? '' : ' is-fixed'}`}
     onTouchStart=${onHold} onTouchEnd=${onEnd} onTouchMove=${onEnd} onTouchCancel=${onEnd}
     onContextMenu=${e => { e.preventDefault(); if (onHold) onHold(); }}>
-    ${showSign && sign ? html`<${Sign} sign=${sign} no=${page.beatIndex} face=${face}/>` : null}
+    ${showSign && sign ? html`<${Sign} sign=${sign} no=${page.beatIndex} Face=${Face}/>` : null}
     <div class="sg-card-body">
       <${Prose} text=${page.text} marks=${marks} drop=${drop && page.first}/>
       ${vers && page.page === page.pages - 1

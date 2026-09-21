@@ -85,6 +85,13 @@ export const EXTRA_CALLS = [
     when: '线下点「收场」时多跑一次（走副用或记忆接口）',
   },
   {
+    id: 'workSummary',
+    label: '「我们」一篇收尾时生成摘要',
+    setting: 'workSummary', off: false,
+    on: s => s.workSummary === true,
+    when: '「我们」里点「收篇」时多跑一次（走副用或记忆接口）',
+  },
+  {
     id: 'sceneCompress',
     label: '线下把窗口外的段落压成摘要',
     setting: 'sceneCompress', off: false,

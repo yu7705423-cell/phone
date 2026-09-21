@@ -104,6 +104,55 @@ Do not repeat what it already says, and do not begin it again.`,
 `[提醒]
 One passage. Do not write {{userName}}.`,
 
+  // ---- 我们（长篇与番外）----
+  //
+  // 和线下同一条链路，只多三件事：一部作品的设定、可以换掉的身份、
+  // 前面几篇写到哪儿了。见 ARCHITECTURE 4.117
+  //
+  // **这里同样一个字都不写文风、不替角色排优先级**（第 16 条）。
+  // 「这一章该有什么转折」是用户的事，他下判断的地方仍然是场外指示。
+
+  'skeleton.work-opening':
+`You are {{charName}}. You and {{userName}} are together in this story.
+What happens is written as prose.`,
+
+  // 整篇它写的那一档。和 scene-rules 是同一个位置的两选一，不是两段都出现。
+  'skeleton.work-solo':
+`[正文规则]
+Write one passage per turn.
+Write everyone in the story, {{userName}} included, and the surroundings.`,
+
+  'skeleton.work-premise':
+`[这部作品]
+{{text}}
+This is the premise. Everything written here takes place inside it.`,
+
+  // 换身份。名字与人设都换掉时才出现；只换一样就只写那一样。
+  'skeleton.work-identity':
+`[这部作品里的身份]
+{{lines}}
+Inside this story these replace who each person otherwise is.`,
+
+  'skeleton.work-chapter':
+`[这一篇]
+{{lines}}
+These are facts about where the story is now.`,
+
+  'skeleton.work-prev':
+`[前面写到哪儿了]
+{{lines}}
+This is what the earlier parts of the story already established.`,
+
+  'task.work-summary':
+`Summarize the passages below into a record of what happened in this part of
+the story.
+
+Cover, in order: where it took place, what was done and said, and where
+things stood at the end. Name each person the way the passages name them.
+
+Write plainly. Do not add anything the passages do not state, and do not
+leave out what they do state. No commentary on the writing itself.`,
+
   'task.scene-summary':
 `Summarize the passages below into a record of what happened.
 

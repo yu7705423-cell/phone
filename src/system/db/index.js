@@ -65,8 +65,12 @@ export const beats      = makeCollection('beats', 'bt', { indexBy: 'sceneId' });
 // 美化。一份是一整套（令牌覆盖 + 自由 CSS），会话指向它，可以几段会话共用一份。
 // 只在那段会话的页面开着时挂上去，离开就摘（见 system/skin.js）
 export const skins      = makeCollection('skins', 'sk');
+// 「我们」。一部作品（长篇或番外）挂在一段会话上；正文分篇，一篇一行。
+// 正文本身仍然是 beats —— 和线下同一个域、同一套函数，见 ARCHITECTURE 4.117
+export const works      = makeCollection('works', 'wk', { indexBy: 'chatId' });
+export const chapters   = makeCollection('chapters', 'cp', { indexBy: 'workId' });
 
-const COLLECTIONS = { characters, lorebooks, memories, chats, messages, moments, stickers, looks, personas, songs, playlists, videos, spaceItems, events, days, todos, notes, recipes, meals, books, entries, ebooks, reviews, readnotes, health, cycles, meds, albums, photos, shots, phones, phoneChats, trips, scenes, beats, skins };
+const COLLECTIONS = { characters, lorebooks, memories, chats, messages, moments, stickers, looks, personas, songs, playlists, videos, spaceItems, events, days, todos, notes, recipes, meals, books, entries, ebooks, reviews, readnotes, health, cycles, meds, albums, photos, shots, phones, phoneChats, trips, scenes, beats, skins, works, chapters };
 
 // ---- kv: settings / persona / layout ----
 function makeKV(key, fallback, { deep = false } = {}) {
@@ -160,7 +164,7 @@ export const db = {
   characters, lorebooks, memories, chats, messages, moments, stickers, looks, personas,
   songs, playlists, videos, spaceItems, events, days, todos, notes, recipes, meals,
   books, entries, ebooks, reviews, readnotes, health, cycles, meds,
-  albums, photos, shots, phones, phoneChats, trips, scenes, beats, skins,
+  albums, photos, shots, phones, phoneChats, trips, scenes, beats, skins, works, chapters,
   images, files, settings, persona, layout,
   messagesOf, lastMessageOf, ready,
 };

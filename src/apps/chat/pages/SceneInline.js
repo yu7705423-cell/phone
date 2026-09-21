@@ -2,7 +2,8 @@ import { html, useState } from '../../../lib.js';
 import { phone, useStore } from '../../../sdk/index.js';
 import { Icon, Button, Textarea, List, ListItem, Sheet, FullSheet,
          Switch, NumberInput, Field, toast, confirm } from '../../../ui/index.js';
-import { Prose, Sign, Byline, Versions } from './StageBits.js';
+import { Prose, Sign, Byline, Versions } from '../../../ui/prose.js';
+import { Face } from './StageFace.js';
 
 const { db, nav, ai, scene: sceneApi, stage } = phone;
 
@@ -71,7 +72,7 @@ export function SceneBlock({ sceneId, onSetup }) {
         ${cfg.sign === 'none' ? null
     : cfg.sign === 'line'
       ? html`<${Byline} sign=${sign} no=${index}/>`
-      : html`<${Sign} sign=${sign} no=${index} face=${cfg.layout === 'cards'}/>`}
+      : html`<${Sign} sign=${sign} no=${index} Face=${cfg.layout === 'cards' ? Face : null}/>`}
         <${Prose} text=${b.text} marks=${cfg.marks} drop=${cfg.drop}/>
         ${v ? html`<${Versions} ...${v} onPick=${i => sceneApi.pickSwipe(b.id, i)}/>` : null}
       </div>`;

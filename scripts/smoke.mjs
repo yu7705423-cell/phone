@@ -42,6 +42,8 @@ const ROUTES = {
   album: ['/', '/album/:alb', '/photo/:pho', '/photo/:card'],
   health: ['/', '/log', '/cycle', '/meds', '/settings', '/char/:char'],
   todo: ['/', '/detect', '/alarm', '/notes'],
+  us: ['/', `/chat/:chat`, '/work/:work', '/work/:work/edit', '/work/nope',
+    '/chapter/:chapter', '/chapter/nope', '/read/:chapter', '/read/nope'],
   settings: ['/', '/api', '/voice', '/image', '/embed', '/notify', '/music',
     '/appearance', '/storage', '/storage/files', '/trace', '/vision', '/asr', '/limits', '/search', '/translate', '/memoryapi', '/rerank', '/ban'],
 };
@@ -219,7 +221,17 @@ const ids = await page.evaluate(async () => {
   sceneMod.addBeat({ sceneId: scRow.id, role: 'director', text: '让他接下来冷淡一点' });
   sceneMod.addBeat({ sceneId: scRow.id, role: 'me', text: '我把伞收起来，靠在门边。' });
 
-  return { char: a.id, chat: chat.id, mem: mem.id, persona: me.id, book: bk.id, ebook: ebk.id, video: vid.id, lore: lore.id,
+  // 「我们」：一部长篇、一章正文。空作品只能证明路由打得开
+  const workMod = await import('/src/system/work.js');
+  const wkRow = workMod.create({ chatId: chat.id, kind: workMod.SAGA, title: '雨落之前',
+    premise: '两个人在另一座城市重新认识。', charAs: { name: '沈砚', persona: '旧书店的老板。' },
+    meAs: { name: '林一', persona: '刚搬来的房客。' }, carry: false, solo: false });
+  const cpRow = workMod.addChapter(wkRow.id, { title: '到站', place: '车站' });
+  sceneMod.addBeat({ sceneId: cpRow.id, role: 'char', authorId: a.id,
+    at: '19:40', text: '雨还没停。' + '很长的一段'.repeat(60) });
+  sceneMod.addBeat({ sceneId: cpRow.id, role: 'me', text: '我把行李放下。' });
+
+  return { char: a.id, chat: chat.id, mem: mem.id, work: wkRow.id, chapter: cpRow.id, persona: me.id, book: bk.id, ebook: ebk.id, video: vid.id, lore: lore.id,
     alb: book1.id, pho: pho.id, card: cardPhoto.id, trip: trRow.id, scene: scRow.id };
 });
 await page.waitForTimeout(400);
