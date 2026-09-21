@@ -3868,6 +3868,11 @@ pending），至少一条关于你的；只在候选池里换，不硬塞。
 第三处漏了整个应用起不来（「One of the specified object stores was not found」），
 而报错里看不出是哪个域。`check-backup.mjs` 现在这三处一起查。
 
+「清空全部数据」也吃 `backup.js` 那张表（`wipeAll`）。它从前在存储页里自己
+列了十一个域，后来加的二十几个一个都没跟上，点「清空全部」清掉的不到一半，
+而界面上写着「已清空」。凡是「对每一个域做一件事」的，都从那张表读，
+不要再抄一份。
+
 ### 4.104e 系统闹钟：网页这一半做不到「关掉还能响」
 
 `system/alarm.js` + `ios/Sources/AlarmBridge.swift`。一条待办填上时刻，交给

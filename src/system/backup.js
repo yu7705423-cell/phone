@@ -228,6 +228,23 @@ export async function restore(file, { onProgress } = {}) {
 }
 
 /** 浏览器还剩多少地方。拿不到就给 null，不猜。 */
+/**
+ * 清空全部数据：每一个数据域、图片、文件。设置（接口密钥、主题）留着。
+ *
+ * 放在这儿而不是放在存储那一页，因为这张表就在上面 —— 那一页从前自己
+ * 列了十一个域，后来加的二十几个一个都没跟上，「清空全部」清掉的不到一半。
+ * 备份完整性那道自检盯的是这张表，清空也吃这张表，加域时漏不掉。
+ */
+export async function wipeAll() {
+  for (const name of COLLECTIONS) {
+    if (db[name]) await db[name].clear();
+  }
+  await Promise.all(images.ids().map(id => images.remove(id)));
+  await Promise.all(files.ids().map(id => files.remove(id)));
+  db.persona.reset();
+  db.layout.reset();
+}
+
 export async function quota() {
   if (!navigator.storage || !navigator.storage.estimate) return null;
   try {

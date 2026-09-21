@@ -86,17 +86,13 @@ export function StoragePage() {
   const wipe = async () => {
     if (!await confirm({
       title: '清空全部数据', danger: true, okText: '全部删除',
-      message: '角色卡、世界书、记忆、聊天记录、动态与图片将全部删除，且无法恢复。',
+      message: '全部数据域（角色卡、世界书、记忆、聊天记录、线下、相册、账本、健康等）与图片、文件将全部删除，且无法恢复。接口配置与密钥保留。',
     })) return;
     setBusy(true);
-    for (const n of ['characters', 'lorebooks', 'memories', 'chats', 'messages', 'moments', 'spaceItems', 'events', 'days', 'recipes', 'meals']) {
-      await db[n].clear();
-    }
-    await Promise.all(db.images.ids().map(id => db.images.remove(id)));
-    db.persona.reset();
-    db.layout.reset();
-    setBusy(false);
-    toast('已清空');
+    // 清哪些域由 backup 那张表说了算（见 system/backup.js 的 wipeAll）
+    try { await backup.wipeAll(); toast('已清空'); }
+    catch (err) { toast('清空失败：' + (err.message || err), 'error', 5000); }
+    finally { setBusy(false); }
   };
 
   return html`
