@@ -1,4 +1,4 @@
-import { sources, read, rel, report } from './lib.mjs';
+import { sources, read, rel, report, stripComments } from './lib.mjs';
 
 // 注入 prompt 的文字必须是英文，剩下的那点中文必须是书面语。见 CLAUDE.md 第 14 条。
 //
@@ -89,26 +89,6 @@ const ALLOW = new Map([
 ]);
 
 // 去掉注释，只留代码。字符串里的 // 不算注释，所以要边走边认引号。
-function stripComments(src) {
-  let out = '';
-  let i = 0;
-  let quote = null;
-  while (i < src.length) {
-    const c = src[i];
-    const n = src[i + 1];
-    if (quote) {
-      if (c === '\\') { out += c + (n ?? ''); i += 2; continue; }
-      if (c === quote) quote = null;
-      out += c; i += 1; continue;
-    }
-    if (c === '/' && n === '/') { while (i < src.length && src[i] !== '\n') i += 1; continue; }
-    if (c === '/' && n === '*') { i += 2; while (i < src.length && !(src[i] === '*' && src[i + 1] === '/')) i += 1; i += 2; continue; }
-    if (c === '"' || c === "'" || c === '`') quote = c;
-    out += c; i += 1;
-  }
-  return out;
-}
-
 // 输出格式那一段本来就是 JSON，里面的直引号是语法，不是标点
 const stripJson = t => t.split('\n')
   .filter(l => !/[{}[\]]/.test(l) && !/^\s*"[\w]+"\s*:/.test(l))

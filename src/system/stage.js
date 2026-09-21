@@ -51,6 +51,7 @@ export const FONTS = [
 
 export const DEFAULTS = {
   theme: 'body',
+  placement: 'page',    // page 单开一页 | inline 就在聊天里，划一条线往下演
   layout: 'page',       // page 一张一张翻 | cards 竖着滑的明信片
   spread: false,        // 正文铺满整屏，还是在固定区域内滚动
   pageChars: 700,       // 一段超过这么多字就续张。0 = 不切，这一张里滚
@@ -77,6 +78,11 @@ export const get = () => {
   if (raw.stamp === false && !settings.get().stage?.sign) raw.sign = 'none';
   return raw;
 };
+
+export const PLACEMENTS = [
+  { id: 'page', label: '单开页面', desc: '从功能面板进去，整屏都是线下。可以翻页，可以铺满' },
+  { id: 'inline', label: '就在聊天里', desc: '在会话里划一条线，往下就按线下的规则演。翻页与分张在这一档不适用' },
+];
 
 export const LAYOUTS = [
   { id: 'page', label: '翻页', desc: '一次一张，点左右两侧翻。一段太长自动续张' },

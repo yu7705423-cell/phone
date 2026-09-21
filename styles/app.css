@@ -2259,3 +2259,98 @@ button.search-bar { width: 100%; border: none; }
 }
 .sg-vers-btn:disabled { opacity: .35; }
 .sg-vers-no { font-variant-numeric: tabular-nums; }
+
+/* ---- 线下：就在聊天里演的那一档 ----
+   见 ARCHITECTURE 4.110。整场戏渲染在一条消息里，--sg-* 只作用在这个块上，
+   块外面仍然是聊天的样子。 */
+.sc-block {
+  margin: var(--sp-4) 0;
+  padding: var(--sp-4);
+  border-radius: var(--r-md);
+  background: var(--sg-bg);
+  color: var(--sg-ink);
+  font-family: var(--sg-font);
+}
+.sc-block .sg-text {
+  font-size: var(--sg-fs); line-height: var(--sg-lh); color: var(--sg-ink);
+}
+.sc-block .sg-text p { margin: 0 0 var(--sg-gap); }
+.sc-block .sg-text p:last-child { margin-bottom: 0; }
+
+/* 划的那条线。开场一条，收场一条 */
+.sc-div {
+  display: flex; align-items: center; gap: var(--sp-3);
+  margin: var(--sp-2) 0 var(--sp-5);
+}
+.sc-div-line { flex: 1; height: 1px; background: var(--sg-line); }
+.sc-div-text {
+  flex: none; font-size: 10px; letter-spacing: .22em; color: var(--sg-dim);
+}
+.sc-div.is-end { margin: var(--sp-5) 0 var(--sp-2); }
+
+.sc-beat + .sc-beat { margin-top: var(--sp-6); }
+.sc-empty { text-align: center; padding: var(--sp-4) 0; }
+
+/* 底下那三个。线下自己的色，不跟 app 的按钮走 */
+.sc-acts {
+  display: flex; gap: var(--sp-2); justify-content: flex-end;
+  margin-top: var(--sp-5); padding-top: var(--sp-3);
+  border-top: 1px solid var(--sg-line);
+}
+.sc-act {
+  font-size: var(--fs-12); letter-spacing: .1em;
+  color: var(--sg-dim); background: none;
+  border: 1px solid var(--sg-line); border-radius: var(--r-sm);
+  padding: var(--sp-1) var(--sp-3);
+}
+
+/* 正在写的那一段。铺在列表末尾，不进块里 —— 块是 memo 过的 */
+.sc-live { opacity: .85; }
+.sc-live .sg-text { white-space: pre-wrap; }
+
+/* 线下开着时的输入框。换个底色，一眼看出发出去的是正文不是消息 */
+.composer-input.is-scene {
+  background: var(--wg-bg);
+  border-radius: var(--r-sm);
+}
+
+/* 悬浮窗。内联时没有线下那一页的菜单可挂，常用的几项浮在这儿 */
+.sc-float-wrap {
+  position: absolute; inset: 0; z-index: var(--z-sheet);
+  background: var(--scrim);
+  display: flex; align-items: flex-end; justify-content: center;
+  padding: var(--sp-4);
+  padding-bottom: calc(var(--sp-8) + var(--safe-bottom));
+}
+.sc-float {
+  width: 100%; max-width: 360px;
+  max-height: 70%;
+  display: flex; flex-direction: column;
+  background: var(--surface); color: var(--text);
+  border-radius: var(--r-lg); box-shadow: var(--shadow-3);
+  overflow: hidden;
+}
+.sc-float-head {
+  flex: none; display: flex; align-items: center; justify-content: space-between;
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid var(--border);
+  font-size: var(--fs-15); font-weight: var(--fw-medium);
+}
+.sc-float-x {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; border-radius: var(--r-sm);
+  color: var(--text-2); background: none; border: 0;
+}
+.sc-float-body { flex: 1; min-height: 0; overflow-y: auto; padding: var(--sp-3) 0; }
+.sc-float-themes {
+  display: flex; gap: var(--sp-2); padding: 0 var(--sp-4) var(--sp-2);
+}
+.sc-swatch {
+  flex: 1; padding: var(--sp-3) 0; border-radius: var(--r-sm);
+  border: 1px solid; font-size: var(--fs-12);
+}
+.sc-swatch.is-on { box-shadow: 0 0 0 2px var(--accent); }
+.sc-float-note {
+  padding: 0 var(--sp-4) var(--sp-2);
+  font-size: var(--fs-12); color: var(--text-2); line-height: 1.5;
+}

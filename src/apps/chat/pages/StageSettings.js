@@ -93,6 +93,14 @@ export function StageSettings({ sceneId }) {
             onClick=${() => set({ fontUrl: f.url, fontFamily: f.family })}/>`)}
       <//>
 
+      ${scoped ? null : html`
+      <${List} title="线下画在什么地方" inset=${false}>
+        ${stage.PLACEMENTS.map(x => html`
+          <${ListItem} key=${x.id} title=${x.label} subtitle=${x.desc} multiline
+            right=${cfg.placement === x.id ? html`<${Icon} name="check" size=${16}/>` : null}
+            onClick=${() => set({ placement: x.id })}/>`)}
+      <//>`}
+
       <${List} title="版式" inset=${false}>
         ${stage.LAYOUTS.map(x => html`
           <${ListItem} key=${x.id} title=${x.label} subtitle=${x.desc} multiline

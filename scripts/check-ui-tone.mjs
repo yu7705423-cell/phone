@@ -1,4 +1,4 @@
-import { sources, read, rel } from './lib.mjs';
+import { sources, read, rel, stripComments } from './lib.mjs';
 
 // 界面文案必须是书面语。见 CLAUDE.md 第 7 条。
 //
@@ -46,27 +46,6 @@ const ALLOW = new Map([
   // 第 7 条自己举的反例，写在示例里就是要给人看错的那一版
   ['src/apps/settings/AboutPage.js', '关于页里引的是项目规约原文'],
 ]);
-
-// 去掉注释，只留代码。字符串里的 // 不算注释，所以要边走边认引号
-function stripComments(src) {
-  let out = '';
-  let i = 0;
-  let quote = null;
-  while (i < src.length) {
-    const c = src[i];
-    const n = src[i + 1];
-    if (quote) {
-      if (c === '\\') { out += c + (n ?? ''); i += 2; continue; }
-      if (c === quote) quote = null;
-      out += c; i += 1; continue;
-    }
-    if (c === '/' && n === '/') { while (i < src.length && src[i] !== '\n') i += 1; continue; }
-    if (c === '/' && n === '*') { i += 2; while (i < src.length && !(src[i] === '*' && src[i + 1] === '/')) i += 1; i += 2; continue; }
-    if (c === '"' || c === "'" || c === '`') quote = c;
-    out += c; i += 1;
-  }
-  return out;
-}
 
 // 「」引起来的是被举例、被禁止的原话，方括号里的是协议标记，两样都不算文案
 const stripQuoted = t => t

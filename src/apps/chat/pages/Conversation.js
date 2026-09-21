@@ -18,10 +18,11 @@ import { TransferBubble, NoticeLine, TransferSheet, SettleSheet,
          GiftBubble, GiftSheet, UnwrapSheet,
          ListenBubble, ListenLogSheet, ListenBar, WatchBubble, ReadBubble, ExcerptBubble,
          WatchBar, RequestBubble, RequestSheet, VoteSheet } from './TransferBits.js';
+import { SceneBlock, LookFloat } from './SceneInline.js';
 
 // panel 这个名字在本文件里已经被「当前开着哪个面板」占了（见下面的 useState），
 // 所以模块换个名字进来 —— 同名会被局部变量盖掉，读出来是 null。
-const { db, nav, ai, call, extras, pace, autoReply, panel: panelCfg } = phone;
+const { db, nav, ai, call, extras, pace, autoReply, panel: panelCfg, scene: sceneApi, stage } = phone;
 
 // 一屏装不下这么多，但往上翻几下够用；不够再按按钮要下一段。
 // 见 CLAUDE.md 第 13 条：这是默认值不是上限，设置里填 0 就一次画全。
@@ -51,7 +52,7 @@ function QuoteRef({ quote, onClick }) {
 // 下面传给它的函数属性都是稳定身份的，见 Conversation 里的 stable。
 const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, onSwipe, onHold,
                   selecting, selected, onToggle, transOpen, onSettle, onOpenLog, onUnwrap,
-                  onPat, innerStyle, fold, foldCount }) {
+                  onPat, innerStyle, fold, foldCount, onScene }) {
   const mine = msg.role === 'user';
   const avatar = useImage(mine ? phone.accounts.current()?.avatar : char?.avatar);
   const hold = useRef({ timer: null, fired: false });
@@ -92,6 +93,15 @@ const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, onSwipe,
   // 提示行不是谁说的话，不给头像也不给气泡，居中一行就够
   if (msg.kind === 'notice') {
     return html`<div id=${`msg-${msg.id}`}><${NoticeLine} msg=${msg}/></div>`;
+  }
+
+  // 线下那一整场挂在这一条上。不把段落混进消息列表 —— 分页、多选、引用、
+  // 搜索全按「一条消息」算，混流要各改一遍（见 ARCHITECTURE 4.110）
+  if (msg.kind === 'scene') {
+    return html`
+      <div id=${`msg-${msg.id}`}>
+        <${SceneBlock} sceneId=${msg.sceneId} onSetup=${onScene}/>
+      </div>`;
   }
 
   return html`
@@ -262,10 +272,21 @@ export function Conversation({ chatId, focusId = '' }) {
     onOpenLog: m => latest.current.onOpenLog(m),
     onUnwrap: m => latest.current.onUnwrap(m),
     onPat: () => latest.current.onPat(),
+    onScene: (kind, id) => latest.current.onScene(kind, id),
     noop: () => {},
   }), []);
   const pickedSet = useMemo(() => new Set(picked || []), [picked]);
   const innerStyle = extras.innerStyle();
+
+  useStore(db.scenes.store);
+  useStore(db.beats.store);
+  // 这段会话里正开着的那一场线下。开着的时候输入框整个换一套：
+  // 发的是正文不是消息，回的走线下那条链路
+  const live = chatId ? sceneApi.openInline(chatId) : null;
+  const [look, setLook] = useState(false);
+  // 线下正在写的那一段。放在这儿而不是块里 —— 那个块是 memo 过的，
+  // 每个 delta 都往里传会把整屏气泡一起重画
+  const [sceneDraft, setSceneDraft] = useState('');
 
   const chat = db.chats.get(chatId);
   const char = db.characters.get((chat?.characterIds || [])[0]);
@@ -408,7 +429,51 @@ export function Conversation({ chatId, focusId = '' }) {
     return html`<${Page} title="会话" onBack=${nav.pop}><${EmptyState} title="该会话已不存在"/><//>`;
   }
 
+  /**
+   * 线下那一段。接的是 streamScene，不是 streamReply。
+   *
+   * **场次现读，不吃渲染时那份 live。** 刚划完线就要开场，而那一下的闭包里
+   * live 还是 null —— 拿它判断的话会走到线上那条路上去，往聊天里落一条气泡。
+   */
+  async function generateScene({ more = false, row: given = null } = {}) {
+    if (!ai.isConfigured()) { toast('尚未配置模型接口', 'error'); return; }
+    const row = given || sceneApi.openInline(chatId);
+    if (!row) return;
+    setBusy(true);
+    setSceneDraft('');
+    let buf = '';
+    try {
+      await ai.scene.compressIfDue(row.id).catch(() => {});
+      const raw = String(await ai.streamScene({
+        scene: row, chat, char, more,
+        onDelta: d => { buf += d; setSceneDraft(buf); },
+      }) || '');
+      const { text, think } = ai.reply.stripThink(raw);
+      const { text: body, stamp } = ai.reply.stripStamps(text);
+      if (!body.trim()) throw new Error('模型返回了空内容');
+      const told = sceneApi.beatsOf(row.id).filter(b => b.role !== sceneApi.DIRECTOR);
+      const last = told.length ? told[told.length - 1] : null;
+      if (more && last) sceneApi.appendBeat(last.id, { text: body, raw, at: stamp });
+      else sceneApi.addBeat({ sceneId: row.id, role: sceneApi.CHAR, authorId: char.id,
+        text: body, raw, think, at: stamp });
+      db.chats.update(chatId, { lastMessageAt: Date.now() });
+      const gap = db.settings.get().autoSummarizeInterval;
+      if (ai.memory.shouldAutoExtract(chatId, gap)) {
+        ai.memory.extract(chatId)
+          .then(r => { if (r.added || r.updated) toast(`记忆更新 ${r.added + r.updated} 条`); })
+          .catch(err => console.warn('[memory] 线下自动提取失败', err));
+      }
+    } catch (err) {
+      if (!ai.queue.isAbort(err)) toast(err.message || '生成失败', 'error');
+    } finally {
+      setSceneDraft('');
+      setBusy(false);
+    }
+  }
+
   async function generate({ turnId: reuseTurn, swipes: prevSwipes } = {}) {
+    const open = sceneApi.openInline(chatId);
+    if (open) { await generateScene({ row: open }); return; }
     if (!ai.isConfigured()) { toast('尚未配置模型接口', 'error'); return; }
     setBusy(true);
 
@@ -474,6 +539,17 @@ export function Conversation({ chatId, focusId = '' }) {
   const send = () => {
     const text = draft.trim();
     if (!text || busy) return;
+    // 线下开着的时候，这一下发的是正文，不是消息。规则、提示词、数据
+    // 全走线下那一套，只是画在聊天里（见 ARCHITECTURE 4.110）
+    const open = sceneApi.openInline(chatId);
+    if (open) {
+      setDraft('');
+      setQuoting(null);
+      sceneApi.addBeat({ sceneId: open.id, role: sceneApi.ME, text });
+      db.chats.update(chatId, { lastMessageAt: Date.now() });
+      generate();
+      return;
+    }
     const q = draftQuote();
     setDraft('');
     setQuoting(null);
@@ -732,7 +808,11 @@ export function Conversation({ chatId, focusId = '' }) {
     : m.kind === 'request' ? setVoting(m) : setSettling(m));
   latest.current = { onRetry, onSwipe, togglePick, onSettle: settleAny,
     onOpenLog: openLog, onUnwrap: setUnwrap,
-    onPat: () => extras.pat({ chatId, role: 'user' }) };
+    onPat: () => extras.pat({ chatId, role: 'user' }),
+    onScene: (kind, id) => {
+      if (kind === 'look') setLook(true);
+      else if (id) nav.push(`/scene/${id}/edit`);
+    } };
 
   const deletePicked = async () => {
     if (!picked.length) return;
@@ -884,7 +964,16 @@ export function Conversation({ chatId, focusId = '' }) {
     request: () => setAsking(true),
     share: () => setSharing(true),
     dice: () => setDicing(true),
-    offline: () => nav.push(`/stage/${chatId}`),
+    offline: () => {
+      if (stage.get().placement !== 'inline') { nav.push(`/stage/${chatId}`); return; }
+      if (live) { toast('这一场还没有收场'); return; }
+      const row = sceneApi.create({ chatId, castIds: [char.id], inline: true });
+      db.messages.create({ chatId, role: 'user', authorId: 'me', kind: 'scene',
+        sceneId: row.id, content: '[线下]', status: 'done' });
+      db.chats.update(chatId, { lastMessageAt: Date.now() });
+      // 把这一场直接交出去。这时候 live 还是创建之前那份
+      if (row.opening === sceneApi.CHAR) generateScene({ row });
+    },
   };
   const runTap = id => (TAP[id] || (() => toast('这一项尚未实现')))();
   const PANEL_ITEMS = [
@@ -948,11 +1037,15 @@ export function Conversation({ chatId, focusId = '' }) {
               onToggle=${stable.onToggle} transOpen=${settings.translateOpen}
               onSettle=${stable.onSettle} onOpenLog=${stable.onOpenLog}
               onUnwrap=${stable.onUnwrap} onPat=${stable.onPat}
-              innerStyle=${innerStyle}
+              onScene=${stable.onScene} innerStyle=${innerStyle}
               fold=${row.foldOf ? () => setOpenStack(s => {
                 const n = new Set(s); n.delete(row.foldOf); return n;
               }) : null}
               foldCount=${row.foldCount}/>`))}
+          ${live && sceneDraft ? html`
+            <div class="sc-block sc-live" style=${stage.varsOf(stage.forScene(live))}>
+              <div class="sg-text">${sceneDraft}</div>
+            </div>` : null}
           ${!msgs.length && !char.firstMessage ? html`
             <div class="conv-hint">发送第一条消息开始对话</div>` : null}
         </div>
@@ -1012,27 +1105,37 @@ export function Conversation({ chatId, focusId = '' }) {
             <button class="composer-side press" onClick=${() => setPanel(panel === 'menu' ? null : 'menu')}
               aria-label="添加内容"><${Icon} name="plus" size=${20}/></button>
 
-            <textarea class="composer-input" rows="1" value=${draft} placeholder="说点什么"
+            <textarea class=${`composer-input${live ? ' is-scene' : ''}`} rows="1" value=${draft}
+              placeholder=${live ? '写你这一段' : '说点什么'}
               onInput=${e => setDraft(e.target.value)}
               onKeyDown=${e => {
                 if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); }
               }}></textarea>
 
-            <button class="composer-side press" onClick=${() => setPanel(panel === 'sticker' ? null : 'sticker')}
-              aria-label="表情"><${Icon} name="heart" size=${20}/></button>
+            ${live
+              ? html`
+                <button class="composer-side press" disabled=${busy}
+                  onClick=${() => generateScene({ more: true })}
+                  aria-label="接着上一段往下写"><${Icon} name="chevronDown" size=${20}/></button>
+                <button class="composer-side press" onClick=${() => setLook(true)}
+                  aria-label="外观"><${Icon} name="sun" size=${20}/></button>`
+              : html`
+                <button class="composer-side press" onClick=${() => setPanel(panel === 'sticker' ? null : 'sticker')}
+                  aria-label="表情"><${Icon} name="heart" size=${20}/></button>`}
 
             ${draft.trim()
               ? html`<button class="send-btn press" onClick=${send} aria-label="发送">
                   <${Icon} name="send" size=${17}/></button>`
               : busy
                 ? html`<button class="send-btn is-stop press"
-                    onClick=${() => ai.cancelReply(chatId, char.id)} aria-label="停止">
+                    onClick=${() => (live ? ai.cancelScene(live.id) : ai.cancelReply(chatId, char.id))}
+                    aria-label="停止">
                     <${Icon} name="close" size=${17}/></button>`
                 : html`<button class="send-btn is-ghost press" onClick=${() => generate()}
                     aria-label="让对方回复"><${Icon} name="reply" size=${22}/></button>`}
           </div>
 
-          ${panel ? html`
+          ${panel && !live ? html`
             <div class="composer-panel">
               ${panel === 'menu'
                 ? html`<div class="panel-grid">
@@ -1248,5 +1351,6 @@ export function Conversation({ chatId, focusId = '' }) {
           各段会话与各身份下的记忆都会被清除。角色卡、世界书关联与各项设置不受影响。
         </div>
       <//>
+    ${look ? html`<${LookFloat} sceneId=${live?.id || ''} onClose=${() => setLook(false)}/>` : null}
     <//>`;
 }

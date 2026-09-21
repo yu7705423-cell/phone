@@ -22,7 +22,7 @@ export const ofChat = chatId => scenes.byIndex(chatId)
   .sort((a, b) => (b.updatedAt || b.createdAt || 0) - (a.updatedAt || a.createdAt || 0));
 
 export function create({ chatId, title = '', place = '', at = '', castIds = [], note = '',
-  opening = CHAR, tone = '', toneText = '' }) {
+  opening = CHAR, tone = '', toneText = '', inline = false }) {
   const chat = chats.get(chatId);
   const cast = castIds.length ? castIds : (chat?.characterIds || []).slice();
   // 记住这一次挑的文风，下次新建时预填。这不是第二个开关，只是个默认值 ——
@@ -33,6 +33,9 @@ export function create({ chatId, title = '', place = '', at = '', castIds = [], 
     at: String(at || '').trim(), castIds: cast, note: String(note || '').trim(),
     opening: opening === ME ? ME : CHAR,
     tone: String(tone || ''), toneText: String(toneText || ''),
+    // 在聊天里直接演的那种。和单开一页只差「画在哪儿」，规则、
+    // 提示词、数据全是同一套（见 ARCHITECTURE 4.110）
+    inline: !!inline, endedAt: 0,
     summary: '', stage: null,
     createdAt: Date.now(), updatedAt: Date.now(),
   });
@@ -47,6 +50,20 @@ export function update(id, patch) {
 export function remove(id) {
   beats.byIndex(id).slice().forEach(b => beats.remove(b.id));
   scenes.remove(id);
+}
+
+/**
+ * 这段会话里正开着的那一场（在聊天里演的那种）。
+ *
+ * 只认没收场的。收了场的留在原处照样看得见，只是输入框回到线上。
+ */
+export const openInline = chatId => ofChat(chatId)
+  .find(r => r.inline && !r.endedAt) || null;
+
+/** 收场。不删，只是把输入框还给线上。 */
+export function endScene(id) {
+  if (!scenes.has(id)) return null;
+  return update(id, { endedAt: Date.now() });
 }
 
 export const castOf = scene => (scene?.castIds || []).map(cid => characters.get(cid)).filter(Boolean);
