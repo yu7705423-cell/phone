@@ -10,10 +10,23 @@ export const nav = createStore({
   stacks: {},              // appId -> [route, ...]
   recents: [],             // 最近使用的 appId,最新在前
   switcher: false,
-  // 「过去看一眼就回来」那一跳记下的出发地：{ appId, stack }。
-  // 退到那一页的底下时原样放回去，见 pop()
+  // 「过去看一眼就回来」那一跳记下的出发地：
+  // { appId, stack, to, depth } —— 出发的 app、它当时那一整条栈、
+  // 去的是哪个 app、到了之后落在第几层。退到那一层时原样放回去，见 pop()
   returnTo: null,
 });
+
+/**
+ * 那一趟「看一眼就回来」到此为止：去过的那个 app 收回首页。
+ *
+ * 不收的话它就一直停在被看的那一页上 —— 下次从桌面点进去，开的是那一页，
+ * 而那一页是别人领进去的，人并不想从那儿开始。
+ */
+function endTrip(s, stacks) {
+  const to = s.returnTo?.to;
+  if (to && stacks[to]) stacks[to] = ['/'];
+  return stacks;
+}
 
 export function unlock() {
   nav.set({ screen: 'home' });
@@ -21,7 +34,8 @@ export function unlock() {
 }
 
 export function lock() {
-  nav.set({ screen: 'lock', switcher: false, returnTo: null });
+  nav.set({ screen: 'lock', switcher: false, returnTo: null,
+    stacks: endTrip(nav.get(), { ...nav.get().stacks }) });
   emit(EVENTS.lock);
 }
 
@@ -38,14 +52,23 @@ export function openApp(appId, route = '/', opts = {}) {
   const stacks = { ...s.stacks };
   // 只记 app 之间那一跳；同一个 app 里的跳转不算
   const back = opts.back && s.screen === 'app' && s.appId && s.appId !== appId
-    ? { appId: s.appId, stack: [...(s.stacks[s.appId] || ['/'])] }
+    ? { appId: s.appId, stack: [...(s.stacks[s.appId] || ['/'])], to: appId }
     : null;
+  // 上一趟「看一眼就回来」在这里结束。两种情形不收：正要回到的就是它，
+  // 或者它这就是新的出发地（那条栈马上要当回头路用）
+  const trip = s.returnTo?.to;
+  if (trip && trip !== appId && !(back && back.appId === trip)) stacks[trip] = ['/'];
   // 直接跳到深层页面时，把根页垫在栈底。否则栈里只有一条，
   // 一按返回就退到桌面，而不是回到这个 app 自己的首页。
-  // **带 back 的那一跳不垫**：退到底就该是回去，不是落在那个 app 的首页上。
+  //
+  // **带 back 的那一跳也要垫**。从前不垫，理由是「退到底该是回去」——
+  // 可那条回头路只活一趟，人中途按了桌面、或者从切换器再进来，它就没了，
+  // 剩下一条底下没有首页的栈：从桌面点进去开的是那一页，再一按直接回桌面，
+  // 永远上不去。回去那一下改由下面的 depth 判断，不再靠「栈里只有一条」。
   if (!stacks[appId] || route !== '/') {
-    stacks[appId] = route === '/' ? ['/'] : (back ? [route] : ['/', route]);
+    stacks[appId] = route === '/' ? ['/'] : ['/', route];
   }
+  if (back) back.depth = stacks[appId].length;
   const recents = [appId, ...s.recents.filter(id => id !== appId)];
   const dropped = recents.slice(MAX_BACKGROUND);
   dropped.forEach(id => { delete stacks[id]; });
@@ -64,9 +87,11 @@ function returnBack() {
   const r = s.returnTo;
   if (!r) return false;
   const recents = [r.appId, ...s.recents.filter(id => id !== r.appId)];
+  const stacks = endTrip(s, { ...s.stacks });
+  stacks[r.appId] = r.stack;
   nav.set({
     screen: 'app', appId: r.appId,
-    stacks: { ...s.stacks, [r.appId]: r.stack },
+    stacks,
     recents: recents.slice(0, MAX_BACKGROUND),
     switcher: false,
     returnTo: null,
@@ -76,7 +101,9 @@ function returnBack() {
 }
 
 export function goHome() {
-  nav.set({ screen: 'home', appId: null, switcher: false, returnTo: null });
+  const s = nav.get();
+  nav.set({ screen: 'home', appId: null, switcher: false, returnTo: null,
+    stacks: endTrip(s, { ...s.stacks }) });
 }
 
 export function closeApp(appId) {
@@ -87,7 +114,8 @@ export function closeApp(appId) {
     stacks,
     // 关掉的是出发地、或者关掉的就是眼下这个（于是回桌面），
     // 那条回头路都不再作数
-    returnTo: (s.returnTo?.appId === appId || s.appId === appId) ? null : s.returnTo,
+    returnTo: (s.returnTo?.appId === appId || s.returnTo?.to === appId
+      || s.appId === appId) ? null : s.returnTo,
     recents: s.recents.filter(id => id !== appId),
     appId: s.appId === appId ? null : s.appId,
     screen: s.appId === appId ? 'home' : s.screen,
@@ -105,9 +133,13 @@ export function pop() {
   const s = nav.get();
   if (!s.appId) return false;
   const stack = s.stacks[s.appId] || ['/'];
+  const r = s.returnTo;
+  // 「过去看一眼就回来」的那一跳：退回出发时落在的那一层，再退就是回去，
+  // 不是落在这个 app 的首页上、更不是回桌面。在那一层之下照常退
+  if (r && r.to === s.appId && r.appId !== s.appId && stack.length <= (r.depth || 1)) {
+    return returnBack();
+  }
   if (stack.length <= 1) {
-    // 「过去看一眼就回来」的那一跳，退到底是回去，不是回桌面
-    if (s.returnTo && s.returnTo.appId !== s.appId) return returnBack();
     goHome();
     return false;
   }
