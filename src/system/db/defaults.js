@@ -131,6 +131,10 @@ export const DEFAULT_SETTINGS = {
   sceneSummary: false,            // 一场收尾时生成摘要。多一次调用，见 cost.js
   sceneCompress: false,           // 窗口外的段落压成摘要。多一次调用，见 cost.js
   stage: {},                      // 线下外观，见 system/stage.js
+  // 线上与线下互相能看到对面多少。见 ai/context/bridge.js
+  // 两边成本不对称：气泡短，带原文；正文长，只带摘要。0 = 不带
+  bridgeChatLines: 20,            // 线下带上手机里最近几条消息
+  bridgeSceneChars: 400,          // 线上带上最近一次见面的多少字
   // 文风预设。**默认一份都不启用** —— 内置提示词不写文风（第 16 条），
   // 这里存的是用户改过或新建的那些，见 system/tone.js
   tonePresets: {},

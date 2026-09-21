@@ -6,15 +6,51 @@ import { listFor, CATEGORIES, RANKS, dayOf } from '../context/memory.js';
 import { uid } from '../../store.js';
 import * as memcheck from '../../memcheck.js';
 import * as accounts from '../../accounts.js';
+import * as sceneStore from '../../scene.js';
 
-// 未总结的对话 = memoryUpTo 之后的消息。
-// 不另存一份缓冲区,避免与 messages 重复存储、日久漂移。
+// 线下那些段落，摆成消息的样子。
+//
+// 线下发生的事同样要进记忆 —— 不然见了一整场面，回到线上什么都不记得。
+// 场外指示不算，那是写给模型的指令，不是发生过的事。
+const beatsAsTurns = chatId => sceneStore.ofChat(chatId)
+  .flatMap(sc => sceneStore.beatsOf(sc.id))
+  .filter(b => b.role !== sceneStore.DIRECTOR && String(b.text || '').trim())
+  .map(b => ({
+    id: b.id, role: b.role === sceneStore.ME ? 'user' : 'char',
+    authorId: b.authorId, content: b.text, createdAt: b.createdAt, beat: true,
+  }));
+
+const after = (list, mark) => {
+  if (!mark) return list;
+  const i = list.findIndex(x => x.id === mark);
+  return i < 0 ? list : list.slice(i + 1);
+};
+
+// 未总结的 = 两条水位线之后的东西，按时间并成一条。
+//
+// **两条水位线，不是一条**：消息和正文各是一个域，各自的 id 在对方那条
+// 线上找不到，共用一条的话 findIndex 会落空，于是每次都从头再吃一遍。
+// 不另存缓冲区，避免与原数据重复存储、日久漂移。
 export function pendingOf(chatId) {
   const chat = chats.get(chatId);
-  const all = messagesOf(chatId).filter(m => m.status !== 'error' && m.content);
-  if (!chat?.memoryUpTo) return all;
-  const idx = all.findIndex(m => m.id === chat.memoryUpTo);
-  return idx < 0 ? all : all.slice(idx + 1);
+  const msgs = after(
+    messagesOf(chatId).filter(m => m.status !== 'error' && m.content),
+    chat?.memoryUpTo,
+  );
+  const beats = after(beatsAsTurns(chatId), chat?.memoryUpToBeat);
+  if (!beats.length) return msgs;
+  return [...msgs, ...beats].sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+}
+
+/** 这一批里最后一条消息、最后一段正文各是哪个。两条水位线各推各的。 */
+function marksOf(batch) {
+  const patch = { memoryTriedId: null };
+  for (let i = batch.length - 1; i >= 0; i--) {
+    if (!batch[i].beat && !patch.memoryUpTo) patch.memoryUpTo = batch[i].id;
+    if (batch[i].beat && !patch.memoryUpToBeat) patch.memoryUpToBeat = batch[i].id;
+    if (patch.memoryUpTo && patch.memoryUpToBeat) break;
+  }
+  return patch;
 }
 
 /**
@@ -43,7 +79,7 @@ export function runsFor(chatId) {
 export function markCaughtUp(chatId) {
   const all = pendingOf(chatId);
   if (!all.length) return 0;
-  chats.update(chatId, { memoryUpTo: all[all.length - 1].id, memoryTriedId: null });
+  chats.update(chatId, marksOf(all));
   return all.length;
 }
 
@@ -153,8 +189,7 @@ export async function extract(chatId) {
   try { spent = await catchSpending(chatId, result?.spending); }
   catch (err) { console.warn('[bill] 花销没记上:', err.message || err); }
 
-  const lastId = pending[pending.length - 1].id;
-  chats.update(chatId, { memoryUpTo: lastId, memoryTriedId: null });
+  chats.update(chatId, marksOf(pending));
   return { added, updated, gone, total: rows.length, spent };
 }
 

@@ -194,6 +194,23 @@ export function LimitsPage() {
             onChange=${v => set({ sceneWords: v })}/>
         <//>
 
+        <${Field} label="线下带上手机里最近几条"
+          desc="线下的每次请求带上这段会话里最近这么多条消息的原文。
+            气泡很短，二十条也只有几百字，所以带的是原文而不是摘要。
+            填 0 表示不带，线下将完全看不到手机上刚说过的话。">
+          <${NumberInput} value=${s.bridgeChatLines} unit="条" placeholder="不带"
+            onChange=${v => set({ bridgeChatLines: v })}/>
+        <//>
+
+        <${Field} label="线上带上最近一次见面的多少字"
+          desc="线上的每次请求带上最近一场线下的摘要，按这个字数截断。
+            线下一段正文动辄上千字，带原文会顶掉上下文，所以这一侧只带摘要。
+            没有摘要时截取最后一段，这一步不调用接口；需要真正的摘要请开启
+            「线下一场收尾时生成摘要」。填 0 表示不带。">
+          <${NumberInput} value=${s.bridgeSceneChars} unit="字" placeholder="不带"
+            onChange=${v => set({ bridgeSceneChars: v })}/>
+        <//>
+
         <${Field} label="视频通话画面间隔"
           desc="视频通话中两帧画面之间至少间隔的秒数。
             仅在开启「让角色看见我」时生效，每传一帧都是一次图片费用。

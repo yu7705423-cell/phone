@@ -193,6 +193,7 @@ export function buildChatSystem(chat, char, msgs, opts = {}) {
     .map(id => characters.get(id)).filter(Boolean);
 
   const ctx = {
+    side: 'chat',
     char, chat, messages: msgs, persona: me, settings: s,
     scanText: scanTextOf(msgs, s.scanWindow),
     budgets: budgets(s.contextBudget),
@@ -516,6 +517,8 @@ export function buildSceneSystem(scene, chat, char, list, opts = {}) {
   const budget = sceneBudget();
 
   const ctx = {
+    // 注入区块靠它分辨自己在哪一侧。目前只有 bridge 用得上
+    side: 'scene',
     char, chat, persona: me, settings: s,
     // 注入区块照旧读聊天记录（「你今天」「正在听什么」那些是线上的状态），
     // 但世界书与 B 级记忆按线下正文扫 —— 该被这一场勾起来的是这一场的字

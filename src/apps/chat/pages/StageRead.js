@@ -166,6 +166,14 @@ export function StageRead({ sceneId }) {
       const { text: body, stamp: at2 } = ai.reply.stripStamps(text);
       if (!body.trim()) throw new Error('模型返回了空内容');
       sceneApi.addBeat({ sceneId, role: 'char', authorId: char.id, text: body, raw, think, at: at2 });
+      // 线下发生的事也要进记忆，否则见了一整场面，回到线上什么都不记得。
+      // 和线上共用同一个间隔，默认 0 就是关着的（第 15 条）
+      const gap = db.settings.get().autoSummarizeInterval;
+      if (ai.memory.shouldAutoExtract(row.chatId, gap)) {
+        ai.memory.extract(row.chatId)
+          .then(r => { if (r.added || r.updated) toast(`记忆更新 ${r.added + r.updated} 条`); })
+          .catch(err => console.warn('[memory] 线下自动提取失败', err));
+      }
     } catch (err) {
       if (!ai.queue.isAbort(err)) toast(err.message || '生成失败', 'err');
     } finally {
