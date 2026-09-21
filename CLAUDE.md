@@ -387,6 +387,10 @@ node scripts/doctor.mjs
   数据往往已经没了。已经因此丢过九个数据域。
   同一条还查第三处：数据域也必须在 `system/db/schema.js` 的 `STORES` 里，
   并提升 `DB_VERSION`。那一处漏了整个应用起不来，而报错里看不出是哪个域。
+  第四处机器查不到：按 chatId / charId 挂着的域，要在 `system/purge.js` 的
+  `dropChat` / `dropCharacter` 里各补一行，否则删会话、删角色时它留成孤儿。
+  存图片、存文件的地方同理要登进 `usedImageIds` / `fileUsers`，
+  漏一处就是「清理无引用」时删一批。
 - **构建号**：`index.html` 的 `<meta name="build">` 必须和 `src/version.js`
   一致。启动时拿这两个值比对，判断浏览器缓存里的 js 是不是旧的（见下）。
 
