@@ -26,6 +26,7 @@ export const SANS  = '"PingFang SC", "Heiti SC", system-ui, -apple-system, sans-
 
 export const DEFAULTS = {
   theme: 'body',
+  layout: 'page',       // page 一张一张翻 | cards 竖着滑的明信片
   spread: false,        // 正文铺满整屏，还是在固定区域内滚动
   pageChars: 700,       // 一段超过这么多字就续张。0 = 不切，这一张里滚
   effect: 'slide',      // 翻页效果，取值同 reader.EFFECTS
@@ -50,8 +51,13 @@ export const get = () => {
   return raw;
 };
 
+export const LAYOUTS = [
+  { id: 'page', label: '翻页', desc: '一次一张，点左右两侧翻。一段太长自动续张' },
+  { id: 'cards', label: '明信片', desc: '竖着滑，一张一张排下去。这一档会显示头像' },
+];
+
 export const SIGNS = [
-  { id: 'full', label: '完整', desc: '编号、细线，以及一行名字与地点' },
+  { id: 'full', label: '完整', desc: '编号、细线，以及一行名字与地点。明信片版式下另带头像' },
   { id: 'line', label: '一行', desc: '只有一行名字、地点与时刻' },
   { id: 'none', label: '不显示', desc: '正文之外什么都不写' },
 ];
@@ -96,6 +102,9 @@ function soften(hex, alpha) {
   return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
 }
 
+/** 这一套配下来底色是什么。外壳那条也要跟着染，见 mountChrome */
+export const bgOf = cfg => cfg.bgColor || themeOf(cfg.theme).bg || '#FCFBF8';
+
 /** 线下那一层要用的 CSS 变量。颜色是用户自己挑的，不是设计令牌。 */
 export function varsOf(cfg, bgUrl = '') {
   const t = themeOf(cfg.theme);
@@ -120,6 +129,24 @@ export function varsOf(cfg, bgUrl = '') {
 //
 // 只在线下页面挂着的时候插进去，离开就摘掉 —— 全局那份 customCSS 是一直在的，
 // 这一份不该漏到别的 app 上去。
+
+// ---- 外壳那条也要染 ----
+//
+// 线下是整屏接管的，可外壳的状态栏那一条在 .page-body 之外，仍然是 app 的
+// 底色。深色主题下上方就留一条白边 —— 那就不是「整个页面进入线下」了。
+// 挂着的时候把底色写到 :root 上，离开就撤掉。
+
+export function mountChrome(bg) {
+  const el = document.documentElement;
+  el.dataset.stage = 'on';
+  el.style.setProperty('--sg-chrome', String(bg || ''));
+}
+
+export function unmountChrome() {
+  const el = document.documentElement;
+  delete el.dataset.stage;
+  el.style.removeProperty('--sg-chrome');
+}
 
 const NODE_ID = 'stage-css';
 

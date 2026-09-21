@@ -2110,14 +2110,24 @@ button.search-bar { width: 100%; border: none; }
    一个又大又细的编号、一道发丝线、一行字距拉开的极小字。
    先做过一枚圆邮戳，丑，撤了（见 ARCHITECTURE 4.107）。 */
 .sg-sign { margin: 0 0 var(--sp-6); }
+.sg-sign-top {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  gap: var(--sp-4);
+  padding-bottom: var(--sp-3);
+  border-bottom: 1px solid var(--sg-line);
+}
 .sg-sign-no {
   /* 数字走无衬线的细体，别跟着正文的宋体走 —— 宋体数字撑不起这个尺度 */
   font-family: var(--font);
   font-size: 56px; font-weight: 200; line-height: .88;
   letter-spacing: -.04em; font-variant-numeric: tabular-nums;
   color: var(--sg-mark);
-  padding-bottom: var(--sp-3);
-  border-bottom: 1px solid var(--sg-line);
+}
+/* 头像盖在右上角，像明信片上那张邮票：方的，一道发丝框，不做圆 ——
+   圆头像一出现，整页就读成聊天了 */
+.sg-face {
+  flex: none; width: 60px; height: 60px; object-fit: cover;
+  border-radius: 2px; border: 1px solid var(--sg-line);
 }
 .sg-sign.is-mine .sg-sign-no { color: var(--sg-dim); font-weight: 100; }
 .sg-sign-row {
@@ -2132,6 +2142,24 @@ button.search-bar { width: 100%; border: none; }
 .sg-sign-meta {
   font-size: 10px; letter-spacing: .22em; color: var(--sg-dim);
   text-align: right; font-variant-numeric: tabular-nums;
+}
+
+/* 明信片那一档。竖着滑，一张一张排下去 */
+.sg-feed {
+  flex: 1; min-height: 0; overflow-y: auto;
+  padding: var(--sp-4);
+  -webkit-overflow-scrolling: touch;
+}
+.sg-card {
+  max-width: var(--sg-measure); margin: 0 auto var(--sp-4);
+  padding: var(--sp-5) var(--sp-4);
+  border: 1px solid var(--sg-line);
+  background: var(--sg-bg);
+}
+.sg-card:last-child { margin-bottom: 0; }
+.sg-card .sg-sign { margin-bottom: var(--sp-5); }
+.sg.is-spread .sg-feed {
+  padding-top: calc(var(--sp-4) + env(safe-area-inset-top));
 }
 
 /* 只要一行的那一档。同一份字距，去掉编号和细线 */

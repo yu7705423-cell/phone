@@ -189,10 +189,13 @@ export function signOf(beat, scene) {
   const mine = beat.role === ME;
   // 身份记在会话上，不在场次上 —— 换小号去找同一个角色开的是另一段会话
   const me = accounts.get(chats.get(scene?.chatId)?.personaId) || accounts.current();
+  const who = mine ? me : characters.get(beat.authorId);
   return {
     place: beat.place || scene?.place || '',
     time: beat.at || '',
-    name: mine ? (me?.name || '我') : (characters.get(beat.authorId)?.name || ''),
+    name: who?.name || (mine ? '我' : ''),
+    // 图片 id，不是解析好的地址 —— 解析要用 useImage，那是 hook，只能在组件里调
+    face: who?.avatar || null,
     mine,
   };
 }

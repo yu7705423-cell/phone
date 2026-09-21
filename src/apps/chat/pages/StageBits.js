@@ -1,4 +1,5 @@
 import { html } from '../../../lib.js';
+import { useImage } from '../../../sdk/index.js';
 
 // 线下正文的展示层。见 ARCHITECTURE 4.107
 
@@ -47,14 +48,20 @@ const pad = n => String(Math.max(0, n) + 1).padStart(2, '0');
  * **靠尺度反差，不靠图形** —— 一个又大又细的编号，一道发丝线，
  * 下面一行极小、字距拉得很开的名字与地点。杂志里开篇那一页就是这么排的。
  */
-export const Sign = ({ sign, no }) => {
+export const Sign = ({ sign, no, face }) => {
+  // hook 要在提前 return 之前调完，否则这一块一会儿有署名一会儿没有，
+  // 数量就对不上了（第 10 条）
+  const src = useImage(face ? sign?.face : null);
   if (!sign) return null;
   const time = clockOf(sign.time);
   const meta = [sign.place, time].filter(Boolean).join('  ');
   if (!sign.name && !meta) return null;
   return html`
     <div class=${`sg-sign${sign.mine ? ' is-mine' : ''}`}>
-      <div class="sg-sign-no">${pad(no || 0)}</div>
+      <div class="sg-sign-top">
+        <div class="sg-sign-no">${pad(no || 0)}</div>
+        ${face && src ? html`<img class="sg-face" src=${src} alt=""/>` : null}
+      </div>
       <div class="sg-sign-row">
         <span class="sg-sign-name">${sign.name}</span>
         <span class="sg-sign-meta">${meta}</span>
@@ -69,3 +76,15 @@ export const Byline = ({ sign }) => {
   if (!parts.length) return null;
   return html`<div class=${`sg-byline${sign.mine ? ' is-mine' : ''}`}>${parts.join('  ')}</div>`;
 };
+
+// 明信片那一档的一张。竖着滑，一张一张排下去，头像盖在右上角。
+//
+// 每张自己是一个组件，因为头像要 useImage 解析 —— 在一个循环里调 hook
+// 是不行的（第 10 条）。
+export const Card = ({ page, sign, marks, showSign, face, onHold, onEnd }) => html`
+  <article class="sg-card no-callout"
+    onTouchStart=${onHold} onTouchEnd=${onEnd} onTouchMove=${onEnd} onTouchCancel=${onEnd}
+    onContextMenu=${e => { e.preventDefault(); if (onHold) onHold(); }}>
+    ${showSign && sign ? html`<${Sign} sign=${sign} no=${page.beatIndex} face=${face}/>` : null}
+    <${Prose} text=${page.text} marks=${marks}/>
+  </article>`;

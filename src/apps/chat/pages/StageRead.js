@@ -2,7 +2,7 @@ import { html, useState, useRef, useEffect, useMemo } from '../../../lib.js';
 import { phone, useStore, useImage } from '../../../sdk/index.js';
 import { Page, IconButton, Icon, Button, Textarea, Switch, Field,
          Sheet, FullSheet, List, ListItem, Spinner, toast, confirm } from '../../../ui/index.js';
-import { Prose, Sign, Byline } from './StageBits.js';
+import { Prose, Sign, Byline, Card } from './StageBits.js';
 
 const { db, nav, ai, scene: sceneApi, stage } = phone;
 
@@ -45,6 +45,7 @@ export function StageRead({ sceneId }) {
   // 换主题没反应就是这么来的。两个小对象展开一次，比漏更新便宜
   const cfg = stage.forScene(row);
   const bgUrl = useImage(cfg.bgImage);
+  const chrome = stage.bgOf(cfg);
 
   const pages = useMemo(
     () => (row ? sceneApi.pagesOf(sceneId, cfg.pageChars) : []),
@@ -58,9 +59,19 @@ export function StageRead({ sceneId }) {
     return () => stage.unmountCSS();
   }, [cfg.css]);
 
-  // 新的一段落定就翻到末尾。生成中不动 —— 那时候正在往最后一张里长
+  // 外壳那条状态栏在 .page-body 之外，不染的话深色主题上方留一条白边
+  useEffect(() => {
+    stage.mountChrome(chrome);
+    return () => stage.unmountChrome();
+  }, [chrome]);
+
+  // 新的一段落定就翻到末尾。生成中不动 —— 那时候正在往最后一张里长。
+  // 明信片那一档同理，只不过「末尾」是滚到底
   const total = Math.max(1, pages.length);
-  useEffect(() => { setAt(total - 1); }, [total]);
+  useEffect(() => {
+    setAt(total - 1);
+    if (bodyRef.current) bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
+  }, [total]);
   useEffect(() => () => { clearTimeout(timerRef.current); clearTimeout(holdRef.current); }, []);
 
   // 新建时选了「让角色开场」就直接写第一段。那一下已经是明示的同意，
@@ -80,6 +91,7 @@ export function StageRead({ sceneId }) {
 
   const cast = sceneApi.castOf(row);
   const char = cast[0] || null;
+  const cards = cfg.layout === 'cards';
   const index = Math.min(Math.max(0, at), total - 1);
   const cur = pages[index] || null;
   const sign = cur && cur.first ? sceneApi.signOf(cur.beat, row) : null;
@@ -116,6 +128,13 @@ export function StageRead({ sceneId }) {
     if (x < 0.33) go(-1);
     else if (x > 0.67) go(1);
     else stage.set({ spread: !cfg.spread });
+  };
+
+  // 明信片那一档不翻页，点哪儿都不该动。只留一件事：铺满屏幕时点一下
+  // 把界面收回来 —— 否则铺满之后连菜单都没有，出不去
+  const onFeedTap = () => {
+    if (heldRef.current) { heldRef.current = false; return; }
+    if (cfg.spread) stage.set({ spread: false });
   };
 
   const writeOne = async () => {
@@ -202,11 +221,11 @@ export function StageRead({ sceneId }) {
     } catch (err) { toast(err.message || '生成失败', 'err'); }
   };
 
-  // 顶栏归线下自己画。用 app 的 navbar 的话，深色主题上方会留一条白边，
-  // 那就不是「整个页面进入线下」了
-  const dark = (cfg.bgColor || '').trim()
-    ? (parseInt((cfg.bgColor || '').replace('#', '').slice(0, 2), 16) || 255) < 110
-    : false;
+  // 顶栏归线下自己画。底色深的时候状态栏那几个字要换成浅色
+  const hex = String(chrome).replace('#', '');
+  const dark = /^[0-9a-f]{6}$/i.test(hex)
+    && (parseInt(hex.slice(0, 2), 16) * 299 + parseInt(hex.slice(2, 4), 16) * 587
+      + parseInt(hex.slice(4, 6), 16) * 114) / 1000 < 128;
 
   return html`
     <${Page} hideBar noScroll onBack=${nav.pop} statusBarStyle=${dark ? 'light' : 'dark'}>
@@ -220,8 +239,8 @@ export function StageRead({ sceneId }) {
             <//>
             <div class="sg-head-text">
               <div class="sg-eyebrow">
-                ${[row.title || row.place, cur?.beat?.at || row.at].filter(Boolean).join(' · ')
-    || '这一场'}
+                ${[row.title || row.place, cards ? sceneApi.timeOf(sceneId) : (cur?.beat?.at || row.at)]
+    .filter(Boolean).join(' · ') || '这一场'}
               </div>
               ${cur?.notes?.length ? html`
                 <button class="sg-note press" onClick=${() => setNotes(cur.notes)}>
@@ -233,34 +252,51 @@ export function StageRead({ sceneId }) {
             <//>
           </div>` : null}
 
-        <div class="sg-tap no-callout" onClick=${onTap}
-          onTouchStart=${() => startHold(cur?.beat)}
-          onTouchEnd=${endHold} onTouchMove=${endHold} onTouchCancel=${endHold}>
-          <div class=${`sg-body ${anim}`} ref=${bodyRef}>
-            <div class="sg-col">
-              ${!writing && sign && cfg.sign !== 'none'
+        ${cards ? html`
+          <div class="sg-feed" ref=${bodyRef} onClick=${onFeedTap}>
+            ${pages.map(p => html`
+              <${Card} key=${p.key} page=${p} marks=${cfg.marks} face
+                sign=${p.first ? sceneApi.signOf(p.beat, row) : null}
+                showSign=${p.first && cfg.sign !== 'none'}
+                onHold=${() => startHold(p.beat)} onEnd=${endHold}/>`)}
+            ${writing ? html`
+              <article class="sg-card no-callout">
+                <div class="sg-text sg-live" ref=${liveRef}></div>
+              </article>` : null}
+            ${!pages.length && !writing
+    ? html`<div class="sg-eyebrow">这一场还没有正文。</div>` : null}
+          </div>`
+    : html`
+          <div class="sg-tap no-callout" onClick=${onTap}
+            onTouchStart=${() => startHold(cur?.beat)}
+            onTouchEnd=${endHold} onTouchMove=${endHold} onTouchCancel=${endHold}>
+            <div class=${`sg-body ${anim}`} ref=${bodyRef}>
+              <div class="sg-col">
+                ${!writing && sign && cfg.sign !== 'none'
     ? (cfg.sign === 'line'
       ? html`<${Byline} sign=${sign}/>`
       : html`<${Sign} sign=${sign} no=${cur.beatIndex}/>`)
     : null}
-              ${writing
+                ${writing
     ? html`<div class="sg-text sg-live" ref=${liveRef}></div>`
     : html`
-                  <${Prose} text=${cur?.text || ''} marks=${cfg.marks}/>
-                  ${!cur?.text && cur?.notes?.length
+                    <${Prose} text=${cur?.text || ''} marks=${cfg.marks}/>
+                    ${!cur?.text && cur?.notes?.length
     ? html`<div class="sg-eyebrow">这一张只有场外指示。</div>` : null}
-                  ${!pages.length
+                    ${!pages.length
     ? html`<div class="sg-eyebrow">这一场还没有正文。</div>` : null}`}
+              </div>
             </div>
-          </div>
-        </div>
+          </div>`}
 
-        ${!cfg.spread ? html`
+        ${!cfg.spread && !cards ? html`
           <div class="sg-foot">
             <span>${total ? `${index + 1} / ${total}` : ''}</span>
             <div class="sg-rule"></div>
             <span>${cur?.pages > 1 ? `本段 ${cur.page + 1} / ${cur.pages}` : ''}</span>
-          </div>
+          </div>` : null}
+
+        ${!cfg.spread ? html`
 
           <div class="sg-bar">
             <button class="sg-write press" onClick=${() => { setComposing('me'); setDraft(''); }}>
@@ -327,12 +363,15 @@ export function StageRead({ sceneId }) {
 
       <${Sheet} open=${menu} onClose=${() => setMenu(false)} title=${row.title || '这一场'}>
         <${List}>
-          <${ListItem} title="这一段" subtitle="复制、钉住、重写、分叉"
-            onClick=${() => { setMenu(false); if (cur?.beat) setPicked(cur.beat); }}/>
+          ${!cards ? html`
+            <${ListItem} title="这一段" subtitle="复制、钉住、重写、分叉"
+              onClick=${() => { setMenu(false); if (cur?.beat) setPicked(cur.beat); }}/>` : null}
           <${ListItem} title="这一场的设定" subtitle="标题、地点、情境、在场角色" arrow
             onClick=${() => { setMenu(false); nav.push(`/scene/${sceneId}/edit`); }}/>
           <${ListItem} title="外观" subtitle="主题、字体、字号、壁纸、自定义样式" arrow
             onClick=${() => { setMenu(false); nav.push(`/stage/settings/${sceneId}`); }}/>
+          <${ListItem} title="版式" subtitle=${cards ? '明信片' : '翻页'}
+            onClick=${() => stage.set({ layout: cards ? 'page' : 'cards' })}/>
           <${ListItem} title="铺满屏幕"
             right=${html`<${Switch} checked=${cfg.spread} onChange=${v => stage.set({ spread: v })}/>`}/>
           <${ListItem} title="收场" subtitle="把整场压成一段摘要，进入记忆" onClick=${wrap}/>

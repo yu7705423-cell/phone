@@ -73,13 +73,21 @@ export function StageSettings({ sceneId }) {
   }}/>`)}
       <//>
 
+      <${List} title="版式" inset=${false}>
+        ${stage.LAYOUTS.map(x => html`
+          <${ListItem} key=${x.id} title=${x.label} subtitle=${x.desc} multiline
+            right=${cfg.layout === x.id ? html`<${Icon} name="check" size=${16}/>` : null}
+            onClick=${() => set({ layout: x.id })}/>`)}
+      <//>
+
       <${List} title="正文" inset=${false}>
         <${ListItem} title="铺满屏幕" multiline
           subtitle="开启后正文占据整个屏幕，刊头、页码与底栏不再显示。关闭时正文在固定区域内滚动"
           right=${html`<${Switch} checked=${cfg.spread} onChange=${v => set({ spread: v })}/>`}/>
-        <${ListItem} title="点两侧翻页" multiline
-          subtitle="点屏幕左侧三分之一向前，右侧三分之一向后，中间切换是否铺满屏幕"
-          right=${html`<${Switch} checked=${cfg.tapTurn} onChange=${v => set({ tapTurn: v })}/>`}/>
+        ${cfg.layout !== 'cards' ? html`
+          <${ListItem} title="点两侧翻页" multiline
+            subtitle="点屏幕左侧三分之一向前，右侧三分之一向后，中间切换是否铺满屏幕"
+            right=${html`<${Switch} checked=${cfg.tapTurn} onChange=${v => set({ tapTurn: v })}/>`}/>` : null}
       <//>
 
       <${List} title="署名" inset=${false}>
@@ -98,12 +106,13 @@ export function StageSettings({ sceneId }) {
           right=${html`<${Switch} checked=${cfg.serif} onChange=${v => set({ serif: v })}/>`}/>
       <//>
 
+      ${cfg.layout === 'cards' ? null : html`
       <${List} title="翻页方式" inset=${false}>
         ${reader.EFFECTS.map(e => html`
           <${ListItem} key=${e.id} title=${e.label} subtitle=${e.desc} multiline
             right=${cfg.effect === e.id ? html`<${Icon} name="check" size=${16}/>` : null}
             onClick=${() => set({ effect: e.id })}/>`)}
-      <//>
+      <//>`}
 
       <div class="pad-x pad-t">
         <${Field} label="一张多少字"

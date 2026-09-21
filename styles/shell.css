@@ -93,6 +93,11 @@
 
 /* 整屏接管的页面自己声明状态栏该用哪种字色（ui/page.js 的 statusBarStyle）。
    线下、锁屏这些页面的底色和 app 主题未必一致，不声明的话浅底上会是浅字。 */
+/* 线下整屏接管时，外壳那条状态栏底下也要是线下的底色，否则深色主题上方
+   会留一条白边（见 ARCHITECTURE 4.107）。底色由 system/stage.js 写上来。 */
+:root[data-stage="on"] .root,
+:root[data-stage="on"] .page { background: var(--sg-chrome, var(--bg)); }
+
 :root[data-statusbar="light"] .statusbar { color: var(--on-scrim); }
 :root[data-statusbar="light"] .sb-level { color: var(--on-scrim); opacity: .72; }
 :root[data-statusbar="dark"] .statusbar { color: var(--on-paper); }
