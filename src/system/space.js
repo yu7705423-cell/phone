@@ -281,10 +281,6 @@ export function sendDraft(id) {
 
 // 会话删了，空间里自己存的那两样也要跟着走 —— 别的都是消息，
 // 会话一删本来就没了。三个删会话的入口各调一次，见调用方。
-export function dropSpace(chatId) {
-  spaceItems.byIndex(chatId).forEach(x => spaceItems.remove(x.id));
-}
-
 // ---- 给上下文用的摘要 ----
 //
 // 只给数字和标题，不给正文。信的正文本来就是一条消息，历史里有；

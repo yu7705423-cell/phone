@@ -126,8 +126,9 @@ export function MsgMenu({ msg, char, onClose, onRegenerate, onQuote, onMultiSele
   // 所以从相册里删掉它时也不会动到消息上那一张（见 album.removePhoto）
   const keep = () => {
     try {
+      // 表情那一条上挂的是表情 id，不是图片 id；图在表情行里
       phone.album.saveImage({
-        imageId: fresh.imageId || fresh.stickerId,
+        imageId: fresh.imageId || phone.db.stickers.get(fresh.stickerId)?.imageId,
         from: {
           chatId: fresh.chatId, charId: fresh.authorId,
           name: fresh.role === 'user' ? '我' : (char?.name || ''),

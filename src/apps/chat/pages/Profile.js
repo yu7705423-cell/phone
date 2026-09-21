@@ -67,11 +67,8 @@ export function Profile({ subjectId, embedded }) {
       title: '删除角色卡', danger: true,
       message: `「${subject.name}」的会话、记忆与动态将一并删除。`,
     })) return;
-    db.chats.all().filter(c => (c.characterIds || []).includes(subjectId)).forEach(c => {
-      db.messages.removeWhere(m => m.chatId === c.id);
-      phone.space.dropSpace(c.id);
-      db.chats.remove(c.id);
-    });
+    db.chats.all().filter(c => (c.characterIds || []).includes(subjectId))
+      .forEach(c => phone.purge.dropChat(c.id));
     db.memories.removeWhere(m => m.charId === subjectId);
     db.moments.removeWhere(m => m.authorId === subjectId);
     // 它的每一天和吃饭记录都按 charId 建了索引，角色没了这些就成了孤儿

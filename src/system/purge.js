@@ -1,5 +1,6 @@
 import { chats, characters, memories, messages, messagesOf, moments, personas, stickers,
-         settings, layout, images, files, videos, songs, ebooks, phones, photos } from './db/index.js';
+         settings, layout, images, files, videos, songs, ebooks, phones, photos,
+         spaceItems, scenes, beats, readnotes, trips } from './db/index.js';
 import { allImageIds } from './looks.js';
 
 // 把一个角色身上的东西清干净。
@@ -55,6 +56,34 @@ export function releaseImages(ids) {
   let n = 0;
   list.forEach(id => { if (!used.has(id)) { images.remove(id); n += 1; } });
   return n;
+}
+
+/**
+ * 删掉一段会话，连同挂在它身上的一切：消息（及其语音、没人共用的图）、
+ * 情侣空间里自己存的那两样、线下的场次与正文、读书时的段评、出行。
+ * 记忆不动 —— 它按角色存，不按会话。
+ *
+ * 从前列表页和资料页各删各的，都只删消息和空间，线下、出行、段评留成孤儿，
+ * 按会话建的索引指着一段已经不在的会话。删会话只能从这里走。
+ */
+export function dropChat(chatId) {
+  if (!chats.has(chatId)) return false;
+  const imgs = [];
+  for (const m of messagesOf(chatId)) {
+    if (m.imageId) imgs.push(m.imageId);
+    if (m.audioId) files.remove(m.audioId);
+  }
+  messages.removeWhere(m => m.chatId === chatId);
+  spaceItems.byIndex(chatId).slice().forEach(x => spaceItems.remove(x.id));
+  scenes.byIndex(chatId).slice().forEach(sc => {
+    beats.byIndex(sc.id).slice().forEach(b => beats.remove(b.id));
+    scenes.remove(sc.id);
+  });
+  readnotes.byIndex(chatId).slice().forEach(r => readnotes.remove(r.id));
+  trips.byIndex(chatId).slice().forEach(t => trips.remove(t.id));
+  chats.remove(chatId);
+  releaseImages(imgs);
+  return true;
 }
 
 /** 清空这个角色的记忆。各个身份下的都算，和上面同一个道理。 */
