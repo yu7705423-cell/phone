@@ -28,7 +28,6 @@ export const all = () => works.all().sort(byTime);
 const byTime = (a, b) => (b.updatedAt || b.createdAt || 0) - (a.updatedAt || a.createdAt || 0);
 
 export const ofChat = chatId => works.byIndex(chatId).slice().sort(byTime);
-export const ofKind = kind => all().filter(w => w.kind === kind);
 
 /**
  * 新建一部作品。

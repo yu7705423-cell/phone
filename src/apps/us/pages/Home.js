@@ -23,18 +23,27 @@ function Row({ w }) {
       onClick=${() => nav.push(`/work/${w.id}`)}/>`;
 }
 
-export function Home() {
+/**
+ * 首页。`chatId` 有值时只看这一段关系下的作品 —— 从会话菜单进来的那条路。
+ * 那时它是栈上的第二层，所以要给一个返回。
+ */
+export function Home({ chatId = '' }) {
   useStore(db.works.store);
   useStore(db.chapters.store);
   useStore(db.beats.store);
   useStore(db.chats.store);
   useStore(db.characters.store);
   const [open, setOpen] = useState(false);
-  const [v, setV] = useState(blank());
+  const [v, setV] = useState({ ...blank(), chatId });
   const set = patch => setV(x => ({ ...x, ...patch }));
 
-  const sagas = work.ofKind(work.SAGA);
-  const extras = work.ofKind(work.EXTRA);
+  const scope = chatId ? work.ofChat(chatId) : work.all();
+  const sagas = scope.filter(w => w.kind === work.SAGA);
+  const extras = scope.filter(w => w.kind === work.EXTRA);
+  const who = chatId
+    ? (db.chats.get(chatId)?.characterIds || []).map(id => db.characters.get(id)?.name)
+      .filter(Boolean).join('、')
+    : '';
 
   const start = () => {
     if (!v.chatId) { toast('请先选择和谁'); return; }
@@ -48,20 +57,23 @@ export function Home() {
     // 番外只有一则，建完直接开写；长篇先进目录，第一章由用户自己起
     const first = v.kind === work.EXTRA ? work.addChapter(row.id) : null;
     setOpen(false);
-    setV(blank());
+    setV({ ...blank(), chatId });
     nav.push(first ? `/read/${first.id}` : `/work/${row.id}`);
   };
 
   const empty = !sagas.length && !extras.length;
 
   return html`
-    <${Page} title="我们"
+    <${Page} title=${chatId ? (who || '我们') : '我们'}
+      onBack=${chatId ? nav.pop : null}
       right=${html`<${IconButton} name="plus" onClick=${() => setOpen(true)} label="新建"/>`}>
 
       ${empty ? html`
         <${EmptyState} icon="book" title="还没有作品"
-          desc="长篇有一条主线，一章一章往下写，可以换一套身份重新开始。
-            番外是一则小剧场，沿用现在的身份与记忆。两种都以成段的文字推进。"
+          desc=${chatId
+    ? '这段关系下还没有作品。长篇有一条主线，一章一章往下写；番外是一则小剧场。'
+    : '长篇有一条主线，一章一章往下写，可以换一套身份重新开始。'
+      + '番外是一则小剧场，沿用现在的身份与记忆。两种都以成段的文字推进。'}
           action=${html`<${Button} onClick=${() => setOpen(true)}>新建一部<//>`}/>` : null}
 
       ${sagas.length ? html`
@@ -82,7 +94,7 @@ export function Home() {
           <${KindPick} value=${v.kind} onChange=${x => set({ kind: x })}/>
           <${WorkFields} v=${v} set=${set} kind=${v.kind}/>
         </div>
-        <${ChatPick} value=${v.chatId} onChange=${x => set({ chatId: x })}/>
+        ${chatId ? null : html`<${ChatPick} value=${v.chatId} onChange=${x => set({ chatId: x })}/>`}
         <${WorkSwitches} v=${v} set=${set} kind=${v.kind}/>
       <//>` : null}`;
 }
