@@ -553,8 +553,8 @@ input[type="range"] {
   border: 1px solid var(--border-2); border-radius: var(--r-full);
   padding: 1px var(--sp-2);
 }
-.btn-row { display: flex; gap: var(--sp-2); }
-.btn-row .btn { flex: 1; }
+.btn-row { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+.btn-row .btn { flex: 1; min-width: 0; }
 
 .picker-state {
   display: flex; align-items: center; justify-content: center; gap: var(--sp-2);
