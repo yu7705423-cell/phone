@@ -78,6 +78,20 @@ export const EXTRA_CALLS = [
     when: s => `角色的回复命中禁写词时，最多再生成 ${Math.max(0, Math.round(Number(s.banReroll) || 0))} 次`,
   },
   {
+    id: 'sceneSummary',
+    label: '线下一场收尾时生成摘要',
+    setting: 'sceneSummary', off: false,
+    on: s => s.sceneSummary === true,
+    when: '线下点「收场」时多跑一次（走副用或记忆接口）',
+  },
+  {
+    id: 'sceneCompress',
+    label: '线下把窗口外的段落压成摘要',
+    setting: 'sceneCompress', off: false,
+    on: s => s.sceneCompress === true,
+    when: '线下有段落被窗口挡在外面时，每隔一段压一次（走副用或记忆接口）',
+  },
+  {
     id: 'reviewAuto',
     label: '看完自动写一篇评',
     setting: 'reviewAuto', off: false,

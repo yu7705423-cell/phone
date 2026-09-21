@@ -92,6 +92,20 @@ export function LimitsPage() {
               + '未发生变动时不调用。关闭后仍可手动生成。'}
           right=${html`<${Switch} checked=${s.bondAuto === true}
             onChange=${v => set({ bondAuto: v })}/>`}/>
+        <${ListItem} title="线下一场收尾时生成摘要" multiline
+          subtitle=${s.sceneSummary !== true
+            ? '已关闭。线下的「收场」不会生成摘要，线上也读不到这一场发生了什么。'
+            : '在线下点「收场」时，额外调用一次接口，把整场压成一段摘要，写入记忆并供线上读取。'
+              + '每点一次调用一次，走副用或记忆接口。'}
+          right=${html`<${Switch} checked=${s.sceneSummary === true}
+            onChange=${v => set({ sceneSummary: v })}/>`}/>
+        <${ListItem} title="线下把窗口外的段落压成摘要" multiline
+          subtitle=${s.sceneCompress !== true
+            ? '已关闭。超出「线下历史窗口」的段落直接不送，其内容不再进入上下文。'
+            : '有段落被窗口挡在外面时，额外调用一次接口把它们压成摘要再挡掉，避免前情断裂。'
+              + '「线下历史窗口」填 0 时不会触发。走副用或记忆接口。'}
+          right=${html`<${Switch} checked=${s.sceneCompress === true}
+            onChange=${v => set({ sceneCompress: v })}/>`}/>
         <${ListItem} title="缓存设定区那一段" multiline
           subtitle=${s.promptCache === false
             ? '已关闭。每一轮都按完整价格计算输入部分。'
@@ -140,6 +154,44 @@ export function LimitsPage() {
             填 0 表示不限，改用接口本身的上限，回复可能变成大段独白。">
           <${NumberInput} value=${s.callMaxTokens} unit="token" placeholder="不限"
             onChange=${v => set({ callMaxTokens: v })}/>
+        <//>
+
+        <${Field} label="线下每段回复上限"
+          desc="线下每段正文的 token 上限。
+            填 0 表示不发送这一项，改用接口自身的上限，可以写出很长的一段。
+            填写数值时请对照所用模型的输出上限：超出上限时接口会直接报错。">
+          <${NumberInput} value=${s.sceneMaxTokens} unit="token" placeholder="不限"
+            onChange=${v => set({ sceneMaxTokens: v })}/>
+        <//>
+
+        <${Field} label="线下注入预算"
+          desc="线下每次请求中，世界书、记忆等注入内容的 token 预算（粗略估算）。
+            线下一段正文动辄上千字，与线上共用一个数值必有一边不合适，因此分开设置。
+            填 0 表示不限。">
+          <${NumberInput} value=${s.sceneBudget} unit="token" placeholder="不限"
+            onChange=${v => set({ sceneBudget: v })}/>
+        <//>
+
+        <${Field} label="线下历史窗口"
+          desc="每次请求向前送多少段线下正文。填 0 表示全部送出。
+            设置了数值之后，窗口之外的段落默认直接不送；
+            需要保留其内容时，开启下方的「线下把窗口外的段落压成摘要」。
+            钉住的段落不受此项限制。">
+          <${NumberInput} value=${s.sceneWindow} unit="段" placeholder="全部"
+            onChange=${v => set({ sceneWindow: v })}/>
+        <//>
+
+        <${Field} label="线下扫描窗口"
+          desc="世界书与 B 级记忆按最近多少段线下正文扫描关键词。填 0 表示扫描整场。">
+          <${NumberInput} value=${s.sceneScan} unit="段" placeholder="整场"
+            onChange=${v => set({ sceneScan: v })}/>
+        <//>
+
+        <${Field} label="线下目标篇幅"
+          desc="写入提示词的目标字数。填 0 表示不写，篇幅由角色卡与世界书决定。
+            这是目标而非上限，实际长度仍由模型决定。">
+          <${NumberInput} value=${s.sceneWords} unit="字" placeholder="不写"
+            onChange=${v => set({ sceneWords: v })}/>
         <//>
 
         <${Field} label="视频通话画面间隔"

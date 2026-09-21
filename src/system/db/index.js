@@ -56,8 +56,12 @@ export const phoneChats = makeCollection('phoneChats', 'pc', { indexBy: 'charId'
 // 一次出行。挂在一段会话上 ——「一起去」这件事长在关系上，和情侣空间同一个理由。
 // 攻略条目与票内嵌在行里：那两样总是跟着一次出行一起读、一起删
 export const trips      = makeCollection('trips', 'tr', { indexBy: 'chatId' });
+// 线下。一场戏挂在一段会话上；正文另开一域，不内嵌 —— 流式时一直在追加
+// 最后一段，内嵌意味着每个 delta 都要 put 一个几十 KB 的行。见 4.107
+export const scenes     = makeCollection('scenes', 'sc', { indexBy: 'chatId' });
+export const beats      = makeCollection('beats', 'bt', { indexBy: 'sceneId' });
 
-const COLLECTIONS = { characters, lorebooks, memories, chats, messages, moments, stickers, looks, personas, songs, playlists, videos, spaceItems, events, days, todos, notes, recipes, meals, books, entries, ebooks, reviews, readnotes, health, cycles, meds, albums, photos, shots, phones, phoneChats, trips };
+const COLLECTIONS = { characters, lorebooks, memories, chats, messages, moments, stickers, looks, personas, songs, playlists, videos, spaceItems, events, days, todos, notes, recipes, meals, books, entries, ebooks, reviews, readnotes, health, cycles, meds, albums, photos, shots, phones, phoneChats, trips, scenes, beats };
 
 // ---- kv: settings / persona / layout ----
 function makeKV(key, fallback, { deep = false } = {}) {
@@ -151,7 +155,7 @@ export const db = {
   characters, lorebooks, memories, chats, messages, moments, stickers, looks, personas,
   songs, playlists, videos, spaceItems, events, days, todos, notes, recipes, meals,
   books, entries, ebooks, reviews, readnotes, health, cycles, meds,
-  albums, photos, shots, phones, phoneChats, trips,
+  albums, photos, shots, phones, phoneChats, trips, scenes, beats,
   images, files, settings, persona, layout,
   messagesOf, lastMessageOf, ready,
 };

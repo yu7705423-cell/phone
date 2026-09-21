@@ -86,12 +86,15 @@ import * as tripApi from '../system/trip.js';
 import * as memcheckApi from '../system/memcheck.js';
 import * as banApi from '../system/ban.js';
 import * as todoApi from '../system/todo.js';
+import * as sceneApi from '../system/scene.js';
+import * as stageApi from '../system/stage.js';
 import * as alarmApi from '../system/alarm.js';
 import * as whenApi from '../system/when.js';
 import * as noteApi from '../system/note.js';
 import * as grabApi from '../system/grab.js';
 import * as phoneTask from '../system/ai/tasks/phone.js';
 import * as tripTask from '../system/ai/tasks/trip.js';
+import * as sceneTask from '../system/ai/tasks/scene.js';
 import * as cardshotApi from '../system/cardshot.js';
 import * as reviewApi from '../system/review.js';
 import * as booksearchApi from '../system/booksearch.js';
@@ -164,6 +167,9 @@ export const phone = {
     watchOutline,
     isReplying: engine.isReplying,
     cancelReply: engine.cancelReply,
+    streamScene: engine.streamScene,
+    isWriting: engine.isWriting,
+    cancelScene: engine.cancelScene,
     runJSONTask: engine.runJSONTask,
     runTextTask: engine.runTextTask,
     template: engine.template,
@@ -198,6 +204,7 @@ export const phone = {
     card: cardApi,
     phone: phoneTask,
     trip: tripTask,
+    scene: sceneTask,
     eventBatch,
     dayTask,
     inner: innerTask,
@@ -264,6 +271,8 @@ export const phone = {
   memcheck: memcheckApi,
   ban: banApi,
   todo: todoApi,
+  scene: sceneApi,
+  stage: stageApi,
   alarm: alarmApi,
   when: whenApi,
   note: noteApi,

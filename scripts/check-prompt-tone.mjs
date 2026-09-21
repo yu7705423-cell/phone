@@ -63,6 +63,9 @@ const RULES = [
 // 超了就说明里面混进了不是规则的东西，回去看看那几句该不该在。
 const SKELETON_BUDGET = 900;
 const RULES_BUDGET = 200;      // 消息规则就一条：分 3 到 5 条发
+// 线下那条也吃同一个上限。线下最容易写进去的是「描写要细腻」「多用感官细节」，
+// 一写，所有角色的散文就变成同一个人写的。见 ARCHITECTURE 4.107
+const TIGHT = new Set(['skeleton.rules', 'skeleton.scene-rules']);
 
 // 模板正文：'skeleton.xxx': `...`
 function templates(src) {
@@ -150,7 +153,7 @@ export function check() {
   const tplSrc = read('src/system/ai/templates.js');
   for (const t of templates(tplSrc)) {
     if (!t.id.startsWith('skeleton.')) continue;
-    const cap = t.id === 'skeleton.rules' ? RULES_BUDGET : SKELETON_BUDGET;
+    const cap = TIGHT.has(t.id) ? RULES_BUDGET : SKELETON_BUDGET;
     if (t.text.length > cap) {
       problems.push(`src/system/ai/templates.js:${t.line}  ${t.id} 有 ${t.text.length} 字，`
         + `超过 ${cap}。骨架只写规则，不写倾向（CLAUDE.md 第 16 条）`);

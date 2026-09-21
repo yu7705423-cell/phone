@@ -45,6 +45,60 @@ conform to them.`,
 `[消息规则]
 Write each reply as 3 to 5 separate messages, one per line.`,
 
+  // ---- 线下 ----
+  //
+  // 线上是一条条短气泡，线下是大段散文，所以另起一套骨架，不在
+  // skeleton.rules 上打补丁。见 ARCHITECTURE 4.107
+  //
+  // **这里一个字都不许写文风。**「描写要细腻」「多用感官细节」「注意节奏」
+  // 全是判断，一写，所有角色的散文就变成同一个人写的，而那个人是写规则的人。
+  // 文风归角色卡、世界书和用户模板（第 16 条）。要下判断的地方是场外指示，
+  // 那是用户自己下的。
+  //
+  // scene-rules 和 skeleton.rules 同吃 200 字上限。
+
+  'skeleton.scene-opening':
+`You are {{charName}}. You and {{userName}} are in the same place, face to
+face. What happens is written as prose.`,
+
+  'skeleton.scene-rules':
+`[正文规则]
+Write one passage per turn.
+Write {{charName}} and the surroundings only. Never write {{userName}}'s
+speech, actions or thoughts.`,
+
+  // 篇幅是用户设的数，这里只转述。填 0 就整段不出现（第 13 条）。
+  'skeleton.scene-length':
+`[篇幅]
+This passage runs to about {{words}} characters.`,
+
+  'skeleton.scene-setup':
+`[这一场]
+{{lines}}
+These are facts about where you are now.`,
+
+  // 判断由用户自己下，这是他下判断的地方。
+  'skeleton.scene-director':
+`[场外指示]
+{{lines}}
+These lines are instructions from {{userName}} about the scene. They are not
+spoken in it, and no one in the scene is aware of them. Follow them.`,
+
+  // 贴着输出放的一句。设定区那一段离输出隔着整场戏，长场次里会被忘掉 ——
+  // 和译文提醒同一个理由。
+  'skeleton.scene-tail':
+`[提醒]
+One passage. Do not write {{userName}}.`,
+
+  'task.scene-summary':
+`Summarize the passages below into a record of what happened.
+
+Cover, in order: where it took place, what was done and said, and where
+things stood at the end. Name each person the way the passages name them.
+
+Write plainly. Do not add anything the passages do not state, and do not
+leave out what they do state. No commentary on the writing itself.`,
+
   // 用户自己列的禁写词（system/ban.js）。**内容全是用户填的**，这里只提供
   // 装它的那句话。列表为空时整段不出现。
   'skeleton.ban':

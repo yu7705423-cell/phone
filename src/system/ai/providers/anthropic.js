@@ -45,10 +45,15 @@ function toUserTurns(messages) {
   return out;
 }
 
+// Anthropic 要求必填。各代模型的输出上限不同，取一个大多数都收的值
+const DEFAULT_MAX = 32000;
+
 function buildBody(cfg, { system, messages, maxTokens, stream }) {
   const body = {
     model: cfg.model,
-    max_tokens: maxTokens,
+    // Anthropic 这边 max_tokens 是必填的，省不掉，所以 0 退回默认值。
+    // OpenAI 兼容那边 0 是「不送这个字段」，两边行为不同是接口决定的
+    max_tokens: maxTokens > 0 ? maxTokens : DEFAULT_MAX,
     // 带图的消息换成内容块数组。Anthropic 收的是 base64 加 media_type，
     // 和 OpenAI 那边的 dataURL 形状不一样，所以在各自的 provider 里转。
     messages: toUserTurns(messages).map(m => ({

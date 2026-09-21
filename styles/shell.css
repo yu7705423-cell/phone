@@ -90,6 +90,13 @@
 :root[data-wallpaper="on"] .page-dots .dot { background: rgba(255, 255, 255, .45); }
 :root[data-wallpaper="on"] .page-dots .dot.is-active { background: var(--on-scrim); }
 :root[data-wallpaper="on"] .statusbar { color: var(--on-scrim); }
+
+/* 整屏接管的页面自己声明状态栏该用哪种字色（ui/page.js 的 statusBarStyle）。
+   线下、锁屏这些页面的底色和 app 主题未必一致，不声明的话浅底上会是浅字。 */
+:root[data-statusbar="light"] .statusbar { color: var(--on-scrim); }
+:root[data-statusbar="light"] .sb-level { color: var(--on-scrim); opacity: .72; }
+:root[data-statusbar="dark"] .statusbar { color: var(--on-paper); }
+:root[data-statusbar="dark"] .sb-level { color: var(--on-paper); opacity: .68; }
 :root[data-wallpaper="on"] .hi-bar { background: var(--on-scrim); opacity: .7; }
 :root[data-icon-label="off"] .app-name,
 :root[data-icon-label="off"] .dock-name { display: none; }

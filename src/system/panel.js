@@ -23,6 +23,7 @@ export const ITEMS = [
   { id: 'request', icon: 'users', label: '申请' },
   { id: 'share', icon: 'compass', label: '共享位置' },
   { id: 'dice', icon: 'grid', label: '骰子' },
+  { id: 'offline', icon: 'book', label: '线下' },
 ];
 
 const ALL = ITEMS.map(x => x.id);

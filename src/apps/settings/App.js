@@ -149,6 +149,10 @@ function Home() {
           subtitle="深色模式、壁纸、图标颜色与阴影、自定义 CSS" arrow multiline
           left=${html`<${Icon} name="grid" size=${18}/>`}
           onClick=${() => nav.push('/appearance')}/>
+        <${ListItem} title="线下外观" arrow multiline
+          subtitle="线下正文的主题、字体、字号、栏宽、壁纸与自定义样式。与全局主题、阅读器各自独立"
+          left=${html`<${Icon} name="book" size=${18}/>`}
+          onClick=${() => phone.intent.open('chat', { route: '/stage/settings', back: true })}/>
       <//>
 
       <${List} title="文字">

@@ -1,0 +1,129 @@
+import { settings, images } from './db/index.js';
+
+// 线下的外观。**和全局主题、和阅读器都分开存**：线下想要的纸色字号，
+// 和读书时想要的不是一回事，改这边不该动那两边。理由同 reader.js 开头那段。
+//
+// 三套内置主题各是一整组值，选一个就一次性填好，之后随便改哪一项。
+// 刻意避开「暖奶油底 + 衬线 + 赤陶色」那一套 —— 那不是杂志感，
+// 那是现在满大街的生成感配色。
+
+export const THEMES = [
+  { id: 'body',  label: '正文', serif: true,
+    bg: '#FCFBF8', ink: '#1C1F24', dim: '#6E737B', line: '#E2E0D9', mark: '#27405E' },
+  { id: 'night', label: '夜刊', serif: true,
+    bg: '#15171B', ink: '#E6E3DB', dim: '#8B9098', line: '#2A2E35', mark: '#C2A15B' },
+  { id: 'plain', label: '素',   serif: false,
+    bg: '#FFFFFF', ink: '#101214', dim: '#70757C', line: '#EBEDEF', mark: '#1F6F5C' },
+  { id: 'custom', label: '自定义' },
+];
+
+export const themeOf = id => THEMES.find(t => t.id === id) || THEMES[0];
+
+// 字体全走系统栈，不联网 —— 项目无构建，也要能离线用。想换字体走
+// fonts.js 上传的那些，或者填一个 fontUrl。
+export const SERIF = '"Songti SC", "STSong", "Noto Serif CJK SC", "Source Han Serif SC", serif';
+export const SANS  = '"PingFang SC", "Heiti SC", system-ui, -apple-system, sans-serif';
+
+export const DEFAULTS = {
+  theme: 'body',
+  spread: false,        // 正文铺满整屏，还是在固定区域内滚动
+  pageChars: 700,       // 一段超过这么多字就续张。0 = 不切，这一张里滚
+  effect: 'slide',      // 翻页效果，取值同 reader.EFFECTS
+  tapTurn: true,
+  stamp: true,          // 署名用邮戳，关了退回一行纯名字
+  marks: true,          // 对白与动作分样式（只是展示层）
+  serif: true,
+  bgColor: '', ink: '', dim: '', line: '', mark: '',   // theme 为 custom 时用
+  bgImage: null,
+  fontSize: 17,
+  lineHeight: 1.9,
+  measure: 34,          // 一行多少个汉字。西文那条 65 字符的老规矩
+  paraGap: 1,           // 段距，em
+  fontUrl: '', fontFamily: '',
+  css: '',              // 自定义 CSS。只在线下页面挂载时注入，离开就移除
+};
+
+export const get = () => ({ ...DEFAULTS, ...(settings.get().stage || {}) });
+
+export function set(patch) {
+  settings.set({ stage: { ...get(), ...patch } });
+}
+
+/** 换一套内置主题：把那一组颜色一次性填进去，之后改哪一项都还是改得动。 */
+export function useTheme(id) {
+  const t = themeOf(id);
+  if (id === 'custom') { set({ theme: 'custom' }); return; }
+  set({ theme: id, bgColor: t.bg, ink: t.ink, dim: t.dim, line: t.line, mark: t.mark, serif: t.serif });
+}
+
+export async function setBgImage(file) {
+  const id = await images.put(file, 1600);
+  const old = get().bgImage;
+  set({ bgImage: id });
+  if (old) images.remove(old);
+  return id;
+}
+
+export function clearBgImage() {
+  const old = get().bgImage;
+  set({ bgImage: null });
+  if (old) images.remove(old);
+}
+
+export const reset = () => settings.set({ stage: { ...DEFAULTS } });
+
+/** 某一场单独换过外观的话，用它那一份盖在全局上。 */
+export const forScene = scene => ({ ...get(), ...(scene?.stage || {}) });
+
+// 标记色兑淡一点，给邮戳当底。CSS 那边 color-mix 不是每台机器都有，
+// 而且用户填进来的可能是任何写法 —— 认不出来就退回透明，不猜。
+function soften(hex, alpha) {
+  const m = String(hex || '').trim().match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
+  if (!m) return 'transparent';
+  const h = m[1].length === 3 ? m[1].split('').map(c => c + c).join('') : m[1];
+  const n = parseInt(h, 16);
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
+}
+
+/** 线下那一层要用的 CSS 变量。颜色是用户自己挑的，不是设计令牌。 */
+export function varsOf(cfg, bgUrl = '') {
+  const t = themeOf(cfg.theme);
+  const v = {
+    '--sg-bg': cfg.bgColor || t.bg || '#FCFBF8',
+    '--sg-ink': cfg.ink || t.ink || '#1C1F24',
+    '--sg-dim': cfg.dim || t.dim || '#6E737B',
+    '--sg-line': cfg.line || t.line || '#E2E0D9',
+    '--sg-mark': cfg.mark || t.mark || '#27405E',
+    '--sg-mark-soft': soften(cfg.mark || t.mark || '#27405E', 0.08),
+    '--sg-fs': `${cfg.fontSize}px`,
+    '--sg-lh': String(cfg.lineHeight),
+    '--sg-gap': `${cfg.paraGap}em`,
+    '--sg-measure': `${cfg.measure}em`,
+    '--sg-font': cfg.fontFamily ? `"${cfg.fontFamily}", ${cfg.serif ? SERIF : SANS}` : (cfg.serif ? SERIF : SANS),
+  };
+  if (bgUrl) v['--sg-bg-image'] = `url(${bgUrl})`;
+  return Object.entries(v).map(([k, val]) => `${k}:${val}`).join(';');
+}
+
+// ---- 自定义 CSS ----
+//
+// 只在线下页面挂着的时候插进去，离开就摘掉 —— 全局那份 customCSS 是一直在的，
+// 这一份不该漏到别的 app 上去。
+
+const NODE_ID = 'stage-css';
+
+export function mountCSS(css) {
+  let el = document.getElementById(NODE_ID);
+  const text = String(css || '');
+  if (!text.trim()) { unmountCSS(); return; }
+  if (!el) {
+    el = document.createElement('style');
+    el.id = NODE_ID;
+    document.head.appendChild(el);
+  }
+  if (el.textContent !== text) el.textContent = text;
+}
+
+export function unmountCSS() {
+  document.getElementById(NODE_ID)?.remove();
+}

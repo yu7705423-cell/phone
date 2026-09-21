@@ -2020,3 +2020,196 @@ button.search-bar { width: 100%; border: none; }
 .bubble-trip { min-width: 190px; }
 /* 票那一行右边的两个动作。按钮与删除挨着，不各占一行 */
 .tk-acts { display: flex; align-items: center; gap: var(--sp-2); }
+
+/* ---- 线下 ----
+   见 ARCHITECTURE 4.107。颜色、字号、行距全走 --sg-* 变量，由
+   system/stage.js 按用户设置生成，只作用在 .sg 里面，不碰 app 的主题。
+   和阅读器的 --rd-* 是两套：线下想要的纸色字号，和读书时想要的不是一回事。 */
+.sg {
+  --sg-bg: var(--surface);
+  --sg-ink: var(--text);
+  --sg-dim: var(--text-2);
+  --sg-line: var(--border);
+  --sg-mark: var(--accent);
+  --sg-mark-soft: transparent;
+  --sg-fs: var(--fs-17);
+  --sg-lh: 1.9;
+  --sg-gap: 1em;
+  --sg-measure: 34em;
+  --sg-font: var(--font-serif);
+  --sg-stamp: 64px;
+
+  /* .page-body 是块级容器，flex:1 在它里面撑不开，要 height */
+  position: relative;
+  height: 100%;
+  display: flex; flex-direction: column;
+  background: var(--sg-bg);
+  background-image: var(--sg-bg-image, none);
+  background-size: cover; background-position: center;
+  color: var(--sg-ink);
+}
+
+/* 刊头。整块顶栏归线下自己画 —— 用 app 的 navbar 会在深色主题上方
+   留一条白边，那就不是「整个页面进入线下」了。铺满屏幕时整条不在 */
+.sg-head {
+  flex: none;
+  display: flex; align-items: center; gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  padding-top: calc(var(--sp-2) + env(safe-area-inset-top));
+  border-bottom: 1px solid var(--sg-line);
+}
+.sg-head-text { flex: 1; min-width: 0; }
+.sg-icon {
+  flex: none; display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; border-radius: var(--r-md);
+  color: var(--sg-ink); background: none; border: 0;
+}
+.sg-eyebrow {
+  font-size: var(--fs-11); letter-spacing: .14em;
+  color: var(--sg-dim); text-transform: uppercase;
+}
+.sg-title {
+  font-family: var(--sg-font); font-size: var(--fs-15);
+  color: var(--sg-ink); text-wrap: balance;
+}
+
+/* 点区盖住整块正文，左右各三分之一翻页 */
+.sg-tap { flex: 1; display: flex; min-height: 0; }
+.sg-body {
+  flex: 1; min-height: 0; overflow-y: auto;
+  padding: var(--sp-6) var(--sp-4);
+  -webkit-overflow-scrolling: touch;
+}
+/* 铺满屏幕时没有顶栏，正文自己让出上方的安全区。
+   下方不用管：.page-body 是最后一个孩子，安全区由它让（见 ui.css） */
+.sg.is-spread .sg-body {
+  padding-top: calc(var(--sp-8) + env(safe-area-inset-top));
+  padding-bottom: var(--sp-8);
+}
+
+/* 正文栏。宽度归它，排版归 .sg-text —— 邮戳要和正文同一条栏宽对齐 */
+.sg-col { max-width: var(--sg-measure); margin: 0 auto; }
+/* 邮戳关掉之后那一行署名，和正文之间要留一口气 */
+.sg-col > .sg-eyebrow { margin-bottom: var(--sp-3); }
+
+/* 正文。一行三十来个汉字，段距分段，首行不缩进 ——
+   屏幕上缩进远不如段距清楚 */
+.sg-text {
+  font-family: var(--sg-font);
+  font-size: var(--sg-fs);
+  line-height: var(--sg-lh);
+  color: var(--sg-ink);
+}
+.sg-text p { margin: 0 0 var(--sg-gap); }
+.sg-text p:last-child { margin-bottom: 0; }
+.sg-q { color: var(--sg-ink); }
+.sg-act { color: var(--sg-dim); font-style: italic; }
+
+/* 生成中那一段直接往这里塞 textContent，绕开 diff ——
+   几万字走 Preact 每秒几十次 diff 一个巨大文本节点，界面会僵住 */
+.sg-live { white-space: pre-wrap; }
+
+/* 邮戳。三行横排，空的那行不占位，圈跟着收小。
+   歪多少度由 scene.angleOf 按 id 算死，不能用随机数 */
+.sg-stamp {
+  flex: none;
+  width: var(--sg-stamp); height: var(--sg-stamp);
+  border-radius: 50%;
+  border: 1.5px solid var(--sg-mark);
+  padding: 3px;
+  color: var(--sg-mark);
+  background: var(--sg-mark-soft);
+}
+.sg-stamp.is-mine { border-color: var(--sg-dim); color: var(--sg-dim); background: none; }
+.sg-stamp-ring {
+  width: 100%; height: 100%;
+  border-radius: 50%;
+  border: .5px solid currentColor;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 1px; overflow: hidden;
+}
+.sg-stamp-place, .sg-stamp-name {
+  font-size: 8px; letter-spacing: .06em; line-height: 1.1;
+  max-width: 88%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.sg-stamp-time {
+  font-size: 13px; line-height: 1.1;
+  font-variant-numeric: tabular-nums; letter-spacing: .02em;
+}
+/* 盖在正文右上角，文字绕着它走 —— 杂志里插图就是这么放的。
+   绝对定位会在有没有刊头两种情形下各错一次，浮动不会 */
+.sg-stamp-float {
+  float: right;
+  margin: 2px 0 var(--sp-3) var(--sp-3);
+  shape-outside: circle(50%);
+}
+
+/* 场外指示的标记。不占一张，只在刊头留一个点得开的记号 */
+.sg-note {
+  display: inline-flex; align-items: center; gap: var(--sp-1);
+  font-size: var(--fs-11); letter-spacing: .1em;
+  color: var(--sg-dim);
+  border: 1px solid var(--sg-line); border-radius: var(--r-pill);
+  padding: 2px var(--sp-2);
+  background: none;
+}
+
+/* 页码那一条。一根细线加一个数 */
+.sg-foot {
+  flex: none;
+  display: flex; align-items: center; gap: var(--sp-3);
+  padding: var(--sp-2) var(--sp-4) var(--sp-3);
+  color: var(--sg-dim); font-size: var(--fs-11);
+  font-variant-numeric: tabular-nums;
+}
+.sg-rule { flex: 1; height: 1px; background: var(--sg-line); }
+
+/* 底下那一条。平时收着，写的时候升起全屏编辑器 */
+.sg-bar {
+  flex: none;
+  display: flex; align-items: center; gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  border-top: 1px solid var(--sg-line);
+  background: var(--sg-bg);
+}
+.sg-write {
+  flex: 1; text-align: left;
+  font-family: var(--sg-font); font-size: var(--fs-14);
+  color: var(--sg-dim);
+  border: 1px solid var(--sg-line); border-radius: var(--r-md);
+  padding: var(--sp-2) var(--sp-3);
+  background: none;
+}
+.sg-act-btn {
+  flex: none; display: inline-flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px; border-radius: var(--r-md);
+  color: var(--sg-ink); background: none; border: 1px solid var(--sg-line);
+}
+.sg-act-btn:disabled { opacity: .4; }
+
+/* 铺满屏幕：刊头、页码、底栏都退掉，只剩正文 */
+.sg.is-spread .sg-head, .sg.is-spread .sg-foot, .sg.is-spread .sg-bar { display: none; }
+
+/* 翻页。旧的一页先出去，换页，新的一页再进来 —— 同一份正文做变换 */
+.sg-body.is-out { animation: sg-out 160ms var(--ease) both; }
+.sg-body.is-in  { animation: sg-in 200ms var(--ease) both; }
+@keyframes sg-out { to { opacity: 0; } }
+@keyframes sg-in { from { opacity: 0; } }
+.sg[data-effect="slide"] .sg-body.is-out { animation-name: sg-out-slide; }
+.sg[data-effect="slide"] .sg-body.is-in  { animation-name: sg-in-slide; }
+@keyframes sg-out-slide { to { opacity: 0; transform: translateX(-12%); } }
+@keyframes sg-in-slide { from { opacity: 0; transform: translateX(12%); } }
+.sg[data-effect="vertical"] .sg-body.is-out { animation-name: sg-out-up; }
+.sg[data-effect="vertical"] .sg-body.is-in  { animation-name: sg-in-up; }
+@keyframes sg-out-up { to { opacity: 0; transform: translateY(-8%); } }
+@keyframes sg-in-up { from { opacity: 0; transform: translateY(8%); } }
+.sg[data-effect="instant"] .sg-body.is-out,
+.sg[data-effect="instant"] .sg-body.is-in { animation: none; }
+@media (prefers-reduced-motion: reduce) {
+  .sg-body.is-out, .sg-body.is-in { animation: none; }
+}
+
+/* 场次列表。每一条是一篇稿子的目录行，不画卡片 */
+.sc-row { display: flex; flex-direction: column; gap: 2px; }
+.sc-meta { font-size: var(--fs-12); color: var(--text-2); letter-spacing: .04em; }

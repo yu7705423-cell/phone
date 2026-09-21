@@ -34,6 +34,8 @@
   /* 压在遮罩上的实心块。遮罩不跟主题走，所以这一对两套主题里是一样的 */
   --scrim-fill:    #FFFFFF;
   --on-scrim-fill: #000000;
+  /* 压在浅色底上的字。和 --on-scrim 一对，两边都不跟主题走 */
+  --on-paper:     #111318;
   --toast-bg:     rgba(0, 0, 0, .92);
   --toast-fg:     #FFFFFF;
   --toast-error:  rgba(0, 0, 0, .92);
@@ -158,6 +160,8 @@
   --on-scrim:     #FFFFFF;
   --scrim-fill:    #FFFFFF;
   --on-scrim-fill: #000000;
+  /* 压在浅色底上的字。和 --on-scrim 一对，两边都不跟主题走 */
+  --on-paper:     #111318;
   --toast-bg:     rgba(255, 255, 255, .95);
   --toast-fg:     #000000;
   --toast-error:  rgba(255, 255, 255, .95);
@@ -203,7 +207,10 @@
    只在阅读器里用。这里是全项目唯一允许出现色相的地方：
    整个 app 是黑白的，但读书时的纸色是内容的一部分，用户自己挑，
    和全局主题分开（见 system/reader.js 开头那段）。
-   自定义那一档不在这里，它由用户填的值直接写成内联变量。 */
+   自定义那一档不在这里，它由用户填的值直接写成内联变量。
+
+   线下（--sg-*）同理，而且整套都在 system/stage.js 里，一个值都不在这儿：
+   那几套主题本来就是「用户挑的一组颜色」的预设，不是设计令牌。 */
 :root {
   --rd-paper-bg:  #ffffff;  --rd-paper-ink:  #1a1a1a;
   --rd-sepia-bg:  #f4ecd8;  --rd-sepia-ink:  #4a3f35;

@@ -20,6 +20,9 @@ import { StickerManager } from './pages/StickerManager.js';
 import { ProactivePage } from './pages/ProactivePage.js';
 import { SearchPage } from './pages/SearchPage.js';
 import { ListenPage } from './pages/ListenPage.js';
+import { StageList, SceneEdit } from './pages/StageList.js';
+import { StageRead } from './pages/StageRead.js';
+import { StageSettings } from './pages/StageSettings.js';
 
 const { db, nav } = phone;
 
@@ -61,6 +64,16 @@ export default function ChatApp({ route }) {
 
   const lis = route?.match(/^\/listen\/(.+)$/);
   if (lis) return html`<${ListenPage} chatId=${lis[1]}/>`;
+
+  // 线下。/stage/<chatId> 是场次列表，/scene/<id> 是正文页
+  const stg = route?.match(/^\/stage\/settings(?:\/(.+))?$/);
+  if (stg) return html`<${StageSettings} sceneId=${stg[1] || ''}/>`;
+  const stl = route?.match(/^\/stage\/(.+)$/);
+  if (stl) return html`<${StageList} chatId=${stl[1]}/>`;
+  const sce = route?.match(/^\/scene\/([^/]+)\/edit$/);
+  if (sce) return html`<${SceneEdit} sceneId=${sce[1]}/>`;
+  const scr = route?.match(/^\/scene\/(.+)$/);
+  if (scr) return html`<${StageRead} sceneId=${scr[1]}/>`;
 
   const search = route?.match(/^\/search(?:\/(.+))?$/);
   if (search) return html`<${SearchPage} chatId=${search[1] || ''}/>`;

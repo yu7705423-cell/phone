@@ -191,7 +191,7 @@ const STAMP_BARE = /[[【]\s*([^\n\]】]{1,40}?)\s*[\]】]/g;
  * 摘完空掉的那一行整行丢掉，所以「整行就是一个时间戳」自然也包含在内，
  * 不必再写第二套规则。
  */
-function stripStamps(raw) {
+export function stripStamps(raw) {
   const stamps = [];
   const kept = [];
   const take = body => { if (body && !stamps.length) stamps.push(body); };

@@ -15,7 +15,9 @@ const ROUTES = {
   chat: ['/', '/moments', '/stickers', '/context', '/time', '/templates', '/caps',
     '/chat/:chat', '/translate/:chat', '/search', '/search/:chat', '/listen/:chat',
      '/profile/:char', '/edit/:char', '/proactive/:char', '/extras/:chat', '/pace/:chat',
-     '/bond/:chat'],
+     '/bond/:chat',
+    '/stage/:chat', '/stage/nope', '/stage/settings', '/stage/settings/:scene',
+    '/scene/:scene', '/scene/:scene/edit', '/scene/nope', '/scene/nope/edit'],
   contact: ['/', '/import', '/me', '/me/:persona', '/char/:char',
     '/edit/:char', '/profile/:char', '/net/:char', '/npc/:char'],
   memory: ['/', '/import', '/last', '/check', '/edit/:mem'],
@@ -204,8 +206,20 @@ const ids = await page.evaluate(async () => {
   const tripMod = await import('/src/system/trip.js');
   const trRow = tripMod.create({ chatId: chat.id, title: '京都', place: '京都' });
 
+  // 线下。要有正文才走得到分张、邮戳、场外指示那几条分支 ——
+  // 空场次只能证明路由打得开
+  const sceneMod = await import('/src/system/scene.js');
+  const scRow = sceneMod.create({ chatId: chat.id, title: '旧书店',
+    place: '旧书店', at: '2026-01-01 周三 14:30', note: '约好在这里见面' });
+  sceneMod.addBeat({ sceneId: scRow.id, role: 'char', authorId: a.id,
+    at: '14:32',
+    text: '门上的铃响了一声。\n「你来得比我想的早。」他没有抬头，手里还捏着一张书签。'
+      + '（他把那一页折了个角）' + '很长的一段'.repeat(90) });
+  sceneMod.addBeat({ sceneId: scRow.id, role: 'director', text: '让他接下来冷淡一点' });
+  sceneMod.addBeat({ sceneId: scRow.id, role: 'me', text: '我把伞收起来，靠在门边。' });
+
   return { char: a.id, chat: chat.id, mem: mem.id, persona: me.id, book: bk.id, ebook: ebk.id, video: vid.id, lore: lore.id,
-    alb: book1.id, pho: pho.id, card: cardPhoto.id, trip: trRow.id };
+    alb: book1.id, pho: pho.id, card: cardPhoto.id, trip: trRow.id, scene: scRow.id };
 });
 await page.waitForTimeout(400);
 

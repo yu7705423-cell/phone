@@ -25,8 +25,11 @@ function buildBody(cfg, { system, messages, maxTokens, stream }) {
         ? [{ type: 'text', text: m.content }, { type: 'image_url', image_url: { url: m.image.dataUrl } }]
         : m.content,
     })),
-    max_tokens: maxTokens,
   };
+  // 0 表示**整个字段都不送**，让服务端用它自己的上限。填一个大数是不行的：
+  // 各家模型的上限不一样，给一个上限 8192 的模型填 200000，请求直接被退回来，
+  // 而报错文案通常看不出是哪个字段的事。见 CLAUDE.md 第 13 条、ARCHITECTURE 4.107
+  if (maxTokens > 0) body.max_tokens = maxTokens;
   if (cfg.temperature != null) body.temperature = cfg.temperature;
   if (stream) body.stream = true;
   return body;

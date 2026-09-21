@@ -18,6 +18,7 @@ import { parseJSON } from './sse.js';
 import { estimate, takeLatestWithin } from './tokens.js';
 import * as trace from './trace.js';
 import * as ban from '../ban.js';
+import { beatsOf, timeOf, DIRECTOR, ME } from '../scene.js';
 
 // 接口协议要求带 max_tokens，取一个足够大的值，等同于不限制
 export const MAX_OUTPUT = 32000;
@@ -25,7 +26,7 @@ export const MAX_OUTPUT = 32000;
 // 只有设定区每轮都一样的那几件值得声明缓存：对话、通话、主动找你。
 // 一次性任务（总结记忆、生成相册、排行程……）的 system 每次都不同，
 // 声明了也命中不了，反而按写入价多付两成五。
-const CACHED_TASKS = new Set(['chat.reply', 'chat.call', 'chat.proactive']);
+const CACHED_TASKS = new Set(['chat.reply', 'chat.call', 'chat.proactive', 'scene.write']);
 
 /**
  * 所有发给模型的请求都从这里过。
@@ -83,7 +84,8 @@ export function isConfigured() { return !!config(); }
 // 不该和聊天抢同一个（通常更贵的）接口。
 //
 // 副用没配就退回主用。那是「用哪一套」，不是多打一次 —— 不必给开关。
-const MAIN_TASKS = new Set(['chat.reply', 'chat.call']);
+// 线下正文也算 —— 你正盯着屏幕等它一段一段往下写
+const MAIN_TASKS = new Set(['chat.reply', 'chat.call', 'scene.write']);
 
 // 记忆那几件还可以再单独配一套，见「设置 - 记忆接口」。
 // 它们是量最大也最不着急的一批，值得单独挑一个便宜模型。
@@ -92,6 +94,7 @@ const MEMORY_TASKS = new Set([
   'memory.bond',       // 把 S 级记忆压成关系底色
   'memory.import',     // 粘一大段文字拆成记忆
   'chat.summarize',    // 历史压缩
+  'scene.summary',     // 线下一场的摘要，也是线下与线上之间唯一的通道
 ]);
 
 const memoryPreset = () => (memoryMode() === 'api'
@@ -152,10 +155,12 @@ function scanTextOf(msgs, n) {
 // 查询向量。扫描窗口那段文字拿去算一次，交给记忆块做语义检索。
 // 单独拎出来是因为 buildChatSystem 是同步的，这一步要发请求。
 // 失败不抛：拿不到就退回关键词检索，聊天不能因为向量接口挂了就发不出去。
-export async function queryVecFor(msgs) {
+export const queryVecFor = msgs => queryVecOf(scanTextOf(msgs, settings.get().scanWindow));
+
+export async function queryVecOf(raw) {
   const s = settings.get();
   if (!s.memoryEnabled || s.memoryVector !== true || !embedReady()) return null;
-  const text = scanTextOf(msgs, s.scanWindow).trim();
+  const text = String(raw || '').trim();
   if (!text) return null;
   try {
     return await embedQuery(text);
@@ -456,6 +461,175 @@ export function streamCall({ chat, char, system, lines = [], opening = '', image
   return enqueue(callKey(chat.id), signal => runWith('chat.call', c => send('chat.call', c,
     { system, messages: all, maxTokens: callMax() || c.maxTokens, signal, onDelta }, 'stream')),
     { replace: true, retries: 1 });
+}
+
+// ---- 线下 ----
+//
+// 线上是一条条短气泡，线下是大段散文，所以另走一条：另一套骨架、另一份预算、
+// 另一套历史。共用的只有底下那些注入区块（角色卡、世界书、记忆、人设、时刻）。
+// 见 ARCHITECTURE 4.107
+//
+// **几个数和线上分开。** 线上几十条才顶满预算，线下三段就顶满了，
+// 共用一个数必然有一边不对。一律 0 表示不限（第 13 条）。
+
+const sceneMax = () => Math.max(0, Math.round(Number(settings.get().sceneMaxTokens) || 0));
+const sceneBudget = () => Math.max(0, Math.round(Number(settings.get().sceneBudget) || 0));
+
+const sceneScan = (list, n) =>
+  (n > 0 ? list.slice(-n) : list).map(b => b.text || '').join('\n');
+
+/**
+ * 这一轮该听哪几条场外指示。
+ *
+ * **常驻的一直在，其余只管下一段。** 二十段之前随手写的「让他生气一点」
+ * 不该一直挂着，可「整场都用第二人称」这种又必须留住 —— 所以给一个
+ * 「一直有效」的勾，而不是两边取一个。
+ */
+function directorLines(list) {
+  const fresh = [];
+  for (let i = list.length - 1; i >= 0; i--) {
+    if (list[i].role !== DIRECTOR) break;
+    if (!list[i].hold) fresh.unshift(list[i]);
+  }
+  const held = list.filter(b => b.role === DIRECTOR && b.hold);
+  return [...held, ...fresh].map(b => String(b.text || '').trim()).filter(Boolean);
+}
+
+/** 这一场的几件事实。是数据，不是指令。 */
+function sceneSetup(scene, others) {
+  const lines = [];
+  if (scene.place) lines.push(`地点：${scene.place}`);
+  const now = timeOf(scene.id);
+  if (now) lines.push(`时刻：${now}`);
+  if (others.length) lines.push(`在场：${others.map(c => c.name).join('、')}`);
+  if (scene.note) lines.push(`情境：${scene.note}`);
+  if (!lines.length) return '';
+  return fillTemplate(template('skeleton.scene-setup'), { lines: lines.join('\n') });
+}
+
+export function buildSceneSystem(scene, chat, char, list, opts = {}) {
+  const s = settings.get();
+  const me = accounts.get(chat?.personaId) || accounts.current() || persona.get();
+  const others = (scene.castIds || []).filter(id => id !== char.id)
+    .map(id => characters.get(id)).filter(Boolean);
+  const budget = sceneBudget();
+
+  const ctx = {
+    char, chat, persona: me, settings: s,
+    // 注入区块照旧读聊天记录（「你今天」「正在听什么」那些是线上的状态），
+    // 但世界书与 B 级记忆按线下正文扫 —— 该被这一场勾起来的是这一场的字
+    messages: messagesOf(chat.id).filter(m => m.status !== 'error'),
+    scanText: sceneScan(list, s.sceneScan),
+    budgets: budgets(budget),
+    queryVec: opts.queryVec || null,
+    lore: opts.lore || null,
+    recall: opts.recall || null,
+  };
+
+  const names = { charName: char.name || '对方', userName: me.name || '对方' };
+  let out = fillTemplate(template('skeleton.scene-opening'), names);
+
+  const gender = genderBlock(char, me, names);
+  if (gender) out += '\n\n' + gender;
+
+  const { text, volatile: hot, failed } = assemble(s.injectOrder, ctx);
+  out += text;
+
+  // 摘要互通，原文不互通（4.107）。两边的上下文预算各算各的，
+  // 互相灌原文长期必然顶爆。
+  if (chat.summary) out += `\n\n[更早之前发生过什么]\n${chat.summary}`;
+  if (scene.summary) out += `\n\n[这一场之前发生过什么]\n${scene.summary}`;
+
+  if (others.length) {
+    out += '\n\n' + fillTemplate(template('skeleton.group'), {
+      members: others.map(c => c.name).join('、'),
+    });
+  }
+
+  out += '\n\n' + fillTemplate(template('skeleton.scene-rules'), names);
+  const setup = sceneSetup(scene, others);
+  if (setup) out += '\n\n' + setup;
+  // 时刻仍走线上那套协议：模型写 [时间：…]，本地摘下来记在这一段上
+  out += '\n\n' + template('skeleton.time');
+
+  // 篇幅是用户填的数，这里只转述。填 0 就整段不出现 —— 不替他定写多长
+  const words = Math.max(0, Math.round(Number(s.sceneWords) || 0));
+  if (words) out += '\n\n' + fillTemplate(template('skeleton.scene-length'), { words });
+
+  const core = String(char.core || '').trim();
+  if (core) out += '\n\n' + fillTemplate(template('skeleton.core'), { core });
+  if (ban.on()) out += '\n\n' + fillTemplate(template('skeleton.ban'), { list: ban.promptLines() });
+  if (gender) out += '\n\n' + gender;
+
+  return { system: out, volatile: hot, failed, tokens: estimate(out) };
+}
+
+export function buildSceneHistory(scene, chat, char, list, opts = {}) {
+  const s = settings.get();
+  const me = accounts.get(chat?.personaId) || accounts.current() || persona.get();
+  const isGroup = (scene.castIds || []).length > 1;
+
+  const body = list.filter(b => b.role !== DIRECTOR);
+  const n = Math.max(0, Math.round(Number(s.sceneWindow) || 0));
+  const scope = n > 0 ? body.slice(-n) : body;
+  const kept = takeLatestWithin(scope, sceneBudget(), b => b.text || '');
+  // 钉住的那几段不受窗口与预算约束 —— 钉住的意思就是「这一段永远要在」
+  const inKept = new Set(kept.map(b => b.id));
+  const pinned = body.filter(b => b.pinned && !inKept.has(b.id));
+  const all = [...pinned, ...kept];
+
+  const view = all.map(b => {
+    if (b.role === ME) return { role: 'user', content: b.text };
+    if (isGroup && b.authorId !== char.id) {
+      const who = characters.get(b.authorId)?.name || '某人';
+      return { role: 'user', content: `${who}：${b.text}` };
+    }
+    return { role: 'assistant', content: b.text };
+  });
+
+  const md = memoryDepth(s);
+  const dir = directorLines(list);
+  const tail = [
+    String(opts.volatile || '').trim(),
+    md > 0 && opts.recall?.length ? recallText(opts.recall) : '',
+    dir.length
+      ? fillTemplate(template('skeleton.scene-director'),
+        { lines: dir.join('\n'), userName: me.name || '对方' })
+      : '',
+    // 贴着输出再说一遍。设定区那一段离这里隔着整场戏
+    fillTemplate(template('skeleton.scene-tail'), { userName: me.name || '对方' }),
+  ].filter(Boolean).join('\n\n');
+
+  return mergeAdjacent([...view, { role: 'user', content: tail }]);
+}
+
+export const sceneKey = id => `scene:${id}`;
+export const isWriting = id => isRunning(sceneKey(id));
+export const cancelScene = id => cancel(sceneKey(id));
+
+export function streamScene({ scene, chat, char, onDelta }) {
+  return enqueue(sceneKey(scene.id), async signal => {
+    const list = beatsOf(scene.id);
+    const s0 = settings.get();
+    const scan = sceneScan(list, s0.sceneScan);
+    const lore = activateLore(char, scan, budgets(sceneBudget()).lorebook).items;
+    const me = accounts.get(chat?.personaId) || accounts.current();
+    const queryVec = await queryVecOf(scan);
+    const recall = await recallMemory({
+      settings: s0, char, scanText: scan,
+      budgets: budgets(sceneBudget()), queryVec, persona: me,
+    });
+    const { system, volatile: hot } = buildSceneSystem(scene, chat, char, list, { queryVec, lore, recall });
+    const history = buildSceneHistory(scene, chat, char, list, { lore, recall, volatile: hot });
+    const oneShot = s0.streamMode === 'once';
+    // maxTokens 默认 0：OpenAI 兼容那边整个字段都不送，服务端用自己的上限。
+    // 填一个大数反而会被上限低的模型退回来（见 providers/openai.js）
+    const text = await runWith('scene.write', c => send('scene.write', c,
+      { system, messages: history, maxTokens: sceneMax(), signal, onDelta: oneShot ? undefined : onDelta },
+      oneShot ? 'complete' : 'stream'));
+    if (recall?.length) markRecalled(recall);
+    return text;
+  }, { replace: true, retries: 1 });
 }
 
 export function replyKey(chatId, charId) { return `reply:${chatId}:${charId}`; }

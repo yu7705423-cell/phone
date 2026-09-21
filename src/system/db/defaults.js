@@ -119,6 +119,19 @@ export const DEFAULT_SETTINGS = {
   scanWindow: 6,                  // 世界书与 B 级记忆的扫描窗口(条)
   contextBudget: 6000,            // 注入内容的 token 预算(粗估)
 
+  // ---- 线下（见 ARCHITECTURE 4.107）----
+  //
+  // 和线上分开的一组数。线上几十条才顶满预算，线下三段就顶满了，
+  // 共用一个数必然有一边不对。这里一律往「不卡」了给。
+  sceneMaxTokens: 0,              // 每段正文的上限。0 = 整个 max_tokens 字段都不送
+  sceneBudget: 120000,            // 线下注入内容的 token 预算。0 = 不限
+  sceneWindow: 0,                 // 往回送多少段原文。0 = 全送
+  sceneScan: 4,                   // 世界书与 B 级记忆按最近几段正文扫。0 = 扫整场
+  sceneWords: 0,                  // 目标篇幅（字）。0 = 不写，由角色卡自己定
+  sceneSummary: false,            // 一场收尾时生成摘要。多一次调用，见 cost.js
+  sceneCompress: false,           // 窗口外的段落压成摘要。多一次调用，见 cost.js
+  stage: {},                      // 线下外观，见 system/stage.js
+
   // 缓存住 prompt 里不变的那一段（目前只有 Anthropic 那条路支持显式声明，
   // OpenAI 那边是自动前缀缓存，开不开都一样）。
   //

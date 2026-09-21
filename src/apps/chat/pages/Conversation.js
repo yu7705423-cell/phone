@@ -884,6 +884,7 @@ export function Conversation({ chatId, focusId = '' }) {
     request: () => setAsking(true),
     share: () => setSharing(true),
     dice: () => setDicing(true),
+    offline: () => nav.push(`/stage/${chatId}`),
   };
   const runTap = id => (TAP[id] || (() => toast('这一项尚未实现')))();
   const PANEL_ITEMS = [
