@@ -1,6 +1,7 @@
 import { chats, characters, memories, messages, messagesOf, moments, personas, stickers,
          settings, layout, images, files, videos, songs, ebooks, phones, photos,
-         spaceItems, scenes, beats, readnotes, trips } from './db/index.js';
+         spaceItems, scenes, beats, readnotes, trips, days, meals, health, reviews, todos,
+         phoneChats } from './db/index.js';
 import { allImageIds } from './looks.js';
 
 // 把一个角色身上的东西清干净。
@@ -82,6 +83,41 @@ export function dropChat(chatId) {
   readnotes.byIndex(chatId).slice().forEach(r => readnotes.remove(r.id));
   trips.byIndex(chatId).slice().forEach(t => trips.remove(t.id));
   chats.remove(chatId);
+  releaseImages(imgs);
+  return true;
+}
+
+/**
+ * 删掉一个角色，连同它名下的一切：会话（走上面的 dropChat）、记忆、动态、
+ * 它的每一天与吃饭记录、它那台手机、健康记录、影评书评、它提的待办、
+ * 它写的段评，以及它自己的那几张图（头像、封面、通话画面、头像池、书架封面）。
+ *
+ * 按 charId 建了索引的域，角色没了就成了孤儿，指着一个不存在的人。
+ * 从前资料页自己列了五样，后来加的一样都没跟上。删角色只能从这里走。
+ */
+export function dropCharacter(charId) {
+  const c = characters.get(charId);
+  if (!c) return false;
+  chatsOf(charId).forEach(chat => dropChat(chat.id));
+  memories.removeWhere(m => m.charId === charId);
+  moments.removeWhere(m => m.authorId === charId);
+  days.byIndex(charId).slice().forEach(r => days.remove(r.id));
+  meals.byIndex(charId).slice().forEach(r => meals.remove(r.id));
+  health.byIndex(charId).slice().forEach(r => health.remove(r.id));
+  reviews.removeWhere(r => r.charId === charId);
+  todos.removeWhere(t => t.charId === charId);
+  readnotes.removeWhere(r => r.authorId === charId);
+  const imgs = [c.avatar, c.cover, c.faceImage, c.callImage,
+    ...(c.avatarPool || []).map(x => x?.imageId),
+    ...(c.shelf || []).map(it => it?.cover)];
+  phones.byIndex(charId).slice().forEach(row => {
+    (row.photos || []).forEach(p => imgs.push(p.imageId));
+    imgs.push(row.wallpaper);
+    Object.values(row.icons || {}).forEach(v => imgs.push(v?.imageId));
+    phones.remove(row.id);
+  });
+  phoneChats.byIndex(charId).slice().forEach(r => phoneChats.remove(r.id));
+  characters.remove(charId);
   releaseImages(imgs);
   return true;
 }

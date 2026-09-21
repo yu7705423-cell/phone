@@ -129,11 +129,6 @@ export function findItem(day, text) {
 }
 
 export function remove(id) { return days.remove(id); }
-
-export function clearOf(charId) {
-  days.byIndex(charId).forEach(d => days.remove(d.id));
-}
-
 // ---- 本地掷的那几样 ----
 
 /**
