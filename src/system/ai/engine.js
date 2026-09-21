@@ -20,6 +20,7 @@ import * as trace from './trace.js';
 import * as ban from '../ban.js';
 import { beatsOf, timeOf, DIRECTOR, ME } from '../scene.js';
 import * as tone from '../tone.js';
+import { markRead } from '../receipt.js';
 
 // 接口协议要求带 max_tokens，取一个足够大的值，等同于不限制
 export const MAX_OUTPUT = 32000;
@@ -661,6 +662,10 @@ export function streamReply({ chat, char, onDelta }) {
   const msgs = messagesOf(chat.id).filter(m => m.status !== 'error');
 
   return enqueue(replyKey(chat.id, char.id), async signal => {
+    // 已读回执：排到这一轮、真的开始写了，那就是看见了。放在这儿而不是放在
+    // 界面里，是因为「角色说话」有好几个入口（手动、自动回复、主动找你），
+    // 它们都从这里过（见 system/receipt.js）。
+    markRead(chat.id);
     // 今天还没排日程就先排一次，排完了这一轮才拼上下文 —— 否则「你今天」
     // 那一段要等到下一条消息才出现。开关默认关着，关着就是一句 return。
     // 动态 import：day 那个任务要用本模块，静态引会成环。

@@ -57,6 +57,10 @@ export const DEFAULT_SETTINGS = {
 
   // 翻译。语言挂在会话上（chat.translateTo），这里只管怎么显示
   translateOpen: 'tap',           // tap | always
+  // 消息上的时刻与已读回执。两样都是新画到气泡上的东西，默认关着 ——
+  // 不默默改变已有的样子（见 system/receipt.js）
+  msgStamp: 'off',                // off | side | below
+  msgRead: false,                 // 自己发的消息显示已读／未读
 
   // 回复风格。自然表达协议，见 ai/templates.js 的 skeleton.style
   // 回复怎么拿：'stream' 边生成边显示，'once' 等整段生成完再一次显示

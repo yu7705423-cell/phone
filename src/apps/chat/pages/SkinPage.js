@@ -1,10 +1,10 @@
 import { html, useState, useEffect } from '../../../lib.js';
 import { phone, useStore } from '../../../sdk/index.js';
-import { Page, List, ListItem, Field, Input, Textarea, NumberInput, Segmented,
+import { Page, List, ListItem, Field, Textarea, NumberInput, Segmented, Switch,
          Button, Icon, EmptyState, toast, confirm, prompt } from '../../../ui/index.js';
 import { Bubble } from './Conversation.js';
 
-const { db, nav, skin } = phone;
+const { db, nav, skin, receipt } = phone;
 
 // 会话的美化。见 ARCHITECTURE 4.111
 //
@@ -27,14 +27,46 @@ function Sample({ char, chat }) {
     fake('s3', 'char', '调好之后回到会话里就是这个样子。', 2000),
   ];
   const noop = () => {};
+  // 时刻与回执也画进样板间。最后一条是角色说的，所以中间那条显示已读
+  const stampAt = receipt.stampMode();
+  const readOn = receipt.on();
   return html`
     <div class="conv-body skin-sample">
       ${rows.map(m => html`
         <${Bubble} key=${m.id} msg=${m} char=${char} chat=${chat} frozen
           onRetry=${noop} onSwipe=${noop} onHold=${noop} onToggle=${noop}
           onSettle=${noop} onOpenLog=${noop} onUnwrap=${noop} onPat=${noop}
-          selecting=${false} selected=${false} transOpen="never" innerStyle=""/>`)}
+          selecting=${false} selected=${false} transOpen="never" innerStyle=""
+          stampAt=${stampAt} readOn=${readOn} readUpTo=${now - 2000}/>`)}
     </div>`;
+}
+
+// 时刻与已读回执是**所有会话共用**的一项，不属于某一份美化，所以不存在
+// 美化行里，存在设置里。放在这一页是因为要改它的时候人正在这儿看着气泡
+// （CLAUDE.md 第 5 条），全项目只有这一个入口。
+function MsgGroup() {
+  useStore(db.settings.store);
+  const s = db.settings.get();
+  return html`
+    <div class="settings-foot">
+      以下两项对所有会话生效，不随美化切换。
+    </div>
+    <div class="pad-x">
+      <${Field} label="消息时刻"
+        desc="显示这条消息在本机出现的时刻，与角色写在正文里的时间无关。
+          当天只显示时分，隔天带上日期。">
+        <${Segmented} value=${receipt.stampMode()}
+          onChange=${v => db.settings.set({ msgStamp: v })}
+          items=${receipt.STAMPS.map(x => ({ value: x.id, label: x.label }))}/>
+      <//>
+    </div>
+    <${List}>
+      <${ListItem} title="显示已读回执" multiline
+        subtitle="在自己发出的消息旁标注已读或未读。角色开始生成回复时记为已读，
+          一直没有回复则保持未读。关闭后不再标注。"
+        right=${html`<${Switch} checked=${s.msgRead === true}
+          onChange=${v => db.settings.set({ msgRead: v })}/>`}/>
+    <//>`;
 }
 
 export function SkinPage({ chatId }) {
@@ -87,6 +119,7 @@ export function SkinPage({ chatId }) {
         <div class="pad">
           <${Button} onClick=${pick}>新建一份<//>
         </div>
+        <${MsgGroup}/>
       <//>`;
   }
 
@@ -159,6 +192,8 @@ export function SkinPage({ chatId }) {
     toast('已复制', 'ok');
   }}/>`)}
         <//>` : null}
+
+      <${MsgGroup}/>
 
       <${List}>
         <${ListItem} title="换一份美化" subtitle=${`当前：${cur.name}`} arrow

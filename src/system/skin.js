@@ -57,6 +57,9 @@ export const CLASSES = [
   { sel: '.composer-side', label: '底栏圆按钮' },
   { sel: '.send-btn', label: '发送键' },
   { sel: '.quote-ref', label: '引用条' },
+  { sel: '.msg-meta', label: '气泡上的那行小字' },
+  { sel: '.msg-stamp', label: '消息时刻' },
+  { sel: '.msg-read', label: '已读回执' },
   { sel: '.bubble-sticker', label: '表情气泡' },
 ];
 

@@ -23,7 +23,7 @@ import { SceneBlock, LookFloat } from './SceneInline.js';
 // panel 这个名字在本文件里已经被「当前开着哪个面板」占了（见下面的 useState），
 // 所以模块换个名字进来 —— 同名会被局部变量盖掉，读出来是 null。
 const { db, nav, ai, call, extras, pace, autoReply, panel: panelCfg,
-  scene: sceneApi, stage, skin } = phone;
+  scene: sceneApi, stage, skin, receipt } = phone;
 
 // 一屏装不下这么多，但往上翻几下够用；不够再按按钮要下一段。
 // 见 CLAUDE.md 第 13 条：这是默认值不是上限，设置里填 0 就一次画全。
@@ -49,12 +49,32 @@ function QuoteRef({ quote, onClick }) {
     </button>`;
 }
 
+// 气泡上的那一行小字：发出的时刻、已读回执。两样都默认关着，见 system/receipt.js
+//
+// 显示哪个时刻 —— 是这台机器上这条消息出现的时刻，不是角色写的 `[时间：]`。
+// 那个是剧情里的时间，两者常常差着好几天。
+function MsgMeta({ slot, stamp, read }) {
+  return html`
+    <div class=${`msg-meta at-${slot}`}>
+      ${stamp ? html`<span class="msg-stamp">${stamp}</span>` : null}
+      ${read ? html`<span class="msg-read">${read}</span>` : null}
+    </div>`;
+}
+
 // 记忆化：流式回复时只有最后那条在变，别的几百条没必要跟着重画。
 // 下面传给它的函数属性都是稳定身份的，见 Conversation 里的 stable。
 export const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, onSwipe, onHold,
                   selecting, selected, onToggle, transOpen, onSettle, onOpenLog, onUnwrap,
-                  onPat, innerStyle, fold, foldCount, onScene }) {
+                  onPat, innerStyle, fold, foldCount, onScene,
+                  stampAt = 'off', readOn = false, readUpTo = 0 }) {
   const mine = msg.role === 'user';
+  // 落点是几个标量属性算出来的，不在这里读设置 —— 这个组件是 memo 过的，
+  // 读了设置它也不会因为设置变了而重画（见外面传下来的那三个）
+  // 回执自己没有位置设置，跟着时刻走；时刻关着就靠着气泡画
+  const slot = stampAt === 'below' ? 'below' : 'side';
+  const metaStamp = stampAt === 'off' ? '' : receipt.stampOf(msg.createdAt);
+  const metaRead = readOn ? receipt.textOf(msg, readUpTo) : '';
+  const hasMeta = !!(metaStamp || metaRead);
   const avatar = useImage(mine ? phone.accounts.current()?.avatar : char?.avatar);
   const hold = useRef({ timer: null, fired: false });
   // 默认展开时就一直开着；点一下展开这一档，点过才开
@@ -107,7 +127,7 @@ export const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, o
 
   return html`
     <div id=${`msg-${msg.id}`}
-      class=${`msg no-callout${mine ? ' is-mine' : ''}${selecting && !frozen ? ' is-picking' : ''}${selected ? ' is-picked' : ''}`}
+      class=${`msg no-callout${mine ? ' is-mine' : ''}${selecting && !frozen ? ' is-picking' : ''}${selected ? ' is-picked' : ''}${hasMeta && slot === 'side' ? ' has-aside' : ''}`}
       onClickCapture=${capture}
       onTouchStart=${start} onTouchEnd=${end} onTouchMove=${end} onTouchCancel=${end}
       onContextMenu=${e => { e.preventDefault(); if (!selecting && !frozen) onHold(msg); }}>
@@ -196,7 +216,13 @@ export const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, o
           </div>` : null}
 
         ${fold ? html`<${StackFold} count=${foldCount} onFold=${fold}/>` : null}
+
+        ${hasMeta && slot === 'below' ? html`
+          <${MsgMeta} slot=${slot} stamp=${metaStamp} read=${metaRead}/>` : null}
       </div>
+
+      ${hasMeta && slot === 'side' ? html`
+        <${MsgMeta} slot=${slot} stamp=${metaStamp} read=${metaRead}/>` : null}
     </div>`;
 });
 
@@ -309,6 +335,11 @@ export function Conversation({ chatId, focusId = '' }) {
     [char?.firstMessage]);
   const msgs = chatId ? db.messagesOf(chatId) : [];
   const selecting = picked !== null;
+  // 时刻与已读回执。在这一层算一次往下传标量 —— 气泡是 memo 过的，
+  // 设置变了要靠属性变才重画；已读那条线也只扫一遍
+  const stampAt = receipt.stampMode();
+  const readOn = receipt.on();
+  const readLine = readOn ? receipt.readUpTo(chatId) : 0;
 
   // 从搜索结果跳进来的，窗口要先开到能装下那一条
   const focusIdx = useMemo(
@@ -1050,6 +1081,7 @@ export function Conversation({ chatId, focusId = '' }) {
               onSettle=${stable.onSettle} onOpenLog=${stable.onOpenLog}
               onUnwrap=${stable.onUnwrap} onPat=${stable.onPat}
               onScene=${stable.onScene} innerStyle=${innerStyle}
+              stampAt=${stampAt} readOn=${readOn} readUpTo=${readLine}
               fold=${row.foldOf ? () => setOpenStack(s => {
                 const n = new Set(s); n.delete(row.foldOf); return n;
               }) : null}

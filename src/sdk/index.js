@@ -89,6 +89,7 @@ import * as todoApi from '../system/todo.js';
 import * as sceneApi from '../system/scene.js';
 import * as stageApi from '../system/stage.js';
 import * as skinApi from '../system/skin.js';
+import * as receiptApi from '../system/receipt.js';
 import * as toneApi from '../system/tone.js';
 import * as alarmApi from '../system/alarm.js';
 import * as whenApi from '../system/when.js';
@@ -276,6 +277,7 @@ export const phone = {
   scene: sceneApi,
   stage: stageApi,
   skin: skinApi,
+  receipt: receiptApi,
   tone: toneApi,
   alarm: alarmApi,
   when: whenApi,
