@@ -1,4 +1,5 @@
 import { settings, images } from './db/index.js';
+import { applyFont } from './reader.js';
 
 // 线下的外观。**和全局主题、和阅读器都分开存**：线下想要的纸色字号，
 // 和读书时想要的不是一回事，改这边不该动那两边。理由同 reader.js 开头那段。
@@ -23,6 +24,30 @@ export const themeOf = id => THEMES.find(t => t.id === id) || THEMES[0];
 // fonts.js 上传的那些，或者填一个 fontUrl。
 export const SERIF = '"Songti SC", "STSong", "Noto Serif CJK SC", "Source Han Serif SC", serif';
 export const SANS  = '"PingFang SC", "Heiti SC", system-ui, -apple-system, sans-serif';
+
+// 几份现成的字体。**默认那一份不联网**，其余的按一下才去取。
+//
+// 系统里没有「软」的那一类中文字体 —— iOS 只有宋体和黑体，都偏硬。
+// 楷体那一份笔画保留手写的起收，是这里最不生硬的选择。
+//
+// 链接与字体名都是从各自的仓库文档里抄的，**不是猜的**：字体名猜错的表现
+// 和「设置不生效」一模一样（reader.js 开头那段写过这件事）。
+export const FONTS = [
+  { id: '', label: '系统字体', url: '', family: '',
+    note: '不联网。按下面的「衬线字体」在宋体与黑体之间切换' },
+  { id: 'kai', label: '霞鹜文楷',
+    url: 'https://cdn.jsdelivr.net/npm/lxgw-wenkai-screen-web/style.css',
+    family: 'LXGW WenKai Screen',
+    note: '楷体，笔画保留手写的起收。需要联网，取自 jsDelivr' },
+  { id: 'song', label: '思源宋体',
+    url: 'https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@200..900&display=swap',
+    family: 'Noto Serif SC',
+    note: '宋体。需要联网，取自 Google Fonts，部分网络环境下取不到' },
+  { id: 'hei', label: '思源黑体',
+    url: 'https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@100..900&display=swap',
+    family: 'Noto Sans SC',
+    note: '黑体。需要联网，取自 Google Fonts，部分网络环境下取不到' },
+];
 
 export const DEFAULTS = {
   theme: 'body',
@@ -149,6 +174,18 @@ export function unmountChrome() {
   delete el.dataset.stage;
   el.style.removeProperty('--sg-chrome');
 }
+
+// ---- 字体 ----
+//
+// 光把字体名写进 --sg-font 是不够的，还得真把那份样式表挂上去 ——
+// 不挂的话填了字体链接什么也不会发生，表现和「设置不生效」一模一样。
+// 和阅读器共用 reader.applyFont，各用各的标签，互不拆对方的。
+
+const FONT_TAG = 'stage-font';
+
+export const mountFont = cfg => applyFont(cfg, FONT_TAG);
+export const unmountFont = () =>
+  document.querySelectorAll(`[data-${FONT_TAG}]`).forEach(el => el.remove());
 
 const NODE_ID = 'stage-css';
 

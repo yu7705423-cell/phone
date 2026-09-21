@@ -91,8 +91,9 @@ const TAG = 'reader-font';
  * 挂错种类什么也不会发生 —— 浏览器拿二进制当 CSS 解析，然后就没有然后了，
  * 表现和「设置不生效」一模一样，所以这里必须分流。
  */
-export function applyFont({ fontUrl, fontFamily }) {
-  document.querySelectorAll(`[data-${TAG}]`).forEach(el => el.remove());
+export function applyFont({ fontUrl, fontFamily }, tag = TAG) {
+  // 按标签清自己那一份。阅读器和线下各挂各的，共用一个标签会互相拆掉
+  document.querySelectorAll(`[data-${tag}]`).forEach(el => el.remove());
   const url = String(fontUrl || '').trim();
   const family = String(fontFamily || '').trim();
   if (!url || !family) return;
@@ -103,7 +104,7 @@ export function applyFont({ fontUrl, fontFamily }) {
         + `src:url("${url}") format("${formatOf(url)}");font-display:swap;}`,
     })
     : Object.assign(document.createElement('link'), { rel: 'stylesheet', href: url });
-  el.setAttribute(`data-${TAG}`, '1');
+  el.setAttribute(`data-${tag}`, '1');
   document.head.appendChild(el);
 }
 

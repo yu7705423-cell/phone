@@ -65,6 +65,13 @@ export function StageRead({ sceneId }) {
     return () => stage.unmountChrome();
   }, [chrome]);
 
+  // 字体得真挂上去。只把字体名写进 --sg-font 的话，填了字体链接什么也
+  // 不会发生，表现和「设置不生效」一模一样
+  useEffect(() => {
+    stage.mountFont(cfg);
+    return () => stage.unmountFont();
+  }, [cfg.fontUrl, cfg.fontFamily]);
+
   // 新的一段落定就翻到末尾。生成中不动 —— 那时候正在往最后一张里长。
   // 明信片那一档同理，只不过「末尾」是滚到底
   const total = Math.max(1, pages.length);

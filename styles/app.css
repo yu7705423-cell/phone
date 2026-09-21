@@ -2064,7 +2064,7 @@ button.search-bar { width: 100%; border: none; }
   color: var(--sg-ink); background: none; border: 0;
 }
 .sg-eyebrow {
-  font-size: var(--fs-11); letter-spacing: .14em;
+  font-size: var(--fs-11); letter-spacing: .1em;
   color: var(--sg-dim); text-transform: uppercase;
 }
 .sg-title {
@@ -2114,22 +2114,25 @@ button.search-bar { width: 100%; border: none; }
   margin: 0 0 var(--sp-5);
   padding-bottom: var(--sp-2);
   border-bottom: 1px solid var(--sg-line);
+  /* 跟着正文那套字走。从前这里落回系统黑体，正文是宋体，两种字挤在
+     一块儿，署名就显得比正文硬 */
+  font-family: var(--sg-font);
 }
 .sg-sign-text { min-width: 0; }
 .sg-sign-name {
-  font-size: var(--fs-12); letter-spacing: .34em; line-height: 1.5;
+  font-size: var(--fs-12); letter-spacing: .2em; line-height: 1.6;
   color: var(--sg-ink);
 }
 .sg-sign.is-mine .sg-sign-name { color: var(--sg-dim); }
+/* 不用 tabular-nums：这里的数字不排成列，等宽只会让时刻看着像块表 */
 .sg-sign-meta {
-  font-family: var(--font);
-  font-size: 10px; letter-spacing: .22em; line-height: 1.5;
-  color: var(--sg-dim); font-variant-numeric: tabular-nums;
+  font-size: 10px; letter-spacing: .14em; line-height: 1.6;
+  color: var(--sg-dim);
 }
 /* 头像。方的，一道发丝框，不做圆 —— 圆头像一出现，整页就读成聊天了 */
 .sg-face {
   flex: none; width: 46px; height: 46px; object-fit: cover;
-  border-radius: 2px; border: 1px solid var(--sg-line);
+  border-radius: 3px; border: 1px solid var(--sg-line);
 }
 
 /* 首字下沉。杂志开篇那一页真正的大件。
@@ -2145,9 +2148,9 @@ button.search-bar { width: 100%; border: none; }
 
 /* 只要一行的那一档。同一份字距，去掉头像与细线 */
 .sg-byline {
-  font-size: 10px; letter-spacing: .24em; color: var(--sg-dim);
+  font-family: var(--sg-font);
+  font-size: 10px; letter-spacing: .16em; color: var(--sg-dim);
   margin-bottom: var(--sp-5);
-  font-variant-numeric: tabular-nums;
 }
 
 /* 明信片那一档。竖着滑，一张一张排下去 */
@@ -2160,6 +2163,7 @@ button.search-bar { width: 100%; border: none; }
   max-width: var(--sg-measure); margin: 0 auto var(--sp-4);
   padding: var(--sp-5) var(--sp-4);
   border: 1px solid var(--sg-line);
+  border-radius: 3px;
   background: var(--sg-bg);
   display: flex; flex-direction: column;
 }

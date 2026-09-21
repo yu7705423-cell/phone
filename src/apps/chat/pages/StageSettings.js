@@ -1,4 +1,4 @@
-import { html, useRef } from '../../../lib.js';
+import { html, useRef, useState, useEffect } from '../../../lib.js';
 import { phone, useStore } from '../../../sdk/index.js';
 import { Page, List, ListItem, Field, Input, Textarea, NumberInput,
          Switch, Icon, Button, toast, confirm } from '../../../ui/index.js';
@@ -23,6 +23,7 @@ export function StageSettings({ sceneId }) {
   useStore(db.scenes.store);
   const fileRef = useRef(null);
 
+  const [fontOk, setFontOk] = useState(null);
   const row = sceneId ? sceneApi.get(sceneId) : null;
   const scoped = !!row;
   const cfg = scoped ? stage.forScene(row) : stage.get();
@@ -31,6 +32,17 @@ export function StageSettings({ sceneId }) {
     if (scoped) sceneApi.update(sceneId, { stage: { ...(row.stage || {}), ...patch } });
     else stage.set(patch);
   };
+
+  // 字体挂上了没有。这一页里也要挂一份，否则选完看不出效果
+  useEffect(() => {
+    stage.mountFont(cfg);
+    let alive = true;
+    setFontOk(null);
+    if (cfg.fontFamily) reader.fontStatus(cfg.fontFamily).then(v => { if (alive) setFontOk(v); });
+    return () => { alive = false; };
+  }, [cfg.fontUrl, cfg.fontFamily]);
+
+  useEffect(() => () => stage.unmountFont(), []);
 
   const pickBg = async e => {
     const file = e.target.files?.[0];
@@ -71,6 +83,14 @@ export function StageSettings({ sceneId }) {
     }) });
     else stage.useTheme(t.id);
   }}/>`)}
+      <//>
+
+      <${List} title="字体" inset=${false}>
+        ${stage.FONTS.map(f => html`
+          <${ListItem} key=${f.id || 'sys'} title=${f.label} subtitle=${f.note} multiline
+            right=${(cfg.fontFamily || '') === f.family
+    ? html`<${Icon} name="check" size=${16}/>` : null}
+            onClick=${() => set({ fontUrl: f.url, fontFamily: f.family })}/>`)}
       <//>
 
       <${List} title="版式" inset=${false}>
@@ -185,7 +205,11 @@ export function StageSettings({ sceneId }) {
     set(guess && !cfg.fontFamily ? { fontUrl: url, fontFamily: guess } : { fontUrl: url });
   }}/>
         <//>
-        <${Field} label="字体名称" desc="样式表里声明的字体名，必须与其中的 font-family 完全一致。">
+        <${Field} label="字体名称"
+          desc=${'样式表里声明的字体名，必须与其中的 font-family 完全一致。'
+    + (cfg.fontFamily
+      ? (fontOk === null ? '' : fontOk ? ' 当前这一份已经载入。' : ' 当前这一份尚未载入，请检查链接与名称。')
+      : '')}>
           <${Input} value=${cfg.fontFamily} placeholder="留空则使用系统字体"
             onInput=${v => set({ fontFamily: v.trim() })}/>
         <//>
