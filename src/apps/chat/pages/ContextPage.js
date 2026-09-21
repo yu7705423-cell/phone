@@ -273,6 +273,25 @@ export function ContextPage() {
         </div>`
       : html`<div class="pad-b"></div>`}
 
+      <div class="pad-x pad-t">
+        <${Field} label="固定带上最近几条"
+          desc="每次请求带上最近记下的这么多条记忆，不问是否与这一轮有关。
+            召回只收「线索命中的」和「还没了结的」：昨天说了一直在哭，今天开口是「早」，
+            一个词都对不上，那条就进不了召回。这一档补的是它。
+            填 0 表示不带，完全交给召回。
+            记忆总数少于这个值时，召回将无可挑选，但那几条本来就全部带上了。">
+          <${NumberInput} value=${s.memoryRecent} unit="条" placeholder="不带"
+            onChange=${v => db.settings.set({ memoryRecent: v })}/>
+        <//>
+        <${Field} label="召回最多取几条"
+          desc="按相关度排序后取前若干条，S 级与上面那一档都不计入此数。
+            填 0 表示凡是过了门槛的全部取用，仍受注入预算约束。
+            关键词匹配与按意思找共用这个数。">
+          <${NumberInput} value=${s.memoryTopK} unit="条" placeholder="全部"
+            onChange=${v => db.settings.set({ memoryTopK: v })}/>
+        <//>
+      </div>
+
       <${List} title="怎么找记忆">
         <${ListItem} title="按意思找" multiline
           subtitle=${vecReady
@@ -287,12 +306,6 @@ export function ContextPage() {
       <//>
       ${vecReady && s.memoryVector === true ? html`
         <div class="pad-x">
-          <${Field} label="最多取几条"
-            desc="S 级记忆始终注入，不计入此数。其余记忆按相似度排序后取前若干条。
-              填 0 表示凡是超过相似度门槛的全部取用，仍受上面的注入预算约束。">
-            <${NumberInput} value=${s.memoryTopK} unit="条" placeholder="全部"
-              onChange=${v => db.settings.set({ memoryTopK: v })}/>
-          <//>
           <${Field} label=${`相似度门槛 ${(s.memoryThreshold ?? 0.22).toFixed(2)}`}
             desc="相似度低于该值视为无关。调高更精准但易漏检，调低召回更多但会引入噪音。">
             <input type="range" min="0" max="0.7" step="0.01" value=${s.memoryThreshold ?? 0.22}

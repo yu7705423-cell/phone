@@ -168,7 +168,7 @@ export const DEFAULT_SETTINGS = {
   memoryTopK: 6,
   // 最近记下的几条，不问相关不相关一律带上。召回的候选池只收线索命中的
   // 和还没了结的，昨天的事一个词都对不上就进不去（见 context/memory.js）
-  memoryRecent: 5,
+  memoryRecent: 10,
   memoryThreshold: 0.22,          // 线索低于这个就不算命中（但未了结的、钉住的照样上场）
   // 召回打分的权重。留空就用内置那一组（见 ai/context/memory.js 的 WEIGHTS）。
   // 摆出来是因为「她更该记得什么」不该由我替用户定（第 13 条）
