@@ -3,12 +3,14 @@ import { loadApp, getApp } from './registry.js';
 import { goHome } from './nav.js';
 import { forceUpdate } from './refresh.js';
 import { Icon } from '../icons/Icon.js';
+import { reportCrash } from './skin.js';
 
 // 每个 app 外面一层错误边界。一个 app 崩了只显示"应用已停止",不会整机白屏。
 export function AppHost({ appId, route }) {
   const [Comp, setComp] = useState(null);
   const [loadErr, setLoadErr] = useState(null);
-  const [runErr, resetErr] = useErrorBoundary();
+  // 炸了先告诉美化一声：它挂着的那份 CSS 可能就是凶手，卸载时记号要留着
+  const [runErr, resetErr] = useErrorBoundary(() => reportCrash());
 
   useEffect(() => {
     let alive = true;

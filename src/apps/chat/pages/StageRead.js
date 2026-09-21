@@ -183,7 +183,7 @@ export function StageRead({ sceneId }) {
           .catch(err => console.warn('[memory] 线下自动提取失败', err));
       }
     } catch (err) {
-      if (!ai.queue.isAbort(err)) toast(err.message || '生成失败', 'err');
+      if (!ai.queue.isAbort(err)) toast(err.message || '生成失败', 'error');
     } finally {
       setWriting(false);
     }
@@ -252,7 +252,7 @@ export function StageRead({ sceneId }) {
     try {
       const text = await ai.scene.wrap(sceneId);
       toast(text ? '已生成摘要' : '没有可供摘要的内容');
-    } catch (err) { toast(err.message || '生成失败', 'err'); }
+    } catch (err) { toast(err.message || '生成失败', 'error'); }
   };
 
   // 顶栏归线下自己画。底色深的时候状态栏那几个字要换成浅色

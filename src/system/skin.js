@@ -128,13 +128,19 @@ export const crashed = id => {
 
 const dropNode = () => document.getElementById(NODE_ID)?.remove();
 
+// 这一次挂上去的是哪一份（记号是这次写的才算），以及挂着的时候页面炸没炸
+let trying = null;
+let broke = false;
+
 export function mount(skin) {
   dropNode();
+  trying = null;
+  broke = false;
   if (!skin) return false;
   if (crashed(skin.id)) return false;
   const text = compile(skin);
   if (!text.trim()) return true;
-  try { localStorage.setItem(MARK, skin.id); } catch { /* 无痕模式，认了 */ }
+  try { localStorage.setItem(MARK, skin.id); trying = skin.id; } catch { /* 无痕模式，认了 */ }
   const el = document.createElement('style');
   el.id = NODE_ID;
   el.textContent = text;
@@ -143,17 +149,30 @@ export function mount(skin) {
 }
 
 /**
- * 活过来了，把记号清掉。**只有这里清。**
+ * 活过来了，把记号清掉。
  *
- * 从前 unmount 也顺手清了一次，那等于守卫不存在：页面炸掉时
- * ErrorBoundary 会把这一层卸下来，卸载就清记号，下次进来照样注入那份
- * 坏 CSS。所以卸载只摘节点，「这一份是好的」只能由渲染活过一段时间来证明。
+ * 两条路能走到这儿：渲染活过一段时间（页面上的定时器），或者人正常离开
+ * 了这一页（下面的 unmount）。**页面炸掉时不算正常离开**：错误边界接到
+ * 异常会先叫一声 reportCrash，卸载时看见那个记号就留着，下次进来不注入。
+ *
+ * 从前卸载一律不清，只靠定时器。可定时器要几百毫秒，人在美化页改一个数
+ * 立刻按返回，定时器被清掉，记号留下 —— 一份好好的美化被当成崩过的，
+ * 回到会话页就是素颜，还要去点「恢复」。
  */
 export function settle() {
   try { localStorage.removeItem(MARK); } catch { /* 同上 */ }
 }
 
-export function unmount() { dropNode(); }
+/** 错误边界接到异常时调一下。见 system/runtime.js */
+export function reportCrash() { broke = true; }
+
+export function unmount() {
+  dropNode();
+  // 只清这次自己写的记号。上次崩过、这次没挂上的那种，记号不是这次写的，
+  // 清了等于每隔一次就再炸一回
+  if (trying && !broke) settle();
+  trying = null;
+}
 
 /** 手动解除那个记号，给「它说上次崩了，但我改好了」用。 */
 export const forgive = () => settle();

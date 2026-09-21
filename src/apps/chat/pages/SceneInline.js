@@ -102,7 +102,7 @@ export function SceneBlock({ sceneId, onSetup }) {
       sceneApi.endScene(sceneId);
       if (db.settings.get().sceneSummary === true) {
         ai.scene.wrap(sceneId).then(t => toast(t ? '已生成摘要' : '没有可供摘要的内容'))
-          .catch(err => toast(err.message || '生成失败', 'err'));
+          .catch(err => toast(err.message || '生成失败', 'error'));
       }
     }
   }}>收场</button>
