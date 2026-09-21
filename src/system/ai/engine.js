@@ -4,7 +4,7 @@ import * as clock from '../time.js';
 import { assemble } from './context/index.js';
 import { activate as activateLore, split as splitLore, textOf as loreText } from './context/lorebook.js';
 import { recallAsync as recallMemory, recallText, depthOf as memoryDepth,
-  markRecalled } from './context/memory.js';
+  markRecalled, recentOf as recentMemories } from './context/memory.js';
 import { fillTemplate, template } from './templates.js';
 import { capabilityBlock } from './capabilities.js';
 import { embedQuery, embedReady } from './embed.js';
@@ -635,9 +635,10 @@ export function streamScene({ scene, chat, char, more = false, omitFrom = '', on
     const lore = activateLore(char, scan, budgets(sceneBudget()).lorebook).items;
     const me = accounts.get(chat?.personaId) || accounts.current();
     const queryVec = await queryVecOf(scan);
+    const skip = new Set(recentMemories(char.id, me?.id, s0.memoryRecent).map(m => m.id));
     const recall = await recallMemory({
       settings: s0, char, scanText: scan,
-      budgets: budgets(sceneBudget()), queryVec, persona: me,
+      budgets: budgets(sceneBudget()), queryVec, persona: me, skip,
     });
     const { system, volatile: hot } = buildSceneSystem(scene, chat, char, list, { queryVec, lore, recall });
     const history = buildSceneHistory(scene, chat, char, list, { lore, recall, volatile: hot, more });
@@ -686,9 +687,12 @@ export function streamReply({ chat, char, onDelta }) {
     // 而且向量检索本身要花一次接口调用。
     const me = accounts.get(chat?.personaId) || accounts.current();
     // 开了重排的话这一步要等一次请求。没开就是同步返回，不多花时间
+    // 近期那一档已经常驻了，召回不该再挑同样几条 —— 占两份位置，
+    // 而召回本来就只有几个名额
+    const skip = new Set(recentMemories(char.id, me?.id, s0.memoryRecent).map(m => m.id));
     const recall = await recallMemory({
       settings: s0, char, scanText: scanTextOf(msgs, s0.scanWindow),
-      budgets: budgets(s0.contextBudget), queryVec, persona: me,
+      budgets: budgets(s0.contextBudget), queryVec, persona: me, skip,
     });
     // 先拼 system：每轮都变的那几块由它挑出来，交给 buildHistory 插到对话末尾
     const { system, volatile: hot } = buildChatSystem(chat, char, msgs, { queryVec, lore, recall });

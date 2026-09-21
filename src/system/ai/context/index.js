@@ -25,6 +25,9 @@ export const BLOCKS = {
   bond: { meta: memory.metaBond, build: memory.buildBond },
   // 钉住的与忌讳的。和底色一样常驻，所以挨着它放
   pinned: { meta: memory.metaPinned, build: memory.buildPinned },
+  // 最近记下的那几条。不问相关不相关，按时间带上 —— 召回的候选池只收
+  // 线索命中的和还没了结的，昨天的事一个词都对不上就进不去（见 memory.js）
+  recent: { meta: memory.metaRecent, build: memory.buildRecent },
   memory: { meta: memory.meta, build: memory.build },
   space: { meta: spaceBlock.meta, build: spaceBlock.build },
   day: { meta: dayBlock.meta, build: dayBlock.build },
@@ -41,7 +44,7 @@ export const BLOCKS = {
   plan: { meta: planBlock.meta, build: planBlock.build },
 };
 
-export const DEFAULT_ORDER = ['lorebook', 'bond', 'pinned', 'character', 'loreAfter', 'user', 'time', 'day', 'avatar', 'geo', 'music', 'watch', 'trip', 'bill', 'health', 'memory', 'space', 'plan', 'bridge'];
+export const DEFAULT_ORDER = ['lorebook', 'bond', 'pinned', 'recent', 'character', 'loreAfter', 'user', 'time', 'day', 'avatar', 'geo', 'music', 'watch', 'trip', 'bill', 'health', 'memory', 'space', 'plan', 'bridge'];
 
 // 读出一份干净的顺序:丢掉不认识的 id,补上配置里缺失的。
 // 没有这一步,以后每新增一个区块,老用户配置里就少一项,该区块永远不注入,
@@ -82,6 +85,7 @@ export const VOLATILE = new Set([
   'health',   // 今天的那几项
   'bridge',   // 对面刚发生的事，每一条消息、每一段正文都在变
   'plan',     // 勾掉一条就少一条，到点了措辞也变
+  'recent',   // 一提取就换一批，而且「多久以前」每天都在变
 ]);
 
 // 每个区块单独 try/catch,一个区块出错不拖垮整个 prompt。

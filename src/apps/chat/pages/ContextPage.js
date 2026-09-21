@@ -83,6 +83,7 @@ export function ContextPage() {
   const memN = db.memories.count();
   const gap = Math.max(0, Math.round(Number(s.autoSummarizeInterval) || 0));
   const planN = phone.todo.openOnes().length;
+  const recentN = Math.max(0, Math.round(Number(s.memoryRecent) || 0));
   const byCount = s.historyMode !== 'turn';
   const win = byCount ? Number(s.historyLimit) || 0 : Number(s.historyTurns) || 0;
 
@@ -98,6 +99,12 @@ export function ContextPage() {
       : `库里 ${memN} 条。自动总结已关闭，不会再有新的记忆产生。`
         + '「昨天说过的话今天不记得」多半出在这一项上。'
         + '在下方「自动总结」填一个条数即可开启，每次总结多调用一次接口'}/>
+        <${ListItem} title="最近记下的" multiline
+          left=${html`<${Icon} name=${recentN ? 'check' : 'filter'} size=${18}/>`}
+          subtitle=${recentN
+    ? `每次带上最近 ${recentN} 条记忆，不问是否与这一轮有关`
+    : '已关闭。记忆只在被这一轮的话检索到时才注入。'
+      + '昨天说过的事，今天换个说法提起就检索不到'}/>
         <${ListItem} title="历史范围" multiline
           left=${html`<${Icon} name=${win ? 'filter' : 'check'} size=${18}/>`}
           subtitle=${win

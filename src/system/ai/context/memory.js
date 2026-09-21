@@ -213,9 +213,12 @@ export function scoreOf(m, ctx) {
  * 对方刚好提到了它。
  */
 function poolFor(charId, personaId, ctx) {
-  // 钉住的与忌讳的已经常驻了（buildPinned），不再来挤这几个名额
+  // 钉住的、忌讳的、近期那一档都已经常驻了，不再来挤这几个名额。
+  // 不排除的话它们占两份位置，而召回本来就只有几个名额
+  const skip = ctx.skip instanceof Set ? ctx.skip : null;
   const all = listFor(charId, personaId)
-    .filter(m => m.rank !== 'S' && !m.supersededBy && !m.pinned && !m.taboo);
+    .filter(m => m.rank !== 'S' && !m.supersededBy && !m.pinned && !m.taboo
+      && !(skip && skip.has(m.id)));
   // 这段关系最早的那几条，给一点永久加成
   const early = new Set(all.slice()
     .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0))
@@ -259,7 +262,7 @@ export const lastRecall = () => last;
 
 /** 这一轮的候选与打分上下文。recall 与带重排的那一档共用。 */
 export function candidates(ctx) {
-  const { settings, char, scanText, queryVec, persona } = ctx;
+  const { settings, char, scanText, queryVec, persona, skip } = ctx;
   const personaId = persona?.id || null;
   const useVec = settings.memoryVector === true && embedReady() && queryVec?.length;
   const all = listFor(char?.id, personaId);
@@ -277,6 +280,8 @@ export function candidates(ctx) {
       : LOCAL_FLOOR,
     w: weightsOf(settings),
     mode: useVec ? 'vector' : 'local',
+    // 近期那一档已经常驻了，别再挑同样几条来占名额
+    skip: skip instanceof Set ? skip : null,
   };
   return { rows: poolFor(char?.id, personaId, sctx), sctx };
 }
@@ -513,6 +518,51 @@ export function buildPinned(ctx) {
   }
   return `\n\n[一直记着]\n${out.join('\n\n')}`;
 }
+
+// ---- 最近记下的那几条 ----
+//
+// 召回的候选池只有两条来路：**线索命中的**，和**还没了结的**
+//（见 poolFor）。昨天说了「一直在哭」，今天开口是「早」——
+// 一个词都对不上，那条记忆连候选池都进不去。打分里那个 recent 因子
+// 救不了它：候选池里没有它，分数无从谈起。
+//
+// 所以另开一档：**最近记下的这几条，不问相关不相关，一律带上。**
+// 人对昨天的事本来就不需要谁提起。
+//
+// 它和另外三档各管各的：
+//   关系底色  S 级压成的几句现状，讲的是「你们是什么关系」
+//   一直记着  钉住的与忌讳的，用户自己指定，永久
+//   最近记下  按时间取，不问内容，滚动更新
+//   相关记忆  按这一轮的话去检索，命中才来
+
+/** 最近记下的几条。上限是默认值不是封顶，填 0 就是不带（第 13 条）。 */
+export function recentOf(charId, personaId, cap = 5) {
+  const n = Math.max(0, Math.round(Number(cap) || 0));
+  if (!n) return [];
+  return listFor(charId, personaId)
+    // S 级在关系底色里，钉住与忌讳在「一直记着」里，都不必再来一遍
+    .filter(m => m.rank !== 'S' && !m.supersededBy && !m.pinned && !m.taboo)
+    .sort((a, b) => (Number(b.createdAt) || 0) - (Number(a.createdAt) || 0))
+    .slice(0, n);
+}
+
+export function buildRecent(ctx) {
+  if (!ctx.settings?.memoryEnabled) return '';
+  const cap = ctx.settings?.memoryRecent;
+  const rows = recentOf(ctx.char?.id, ctx.persona?.id, cap === undefined ? 5 : cap);
+  if (!rows.length) return '';
+  const now = ctx.now || Date.now();
+  const lines = rows.map(m => `- ${agoText(m, now)}　${m.content}`);
+  return `\n\n[最近记下的]\n${lines.join('\n')}\n`
+    + 'These are the most recent things you noted about the two of you, '
+    + 'newest first. They are here because they are recent, not because '
+    + 'they bear on what was just said.';
+}
+
+export const metaRecent = {
+  id: 'recent', label: '最近记下的',
+  desc: '最近几条记忆，不问相关不相关一律带上。条数在「用量与上限」里，0 为不带',
+};
 
 export const metaPinned = {
   id: 'pinned', label: '一直记着',

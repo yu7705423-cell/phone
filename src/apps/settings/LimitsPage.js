@@ -194,6 +194,15 @@ export function LimitsPage() {
             onChange=${v => set({ sceneWords: v })}/>
         <//>
 
+        <${Field} label="带上最近记下的几条记忆"
+          desc="每次请求带上最近记下的这么多条记忆，不问是否与这一轮有关。
+            召回只收「线索命中的」和「还没了结的」：昨天说了一直在哭，
+            今天开口是「早」，一个词都对不上，那条就进不了召回。这一档补的是它。
+            填 0 表示不带，完全交给召回。">
+          <${NumberInput} value=${s.memoryRecent} unit="条" placeholder="不带"
+            onChange=${v => set({ memoryRecent: v })}/>
+        <//>
+
         <${Field} label="带上几条「你记着的事」"
           desc="每次请求带上「待办」里已计入、还没做的这么多条，排好时间的在前。
             填 0 表示全部带上。角色要知道你几号去哪，靠的就是这一项。">
