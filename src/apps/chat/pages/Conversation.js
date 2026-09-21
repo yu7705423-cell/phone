@@ -1372,7 +1372,9 @@ export function Conversation({ chatId, focusId = '' }) {
 
         <${List} title="数据">
           <${ListItem} title=${packing ? '正在打包' : '导出这个角色'} arrow multiline
-            subtitle="打包该角色及其相关数据为压缩包。整库备份在「设置 - 存储」"
+            subtitle="打包该角色及其相关的全部内容：会话、记忆、线下、出行、
+              动态、它的每一天与那台手机，以及这几段会话上的美化。
+              整库备份在「设置 - 存储」"
             left=${packing
               ? html`<${Spinner} size=${16}/>`
               : html`<${Icon} name="download" size=${18}/>`}

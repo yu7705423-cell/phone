@@ -443,11 +443,15 @@ function EditPage({ id }) {
   const patch = p => db.characters.update(id, p);
 
   const del = async () => {
+    const n = phone.purge.counts(id);
     if (!await confirm({
       title: '删除这个角色', danger: true, okText: '删除',
-      message: `将删除「${char.name}」。与该角色的聊天记录不会一并删除。`,
+      message: `将删除「${char.name}」，以及与它相关的全部内容：`
+        + `${n.chats} 段会话、${n.messages} 条消息、${n.memories} 条记忆，`
+        + '还有线下、出行、动态、它的每一天与那台手机。此操作无法撤销。',
     })) return;
-    db.characters.remove(id);
+    // 和聊天那边的资料页删的是同一件事，都走 purge（见 ARCHITECTURE 4.115）
+    phone.purge.dropCharacter(id);
     nav.pop();
   };
 

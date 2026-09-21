@@ -25,6 +25,9 @@ export function ImportPage() {
         pack.history
           ? `含 ${pack.chats} 段会话、${pack.messages} 条消息、${pack.memories} 条记忆`
           : '只含角色卡，不含聊天记录与记忆',
+        pack.scenes ? `含 ${pack.scenes} 场线下` : '',
+        pack.skins ? `含 ${pack.skins} 份美化，仅在带进来的会话里生效` : '',
+        pack.extras ? `含 ${pack.extras} 条其余记录（出行、动态、日程、那台手机等）` : '',
         pack.alts ? `含 ${pack.alts} 个小号` : '',
         pack.books ? `含 ${pack.books} 本关联世界书，本机已有同名的保持不变` : '',
         pack.exists ? '本机已有同一个角色，将另建一个副本，原有的不受影响' : '',
@@ -33,7 +36,10 @@ export function ImportPage() {
       if (!await confirm({ title: `导入「${pack.name}」`, okText: '导入',
         message: lines.join('。') + '。' })) return;
       const got2 = await charpack.install(pack);
-      toast(`已导入 ${pack.name}${got2.copied ? '（副本）' : ''}`, 'ok', 4000);
+      // 影评与段评指着本机没有的书或片子，落不下去
+      toast(`已导入 ${pack.name}${got2.copied ? '（副本）' : ''}`
+        + (got2.dropped ? `。${got2.dropped} 条书评与段评所指的书籍或影片不在本机，未导入` : ''),
+      'ok', got2.dropped ? 6000 : 4000);
       nav.replace(`/char/${got2.charId}`);
     } catch (err) {
       toast(String(err.message || err), 'error', 6000);

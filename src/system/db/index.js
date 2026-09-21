@@ -36,7 +36,9 @@ export const meals      = makeCollection('meals', 'ml', { indexBy: 'charId' });
 export const books      = makeCollection('books', 'bk');
 export const ebooks     = makeCollection('ebooks', 'ebk');
 export const reviews    = makeCollection('reviews', 'rev');
-export const readnotes  = makeCollection('readnotes', 'rn', { indexBy: 'chatId' });
+// 段评挂在「哪本书 / 哪部片子的第几段」上，不挂在会话上。从前这里按 chatId
+// 建索引，可行里根本没有 chatId —— 那个桶永远是空的，按它清等于没清
+export const readnotes  = makeCollection('readnotes', 'rn');
 // 健康。每人每天一行，按「谁」建索引 —— 翻某个人的历史是最常做的事
 export const health     = makeCollection('health', 'hl', { indexBy: 'who' });
 export const cycles     = makeCollection('cycles', 'cy');

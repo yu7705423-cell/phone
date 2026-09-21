@@ -61,8 +61,8 @@ export function releaseImages(ids) {
 
 /**
  * 删掉一段会话，连同挂在它身上的一切：消息（及其语音、没人共用的图）、
- * 情侣空间里自己存的那两样、线下的场次与正文、读书时的段评、出行。
- * 记忆不动 —— 它按角色存，不按会话。
+ * 情侣空间里自己存的那两样、线下的场次与正文、出行。
+ * 记忆不动 —— 它按角色存，不按会话；段评也不动，它挂在书上。
  *
  * 从前列表页和资料页各删各的，都只删消息和空间，线下、出行、段评留成孤儿，
  * 按会话建的索引指着一段已经不在的会话。删会话只能从这里走。
@@ -80,7 +80,6 @@ export function dropChat(chatId) {
     beats.byIndex(sc.id).slice().forEach(b => beats.remove(b.id));
     scenes.remove(sc.id);
   });
-  readnotes.byIndex(chatId).slice().forEach(r => readnotes.remove(r.id));
   trips.byIndex(chatId).slice().forEach(t => trips.remove(t.id));
   chats.remove(chatId);
   releaseImages(imgs);

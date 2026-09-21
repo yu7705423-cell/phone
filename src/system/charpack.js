@@ -1,4 +1,6 @@
-import { characters, lorebooks, memories, chats, messages, messagesOf, images, files } from './db/index.js';
+import { characters, lorebooks, memories, chats, messages, messagesOf, images, files,
+         scenes, beats, trips, spaceItems, skins, days, meals, health, phones, phoneChats,
+         moments, reviews, readnotes, todos, ebooks, videos } from './db/index.js';
 import { DATA_VERSION } from './db/schema.js';
 import * as accounts from './accounts.js';
 import { uid } from './store.js';
@@ -13,7 +15,14 @@ import { packRow, unpackRow } from './typed.js';
 // （同一本常被多个角色关联，盖掉等于替别人改设定）；图片音频已有的跳过。
 
 const FORMAT = 'mini-phone-character';
-const VERSION = 1;
+// 2：带上了挂在这个角色与这几段会话上的其余数据域（线下、出行、纪念日、
+// 美化、每一天、吃饭、健康、那台手机、动态、影评、段评、待办）。
+// 老包（1）照读，只是那几样是空的
+const VERSION = 2;
+
+// 挂在会话上的域 / 挂在角色上的域。**加数据域时这两张表要跟着加一行**，
+// 和 purge 的 dropChat / dropCharacter 是同一件事的两面：那边管删，
+// 这边管带走。漏了不会报错，只是导出的包里少一块，换台设备才发现。
 
 const extOf = (type, fallback) => {
   const m = String(type || '').toLowerCase().match(/^(?:image|audio|video|application)\/([a-z0-9.+-]+)/);
@@ -34,9 +43,31 @@ export function collect(charId, { history = true } = {}) {
   cast.forEach(c => (c.lorebookIds || []).forEach(b => bookIds.add(b)));
   const books = [...bookIds].map(b => lorebooks.get(b)).filter(b => b && !b.global);
 
-  const chatRows = history ? chats.all().filter(c => (c.characterIds || []).some(x => castIds.has(x))) : [];
-  const msgRows = history ? chatRows.flatMap(c => messagesOf(c.id)) : [];
-  const memRows = history ? memories.where(m => castIds.has(m.charId)) : [];
+  const none = [];
+  const chatRows = history
+    ? chats.all().filter(c => (c.characterIds || []).some(x => castIds.has(x))) : none;
+  const msgRows = history ? chatRows.flatMap(c => messagesOf(c.id)) : none;
+  const memRows = history ? memories.where(m => castIds.has(m.charId)) : none;
+
+  // 挂在这几段会话上的
+  const sceneRows = chatRows.flatMap(c => scenes.byIndex(c.id));
+  const beatRows = sceneRows.flatMap(sc => beats.byIndex(sc.id));
+  const tripRows = chatRows.flatMap(c => trips.byIndex(c.id));
+  const spaceRows = chatRows.flatMap(c => spaceItems.byIndex(c.id));
+  // 美化可以几段会话共用一份，去一次重
+  const skinRows = [...new Set(chatRows.map(c => c.skinId).filter(Boolean))]
+    .map(id => skins.get(id)).filter(Boolean);
+
+  // 挂在这几个角色上的
+  const dayRows = history ? cast.flatMap(c => days.byIndex(c.id)) : none;
+  const mealRows = history ? cast.flatMap(c => meals.byIndex(c.id)) : none;
+  const healthRows = history ? cast.flatMap(c => health.byIndex(c.id)) : none;
+  const phoneRows = history ? cast.flatMap(c => phones.byIndex(c.id)) : none;
+  const phoneChatRows = history ? cast.flatMap(c => phoneChats.byIndex(c.id)) : none;
+  const momentRows = history ? moments.where(m => castIds.has(m.authorId)) : none;
+  const reviewRows = history ? reviews.where(r => castIds.has(r.charId)) : none;
+  const noteRows = history ? readnotes.where(r => castIds.has(r.authorId)) : none;
+  const todoRows = history ? todos.where(t => castIds.has(t.charId)) : none;
 
   // 要跟着走的图片与音频
   const imgIds = new Set();
@@ -44,15 +75,31 @@ export function collect(charId, { history = true } = {}) {
   cast.forEach(c => {
     [c.avatar, c.cover, c.faceImage, c.callImage].forEach(id => id && imgIds.add(id));
     (c.avatarPool || []).forEach(x => x?.imageId && imgIds.add(x.imageId));
+    // 角色书架上自己换过的封面
+    (c.shelf || []).forEach(it => it?.cover && imgIds.add(it.cover));
   });
   msgRows.forEach(m => {
     if (m.imageId) imgIds.add(m.imageId);
     if (m.audioId) fileIds.add(m.audioId);
   });
+  momentRows.forEach(m => (m.images || []).forEach(id => id && imgIds.add(id)));
+  // 那台手机上的三处图：相册、壁纸、换过的应用图标
+  phoneRows.forEach(row => {
+    (row.photos || []).forEach(p => p?.imageId && imgIds.add(p.imageId));
+    if (row.wallpaper) imgIds.add(row.wallpaper);
+    Object.values(row.icons || {}).forEach(v => v?.imageId && imgIds.add(v.imageId));
+  });
 
-  return { main, cast, books, chats: chatRows, messages: msgRows, memories: memRows,
+  return {
+    main, cast, books,
+    chats: chatRows, messages: msgRows, memories: memRows,
+    scenes: sceneRows, beats: beatRows, trips: tripRows, spaceItems: spaceRows, skins: skinRows,
+    days: dayRows, meals: mealRows, health: healthRows,
+    phones: phoneRows, phoneChats: phoneChatRows,
+    moments: momentRows, reviews: reviewRows, readnotes: noteRows, todos: todoRows,
     imgIds: [...imgIds].filter(id => images.has(id)),
-    fileIds: [...fileIds].filter(id => files.info(id)) };
+    fileIds: [...fileIds].filter(id => files.info(id)),
+  };
 }
 
 /** 导出前把账摆出来：带走几段会话、多少条消息、几张图。 */
@@ -65,6 +112,11 @@ export function estimate(charId, opts) {
     chats: g.chats.length,
     messages: g.messages.length,
     memories: g.memories.length,
+    scenes: g.scenes.length,
+    extras: g.trips.length + g.spaceItems.length + g.days.length + g.meals.length
+      + g.health.length + g.phones.length + g.phoneChats.length + g.moments.length
+      + g.reviews.length + g.readnotes.length + g.todos.length,
+    skins: g.skins.length,
     images: g.imgIds.length,
     files: g.fileIds.length,
   };
@@ -85,6 +137,20 @@ export async function build(charId, { history = true, onProgress } = {}) {
     memories: g.memories.map(m => packRow('memories', m)),
     chats: g.chats,
     messages: g.messages,
+    scenes: g.scenes,
+    beats: g.beats,
+    trips: g.trips,
+    spaceItems: g.spaceItems,
+    skins: g.skins,
+    days: g.days,
+    meals: g.meals,
+    health: g.health,
+    phones: g.phones,
+    phoneChats: g.phoneChats,
+    moments: g.moments,
+    reviews: g.reviews,
+    readnotes: g.readnotes,
+    todos: g.todos,
   };
 
   const entries = [{ name: 'character.json', text: JSON.stringify(data) }];
@@ -106,6 +172,10 @@ export async function build(charId, { history = true, onProgress } = {}) {
 export const fileNameFor = name =>
   `角色-${String(name || '未命名').replace(/[\\/:*?"<>|]/g, '').slice(0, 24) || '未命名'}`
   + `-${new Date().toISOString().slice(0, 10)}.zip`;
+
+// 除会话、消息、记忆、线下、美化之外，跟着角色走的那几域。界面上报一个总数
+const EXTRA_KINDS = ['trips', 'spaceItems', 'days', 'meals', 'health',
+  'phones', 'phoneChats', 'moments', 'reviews', 'readnotes', 'todos'];
 
 /**
  * 读一个包出来先看看，**不动库**。界面照着它写确认框，确认了再 install。
@@ -137,6 +207,10 @@ export async function read(file) {
     chats: (data.chats || []).length,
     messages: (data.messages || []).length,
     memories: (data.memories || []).length,
+    scenes: (data.scenes || []).length,
+    skins: (data.skins || []).length,
+    // 那一堆按角色或会话挂着的小东西，界面上合成一句话，不逐项报数
+    extras: EXTRA_KINDS.reduce((n, k) => n + (data[k] || []).length, 0),
     history: !!data._history,
   };
 }
@@ -185,21 +259,39 @@ export async function install(pack) {
     characters.put(row);
   });
 
+  // 撞了就整包换一套 id。**每一域都要各记一张 id 表**：下面那些行
+  // 互相指着（线下的段指着场次、待办指着消息、美化被会话指着），
+  // 少一张表就是一堆指向空处的行
+  const fresh = (map, col, row, prefix) => {
+    const id = (copied || col.has(row.id)) ? uid(prefix) : row.id;
+    map.set(row.id, id);
+    return id;
+  };
+  const who = id => (id === 'me' || !id ? id : remap(id));
+
+  // 美化。会话指着它，所以先放
+  const skinMap = new Map();
+  (data.skins || []).forEach(k => {
+    if (!k || !k.id) return;
+    skins.put({ ...k, id: fresh(skinMap, skins, k, 'sk') });
+  });
+
   // 会话与消息
   const chatMap = new Map();
   (data.chats || []).forEach(c => {
-    const id = (copied || chats.has(c.id)) ? uid('chat') : c.id;
-    chatMap.set(c.id, id);
+    const id = fresh(chatMap, chats, c, 'chat');
     chats.put({
       ...c, id, personaId: me,
       characterIds: (c.characterIds || []).map(remap),
+      skinId: c.skinId ? (skinMap.get(c.skinId) || '') : '',
     });
   });
+  const msgMap = new Map();
   (data.messages || []).forEach(m => {
     const chatId = chatMap.get(m.chatId);
     if (!chatId) return;                       // 会话没带进来的消息不要
-    const id = (copied || messages.has(m.id)) ? uid('msg') : m.id;
-    messages.put({ ...m, id, chatId, authorId: m.authorId === 'me' ? 'me' : remap(m.authorId) });
+    const id = fresh(msgMap, messages, m, 'msg');
+    messages.put({ ...m, id, chatId, authorId: who(m.authorId) });
   });
 
   // 记忆。同一个角色的记忆各身份分开存，这里一律归到当前账号名下
@@ -209,12 +301,97 @@ export async function install(pack) {
     memories.put({ ...m, id, charId: remap(m.charId), personaId: me });
   });
 
+  // ---- 挂在会话上的那几域 ----
+  const sceneMap = new Map();
+  (data.scenes || []).forEach(sc => {
+    const chatId = chatMap.get(sc.chatId);
+    if (!chatId) return;
+    scenes.put({
+      ...sc, id: fresh(sceneMap, scenes, sc, 'sc'), chatId,
+      castIds: (sc.castIds || []).map(remap),
+    });
+  });
+  (data.beats || []).forEach(b => {
+    const sceneId = sceneMap.get(b.sceneId);
+    if (!sceneId) return;
+    const id = (copied || beats.has(b.id)) ? uid('bt') : b.id;
+    beats.put({ ...b, id, sceneId, authorId: who(b.authorId) });
+  });
+  (data.trips || []).forEach(t => {
+    const chatId = chatMap.get(t.chatId);
+    if (!chatId) return;
+    const id = (copied || trips.has(t.id)) ? uid('tr') : t.id;
+    trips.put({ ...t, id, chatId });
+  });
+  (data.spaceItems || []).forEach(x => {
+    const chatId = chatMap.get(x.chatId);
+    if (!chatId) return;
+    const id = (copied || spaceItems.has(x.id)) ? uid('si') : x.id;
+    spaceItems.put({ ...x, id, chatId });
+  });
+
+  // ---- 挂在角色上的那几域 ----
+  const mine = new Set(cast.map(c => c.id));
+  const byChar = (rows, col, prefix, key) => (rows || []).forEach(r => {
+    if (!r || !mine.has(r[key])) return;
+    const id = (copied || col.has(r.id)) ? uid(prefix) : r.id;
+    col.put({ ...r, id, [key]: remap(r[key]) });
+  });
+  byChar(data.days, days, 'day', 'charId');
+  byChar(data.meals, meals, 'ml', 'charId');
+  byChar(data.health, health, 'hl', 'who');
+  byChar(data.phones, phones, 'ph', 'charId');
+
+  (data.phoneChats || []).forEach(r => {
+    if (!r || !mine.has(r.charId)) return;
+    const id = (copied || phoneChats.has(r.id)) ? uid('pc') : r.id;
+    phoneChats.put({ ...r, id, charId: remap(r.charId), npcId: r.npcId ? remap(r.npcId) : '' });
+  });
+  (data.moments || []).forEach(r => {
+    if (!r || !mine.has(r.authorId)) return;
+    const id = (copied || moments.has(r.id)) ? uid('mo') : r.id;
+    moments.put({
+      ...r, id, authorId: remap(r.authorId),
+      likes: (r.likes || []).map(who),
+      comments: (r.comments || []).map(c => ({ ...c, authorId: who(c.authorId) })),
+    });
+  });
+
+  // 影评书评与段评指着本机的书或片子。那两样是使用者自己的库，不在角色包里，
+  // 所以对方没有那一本时这几条就落不下去 —— 落下去也没有一处显示得到它
+  let dropped = 0;
+  const hasSubject = (kind, id) => (kind === 'video' ? videos.has(id) : ebooks.has(id));
+  (data.reviews || []).forEach(r => {
+    if (!r || !mine.has(r.charId)) return;
+    if (!hasSubject(r.kind, r.subjectId)) { dropped += 1; return; }
+    const id = (copied || reviews.has(r.id)) ? uid('rev') : r.id;
+    reviews.put({ ...r, id, charId: remap(r.charId) });
+  });
+  (data.readnotes || []).forEach(r => {
+    if (!r || !mine.has(r.authorId)) return;
+    if (!hasSubject(r.bookId ? 'book' : 'video', r.bookId || r.videoId)) { dropped += 1; return; }
+    const id = (copied || readnotes.has(r.id)) ? uid('rn') : r.id;
+    readnotes.put({ ...r, id, authorId: remap(r.authorId) });
+  });
+
+  (data.todos || []).forEach(t => {
+    if (!t || !mine.has(t.charId)) return;
+    const id = (copied || todos.has(t.id)) ? uid('td') : t.id;
+    todos.put({
+      ...t, id, charId: remap(t.charId),
+      chatId: t.chatId ? (chatMap.get(t.chatId) || '') : '',
+      srcMsgId: t.srcMsgId ? (msgMap.get(t.srcMsgId) || '') : '',
+    });
+  });
+
   return {
     charId: remap(data.character.id),
     copied,
     chats: (data.chats || []).length,
     messages: (data.messages || []).length,
     memories: (data.memories || []).length,
+    scenes: (data.scenes || []).length,
     media: mediaCount,
+    dropped,
   };
 }
