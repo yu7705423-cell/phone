@@ -116,6 +116,14 @@ export function dropCharacter(charId) {
     phones.remove(row.id);
   });
   phoneChats.byIndex(charId).slice().forEach(r => phoneChats.remove(r.id));
+  // 别人身上指着它的那条关系。relationsOf 本来就会滤掉找不到的，
+  // 但留着的话下次和另一个人重名时会认错
+  characters.all().forEach(x => {
+    const rel = x.relations || [];
+    if (rel.some(r => r.charId === charId)) {
+      characters.update(x.id, { relations: rel.filter(r => r.charId !== charId) });
+    }
+  });
   characters.remove(charId);
   releaseImages(imgs);
   return true;

@@ -942,6 +942,8 @@ export function Conversation({ chatId, focusId = '' }) {
   // 菜单没开就不数。counts 要把这个角色名下所有会话的消息过一遍，
   // 而这一页每来一条消息就重渲染一次
   const wipeN = menu ? phone.purge.counts(char.id) : { chats: 0, messages: 0, memories: 0 };
+  // 导出之前把账摆出来：这一下会带走哪些东西。菜单开着才算，算一遍要扫几域
+  const packN = menu ? phone.charpack.estimate(char.id) : null;
 
   // 总结要走一次接口，真机上十几二十秒。**菜单先别关。**
   // 从前是点完立刻 setMenu(false)，于是屏幕上只发生了一件事：菜单没了，
@@ -1372,9 +1374,14 @@ export function Conversation({ chatId, focusId = '' }) {
 
         <${List} title="数据">
           <${ListItem} title=${packing ? '正在打包' : '导出这个角色'} arrow multiline
-            subtitle="打包该角色及其相关的全部内容：会话、记忆、线下、出行、
-              动态、它的每一天与那台手机，以及这几段会话上的美化。
-              整库备份在「设置 - 存储」"
+            subtitle=${packN ? [
+    `${packN.chats} 段会话、${packN.messages} 条消息、${packN.memories} 条记忆`,
+    packN.scenes ? `${packN.scenes} 场线下` : '',
+    packN.skins ? `${packN.skins} 份美化` : '',
+    packN.extras ? `${packN.extras} 条其余记录` : '',
+    packN.images ? `${packN.images} 张图片` : '',
+    packN.files ? `${packN.files} 段语音` : '',
+  ].filter(Boolean).join('、') + '。整库备份在「设置 - 存储」' : ''}
             left=${packing
               ? html`<${Spinner} size=${16}/>`
               : html`<${Icon} name="download" size=${18}/>`}
