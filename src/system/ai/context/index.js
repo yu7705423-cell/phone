@@ -11,6 +11,7 @@ import * as billBlock from './bill.js';
 import * as tripBlock from './trip.js';
 import * as healthBlock from './health.js';
 import * as bridgeBlock from './bridge.js';
+import * as planBlock from './plan.js';
 
 export const BLOCKS = {
   character,
@@ -36,9 +37,11 @@ export const BLOCKS = {
   health: { meta: healthBlock.meta, build: healthBlock.build },
   // 线上与线下之间那一段。两边各看到对面的一点，方向由 ctx.side 决定
   bridge: { meta: bridgeBlock.meta, build: bridgeBlock.build },
+  // 用户自己记下的事。待办一直存着，却从来没进过 prompt
+  plan: { meta: planBlock.meta, build: planBlock.build },
 };
 
-export const DEFAULT_ORDER = ['lorebook', 'bond', 'pinned', 'character', 'loreAfter', 'user', 'time', 'day', 'avatar', 'geo', 'music', 'watch', 'trip', 'bill', 'health', 'memory', 'space', 'bridge'];
+export const DEFAULT_ORDER = ['lorebook', 'bond', 'pinned', 'character', 'loreAfter', 'user', 'time', 'day', 'avatar', 'geo', 'music', 'watch', 'trip', 'bill', 'health', 'memory', 'space', 'plan', 'bridge'];
 
 // 读出一份干净的顺序:丢掉不认识的 id,补上配置里缺失的。
 // 没有这一步,以后每新增一个区块,老用户配置里就少一项,该区块永远不注入,
@@ -78,6 +81,7 @@ export const VOLATILE = new Set([
   'bill',     // 余额随转账变
   'health',   // 今天的那几项
   'bridge',   // 对面刚发生的事，每一条消息、每一段正文都在变
+  'plan',     // 勾掉一条就少一条，到点了措辞也变
 ]);
 
 // 每个区块单独 try/catch,一个区块出错不拖垮整个 prompt。

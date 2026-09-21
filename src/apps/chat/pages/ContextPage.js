@@ -78,8 +78,40 @@ export function ContextPage() {
     db.settings.set({ injectOrder: next });
   };
 
+  // 「它为什么不记得」。这三件事各自都按规矩来，合起来的后果却是
+  // 「昨天说过的话今天一点不剩」，而用户没有任何地方看得出来。
+  const memN = db.memories.count();
+  const gap = Math.max(0, Math.round(Number(s.autoSummarizeInterval) || 0));
+  const planN = phone.todo.openOnes().length;
+  const byCount = s.historyMode !== 'turn';
+  const win = byCount ? Number(s.historyLimit) || 0 : Number(s.historyTurns) || 0;
+
   return html`
     <${Page} title="上下文与记忆" onBack=${nav.pop}>
+      <${List} title="它现在记得住什么">
+        <${ListItem} title="长期记忆" multiline
+          left=${html`<${Icon} name=${memN ? 'check' : 'filter'} size=${18}/>`}
+          subtitle=${!s.memoryEnabled
+    ? '记忆已整体关闭，既不注入也不总结。见下方「启用记忆」'
+    : gap
+      ? `库里 ${memN} 条。每累计 ${gap} 条角色回复自动总结一次`
+      : `库里 ${memN} 条。自动总结已关闭，不会再有新的记忆产生。`
+        + '「昨天说过的话今天不记得」多半出在这一项上。'
+        + '在下方「自动总结」填一个条数即可开启，每次总结多调用一次接口'}/>
+        <${ListItem} title="历史范围" multiline
+          left=${html`<${Icon} name=${win ? 'filter' : 'check'} size=${18}/>`}
+          subtitle=${win
+    ? `每次只带最近 ${win} ${byCount ? '条消息' : '轮对话'}，更早的不进上下文。`
+      + '它们只能通过长期记忆或历史压缩留下来。在下方「历史范围」填 0 表示全带'
+    : '整段对话都进上下文。对话越长，每次请求越贵'}/>
+        <${ListItem} title="你记着的事" multiline
+          left=${html`<${Icon} name=${planN ? 'check' : 'filter'} size=${18}/>`}
+          subtitle=${planN
+    ? `「待办」里有 ${planN} 条已计入、还没做的，每次请求都会带上`
+    : '「待办」里还没有已计入的条目。在聊天里说出要做的事并点「计入」，'
+      + '之后每次请求都会带上它'}/>
+      <//>
+
       <div class="pad">
         <${Field} label="注入顺序"
           desc="身份开场与回复风格收尾固定于首尾，不参与排序。新增区块会自动补入顺序，旧配置不会失效。">

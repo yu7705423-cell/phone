@@ -194,6 +194,13 @@ export function LimitsPage() {
             onChange=${v => set({ sceneWords: v })}/>
         <//>
 
+        <${Field} label="带上几条「你记着的事」"
+          desc="每次请求带上「待办」里已计入、还没做的这么多条，排好时间的在前。
+            填 0 表示全部带上。角色要知道你几号去哪，靠的就是这一项。">
+          <${NumberInput} value=${s.planCount} unit="条" placeholder="全部"
+            onChange=${v => set({ planCount: v })}/>
+        <//>
+
         <${Field} label="线下带上手机里最近几条"
           desc="线下的每次请求带上这段会话里最近这么多条消息的原文。
             气泡很短，二十条也只有几百字，所以带的是原文而不是摘要。
