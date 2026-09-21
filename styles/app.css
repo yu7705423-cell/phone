@@ -2106,42 +2106,48 @@ button.search-bar { width: 100%; border: none; }
    几万字走 Preact 每秒几十次 diff 一个巨大文本节点，界面会僵住 */
 .sg-live { white-space: pre-wrap; }
 
-/* 一段开头的署名。走时尚大片那一路：靠尺度反差，不靠图形 ——
-   一个又大又细的编号、一道发丝线、一行字距拉开的极小字。
-   先做过一枚圆邮戳，丑，撤了（见 ARCHITECTURE 4.107）。 */
-.sg-sign { margin: 0 0 var(--sp-6); }
-.sg-sign-top {
-  display: flex; align-items: flex-end; justify-content: space-between;
-  gap: var(--sp-4);
-  padding-bottom: var(--sp-3);
+/* 一段开头的署名。全是小字 —— 撑开篇那一页的是正文的首字下沉，不是这里。
+   刊物里的页码（folio）一向是小的、推到页边的，所以编号并进这一行，
+   不再是上一版那个 56px 的大数字（见 ARCHITECTURE 4.107）。 */
+.sg-sign {
+  display: flex; align-items: center; gap: var(--sp-3);
+  margin: 0 0 var(--sp-5);
+  padding-bottom: var(--sp-2);
   border-bottom: 1px solid var(--sg-line);
 }
-.sg-sign-no {
-  /* 数字走无衬线的细体，别跟着正文的宋体走 —— 宋体数字撑不起这个尺度 */
-  font-family: var(--font);
-  font-size: 56px; font-weight: 200; line-height: .88;
-  letter-spacing: -.04em; font-variant-numeric: tabular-nums;
-  color: var(--sg-mark);
-}
-/* 头像盖在右上角，像明信片上那张邮票：方的，一道发丝框，不做圆 ——
-   圆头像一出现，整页就读成聊天了 */
-.sg-face {
-  flex: none; width: 60px; height: 60px; object-fit: cover;
-  border-radius: 2px; border: 1px solid var(--sg-line);
-}
-.sg-sign.is-mine .sg-sign-no { color: var(--sg-dim); font-weight: 100; }
-.sg-sign-row {
-  display: flex; align-items: baseline; justify-content: space-between;
-  gap: var(--sp-4); padding-top: var(--sp-2);
-}
+.sg-sign-text { min-width: 0; }
 .sg-sign-name {
-  font-size: var(--fs-12); letter-spacing: .34em;
-  color: var(--sg-ink); white-space: nowrap;
+  font-size: var(--fs-12); letter-spacing: .34em; line-height: 1.5;
+  color: var(--sg-ink);
 }
 .sg-sign.is-mine .sg-sign-name { color: var(--sg-dim); }
 .sg-sign-meta {
-  font-size: 10px; letter-spacing: .22em; color: var(--sg-dim);
-  text-align: right; font-variant-numeric: tabular-nums;
+  font-family: var(--font);
+  font-size: 10px; letter-spacing: .22em; line-height: 1.5;
+  color: var(--sg-dim); font-variant-numeric: tabular-nums;
+}
+/* 头像。方的，一道发丝框，不做圆 —— 圆头像一出现，整页就读成聊天了 */
+.sg-face {
+  flex: none; width: 46px; height: 46px; object-fit: cover;
+  border-radius: 2px; border: 1px solid var(--sg-line);
+}
+
+/* 首字下沉。杂志开篇那一页真正的大件。
+   initial-letter 各家支持不齐，稳的是 ::first-letter 加浮动。
+   开头是标点的那一段不加（canDrop 在 StageBits.js 里判） */
+.sg-text.is-drop > p:first-child::first-letter {
+  float: left;
+  font-size: 3em; line-height: .86;
+  padding: .06em .12em 0 0;
+  color: var(--sg-ink);
+  font-weight: var(--fw-normal);
+}
+
+/* 只要一行的那一档。同一份字距，去掉头像与细线 */
+.sg-byline {
+  font-size: 10px; letter-spacing: .24em; color: var(--sg-dim);
+  margin-bottom: var(--sp-5);
+  font-variant-numeric: tabular-nums;
 }
 
 /* 明信片那一档。竖着滑，一张一张排下去 */
@@ -2155,17 +2161,16 @@ button.search-bar { width: 100%; border: none; }
   padding: var(--sp-5) var(--sp-4);
   border: 1px solid var(--sg-line);
   background: var(--sg-bg);
+  display: flex; flex-direction: column;
 }
 .sg-card:last-child { margin-bottom: 0; }
-.sg-card .sg-sign { margin-bottom: var(--sp-5); }
+/* 每片一样大那一档：真明信片的比例（105 × 148 毫米），文字在片内滚。
+   高度不能用 vh —— 第 1 条只许外壳那三层用，这里靠比例 */
+.sg-card.is-fixed { aspect-ratio: 105 / 148; }
+.sg-card-body { flex: 1; min-height: 0; }
+.sg-card.is-fixed .sg-card-body { overflow-y: auto; -webkit-overflow-scrolling: touch; }
 .sg.is-spread .sg-feed {
   padding-top: calc(var(--sp-4) + env(safe-area-inset-top));
-}
-
-/* 只要一行的那一档。同一份字距，去掉编号和细线 */
-.sg-byline {
-  font-size: 10px; letter-spacing: .24em; color: var(--sg-dim);
-  margin-bottom: var(--sp-5);
 }
 
 /* 场外指示的标记。不占一张，只在刊头留一个点得开的记号 */

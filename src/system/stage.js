@@ -33,6 +33,8 @@ export const DEFAULTS = {
   tapTurn: true,
   sign: 'full',         // 署名：full 编号加细线 | line 只一行 | none 不显示
   marks: true,          // 对白与动作分样式（只是展示层）
+  drop: true,           // 首字下沉。一段的第一张才有
+  cardGrow: true,       // 明信片跟着内容长；关了每片一样大，文字在片内滚
   serif: true,
   bgColor: '', ink: '', dim: '', line: '', mark: '',   // theme 为 custom 时用
   bgImage: null,
@@ -57,7 +59,7 @@ export const LAYOUTS = [
 ];
 
 export const SIGNS = [
-  { id: 'full', label: '完整', desc: '编号、细线，以及一行名字与地点。明信片版式下另带头像' },
+  { id: 'full', label: '完整', desc: '一行名字，一行地点、时刻与编号，下面一道细线。明信片版式下另带头像' },
   { id: 'line', label: '一行', desc: '只有一行名字、地点与时刻' },
   { id: 'none', label: '不显示', desc: '正文之外什么都不写' },
 ];

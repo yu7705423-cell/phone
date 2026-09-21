@@ -255,7 +255,8 @@ export function StageRead({ sceneId }) {
         ${cards ? html`
           <div class="sg-feed" ref=${bodyRef} onClick=${onFeedTap}>
             ${pages.map(p => html`
-              <${Card} key=${p.key} page=${p} marks=${cfg.marks} face
+              <${Card} key=${p.key} page=${p} marks=${cfg.marks} drop=${cfg.drop} face
+                grow=${cfg.cardGrow !== false}
                 sign=${p.first ? sceneApi.signOf(p.beat, row) : null}
                 showSign=${p.first && cfg.sign !== 'none'}
                 onHold=${() => startHold(p.beat)} onEnd=${endHold}/>`)}
@@ -274,13 +275,14 @@ export function StageRead({ sceneId }) {
               <div class="sg-col">
                 ${!writing && sign && cfg.sign !== 'none'
     ? (cfg.sign === 'line'
-      ? html`<${Byline} sign=${sign}/>`
+      ? html`<${Byline} sign=${sign} no=${cur.beatIndex}/>`
       : html`<${Sign} sign=${sign} no=${cur.beatIndex}/>`)
     : null}
                 ${writing
     ? html`<div class="sg-text sg-live" ref=${liveRef}></div>`
     : html`
-                    <${Prose} text=${cur?.text || ''} marks=${cfg.marks}/>
+                    <${Prose} text=${cur?.text || ''} marks=${cfg.marks}
+                      drop=${cfg.drop && cur?.first}/>
                     ${!cur?.text && cur?.notes?.length
     ? html`<div class="sg-eyebrow">这一张只有场外指示。</div>` : null}
                     ${!pages.length
