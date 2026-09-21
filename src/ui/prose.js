@@ -113,6 +113,71 @@ export const Card = ({ page, sign, marks, drop, showSign, Face, grow, vers, onPi
     </div>
   </article>`;
 
+// ---- 气泡那一档：顶上一张方形封面，下面一段一个长气泡 ----
+//
+// 阅读那两档（翻页、明信片）是刊物的排法；这一档是另一种读法 ——
+// 竖着滚，一段一个气泡，气泡里按句断行。见 ARCHITECTURE 4.118
+
+// 按句断行。歌词页之所以是歌词页，靠的就是「一句一行 + 行距拉开」，
+// 不是靠字号。断在句末，收口的引号算在前一句里。
+//
+// **后面那个否定前瞻少不了。** 只写「句末标点加一个可选的收口引号」的话，
+// 句号后面和引号后面各断一次 —— 「…早。」会被切成「…早。」与一个孤零零的
+// 引号，一行上就一个符号。
+const SENT = /(?<=[。！？!?…；;]["」』”’]?)(?!["」』”’])/;
+export function linesOf(text) {
+  return String(text || '')
+    .split('\n')
+    .flatMap(p => p.split(SENT))
+    .map(x => x.trim())
+    .filter(Boolean);
+}
+
+const SAID = /^[「“"']/;
+
+/** 一段正文，按歌词页的排法。对白那几行重一点，其余照旧。 */
+export const Lyric = ({ text, marks }) => html`
+  <div class="sg-lyric">
+    ${linesOf(text).map((line, i) => html`
+      <p key=${i} class=${SAID.test(line) ? 'is-said' : ''}>
+        ${marks
+    ? runsOf(line).map((r, j) => (r.kind
+      ? html`<span key=${j} class=${`sg-${r.kind}`}>${r.text}</span>`
+      : r.text))
+    : line}
+      </p>`)}
+  </div>`;
+
+/** 一段一个长气泡。自己写的那些不填底，只描一道线。 */
+export const Bub = ({ who, mine, text, marks, vers, onPick, onHold, onEnd }) => html`
+  <article class=${`sg-bub no-callout${mine ? ' is-mine' : ''}`}
+    onTouchStart=${onHold} onTouchEnd=${onEnd} onTouchMove=${onEnd} onTouchCancel=${onEnd}
+    onContextMenu=${e => { e.preventDefault(); if (onHold) onHold(); }}>
+    ${who ? html`<div class="sg-bub-who">${who}</div>` : null}
+    <${Lyric} text=${text} marks=${marks}/>
+    ${vers ? html`<${Versions} ...${vers} onPick=${onPick}/>` : null}
+  </article>`;
+
+/**
+ * 顶上那张方形封面与旁边的署名。
+ *
+ * 没有图时不留一个空框，用标题的头一个字排一张 —— 唱片没有封面时
+ * 也不会摆一个灰方块在那儿。
+ */
+export const CoverCard = ({ art, letter, title, names, meta }) => html`
+  <header class="sg-cover">
+    <div class="sg-cover-art">
+      ${art
+    ? html`<img src=${art} alt=""/>`
+    : html`<span class="sg-cover-glyph">${String(letter || '').slice(0, 1)}</span>`}
+    </div>
+    <div class="sg-cover-text">
+      <div class="sg-cover-title">${title}</div>
+      ${names ? html`<div class="sg-cover-names">${names}</div>` : null}
+      ${meta ? html`<div class="sg-cover-meta">${meta}</div>` : null}
+    </div>
+  </header>`;
+
 // 一段的第几版。重写不删旧的，往后添一版，在这里翻。
 // 只有一版时整条不出现。
 export const Versions = ({ n, at, onPick }) => (n > 1 ? html`

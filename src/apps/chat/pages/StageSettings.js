@@ -134,6 +134,11 @@ export function StageSettings({ sceneId }) {
             subtitle="开启后每片跟着内容长，长的一段就是长的一片。关闭时每片一样大，按明信片的比例，文字在片内滚动"
             right=${html`<${Switch} checked=${cfg.cardGrow !== false}
               onChange=${v => set({ cardGrow: v })}/>`}/>` : null}
+        ${cfg.layout === 'bubble' ? html`
+          <${ListItem} title="顶上那张封面" multiline
+            subtitle="气泡版式下，正文上方显示一张方形封面与参与者的署名。关闭后只有正文"
+            right=${html`<${Switch} checked=${cfg.cover !== false}
+              onChange=${v => set({ cover: v })}/>`}/>` : null}
         <${ListItem} title="区分对白与动作" multiline
           subtitle="引号内按对白显示，括号或星号内按动作显示。仅影响显示，不改变正文，也不写入提示词"
           right=${html`<${Switch} checked=${cfg.marks} onChange=${v => set({ marks: v })}/>`}/>

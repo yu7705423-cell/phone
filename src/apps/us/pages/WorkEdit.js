@@ -1,9 +1,46 @@
-import { html } from '../../../lib.js';
-import { phone, useStore } from '../../../sdk/index.js';
-import { Page, EmptyState, Field, Textarea, List, ListItem } from '../../../ui/index.js';
+import { html, useRef } from '../../../lib.js';
+import { phone, useStore, useImage } from '../../../sdk/index.js';
+import { Page, EmptyState, Field, Textarea, List, ListItem, Button, toast } from '../../../ui/index.js';
 import { WorkFields, WorkSwitches, TonePick } from './Bits.js';
 
 const { db, nav, work } = phone;
+
+/**
+ * 封面。气泡版式下顶上那张方形卡用它（见 ARCHITECTURE 4.118）。
+ * 没有图时那张卡用标题的头一个字排，所以这里不是必填的。
+ */
+function CoverPick({ w }) {
+  const fileRef = useRef(null);
+  const url = useImage(w.cover);
+  const choose = async e => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      const id = await db.images.put(file, 640);
+      const old = w.cover;
+      work.update(w.id, { cover: id });
+      if (old) db.images.remove(old);
+    } catch (err) { toast('图片处理失败：' + (err.message || err), 'error'); }
+  };
+  return html`
+    <div class="pad-x pad-t">
+      <${Field} label="封面" desc="气泡版式下显示在正文上方。留空时用标题的第一个字排一张。">
+        <div class="wk-cover-row">
+          <button class="wk-cover press" onClick=${() => fileRef.current?.click()}
+            aria-label="更换封面">
+            ${url ? html`<img src=${url} alt=""/>` : html`<span>选择图片</span>`}
+          <//>
+          ${w.cover ? html`
+            <${Button} size="sm" variant="ghost"
+              onClick=${() => { const old = w.cover; work.update(w.id, { cover: null }); if (old) db.images.remove(old); }}>
+              移除
+            <//>` : null}
+        </div>
+      <//>
+      <input type="file" accept="image/*" ref=${fileRef} onChange=${choose} style="display:none"/>
+    </div>`;
+}
 
 // 这一部的设定。**只有这一个入口**（第 5 条）—— 改它的时候人正在这一部里。
 export function WorkEdit({ workId }) {
@@ -43,6 +80,7 @@ export function WorkEdit({ workId }) {
       <div class="pad">
         <${WorkFields} v=${v} set=${set} kind=${w.kind}/>
       </div>
+      <${CoverPick} w=${w}/>
       <${WorkSwitches} v=${v} set=${set} kind=${w.kind}/>
       <${TonePick} value=${w.tone} text=${w.toneText}
         onChange=${patch => work.update(workId, patch)}/>

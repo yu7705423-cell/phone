@@ -39,8 +39,23 @@ export function report(name, problems) {
 // 反引号会把外层提前收掉，从那儿往后引号状态整个反过来 —— 结果就是
 // 注释被当成文案扫、真的文案反而漏掉。这个检查曾经在半个项目上是瞎的。
 //
-// 还剩一个已知的坑：正则字面量里的引号（/['"]/）同样会被当成字符串开头。
-// 要彻底解决得上真的解析器，这里先不做 —— 那一类写法本项目里没有。
+// **正则字面量里的引号也要认。** `/["\u2019]/` 这种写法一出现，那个引号
+// 就被当成字符串开头，从那儿往后又全反了。写这一节时就撞上了：
+// 按句断行那个正则里带着收口的引号，于是它下面的注释被当成文案扫。
+//
+// 认正则靠的是位置：`/` 前面那个有意义的字符决定它是除号还是正则开头。
+// 见 ARCHITECTURE 4.118 末尾。
+// 这是各家高亮器都在用的那条老启发式，不是真解析器 —— 够用，
+// 认错的代价也只是多扫或少扫一段。
+const RE_OK = /[([{,;:=!&|?+\-*%~^<>]$/;
+const RE_WORD = /\b(return|typeof|instanceof|in|of|new|delete|void|do|else|case|yield|await)$/;
+
+function regexHere(before) {
+  const t = before.replace(/\s+$/, '');
+  if (!t) return true;
+  return RE_OK.test(t) || RE_WORD.test(t);
+}
+
 export function stripComments(src) {
   let out = '';
   let i = 0;
@@ -73,6 +88,21 @@ export function stripComments(src) {
       i += 2; continue;
     }
     if (c === '"' || c === "'" || c === '`') { stack.push(c); out += c; i += 1; continue; }
+    // 正则字面量。整段原样抄过去，里面的引号不参与计数
+    if (c === '/' && regexHere(out)) {
+      let j = i + 1;
+      let cls = false;
+      while (j < src.length) {
+        const k = src[j];
+        if (k === '\\') { j += 2; continue; }
+        if (k === '\n') break;                  // 没收口，那就不是正则
+        if (k === '[') cls = true;
+        else if (k === ']') cls = false;
+        else if (k === '/' && !cls) { j += 1; break; }
+        j += 1;
+      }
+      if (j > i + 1 && src[j - 1] === '/') { out += src.slice(i, j); i = j; continue; }
+    }
     if (t === '{') {
       if (c === '{') { stack.push('{'); out += c; i += 1; continue; }
       if (c === '}') { stack.pop(); out += c; i += 1; continue; }

@@ -52,7 +52,7 @@ export const FONTS = [
 export const DEFAULTS = {
   theme: 'body',
   placement: 'page',    // page 单开一页 | inline 就在聊天里，划一条线往下演
-  layout: 'page',       // page 一张一张翻 | cards 竖着滑的明信片
+  layout: 'page',       // page 一张一张翻 | cards 竖着滑的明信片 | bubble 长气泡
   spread: false,        // 正文铺满整屏，还是在固定区域内滚动
   pageChars: 700,       // 一段超过这么多字就续张。0 = 不切，这一张里滚
   effect: 'slide',      // 翻页效果，取值同 reader.EFFECTS
@@ -61,6 +61,7 @@ export const DEFAULTS = {
   marks: true,          // 对白与动作分样式（只是展示层）
   drop: true,           // 首字下沉。一段的第一张才有
   cardGrow: true,       // 明信片跟着内容长；关了每片一样大，文字在片内滚
+  cover: true,          // 气泡那一档顶上那张方形封面与署名
   serif: true,
   bgColor: '', ink: '', dim: '', line: '', mark: '',   // theme 为 custom 时用
   bgImage: null,
@@ -84,9 +85,12 @@ export const PLACEMENTS = [
   { id: 'inline', label: '就在聊天里', desc: '在会话里划一条线，往下就按线下的规则演。翻页与分张在这一档不适用' },
 ];
 
+// 前两档是刊物的排法（阅读），第三档是另一种读法。见 ARCHITECTURE 4.118
 export const LAYOUTS = [
   { id: 'page', label: '翻页', desc: '一次一张，点左右两侧翻。一段太长自动续张' },
   { id: 'cards', label: '明信片', desc: '竖着滑，一张一张排下去。这一档会显示头像' },
+  { id: 'bubble', label: '气泡',
+    desc: '竖着滚，一段一个长气泡。顶上一张方形封面与署名，气泡内按句断行' },
 ];
 
 export const SIGNS = [

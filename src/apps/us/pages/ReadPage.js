@@ -3,7 +3,7 @@ import { phone, useStore, useImage } from '../../../sdk/index.js';
 import { Page, IconButton, Icon, Button, Textarea, Switch, Field,
          Sheet, FullSheet, List, ListItem, Spinner, EmptyState,
          toast, confirm } from '../../../ui/index.js';
-import { Prose, Sign, Byline, Card, Versions } from '../../../ui/prose.js';
+import { Prose, Sign, Byline, Card, Versions, Bub, CoverCard } from '../../../ui/prose.js';
 import { Face } from './Face.js';
 import { chapterTitle } from './Bits.js';
 
@@ -47,6 +47,9 @@ export function ReadPage({ chapterId }) {
   // 不 memo：全局那份改了之后要跟着变（和线下同一个理由）
   const cfg = stage.forScene(row);
   const bgUrl = useImage(cfg.bgImage);
+  // 封面。作品自己传的那张；没有就退回角色的头像；再没有就用标题排一张
+  const coverUrl = useImage(work.workOfChapter(chapterId)?.cover
+    || work.charOf(work.workOfChapter(chapterId)).avatar);
   const chrome = stage.bgOf(cfg);
 
   const pages = useMemo(
@@ -89,6 +92,7 @@ export function ReadPage({ chapterId }) {
   }
 
   const cards = cfg.layout === 'cards';
+  const bubbles = cfg.layout === 'bubble';
   const index = Math.min(Math.max(0, at), total - 1);
   const cur = pages[index] || null;
   const sign = cur && cur.first ? work.signOf(cur.beat, row, w) : null;
@@ -244,7 +248,7 @@ export function ReadPage({ chapterId }) {
             <div class="sg-head-text">
               <div class="sg-eyebrow">
                 ${[chapterTitle(w, row),
-    cards ? work.timeOf(chapterId) : (cur?.beat?.at || row.at)].filter(Boolean).join(' · ')}
+    (cards || bubbles) ? work.timeOf(chapterId) : (cur?.beat?.at || row.at)].filter(Boolean).join(' · ')}
               </div>
               ${cur?.notes?.length ? html`
                 <button class="sg-note press" onClick=${() => setNotes(cur.notes)}>
@@ -256,7 +260,31 @@ export function ReadPage({ chapterId }) {
             <//>
           </div>` : null}
 
-        ${cards ? html`
+        ${bubbles ? html`
+          <div class="sg-bubs" ref=${bodyRef} onClick=${onFeedTap}>
+            ${cfg.cover !== false ? html`
+              <${CoverCard} art=${coverUrl} letter=${(w.title || charName)}
+                title=${w.title || '未命名'}
+                names=${[charName, work.meOf(w).name].filter(Boolean).join('　')}
+                meta=${[work.kindLabel(w.kind), chapterTitle(w, row), row.place]
+    .filter(Boolean).join('　')}/>` : null}
+            ${pages.filter(p => p.first && p.beat).map(p => {
+    const b = p.beat;
+    const sg = work.signOf(b, row, w);
+    return html`
+                <${Bub} key=${b.id} who=${cfg.sign === 'none' ? '' : sg?.name}
+                  mine=${b.role === 'me'} text=${b.text} marks=${cfg.marks}
+                  vers=${versOf(b)} onPick=${i => scene.pickSwipe(b.id, i)}
+                  onHold=${() => startHold(b)} onEnd=${endHold}/>`;
+  })}
+            ${writing ? html`
+              <article class="sg-bub">
+                <div class="sg-lyric sg-live" ref=${liveRef}></div>
+              </article>` : null}
+            ${!pages.length && !writing
+    ? html`<div class="sg-eyebrow">这一篇还没有正文。</div>` : null}
+          </div>`
+    : cards ? html`
           <div class="sg-feed" ref=${bodyRef} onClick=${onFeedTap}>
             ${pages.map(p => html`
               <${Card} key=${p.key} page=${p} marks=${cfg.marks} drop=${cfg.drop} Face=${Face}
@@ -299,7 +327,7 @@ export function ReadPage({ chapterId }) {
             </div>
           </div>`}
 
-        ${!cfg.spread && !cards ? html`
+        ${!cfg.spread && !cards && !bubbles ? html`
           <div class="sg-foot">
             <span>${total ? `${index + 1} / ${total}` : ''}</span>
             <div class="sg-rule"></div>

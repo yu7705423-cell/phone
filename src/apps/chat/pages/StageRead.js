@@ -2,7 +2,7 @@ import { html, useState, useRef, useEffect, useMemo } from '../../../lib.js';
 import { phone, useStore, useImage } from '../../../sdk/index.js';
 import { Page, IconButton, Icon, Button, Textarea, Switch, Field,
          Sheet, FullSheet, List, ListItem, Spinner, toast, confirm } from '../../../ui/index.js';
-import { Prose, Sign, Byline, Card, Versions } from '../../../ui/prose.js';
+import { Prose, Sign, Byline, Card, Versions, Bub, CoverCard } from '../../../ui/prose.js';
 import { Face } from './StageFace.js';
 
 const { db, nav, ai, scene: sceneApi, stage } = phone;
@@ -47,6 +47,8 @@ export function StageRead({ sceneId }) {
   // 换主题没反应就是这么来的。两个小对象展开一次，比漏更新便宜
   const cfg = stage.forScene(row);
   const bgUrl = useImage(cfg.bgImage);
+  // 气泡那一档顶上那张封面。场次没有自己的封面图，用头一个角色的头像
+  const coverUrl = useImage(sceneApi.castOf(sceneApi.get(sceneId))[0]?.avatar);
   const chrome = stage.bgOf(cfg);
 
   const pages = useMemo(
@@ -101,6 +103,7 @@ export function StageRead({ sceneId }) {
   const cast = sceneApi.castOf(row);
   const char = cast[0] || null;
   const cards = cfg.layout === 'cards';
+  const bubbles = cfg.layout === 'bubble';
   const index = Math.min(Math.max(0, at), total - 1);
   const cur = pages[index] || null;
   const sign = cur && cur.first ? sceneApi.signOf(cur.beat, row) : null;
@@ -274,7 +277,7 @@ export function StageRead({ sceneId }) {
             <//>
             <div class="sg-head-text">
               <div class="sg-eyebrow">
-                ${[row.title || row.place, cards ? sceneApi.timeOf(sceneId) : (cur?.beat?.at || row.at)]
+                ${[row.title || row.place, (cards || bubbles) ? sceneApi.timeOf(sceneId) : (cur?.beat?.at || row.at)]
     .filter(Boolean).join(' · ') || '这一场'}
               </div>
               ${cur?.notes?.length ? html`
@@ -287,7 +290,30 @@ export function StageRead({ sceneId }) {
             <//>
           </div>` : null}
 
-        ${cards ? html`
+        ${bubbles ? html`
+          <div class="sg-bubs" ref=${bodyRef} onClick=${onFeedTap}>
+            ${cfg.cover !== false ? html`
+              <${CoverCard} art=${coverUrl} letter=${row.title || row.place || '场'}
+                title=${row.title || row.place || '这一场'}
+                names=${cast.map(c => c.name).join('　')}
+                meta=${[row.place, sceneApi.timeOf(sceneId)].filter(Boolean).join('　')}/>` : null}
+            ${pages.filter(p => p.first && p.beat).map(p => {
+    const b = p.beat;
+    const sg = sceneApi.signOf(b, row);
+    return html`
+                <${Bub} key=${b.id} who=${cfg.sign === 'none' ? '' : sg?.name}
+                  mine=${b.role === sceneApi.ME} text=${b.text} marks=${cfg.marks}
+                  vers=${versOf(b)} onPick=${i => pickVer(b, i)}
+                  onHold=${() => startHold(b)} onEnd=${endHold}/>`;
+  })}
+            ${writing ? html`
+              <article class="sg-bub">
+                <div class="sg-lyric sg-live" ref=${liveRef}></div>
+              </article>` : null}
+            ${!pages.length && !writing
+    ? html`<div class="sg-eyebrow">这一场还没有正文。</div>` : null}
+          </div>`
+    : cards ? html`
           <div class="sg-feed" ref=${bodyRef} onClick=${onFeedTap}>
             ${pages.map(p => html`
               <${Card} key=${p.key} page=${p} marks=${cfg.marks} drop=${cfg.drop} Face=${Face}
@@ -330,7 +356,7 @@ export function StageRead({ sceneId }) {
             </div>
           </div>`}
 
-        ${!cfg.spread && !cards ? html`
+        ${!cfg.spread && !cards && !bubbles ? html`
           <div class="sg-foot">
             <span>${total ? `${index + 1} / ${total}` : ''}</span>
             <div class="sg-rule"></div>
