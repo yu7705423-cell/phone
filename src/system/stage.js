@@ -30,7 +30,7 @@ export const DEFAULTS = {
   pageChars: 700,       // 一段超过这么多字就续张。0 = 不切，这一张里滚
   effect: 'slide',      // 翻页效果，取值同 reader.EFFECTS
   tapTurn: true,
-  stamp: true,          // 署名用邮戳，关了退回一行纯名字
+  sign: 'full',         // 署名：full 编号加细线 | line 只一行 | none 不显示
   marks: true,          // 对白与动作分样式（只是展示层）
   serif: true,
   bgColor: '', ink: '', dim: '', line: '', mark: '',   // theme 为 custom 时用
@@ -43,7 +43,18 @@ export const DEFAULTS = {
   css: '',              // 自定义 CSS。只在线下页面挂载时注入，离开就移除
 };
 
-export const get = () => ({ ...DEFAULTS, ...(settings.get().stage || {}) });
+export const get = () => {
+  const raw = { ...DEFAULTS, ...(settings.get().stage || {}) };
+  // 从前这一项是个开关（stamp），现在有三档。老设置里关着的，对应「不显示」
+  if (raw.stamp === false && !settings.get().stage?.sign) raw.sign = 'none';
+  return raw;
+};
+
+export const SIGNS = [
+  { id: 'full', label: '完整', desc: '编号、细线，以及一行名字与地点' },
+  { id: 'line', label: '一行', desc: '只有一行名字、地点与时刻' },
+  { id: 'none', label: '不显示', desc: '正文之外什么都不写' },
+];
 
 export function set(patch) {
   settings.set({ stage: { ...get(), ...patch } });

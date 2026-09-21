@@ -80,9 +80,16 @@ export function StageSettings({ sceneId }) {
         <${ListItem} title="点两侧翻页" multiline
           subtitle="点屏幕左侧三分之一向前，右侧三分之一向后，中间切换是否铺满屏幕"
           right=${html`<${Switch} checked=${cfg.tapTurn} onChange=${v => set({ tapTurn: v })}/>`}/>
-        <${ListItem} title="邮戳" multiline
-          subtitle="每段的第一张盖一枚圆戳，写着地点、时刻与姓名。关闭后改为一行署名"
-          right=${html`<${Switch} checked=${cfg.stamp} onChange=${v => set({ stamp: v })}/>`}/>
+      <//>
+
+      <${List} title="署名" inset=${false}>
+        ${stage.SIGNS.map(x => html`
+          <${ListItem} key=${x.id} title=${x.label} subtitle=${x.desc} multiline
+            right=${cfg.sign === x.id ? html`<${Icon} name="check" size=${16}/>` : null}
+            onClick=${() => set({ sign: x.id })}/>`)}
+      <//>
+
+      <${List} title="排版" inset=${false}>
         <${ListItem} title="区分对白与动作" multiline
           subtitle="引号内按对白显示，括号或星号内按动作显示。仅影响显示，不改变正文，也不写入提示词"
           right=${html`<${Switch} checked=${cfg.marks} onChange=${v => set({ marks: v })}/>`}/>

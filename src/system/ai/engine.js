@@ -19,6 +19,7 @@ import { estimate, takeLatestWithin } from './tokens.js';
 import * as trace from './trace.js';
 import * as ban from '../ban.js';
 import { beatsOf, timeOf, DIRECTOR, ME } from '../scene.js';
+import * as tone from '../tone.js';
 
 // 接口协议要求带 max_tokens，取一个足够大的值，等同于不限制
 export const MAX_OUTPUT = 32000;
@@ -555,6 +556,10 @@ export function buildSceneSystem(scene, chat, char, list, opts = {}) {
   // 篇幅是用户填的数，这里只转述。填 0 就整段不出现 —— 不替他定写多长
   const words = Math.max(0, Math.round(Number(s.sceneWords) || 0));
   if (words) out += '\n\n' + fillTemplate(template('skeleton.scene-length'), { words });
+
+  // 文风同理：内置提示词不写文风，这一段全是用户挑的或者写的。没选就没有
+  const style = fillTemplate(tone.forScene(scene), names);
+  if (style) out += '\n\n' + fillTemplate(template('skeleton.scene-style'), { text: style });
 
   const core = String(char.core || '').trim();
   if (core) out += '\n\n' + fillTemplate(template('skeleton.core'), { core });

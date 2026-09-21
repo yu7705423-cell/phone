@@ -2,7 +2,7 @@ import { html, useState, useRef, useEffect, useMemo } from '../../../lib.js';
 import { phone, useStore, useImage } from '../../../sdk/index.js';
 import { Page, IconButton, Icon, Button, Textarea, Switch, Field,
          Sheet, FullSheet, List, ListItem, Spinner, toast, confirm } from '../../../ui/index.js';
-import { Prose, Stamp, Byline } from './StageBits.js';
+import { Prose, Sign, Byline } from './StageBits.js';
 
 const { db, nav, ai, scene: sceneApi, stage } = phone;
 
@@ -82,7 +82,7 @@ export function StageRead({ sceneId }) {
   const char = cast[0] || null;
   const index = Math.min(Math.max(0, at), total - 1);
   const cur = pages[index] || null;
-  const stamp = cur && cur.first ? sceneApi.stampOf(cur.beat, row) : null;
+  const sign = cur && cur.first ? sceneApi.signOf(cur.beat, row) : null;
 
   const go = step => {
     const next = index + step;
@@ -238,8 +238,10 @@ export function StageRead({ sceneId }) {
           onTouchEnd=${endHold} onTouchMove=${endHold} onTouchCancel=${endHold}>
           <div class=${`sg-body ${anim}`} ref=${bodyRef}>
             <div class="sg-col">
-              ${!writing && stamp
-    ? (cfg.stamp ? html`<${Stamp} stamp=${stamp} float/>` : html`<${Byline} stamp=${stamp}/>`)
+              ${!writing && sign && cfg.sign !== 'none'
+    ? (cfg.sign === 'line'
+      ? html`<${Byline} sign=${sign}/>`
+      : html`<${Sign} sign=${sign} no=${cur.beatIndex}/>`)
     : null}
               ${writing
     ? html`<div class="sg-text sg-live" ref=${liveRef}></div>`

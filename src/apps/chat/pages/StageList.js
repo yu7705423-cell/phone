@@ -1,9 +1,9 @@
 import { html, useState } from '../../../lib.js';
 import { phone, useStore } from '../../../sdk/index.js';
-import { Page, List, ListItem, IconButton, Button, Input, Textarea, Field,
-         Segmented, Avatar, EmptyState, FullSheet, toast, confirm } from '../../../ui/index.js';
+import { Page, List, ListItem, IconButton, Icon, Button, Input, Textarea, Field,
+         Segmented, Avatar, EmptyState, Sheet, FullSheet, toast, confirm } from '../../../ui/index.js';
 
-const { db, nav, scene: sceneApi } = phone;
+const { db, nav, scene: sceneApi, tone } = phone;
 
 // 线下的场次列表。一条就是一篇稿子的目录行，不画卡片。
 // 见 ARCHITECTURE 4.107
@@ -13,6 +13,89 @@ const dateOf = ts => {
   const d = new Date(ts);
   return `${d.getMonth() + 1}月${d.getDate()}日`;
 };
+
+// 文风。内置提示词一个字都不写文风（第 16 条），要写也是用户自己写 ——
+// 这里就是他写的地方。默认不设定，出厂那几份一份都不启用。
+function ToneField({ v, set }) {
+  const [open, setOpen] = useState(false);
+  const [edit, setEdit] = useState(null);
+
+  const presets = tone.list();
+  const label = v.tone === 'custom' ? '这一场自己写' : (tone.get(v.tone)?.name || '不设定');
+  const pick = id => { set({ tone: id }); setOpen(false); };
+  const tick = on => (on ? html`<${Icon} name="check" size=${16}/>` : null);
+  const firstLine = t => String(t || '').split('\n')[0];
+
+  const drop = async row => {
+    const ok = await confirm({
+      title: `删除「${row.name}」`,
+      message: row.builtin ? '内置的这一份将不再出现，可以在下方恢复。' : '删除后无法恢复。',
+      okText: '删除', danger: true,
+    });
+    if (!ok) return;
+    tone.remove(row.id);
+    if (v.tone === row.id) set({ tone: '' });
+  };
+
+  return html`
+    <${Field} label="文风"
+      desc="写入这一场的提示词，只管怎么写，不管角色是什么人。默认不设定，由角色卡与世界书决定。">
+      <${Button} variant="ghost" size="sm" onClick=${() => setOpen(true)}>${label}<//>
+    <//>
+    ${v.tone === 'custom' ? html`
+      <${Textarea} rows=${5} value=${v.toneText || ''} onInput=${t => set({ toneText: t })}
+        placeholder="写这一场要的文风。可以用 {{charName}} 与 {{userName}} 指代双方。"/>` : null}
+
+    <${Sheet} open=${open} onClose=${() => setOpen(false)} title="文风" height="84%">
+      <${List}>
+        <${ListItem} title="不设定" multiline
+          subtitle="不写入任何关于文风的内容"
+          right=${tick(!v.tone)} onClick=${() => pick('')}/>
+        ${presets.map(p => html`
+          <${ListItem} key=${p.id} title=${p.name} subtitle=${firstLine(p.text)} multiline
+            right=${html`<div class="row-acts">
+              ${tick(v.tone === p.id)}
+              <${IconButton} name="edit" label="编辑"
+                onClick=${e => { e.stopPropagation(); setEdit({ ...p }); }}/>
+              <${IconButton} name="trash" label="删除"
+                onClick=${e => { e.stopPropagation(); drop(p); }}/>
+            </div>`}
+            onClick=${() => pick(p.id)}/>`)}
+        <${ListItem} title="这一场自己写" multiline
+          subtitle="只作用于这一场，不进预设库"
+          right=${tick(v.tone === 'custom')} onClick=${() => pick('custom')}/>
+      <//>
+      <${List}>
+        <${ListItem} title="新建一份" onClick=${() => setEdit({ id: '', name: '', text: '' })}/>
+        <${ListItem} title="恢复出厂的几份" multiline
+          subtitle="改过或删掉的内置预设回到原样。自己新建的不受影响"
+          onClick=${() => { tone.resetBuiltin(); toast('已恢复', 'ok'); }}/>
+      <//>
+    <//>
+
+    <${FullSheet} open=${!!edit} onClose=${() => setEdit(null)}
+      title=${edit?.id ? '编辑文风' : '新建文风'}
+      right=${html`<${Button} size="sm" onClick=${() => {
+    const name = String(edit.name || '').trim() || '未命名';
+    const text = String(edit.text || '').trim();
+    if (edit.id) tone.save(edit.id, { name, text });
+    else set({ tone: tone.create({ name, text }) });
+    setEdit(null);
+  }}>保存<//>`}>
+      <div class="pad">
+        <${Field} label="名称">
+          <${Input} value=${edit?.name || ''} placeholder="例如 克制"
+            onInput=${x => setEdit(e => ({ ...e, name: x }))}/>
+        <//>
+        <${Field} label="正文"
+          desc="这段话会原样写进提示词。英文写的指令不容易把措辞漏进输出里。
+            可以用 {{charName}} 与 {{userName}} 指代双方。">
+          <${Textarea} rows=${12} value=${edit?.text || ''}
+            onInput=${x => setEdit(e => ({ ...e, text: x }))}/>
+        <//>
+      </div>
+    <//>`;
+}
 
 function SetupFields({ v, set, cast, chatChars }) {
   return html`
@@ -29,9 +112,10 @@ function SetupFields({ v, set, cast, chatChars }) {
         placeholder="例如 2026-01-01 周三 14:30"/>
     <//>
     <${Field} label="情境" desc="这一场的前提。作为事实进入上下文，不作为写法上的要求。">
-      <${Textarea} rows=${3} value=${v.note} onInput=${v => set({ note: v })}
+      <${Textarea} rows=${3} value=${v.note} onInput=${v2 => set({ note: v2 })}
         placeholder="例如 两人约好在这里见面，但对方迟到了四十分钟"/>
     <//>
+    <${ToneField} v=${v} set=${set}/>
     ${chatChars.length > 1 ? html`
       <${Field} label="在场角色">
         <${List}>
@@ -53,7 +137,10 @@ export function StageList({ chatId }) {
   useStore(db.characters.store);
 
   const [open, setOpen] = useState(false);
-  const [v, setV] = useState({ title: '', place: '', at: '', note: '', castIds: [], opening: 'char' });
+  const [v, setV] = useState({
+    title: '', place: '', at: '', note: '', castIds: [], opening: 'char',
+    tone: db.settings.get().sceneToneLast || '', toneText: '',
+  });
   const set = patch => setV(x => ({ ...x, ...patch }));
 
   const chat = db.chats.get(chatId);
@@ -69,10 +156,11 @@ export function StageList({ chatId }) {
   const start = () => {
     const row = sceneApi.create({
       chatId, title: v.title, place: v.place, at: v.at, note: v.note,
-      castIds: cast, opening: v.opening,
+      castIds: cast, opening: v.opening, tone: v.tone, toneText: v.toneText,
     });
     setOpen(false);
-    setV({ title: '', place: '', at: '', note: '', castIds: [], opening: 'char' });
+    setV({ title: '', place: '', at: '', note: '', castIds: [], opening: 'char',
+      tone: v.tone, toneText: '' });
     nav.push(`/scene/${row.id}`);
   };
 
@@ -136,6 +224,7 @@ export function SceneEdit({ sceneId }) {
   const v = {
     title: row.title || '', place: row.place || '', at: row.at || '',
     note: row.note || '', castIds: row.castIds || [],
+    tone: row.tone || '', toneText: row.toneText || '',
   };
   const set = patch => sceneApi.update(sceneId, patch);
 

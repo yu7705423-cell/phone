@@ -84,6 +84,14 @@ These are facts about where you are now.`,
 These lines are instructions from {{userName}} about the scene. They are not
 spoken in it, and no one in the scene is aware of them. Follow them.`,
 
+  // 文风。**内容全是用户填的**（system/tone.js），这里只提供装它的那句话
+  // —— 和「不要写这些」同一个做法。没选就整段不出现。
+  'skeleton.scene-style':
+`[文风]
+{{text}}
+The lines above govern how this passage is written. They do not change who
+anyone is, or what happens.`,
+
   // 贴着输出放的一句。设定区那一段离输出隔着整场戏，长场次里会被忘掉 ——
   // 和译文提醒同一个理由。
   'skeleton.scene-tail':

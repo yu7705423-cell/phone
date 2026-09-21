@@ -131,6 +131,10 @@ export const DEFAULT_SETTINGS = {
   sceneSummary: false,            // 一场收尾时生成摘要。多一次调用，见 cost.js
   sceneCompress: false,           // 窗口外的段落压成摘要。多一次调用，见 cost.js
   stage: {},                      // 线下外观，见 system/stage.js
+  // 文风预设。**默认一份都不启用** —— 内置提示词不写文风（第 16 条），
+  // 这里存的是用户改过或新建的那些，见 system/tone.js
+  tonePresets: {},
+  sceneToneLast: '',              // 上一次新建场次时挑的文风，下次预填
 
   // 缓存住 prompt 里不变的那一段（目前只有 Anthropic 那条路支持显式声明，
   // OpenAI 那边是自动前缀缓存，开不开都一样）。

@@ -2037,7 +2037,6 @@ button.search-bar { width: 100%; border: none; }
   --sg-gap: 1em;
   --sg-measure: 34em;
   --sg-font: var(--font-serif);
-  --sg-stamp: 64px;
 
   /* .page-body 是块级容器，flex:1 在它里面撑不开，要 height */
   position: relative;
@@ -2089,8 +2088,6 @@ button.search-bar { width: 100%; border: none; }
 
 /* 正文栏。宽度归它，排版归 .sg-text —— 邮戳要和正文同一条栏宽对齐 */
 .sg-col { max-width: var(--sg-measure); margin: 0 auto; }
-/* 邮戳关掉之后那一行署名，和正文之间要留一口气 */
-.sg-col > .sg-eyebrow { margin-bottom: var(--sp-3); }
 
 /* 正文。一行三十来个汉字，段距分段，首行不缩进 ——
    屏幕上缩进远不如段距清楚 */
@@ -2109,40 +2106,38 @@ button.search-bar { width: 100%; border: none; }
    几万字走 Preact 每秒几十次 diff 一个巨大文本节点，界面会僵住 */
 .sg-live { white-space: pre-wrap; }
 
-/* 邮戳。三行横排，空的那行不占位，圈跟着收小。
-   歪多少度由 scene.angleOf 按 id 算死，不能用随机数 */
-.sg-stamp {
-  flex: none;
-  width: var(--sg-stamp); height: var(--sg-stamp);
-  border-radius: 50%;
-  border: 1.5px solid var(--sg-mark);
-  padding: 3px;
+/* 一段开头的署名。走时尚大片那一路：靠尺度反差，不靠图形 ——
+   一个又大又细的编号、一道发丝线、一行字距拉开的极小字。
+   先做过一枚圆邮戳，丑，撤了（见 ARCHITECTURE 4.107）。 */
+.sg-sign { margin: 0 0 var(--sp-6); }
+.sg-sign-no {
+  /* 数字走无衬线的细体，别跟着正文的宋体走 —— 宋体数字撑不起这个尺度 */
+  font-family: var(--font);
+  font-size: 56px; font-weight: 200; line-height: .88;
+  letter-spacing: -.04em; font-variant-numeric: tabular-nums;
   color: var(--sg-mark);
-  background: var(--sg-mark-soft);
+  padding-bottom: var(--sp-3);
+  border-bottom: 1px solid var(--sg-line);
 }
-.sg-stamp.is-mine { border-color: var(--sg-dim); color: var(--sg-dim); background: none; }
-.sg-stamp-ring {
-  width: 100%; height: 100%;
-  border-radius: 50%;
-  border: .5px solid currentColor;
-  display: flex; flex-direction: column;
-  align-items: center; justify-content: center;
-  gap: 1px; overflow: hidden;
+.sg-sign.is-mine .sg-sign-no { color: var(--sg-dim); font-weight: 100; }
+.sg-sign-row {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: var(--sp-4); padding-top: var(--sp-2);
 }
-.sg-stamp-place, .sg-stamp-name {
-  font-size: 8px; letter-spacing: .06em; line-height: 1.1;
-  max-width: 88%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+.sg-sign-name {
+  font-size: var(--fs-12); letter-spacing: .34em;
+  color: var(--sg-ink); white-space: nowrap;
 }
-.sg-stamp-time {
-  font-size: 13px; line-height: 1.1;
-  font-variant-numeric: tabular-nums; letter-spacing: .02em;
+.sg-sign.is-mine .sg-sign-name { color: var(--sg-dim); }
+.sg-sign-meta {
+  font-size: 10px; letter-spacing: .22em; color: var(--sg-dim);
+  text-align: right; font-variant-numeric: tabular-nums;
 }
-/* 盖在正文右上角，文字绕着它走 —— 杂志里插图就是这么放的。
-   绝对定位会在有没有刊头两种情形下各错一次，浮动不会 */
-.sg-stamp-float {
-  float: right;
-  margin: 2px 0 var(--sp-3) var(--sp-3);
-  shape-outside: circle(50%);
+
+/* 只要一行的那一档。同一份字距，去掉编号和细线 */
+.sg-byline {
+  font-size: 10px; letter-spacing: .24em; color: var(--sg-dim);
+  margin-bottom: var(--sp-5);
 }
 
 /* 场外指示的标记。不占一张，只在刊头留一个点得开的记号 */

@@ -34,30 +34,38 @@ export const Prose = ({ text, marks }) => html`
       </p>`)}
   </div>`;
 
-// 戳上只盖时刻，不盖日期 —— 「2026-01-01 周三 14:30」整条塞进 60px 的圈里
-// 一个字都看不清。认不出时刻就这一行不占位，圈跟着收小。
+// 署名上只写时刻，不写日期 —— 「2026-01-01 周三 14:30」整条摆在那儿会把
+// 一行占满。认不出时刻就这一项不占位。
 export const clockOf = at => (String(at || '').match(/\d{1,2}:\d{2}/) || [''])[0];
 
-export const Stamp = ({ stamp, float }) => {
-  if (!stamp) return null;
-  const time = clockOf(stamp.time);
-  if (!stamp.place && !time && !stamp.name) return null;
-  const cls = `sg-stamp${stamp.solid ? '' : ' is-mine'}${float ? ' sg-stamp-float' : ''}`;
+const pad = n => String(Math.max(0, n) + 1).padStart(2, '0');
+
+/**
+ * 一段开头的署名。
+ *
+ * 先做过一枚圆邮戳，丑，撤了。现在这一块走时尚大片那一路：
+ * **靠尺度反差，不靠图形** —— 一个又大又细的编号，一道发丝线，
+ * 下面一行极小、字距拉得很开的名字与地点。杂志里开篇那一页就是这么排的。
+ */
+export const Sign = ({ sign, no }) => {
+  if (!sign) return null;
+  const time = clockOf(sign.time);
+  const meta = [sign.place, time].filter(Boolean).join('  ');
+  if (!sign.name && !meta) return null;
   return html`
-    <div class=${cls} style=${`transform: rotate(${stamp.angle}deg)`}>
-      <div class="sg-stamp-ring">
-        ${stamp.place ? html`<span class="sg-stamp-place">${stamp.place}</span>` : null}
-        ${time ? html`<span class="sg-stamp-time">${time}</span>` : null}
-        ${stamp.name ? html`<span class="sg-stamp-name">${stamp.name}</span>` : null}
+    <div class=${`sg-sign${sign.mine ? ' is-mine' : ''}`}>
+      <div class="sg-sign-no">${pad(no || 0)}</div>
+      <div class="sg-sign-row">
+        <span class="sg-sign-name">${sign.name}</span>
+        <span class="sg-sign-meta">${meta}</span>
       </div>
     </div>`;
 };
 
-// 邮戳关掉之后退回来的那一行：小字号、大字距、次要色，杂志里的署名行
-export const Byline = ({ stamp }) => {
-  if (!stamp) return null;
-  const time = clockOf(stamp.time);
-  const parts = [stamp.name, stamp.place, time].filter(Boolean);
+// 只要一行的那一档。同一份字距，去掉编号和细线。
+export const Byline = ({ sign }) => {
+  if (!sign) return null;
+  const parts = [sign.name, sign.place, clockOf(sign.time)].filter(Boolean);
   if (!parts.length) return null;
-  return html`<div class="sg-eyebrow">${parts.join(' · ')}</div>`;
+  return html`<div class=${`sg-byline${sign.mine ? ' is-mine' : ''}`}>${parts.join('  ')}</div>`;
 };

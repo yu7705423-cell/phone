@@ -1,4 +1,4 @@
-import { scenes, beats, characters, chats } from './db/index.js';
+import { scenes, beats, characters, chats, settings } from './db/index.js';
 import * as accounts from './accounts.js';
 
 // 线下。一场戏 + 一段段正文。见 ARCHITECTURE 4.107
@@ -21,13 +21,18 @@ export const ofChat = chatId => scenes.byIndex(chatId)
   .slice()
   .sort((a, b) => (b.updatedAt || b.createdAt || 0) - (a.updatedAt || a.createdAt || 0));
 
-export function create({ chatId, title = '', place = '', at = '', castIds = [], note = '', opening = CHAR }) {
+export function create({ chatId, title = '', place = '', at = '', castIds = [], note = '',
+  opening = CHAR, tone = '', toneText = '' }) {
   const chat = chats.get(chatId);
   const cast = castIds.length ? castIds : (chat?.characterIds || []).slice();
+  // 记住这一次挑的文风，下次新建时预填。这不是第二个开关，只是个默认值 ——
+  // 开关仍然只有一个，在这一场自己身上（第 5 条）
+  settings.set({ sceneToneLast: String(tone || '') });
   return scenes.create({
     chatId, title: String(title || '').trim(), place: String(place || '').trim(),
     at: String(at || '').trim(), castIds: cast, note: String(note || '').trim(),
     opening: opening === ME ? ME : CHAR,
+    tone: String(tone || ''), toneText: String(toneText || ''),
     summary: '', stage: null,
     createdAt: Date.now(), updatedAt: Date.now(),
   });
@@ -176,30 +181,18 @@ export function pagesOf(sceneId, chars) {
   return out;
 }
 
-// ---- 邮戳 ----
+// ---- 署名 ----
 
-/**
- * 歪多少度。**按 id 算死，不能用随机数** —— 翻回上一页角度变了就露馅。
- */
-export function angleOf(id) {
-  const s = String(id || '');
-  let h = 2166136261;
-  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
-  return Math.round(((h >>> 0) % 2001) - 1000) / 100;    // -10.00 到 +10.00
-}
-
-/** 一枚戳上要盖的三行。空的那行不占位，圈跟着收小。 */
-export function stampOf(beat, scene) {
+/** 一段的署名要盖哪几样。空的那项不占位。 */
+export function signOf(beat, scene) {
   if (!beat) return null;
   const mine = beat.role === ME;
   // 身份记在会话上，不在场次上 —— 换小号去找同一个角色开的是另一段会话
   const me = accounts.get(chats.get(scene?.chatId)?.personaId) || accounts.current();
-  const name = mine ? (me?.name || '我') : (characters.get(beat.authorId)?.name || '');
   return {
     place: beat.place || scene?.place || '',
     time: beat.at || '',
-    name,
-    solid: !mine,
-    angle: angleOf(beat.id),
+    name: mine ? (me?.name || '我') : (characters.get(beat.authorId)?.name || ''),
+    mine,
   };
 }
