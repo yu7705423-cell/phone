@@ -203,6 +203,7 @@ export function orphanImageIds() {
 //   ebooks.fileId          书的正文
 //   settings.fonts[].fileId    自己传的字体
 //   settings.notify.soundFileId 自己传的提示音
+//   layout.pages[].cells[].config.fileId  主界面上自己传的 HTML 挂件
 
 /** 每个 file 是被谁用着的。返回 Map<fileId, {kind, label}>。 */
 export function fileUsers() {
@@ -225,13 +226,16 @@ export function fileUsers() {
   const s = settings.get();
   (s.fonts || []).forEach(f => put(f.fileId, 'font', f.name || '自定义字体'));
   put((s.notify || {}).soundFileId, 'sound', '自定义提示音');
+  // 主界面上自己传的挂件是一个 HTML 文件，也在 files 里
+  (layout.get().pages || []).forEach(p => (p.cells || [])
+    .forEach(c => put(c.config?.fileId, 'widget', c.config?.name || '自定义挂件')));
 
   return by;
 }
 
 export const FILE_KINDS = {
   video: '视频', song: '歌曲', voice: '语音', book: '书籍',
-  font: '字体', sound: '提示音',
+  font: '字体', sound: '提示音', widget: '挂件',
 };
 
 /**
