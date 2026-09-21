@@ -269,11 +269,15 @@ export async function install(pack) {
   };
   const who = id => (id === 'me' || !id ? id : remap(id));
 
-  // 美化。会话指着它，所以先放
+  // 美化。会话指着它，所以先放。
+  // 规矩和世界书一样：id 撞了用本机那一份，不覆盖 —— 一份美化常被几段会话
+  // 共用，盖掉等于替别的会话改样子；同一个包导两次也不该多出一份同名的
   const skinMap = new Map();
   (data.skins || []).forEach(k => {
     if (!k || !k.id) return;
-    skins.put({ ...k, id: fresh(skinMap, skins, k, 'sk') });
+    if (skins.has(k.id)) { skinMap.set(k.id, k.id); return; }
+    skins.put({ ...k });
+    skinMap.set(k.id, k.id);
   });
 
   // 会话与消息
