@@ -38,18 +38,26 @@ function Editor({ id, onClose }) {
   useStore(db.settings.store);
   const [picking, setPicking] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [report, setReport] = useState(null);
   const preset = svc.imagePresets().find(p => p.id === id);
   if (!preset) return null;
   const set = patch => svc.updateImagePreset(id, patch);
 
+  // 一句「失败了」等于什么都没说。底下至少藏着五件事，每一件的下一步都不同，
+  // 所以自检把断在哪一步、以及下一步该做什么一起摆出来（见 ai/image.js 的 testImage）
   const test = async () => {
     setBusy(true);
+    setReport(null);
     try {
-      const blob = await ai.image.generate({ prompt: 'a single small black circle on white', preset, key: 'img:test' });
-      const imgId = await ai.image.toLibrary(blob, 512);
-      toast('生成成功，已存入图片库');
-      set({ lastTest: imgId });
-    } catch (err) { toast(String(err.message || err), 'error', 5000); }
+      const r = await ai.image.testImage(preset);
+      setReport(r);
+      if (r.ok) {
+        const blob = await ai.image.generate({ prompt: 'a single small black circle on white',
+          preset, key: 'img:test2' });
+        set({ lastTest: await ai.image.toLibrary(blob, 512) });
+        toast('生成成功，已存入图片库', 'ok');
+      }
+    } catch (err) { setReport({ ok: false, step: '自检本身出错', detail: String(err.message || err) }); }
     finally { setBusy(false); }
   };
 
@@ -126,10 +134,20 @@ function Editor({ id, onClose }) {
             onChange=${v => set({ ref: v ? 'edits' : 'off' })}/>`}/>
       <//>
 
+      ${report ? html`
+        <${List} title=${report.ok ? '自检通过' : `断在：${report.step}`}>
+          <${ListItem} title=${report.ok ? '接口可用' : report.step} multiline
+            subtitle=${report.hint || ''}/>
+          <${ListItem} title="这一次走的是" subtitle=${report.route || ''}/>
+          ${report.base ? html`<${ListItem} title="地址" subtitle=${report.base}/>` : null}
+          ${report.detail ? html`
+            <${ListItem} title="原始报错" multiline subtitle=${report.detail}/>` : null}
+        <//>` : null}
+
       <div class="sheet-acts">
         <${Button} variant="ghost" onClick=${del}>删除<//>
         <${Button} variant="ghost" disabled=${busy || !preset.apiKey || !preset.model}
-          onClick=${test}>${busy ? '生成中' : '试生成'}<//>
+          onClick=${test}>${busy ? '自检中' : '自检并试生成'}<//>
         <${Button} onClick=${onClose}>完成<//>
       </div>
 

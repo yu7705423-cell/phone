@@ -2,7 +2,7 @@ import { baseOf } from './url.js';
 import { activeImage } from './services.js';
 import { enqueue } from './queue.js';
 import { unzip } from '../zip.js';
-import { nfetch } from '../net.js';
+import { nfetch, routeOf, canNative, reachable } from '../net.js';
 import { images } from '../db/index.js';
 
 /**
@@ -109,7 +109,7 @@ function sizeOf(preset) {
 async function novelai(p, { prompt, signal }) {
   const base = baseOf(p.baseUrl, 'https://image.novelai.net');
   const { w, h } = sizeOf(p);
-  const res = await nfetch(`${base}/ai/generate-image`, {
+  const res = await ask(`${base}/ai/generate-image`, {
     method: 'POST', signal,
     headers: { 'content-type': 'application/json', authorization: `Bearer ${p.apiKey}` },
     body: JSON.stringify({
@@ -130,6 +130,33 @@ async function novelai(p, { prompt, signal }) {
   const png = [...files.entries()].find(([name]) => /\.png$/i.test(name));
   if (!png) throw new Error('接口回来的压缩包里没有图片');
   return new Blob([await png[1].arrayBuffer()], { type: 'image/png' });
+}
+
+/**
+ * 发一个请求，连不上时把话说清楚。
+ *
+ * **`fetch` 失败时抛的永远是同一句 `Failed to fetch`。** 域名解析不了是它，
+ * 连接被拒是它，**跨域被拦也是它** —— 而绝大多数生图中转站压根没考虑过
+ * 浏览器直连，不会回那个允许跨域的响应头。于是在网页里生图，十有八九
+ * 第一下就死在这里，而屏幕上只有一句 `Failed to fetch`，
+ * 既不提跨域、也不提该怎么办。
+ *
+ * 语音那边早就有这一套（见 ai/voice.js 的 `ask`），生图这边一直没有。
+ * 「一次都没成功过」多半就是这么来的。
+ */
+async function ask(url, init) {
+  try {
+    return await nfetch(url, init);
+  } catch (err) {
+    const native = routeOf(url) === 'native';
+    throw new Error(`连不上生图接口（${url}）。`
+      + (native
+        ? '本次请求已交由外壳发出，与跨域无关。请检查地址是否填写正确、网络是否可达。'
+        : '请检查地址是否填写正确、网络是否可达。'
+          + '若是浏览器拦下的跨域请求，需改填一个允许跨域的中转地址，'
+          + '或安装为应用后重试。')
+      + `原始错误：${err.message || err}`);
+  }
 }
 
 function endpoint(preset) {
@@ -168,7 +195,7 @@ export function generateWithRef({ prompt, refBlob, preset, key }) {
     form.append('n', '1');
     form.append('size', sizeText(p.size));
     form.append('image', new File([refBlob], 'face.png', { type: refBlob.type || 'image/png' }));
-    const res = await nfetch(editEndpoint(p), {
+    const res = await ask(editEndpoint(p), {
       method: 'POST', signal,
       headers: { authorization: `Bearer ${p.apiKey}` },   // multipart 的 content-type 交给浏览器带边界
       body: form,
@@ -200,7 +227,7 @@ export function generate({ prompt, preset, key }) {
 
   return enqueue(key || `img:${Date.now()}`, async signal => {
     if (kindOf(p.kind).id === 'nai') return novelai(p, { prompt: text, signal });
-    const res = await nfetch(endpoint(p), {
+    const res = await ask(endpoint(p), {
       method: 'POST', signal,
       headers: { 'content-type': 'application/json', authorization: `Bearer ${p.apiKey}` },
       body: JSON.stringify({
@@ -275,6 +302,59 @@ function b64ToBlob(raw) {
   const bytes = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
   return new Blob([bytes], { type });
+}
+
+/**
+ * 自检：一步一步指出是哪儿断的。
+ *
+ * 「生图失败」底下至少藏着五件不同的事：没填密钥、地址填错、被浏览器的
+ * 跨域挡下、密钥或模型不对、接口给了链接但取不回来 —— 每一件的下一步都不同。
+ * 一句笼统的失败等于什么都没说。
+ *
+ * 和语音那边的 `testVoice` 是同一套（见 ai/voice.js）。
+ */
+export async function testImage(preset) {
+  const p = preset || activeImage();
+  const k = kindOf(p?.kind);
+  const base = baseOf(p?.baseUrl, k.base);
+  const out = { kind: k.label, base, route: canNative() ? '外壳转发' : '浏览器直连' };
+
+  if (!p) return { ...out, ok: false, step: '没有接口', hint: '先新建一套生图接口。' };
+  if (!p.apiKey) return { ...out, ok: false, step: '没填密钥', hint: '先填 API Key。' };
+  if (!p.model) return { ...out, ok: false, step: '没填模型', hint: '先填模型名称。' };
+
+  try {
+    const blob = await generate({ prompt: 'a single small black circle on white',
+      preset: p, key: `img:test:${Date.now()}` });
+    return { ...out, ok: true, step: '连通', bytes: blob.size,
+      hint: `接口可用，取回 ${Math.round(blob.size / 1024)} KB 的图片。` };
+  } catch (err) {
+    const msg = String(err.message || err);
+    if (!/连不上生图接口/.test(msg)) {
+      const linked = /只返回了图片链接/.test(msg);
+      return { ...out, ok: false, step: linked ? '图片链接取不回来' : '接口报错', detail: msg,
+        hint: linked
+          ? '接口本身是通的，但它给的那个图片链接本机取不到。'
+            + '把「返回格式」改成 base64，让图片随响应一起回来。'
+          : '已经连上了，是对方拒绝了这次请求。多半是密钥、模型名或尺寸不对。' };
+    }
+    if (canNative()) {
+      return { ...out, ok: false, step: '没连上', detail: msg,
+        hint: '请求由外壳发出，与跨域无关。多半是地址填错或网络不通。' };
+    }
+    // 浏览器那句 Failed to fetch 三种情况共用，再问一次才分得清（见 net.js）
+    const live = await reachable(base);
+    return {
+      ...out, ok: false,
+      step: live ? '被跨域拦下' : '没连上',
+      detail: msg,
+      hint: live
+        ? '服务器是通的，但它没有允许网页直接调用。生图接口大多如此。'
+          + '这一条我们改不了：需改填一个允许跨域的中转地址，'
+          + '或把本应用安装到主屏幕后用外壳发送。'
+        : '没有联系上这个地址。请检查地址是否填写正确、域名是否可解析、网络是否可达。',
+    };
+  }
 }
 
 /**
