@@ -129,6 +129,14 @@ export const EXTRA_CALLS = [
     when: '开了这一档的对话，每一轮在整轮说完之后再一次',
   },
   {
+    // 挂在角色身上，不是全局设置，所以没有 setting 要比对
+    id: 'snap',
+    label: '角色自己往相册存照片',
+    setting: null,
+    on: () => characters.all().some(c => c.snap === true),
+    when: '每个开了的角色，每隔设定的天数一次（想拍什么一次，画出来一次）',
+  },
+  {
     id: 'dayOn',
     label: '角色的当日日程',
     setting: null,

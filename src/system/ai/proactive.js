@@ -218,9 +218,10 @@ let altMod = null;
 import('./tasks/char-alt.js').then(m => { altMod = m; }).catch(() => {});
 
 // 同样的道理，这两个也只在装载时引一次，不在每个 tick 里现 import。
-let spaceMod = null, paceMod = null;
+let spaceMod = null, paceMod = null, snapMod = null;
 import('../space.js').then(m => { spaceMod = m; }).catch(() => {});
 import('../pace.js').then(m => { paceMod = m; }).catch(() => {});
+import('./tasks/snap.js').then(m => { snapMod = m; }).catch(() => {});
 const altReady = id => !!altMod && altMod.eligible(id);
 const altRolls = id => !!altMod && altMod.rolls(id);
 
@@ -238,6 +239,18 @@ export async function tick() {
   for (const char of characters.all()) {
     const cfg = configOf(char);
     live.add(char.id);
+
+    // 自己存照片那一档**不跟着主动消息走**：各有各的开关，
+    // 一个只开了存照片、没开主动消息的角色照样该存（见 tasks/snap.js）
+    if (snapMod && !running.has(char.id) && snapMod.due(char, now)) {
+      snapMod.setLastAt(char.id, now);
+      running.add(char.id);
+      snapMod.takeSnap(char.id)
+        .catch(err => console.warn('[snap] 没存成:', err.message || err))
+        .finally(() => running.delete(char.id));
+      continue;
+    }
+
     if (!cfg.proactive) { m.set(char.id, 0); continue; }
     if (running.has(char.id)) continue;
 

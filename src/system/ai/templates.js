@@ -1501,6 +1501,24 @@ and you are the one opening this conversation.
 Output the message text directly, in the same language as the character card,
 separating messages with blank lines. Write no explanation.`,
 
+  'task.snap':
+`It is now {{time}}. Decide whether {{charName}} would save a photo right now,
+and if so, what is in it.
+
+The photo is something this character took or kept on their own, at a moment
+when no one was watching. It is not a reply and not a message to anyone.
+
+## Output JSON
+{"imagePrompt": "what the photo shows", "note": "one short line about it"}
+
+- imagePrompt describes the picture itself: subject, place, light, framing.
+  Write it the way an image model is prompted
+- note is what this character would write next to it, in the same language as
+  the character card
+- Return {"imagePrompt": null} if nothing would be photographed right now
+
+Write no explanation.`,
+
   'task.scenario-seeds':
 `You are a scenario designer. The character:
 

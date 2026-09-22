@@ -26,6 +26,7 @@ import * as traceApi from '../system/ai/trace.js';
 import { extract, shouldAutoExtract, pendingOf, runsFor, markCaughtUp, batchSize } from '../system/ai/tasks/memory-extract.js';
 import * as memImport from '../system/ai/tasks/memory-import.js';
 import * as charAltApi from '../system/ai/tasks/char-alt.js';
+import * as snapApi from '../system/ai/tasks/snap.js';
 import * as cardApi from '../system/ai/tasks/card.js';
 import * as momentTasks from '../system/ai/tasks/moments.js';
 import { DEFAULT_TEMPLATES } from '../system/ai/templates.js';
@@ -209,6 +210,7 @@ export const phone = {
     repair: repairApi,
     proactive: proactiveApi,
     charAlt: charAltApi,
+    snap: snapApi,
     card: cardApi,
     phone: phoneTask,
     trip: tripTask,

@@ -5,6 +5,7 @@ import { Page, List, ListItem, Field, Input, Button, Switch, Segmented,
 
 const { db, nav, ai } = phone;
 const alt = ai.charAlt;
+const snap = ai.snap;
 
 const PACE = [
   { value: 15,   label: '很勤' },
@@ -38,6 +39,10 @@ export function ProactivePage({ charId }) {
   const char = db.characters.get(charId);
   const cfg = ai.proactive.configOf(char);
   const acfg = alt.configOf(char);
+  const scfg = snap.configOf(char);
+  const imgReady = ai.image.isImageReady();
+  const lastSnapAt = snap.lastAt(charId);
+  const lastSnap = lastSnapAt ? new Date(lastSnapAt).toLocaleDateString('zh-CN') : '';
   const alts = alt.altsOf(charId);
   const blocked = alt.blockedBy(charId);
 
@@ -72,6 +77,29 @@ export function ProactivePage({ charId }) {
           right=${html`<${Switch} checked=${cfg.proactive}
             onChange=${v => set({ proactive: v })}/>`}/>
       <//>
+
+      <${List} title="相册">
+        <${ListItem} title="角色自己往相册里存照片" multiline
+          subtitle=${scfg.snap
+            ? (imgReady
+              ? `每隔${scfg.snapDays > 0 ? `至少 ${scfg.snapDays} 天` : '不限间隔'}，角色会自行挑一个时刻存一张照片到相册。`
+                + '不经过会话，也不会告知，需要自行翻阅相册。'
+                + (lastSnap ? `上次：${lastSnap}` : '尚未存过')
+              : '尚未配置生图接口，存不出照片。请先在「设置 - 生图」中配置')
+            : '开启后，角色会自行选择时机生成并存入一张照片，不经过会话。'
+              + '每次会消耗一次文字接口与一次生图接口调用。关闭则相册中只有你自己存入的内容'}
+          right=${html`<${Switch} checked=${scfg.snap}
+            onChange=${v => db.characters.update(charId, { snap: v })}/>`}/>
+      <//>
+      ${scfg.snap ? html`
+        <div class="pad-x">
+          <${Field} label="至少间隔"
+            desc="距上次存照片至少间隔的天数。每次会消耗一次文字接口与一次生图接口调用。填 0 表示不限间隔。">
+            <${Input} type="number" value=${scfg.snapDays}
+              onInput=${v => db.characters.update(charId,
+                { snapDays: Math.max(0, parseInt(v, 10) || 0) })}/>
+          <//>
+        </div>` : null}
 
       ${cfg.proactive ? html`
         <${List} title="发送频率">

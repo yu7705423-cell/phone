@@ -3,6 +3,7 @@ import { chats, characters, memories, messages, messagesOf, moments, personas, s
          spaceItems, scenes, beats, readnotes, trips, days, meals, health, reviews, todos,
          phoneChats, works, chapters } from './db/index.js';
 import { allImageIds } from './looks.js';
+import { forget as forgetSnap } from './ai/tasks/snap.js';
 
 // 把一个角色身上的东西清干净。
 //
@@ -106,6 +107,9 @@ export function dropCharacter(charId) {
   const c = characters.get(charId);
   if (!c) return false;
   chatsOf(charId).forEach(chat => dropChat(chat.id));
+  // 「上次自己存照片是什么时候」记在 localStorage 里，不在数据域中，
+  // 所以那几张登记表管不到它，只能在这儿一并抹掉
+  forgetSnap(charId);
   memories.removeWhere(m => m.charId === charId);
   moments.removeWhere(m => m.authorId === charId);
   days.byIndex(charId).slice().forEach(r => days.remove(r.id));
