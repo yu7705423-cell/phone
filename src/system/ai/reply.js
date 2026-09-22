@@ -884,7 +884,10 @@ export function materialize(part, base, char) {
   if (part.type === 'dice') {
     // 点数是本地掷的。这一条要到下一轮才进历史，所以她写下这一行的时候
     // 还不知道掷出来是几 —— 和礼物拆开之前不知道里面是什么同构。
-    return extras.roll({ chatId: base.chatId, role: base.role });
+    //
+    // **把 row 交下去**，别让它自己拼字段：turnId 在里面，重新生成这一轮、
+    // 或者手动重新分条时，它才跟着被换掉，不至于留成孤儿
+    return extras.roll({ chatId: base.chatId, role: base.role, row });
   }
   if (part.type === 'wear') {
     // 认不出名字就不换。凭空换成另一张，用户看到的是一个她根本没提过的头像。

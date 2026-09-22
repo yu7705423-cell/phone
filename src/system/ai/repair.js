@@ -1,5 +1,5 @@
 import { messages, characters } from '../db/index.js';
-import { splitReply, materialize, dropMessage } from './reply.js';
+import { splitReply, materialize, dropMessage, turnMessages } from './reply.js';
 
 // 模型偶尔会降智：标记写成别的括号、开头多个「名字：」、整段裹一层引号、
 // 换行变成字面的 \n。这些都是确定性的格式问题，不值得再调一次接口，
@@ -179,6 +179,82 @@ function rebuild(msg, parts) {
 
   dropMessage(msg.id);
   return parts.length;
+}
+
+/**
+ * 手动整理：从模型这一轮交回来的原文改起。
+ *
+ * **规则认不出来的走形是认不完的。** `lineMark` 那一套只认得出见过的几种，
+ * 模型偶尔写出第六种、第七种，本地一条规则都命中不了 ——
+ * 那时候「修正格式」列出来是一句「未发现格式问题」，人就没有出口了。
+ *
+ * 所以留一条手动的：把原文摆出来让人自己改一个字，再按标记重新分条。
+ * 改的是**原文**不是气泡，因为一旦掉了格式，那一行早就被拆成好几个气泡了，
+ * 挨个改改不回来；而原文里它还是完整的一行。
+ *
+ * 原文存在整轮第一条上（见 `renderTurn`）。取得到就整轮一起重排，
+ * 取不到（用户自己发的、或者是旧数据）就只动这一条。
+ */
+export function manualSource(msg) {
+  if (!msg) return null;
+  const rows = msg.turnId ? turnMessages(msg.chatId, msg.turnId) : [];
+  const head = rows.find(m => m.raw);
+  if (head) return { text: String(head.raw), scope: 'turn', count: rows.length };
+  return { text: textOf(msg), scope: 'one', count: 1 };
+}
+
+/** 按这段文字分出来会是什么样。手动那一栏一边打字一边显示这个。 */
+export function previewSplit(text) {
+  const parts = splitReply(normalizeMarks(String(text || '')));
+  return { n: parts.length, note: parts.length ? describe(parts) : '这段文字分不出任何一条' };
+}
+
+// 整轮重排。和 rebuild 是同一件事，只是作用范围从一条变成一轮 ——
+// 掉格式往往是整轮的事，只重排一条会把这一轮劈成两半
+function rebuildTurn(msg, parts, raw) {
+  const rows = turnMessages(msg.chatId, msg.turnId);
+  const head = rows[0] || msg;
+  const char = characters.get(head.authorId) || {};
+  const base = head.createdAt;
+  const keep = {
+    quoteId: head.quoteId || null, quoteText: head.quoteText || '',
+    quoteRole: head.quoteRole || '', quoteAuthorId: head.quoteAuthorId || '',
+    ...(head.stamp ? { stamp: head.stamp } : {}),
+  };
+  // **先把要留的东西抄下来再删。** 删完那几行就读不到了
+  const carry = { raw, swipes: head.swipes, swipeIndex: head.swipeIndex, turnId: head.turnId };
+  rows.forEach(m => dropMessage(m.id));
+
+  parts.forEach((part, i) => {
+    materialize(part, {
+      chatId: head.chatId, role: head.role, authorId: head.authorId,
+      turnId: carry.turnId, status: 'done',
+      createdAt: base + i / (parts.length + 1),
+      ...(i === 0
+        ? { ...keep, raw: carry.raw, swipes: carry.swipes, swipeIndex: carry.swipeIndex }
+        : {}),
+    }, char);
+  });
+  return parts.length;
+}
+
+/**
+ * 按手动改过的这段文字重新分条。
+ *
+ * 改过的文字同时存回 `raw` —— 下次再打开手动那一栏，接着上次改的往下改，
+ * 而不是又跳回模型最初那一版。
+ */
+export function applyManual(msgId, text) {
+  const msg = messages.get(msgId);
+  if (!msg) throw new Error('该消息已不存在');
+  const raw = String(text || '').trim();
+  if (!raw) throw new Error('内容是空的，没有可分条的东西');
+  const parts = splitReply(normalizeMarks(raw));
+  if (!parts.length) throw new Error('这段文字分不出任何一条');
+
+  const src = manualSource(msg);
+  const n = src?.scope === 'turn' ? rebuildTurn(msg, parts, raw) : rebuild(msg, parts);
+  return n > 1 ? `已重新分为 ${n} 条` : '已整理为 1 条';
 }
 
 export function applyFix(msgId, fixId) {

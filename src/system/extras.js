@@ -71,7 +71,15 @@ const cleanFaces = n => {
 export const facesOf = chat => cleanFaces(chat?.diceFaces);
 export function setFaces(chatId, n) { chats.update(chatId, { diceFaces: cleanFaces(n) }); }
 
-export function roll({ chatId, role = 'user', faces, rng = Math.random } = {}) {
+/**
+ * 掷一次。
+ *
+ * `row` 是角色那条路上传进来的整行底子（`turnId`、`authorId`、`createdAt`
+ * 那几样）。**从前这里自己拼字段，于是掷出来的那一条不属于任何一轮** ——
+ * 重新生成这一轮时 `clearTurn` 按 turnId 删，删不到它，它就留成孤儿挂在
+ * 那儿；手动重新分条时同样换不掉。用户自己点骰子那条路不传 row，照旧。
+ */
+export function roll({ chatId, role = 'user', faces, rng = Math.random, row = null } = {}) {
   const chat = chats.get(chatId);
   if (!chat) return null;
   const char = characters.get((chat.characterIds || [])[0]);
@@ -79,7 +87,8 @@ export function roll({ chatId, role = 'user', faces, rng = Math.random } = {}) {
   const value = 1 + Math.floor(rng() * n);
 
   const msg = messages.create({
-    chatId, role, authorId: role === 'user' ? 'me' : (char?.id || ''),
+    ...(row || {}),
+    chatId, role, authorId: row?.authorId || (role === 'user' ? 'me' : (char?.id || '')),
     kind: 'dice', faces: n, value,
     content: n === 6 ? `[骰子：${value}]` : `[骰子：${value}（${n} 面）]`,
     status: 'done',

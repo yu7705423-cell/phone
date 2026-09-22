@@ -1,6 +1,6 @@
 import { html, useState } from '../../../lib.js';
 import { phone, useStore } from '../../../sdk/index.js';
-import { Sheet, List, ListItem, Button, Icon, EmptyState,
+import { Sheet, List, ListItem, Button, Icon, EmptyState, Textarea,
          toast, prompt, confirm } from '../../../ui/index.js';
 
 const { db, ai } = phone;
@@ -48,11 +48,25 @@ async function editMessage(msg) {
   }
 }
 
-// 格式修复。列出这条用得上的修法，每条先给出改完的样子。
+// 格式修复。列出这条用得上的修法，每条先给出改完的样子；
+// **底下永远有一条手动的** —— 本地规则认不出的走形是认不完的，
+// 认不出时那一页从前只有一句「未发现格式问题」，人就没有出口了。
 function RepairSheet({ msgId, open, onClose }) {
   useStore(db.messages.store);
   const msg = msgId ? db.messages.get(msgId) : null;
   const fixes = msg ? ai.repair.fixesFor(msg) : [];
+  const src = msg ? ai.repair.manualSource(msg) : null;
+  const [manual, setManual] = useState(false);
+  const [draft, setDraft] = useState('');
+
+  const openManual = () => { setDraft(src?.text || ''); setManual(true); };
+  const preview = manual ? ai.repair.previewSplit(draft) : null;
+  const doManual = () => {
+    try {
+      toast(ai.repair.applyManual(msgId, draft));
+      onClose();
+    } catch (err) { toast(String(err.message || err), 'error', 4000); }
+  };
 
   const one = id => {
     try {
@@ -88,7 +102,34 @@ function RepairSheet({ msgId, open, onClose }) {
           <${Button} full onClick=${all}>${`全部修正（${fixes.length} 项）`}<//>
         </div>`
       : html`<${EmptyState} icon="check" title="未发现格式问题"
-          desc="没有识别到可修正的项。如需修改内容本身，请使用「编辑」。"/>`}
+          desc="本地规则没有识别到可修正的项。可使用下方的手动整理。"/>`}
+
+      ${manual ? html`
+        <div class="fix-head">
+          下面是模型这一轮交回来的原文。${src?.scope === 'turn'
+    ? `修改后将按标记重新分条，替换这一轮的全部 ${src.count} 条消息。`
+    : '修改后将按标记重新分条，替换这一条消息。'}
+        </div>
+        <div class="pad-x">
+          <${Textarea} rows=${8} value=${draft} onInput=${setDraft}/>
+        </div>
+        <div class="fix-preview">${preview?.note || ''}</div>
+        <div class="fix-head">
+          常用标记：[图片：描述]、[视频：描述]、[语音：内容]、[表情：名称]、
+          [骰子]、[拍一拍]、[译文：译文内容]。各占一行。
+        </div>
+        <div class="pad">
+          <${Button} full disabled=${!preview?.n} onClick=${doManual}>按这样重新分条<//>
+        </div>`
+      : html`
+        <div class="pad">
+          <${Button} full variant="ghost" icon="edit" onClick=${openManual}>
+            手动整理
+          <//>
+          <div class="settings-foot">
+            本地规则认不出的写法，可在此直接修改原文后重新分条。
+          </div>
+        </div>`}
     <//>`;
 }
 
