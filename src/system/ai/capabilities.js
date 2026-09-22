@@ -1,5 +1,5 @@
 import { characters, stickers } from '../db/index.js';
-import { DEFAULT_GROUP } from '../stickers.js';
+import { DEFAULT_GROUP, labelOf, dupeNames } from '../stickers.js';
 import * as theirs from '../theirs.js';
 import * as clock from '../time.js';
 import * as currency from '../currency.js';
@@ -71,13 +71,16 @@ function stickerNames(char, limit) {
     list.sort((a, b) => (b.useCount || 0) - (a.useCount || 0));
   }
   const lists = [...byGroup.values()];
+  // 重名的要带上分组，不然名单里两个「开心」，模型挑哪个都是同一个字，
+  // 而按名字只找得回先建的那一个（见 stickers.js 的 labelOf）
+  const dupes = dupeNames();
   const out = [];
   for (let i = 0; out.length < cap; i++) {
     let any = false;
     for (const list of lists) {
       if (i >= list.length) continue;
       any = true;
-      const n = String(list[i].name || '').trim();
+      const n = labelOf(list[i], dupes);
       if (n) out.push(n);
       if (out.length >= cap) break;
     }

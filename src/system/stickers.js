@@ -188,6 +188,60 @@ export function groups({ onlyUsed = false } = {}) {
   return [...set].sort((a, b) => a === DEFAULT_GROUP ? -1 : b === DEFAULT_GROUP ? 1 : a.localeCompare(b, 'zh'));
 }
 
+/** 这个表情属于哪个组。空的一律算默认组 —— 各处都这么折，一处定义。 */
+export const groupOf = s => (s?.group || '').trim() || DEFAULT_GROUP;
+
+/**
+ * 列给模型时它叫什么。
+ *
+ * **重名的要带上分组。** 两套表情包都有「开心」时，名单里出现两个「开心」，
+ * 模型挑哪个都是同一个字，而 `byName` 只会返回先建的那一个 ——
+ * 后加的那一组里凡是重名的，角色一个都发不出来。
+ * 这正是「一个分组能用、另一个不能用」的由来。
+ *
+ * 不重名的照旧只写名字：绝大多数表情不重名，给每一个都缀上分组只是把
+ * 名单撑长，而名单是要占 token 的。
+ */
+export function labelOf(s, dupes) {
+  const name = String(s?.name || '').trim();
+  if (!name) return '';
+  const set = dupes || dupeNames();
+  return set.has(normalizeName(name)) ? `${name}（${groupOf(s)}）` : name;
+}
+
+/** 哪些名字不止一个表情在用。归一之后再比，「开心」和「开心.png」算同一个。 */
+export function dupeNames() {
+  const seen = new Map();
+  for (const s of stickers.all()) {
+    const k = normalizeName(s.name);
+    if (!k) continue;
+    seen.set(k, (seen.get(k) || 0) + 1);
+  }
+  return new Set([...seen].filter(([, n]) => n > 1).map(([k]) => k));
+}
+
+/**
+ * 角色发不出来的那些。表情管理页拿它摆出来。
+ *
+ * 判据只有一条：**拿它自己的名字去找，找不找得回它自己。** 找不回来的，
+ * 角色写对了名字也发不出去 —— 发出去的是另一个，或者干脆没有。
+ */
+export function unreachable() {
+  const dupes = dupeNames();
+  const out = [];
+  for (const s of stickers.all()) {
+    const name = String(s.name || '').trim();
+    if (!name) { out.push({ id: s.id, name: '', group: groupOf(s), why: '没有名称' }); continue; }
+    const back = byName(labelOf(s, dupes));
+    if (back?.id === s.id) continue;
+    out.push({
+      id: s.id, name, group: groupOf(s),
+      why: back ? `与「${back.name}」（${groupOf(back)}）重名，会发成那一个` : '按名称找不到',
+    });
+  }
+  return out;
+}
+
 export function inGroup(group) {
   return stickers.all()
     .filter(s => ((s.group || '').trim() || DEFAULT_GROUP) === group)
@@ -228,9 +282,22 @@ export function normalizeName(text) {
  * 指认（见会话页），指认完那个名字会记成关键词，下次自己就对上了。
  */
 export function byName(name) {
+  const raw = String(name || '');
+  const all = stickers.all();
+
+  // 「开心（猫猫）」这种：两个分组里有重名时，名单里给的就是这个形状，
+  // 不然模型没法说清要哪一个（见 groupOf 与 labelOf）
+  const m = raw.match(/^(.+?)\s*[（(]([^（()）]+)[)）]\s*$/);
+  if (m) {
+    const want = normalizeName(m[1]);
+    const g = normalizeName(m[2]);
+    const hit = want && all.find(s => normalizeName(s.name) === want
+      && normalizeName(groupOf(s)) === g);
+    if (hit) return hit;
+  }
+
   const q = normalizeName(name);
   if (!q) return null;
-  const all = stickers.all();
   const nameOf = s => normalizeName(s.name);
   const bare = t => t.replace(/\s+/g, '');
   return all.find(s => nameOf(s) === q)

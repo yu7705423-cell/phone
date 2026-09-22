@@ -132,6 +132,8 @@ export function StickerManager() {
 
   const groups = api.groups();
   const remote = db.stickers.where(s => s.url && !s.imageId);
+  // 角色发不出来的那些：拿自己的名字找不回自己（重名、或者没名字）
+  const bad = api.unreachable();
 
   // 一次一张。传完当场打开那一条的编辑面板 —— 一条一条传的意思正是
   // 每一条都要单独取名、单独配关键词，传完还要回列表里找一遍是多绕一圈
@@ -327,6 +329,17 @@ export function StickerManager() {
       <input type="file" accept="image/*" ref=${oneRef} onChange=${pickOne} style="display:none"/>
       <input type="file" accept="image/*" multiple ref=${imgRef} onChange=${pickImages} style="display:none"/>
       <input type="file" accept=".txt,.docx,text/plain" ref=${fileRef} onChange=${pickFile} style="display:none"/>
+
+      ${bad.length ? html`
+        <div class="pad-x">
+          <div class="warn-box">
+            <div>有 ${bad.length} 个表情角色发不出来：按名称找回来的不是它自己。</div>
+            ${bad.slice(0, 6).map(x => html`
+              <div key=${x.id}>「${x.name || '（无名称）'}」· ${x.group} · ${x.why}</div>`)}
+            ${bad.length > 6 ? html`<div>其余 ${bad.length - 6} 个同类。</div>` : null}
+            <div>改一个不重复的名称即可。名称相同时，列给角色的名称会带上分组。</div>
+          </div>
+        </div>` : null}
 
       ${remote.length ? html`
         <div class="pad-x">
