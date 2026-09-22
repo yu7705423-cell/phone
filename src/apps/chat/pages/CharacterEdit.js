@@ -4,7 +4,7 @@ import { Page, Field, Input, Textarea, Avatar, List, ListItem,
          Switch, Segmented, Icon, Button, QrLogin, CookiePaste, toast, ZonePicker} from '../../../ui/index.js';
 import { AvatarPool } from './AvatarPool.js';
 
-const { db, nav, clock, extras } = phone;
+const { db, nav, clock, extras, ai } = phone;
 
 const FACE_MODES = [
   { value: 'off', label: '关闭' },
@@ -318,7 +318,8 @@ export function CharacterEdit({ id }) {
       <${List} title="关联世界书">
         ${db.lorebooks.all().map(b => html`
           <${ListItem} key=${b.id} title=${b.name}
-            subtitle=${b.global ? '全局生效，无需关联' : `${(b.entries || []).length} 个条目`}
+            subtitle=${(b.global ? '全局生效，无需关联' : `${(b.entries || []).length} 个条目`)
+              + (ai.lore.isImageBook(b) ? ' · 只用于生图' : '')}
             right=${html`<${Switch} checked=${b.global || (char.lorebookIds || []).includes(b.id)}
               onChange=${() => !b.global && toggleBook(b.id)}/>`}/>`)}
         ${!db.lorebooks.count() ? html`<${ListItem} title="暂无世界书"/>` : null}

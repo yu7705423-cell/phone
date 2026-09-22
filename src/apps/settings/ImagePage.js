@@ -9,11 +9,30 @@ const svc = ai.services;
 
 const fmtDesc = v => (ai.image.FORMATS.find(f => f.id === (v || '')) || ai.image.FORMATS[0]).desc;
 
-const SIZES = [
-  { value: '1024x1024', label: '1:1' },
-  { value: '1024x1536', label: '2:3' },
-  { value: '1536x1024', label: '3:2' },
-];
+/**
+ * 尺寸。常用的那几档点一下就填上，也可以自己填别的。
+ *
+ * 列出来的是**备选**，不是全部 —— 各家能用的尺寸随模型而变，写死一份清单
+ * 挡的是用户自己知道能用的那些（CLAUDE.md 第 13 条）。
+ */
+const SizePick = ({ kind, value, onChange }) => {
+  const list = ai.image.sizesFor(kind);
+  const cur = String(value || '');
+  const ok = ai.image.okSize(cur);
+  return html`
+    <div class="chip-row">
+      ${list.map(x => html`
+        <button key=${x.value} class=${`chip press${cur === x.value ? ' is-active' : ''}`}
+          onClick=${() => onChange(x.value)}>${x.label} ${x.value}</button>`)}
+    </div>
+    <div class="pad-t">
+      <${Input} value=${cur} placeholder="1024x1024"
+        onInput=${v => onChange(v)}/>
+    </div>
+    ${cur && !ok ? html`
+      <div class="field-warn">格式为「宽x高」，例如 1024x1024。当前填写无法识别，将按 1024x1024 发送。</div>`
+    : null}`;
+};
 
 function Editor({ id, onClose }) {
   useStore(db.settings.store);
@@ -84,8 +103,11 @@ function Editor({ id, onClose }) {
         </div>
       <//>
 
-      <${Field} label="尺寸">
-        <${Segmented} value=${preset.size || '1024x1024'} items=${SIZES}
+      <${Field} label="尺寸"
+        desc=${preset.kind === 'nai'
+          ? 'NovelAI 要求宽高均为 64 的倍数，且总像素有上限，超出时接口会拒绝。'
+          : '可点选常用尺寸，也可自行填写。接口不支持的尺寸会被拒绝。'}>
+        <${SizePick} kind=${preset.kind} value=${preset.size}
           onChange=${v => set({ size: v })}/>
       <//>
 

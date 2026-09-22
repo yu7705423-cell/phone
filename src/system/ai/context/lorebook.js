@@ -20,37 +20,62 @@ export const PARTS = ['before', 'after'];
 export const partOf = e => (PARTS.includes(e?.part) ? e.part : 'before');
 export const depthOf = e => Math.max(0, Math.round(Number(e?.depth) || 0));
 
-export function activate(char, scanText, budget) {
+/**
+ * 「只用于生图」的那种书。见 ARCHITECTURE 4.122
+ *
+ * **两边互斥。** 标了这个的一律不进聊天，没标的一律不进生图提示词。
+ * 一本书要是两边都进，画风描述（「柔和的侧光，胶片颗粒」）就会漏进对话，
+ * 角色开口就是一股说明书味 —— 那正是要拆出这一档的原因。
+ */
+export const isImageBook = b => b?.forImage === true;
+
+/** 这个角色用得上的书。`forImage` 决定取哪一半。 */
+function booksFor(char, forImage) {
+  const attached = new Set(char?.lorebookIds || []);
+  return lorebooks.all().filter(b =>
+    isImageBook(b) === forImage && (b.global || attached.has(b.id)));
+}
+
+/** 关键词命中没有。常驻的一律算命中。 */
+function hits(e, text, lower) {
+  if (e.constant) return true;
+  const keys = (e.keys || []).filter(Boolean);
+  if (!keys.length) return false;
+  const match = k => (e.caseSensitive ? text : lower).includes(e.caseSensitive ? k : k.toLowerCase());
+  if (!keys.some(match)) return false;
+  const sec = (e.secondaryKeys || []).filter(Boolean);
+  if (sec.length && !sec.some(match)) return false;
+  if (e.probability != null && e.probability < 100) {
+    if (Math.random() * 100 >= e.probability) return false;
+  }
+  return true;
+}
+
+function pick(char, scanText, forImage) {
   const text = String(scanText || '');
   const lower = text.toLowerCase();
-  const attached = new Set(char?.lorebookIds || []);
-
   const entries = [];
-  for (const book of lorebooks.all()) {
-    if (!book.global && !attached.has(book.id)) continue;
+  for (const book of booksFor(char, forImage)) {
     for (const e of book.entries || []) {
       if (!e.enabled) continue;
       entries.push({ ...e, bookName: book.name, bookId: book.id });
     }
   }
-
-  const hit = entries.filter(e => {
-    if (e.constant) return true;
-    const keys = (e.keys || []).filter(Boolean);
-    if (!keys.length) return false;
-    const match = k => (e.caseSensitive ? text : lower).includes(e.caseSensitive ? k : k.toLowerCase());
-    if (!keys.some(match)) return false;
-    const sec = (e.secondaryKeys || []).filter(Boolean);
-    if (sec.length && !sec.some(match)) return false;
-    if (e.probability != null && e.probability < 100) {
-      if (Math.random() * 100 >= e.probability) return false;
-    }
-    return true;
-  });
-
-  hit.sort(compare);
-  return takeTopWithin(hit, budget, e => e.content || '');
+  return entries.filter(e => hits(e, text, lower)).sort(compare);
 }
+
+export function activate(char, scanText, budget) {
+  return takeTopWithin(pick(char, scanText, false), budget, e => e.content || '');
+}
+
+/**
+ * 生图那一份。拿**画面描述**去扫，命中的原样拼进生图提示词。
+ *
+ * 不设预算：生图提示词本来就短，而且这一份是用户自己写、自己关的
+ * （CLAUDE.md 第 13 条）。`part` 与 `depth` 在这里没有意义 ——
+ * 生图请求里没有「对话历史」可插，所以编辑页上那两项对这种书不显示。
+ */
+export const activateImage = (char, scanText) => pick(char, scanText, true);
 
 // 注入顺序：先按 part（角色前在先），同一部分里深的排在浅的前面
 //（深度大 = 离当前对话远），再按优先级、再按手填的序号。

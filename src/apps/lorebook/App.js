@@ -36,7 +36,8 @@ function BookList() {
         <${List}>
           ${books.map(b => html`
             <${ListItem} key=${b.id} title=${b.name}
-              subtitle=${`${(b.entries || []).length} 个条目${b.global ? ' · 全局生效' : ''}`}
+              subtitle=${`${(b.entries || []).length} 个条目${b.global ? ' · 全局生效' : ''}`
+                + (ai.lore.isImageBook(b) ? ' · 只用于生图' : '')}
               arrow left=${html`<${Icon} name="book" size=${18}/>`}
               onClick=${() => nav.push(`/book/${b.id}`)}/>`)}
         <//>`
@@ -74,6 +75,8 @@ function BookPage({ id }) {
     nav.push(`/entry/${id}/${e.id}`);
   };
 
+  const forImage = ai.lore.isImageBook(book);
+
   const del = async () => {
     if (!await confirm({ title: '删除世界书', message: `将删除「${book.name}」及其全部条目。`, danger: true })) return;
     db.lorebooks.remove(id);
@@ -92,13 +95,20 @@ function BookPage({ id }) {
         <${ListItem} title="全局生效" subtitle="开启后对所有角色注入，无需单独关联"
           right=${html`<${Switch} checked=${book.global}
             onChange=${v => db.lorebooks.update(id, { global: v })}/>`}/>
+        <${ListItem} title="只用于生图" multiline
+          subtitle=${'开启后，本世界书仅在生成图片时按画面描述匹配并拼入生图提示词，'
+            + '不再注入对话。关闭后恢复为普通世界书，仅用于对话。'
+            + '条目的所属部分与注入深度对生图不生效。'}
+          right=${html`<${Switch} checked=${forImage}
+            onChange=${v => db.lorebooks.update(id, { forImage: v })}/>`}/>
       <//>
 
       <${List} title=${`条目 ${(book.entries || []).length}`}>
         ${(book.entries || []).map(e => html`
           <${ListItem} key=${e.id}
             title=${e.comment || e.content.slice(0, 18) || '未命名条目'}
-            subtitle=${`${e.constant ? '常驻' : (e.keys.length ? `关键词：${e.keys.join('、')}` : '未填写关键词，不会触发')} · ${placeText(e)}`}
+            subtitle=${`${e.constant ? '常驻' : (e.keys.length ? `关键词：${e.keys.join('、')}` : '未填写关键词，不会触发')}`
+              + (forImage ? '' : ` · ${placeText(e)}`)}
             multiline
             arrow
             left=${html`<${Switch} checked=${e.enabled}
@@ -119,6 +129,7 @@ function EntryPage({ bookId, entryId }) {
   useStore(db.lorebooks.store);
   const book = db.lorebooks.get(bookId);
   const entry = book?.entries.find(e => e.id === entryId);
+  const forImage = ai.lore.isImageBook(book);
   if (!entry) return html`<${Page} title="条目" onBack=${nav.pop}><${EmptyState} title="该条目不存在"/><//>`;
 
   const patch = p => db.lorebooks.update(bookId, b => ({
@@ -139,11 +150,17 @@ function EntryPage({ bookId, entryId }) {
             placeholder="该条目的用途"/>
         <//>
 
-        <${Field} label="内容" desc="命中后原样注入 prompt。">
+        <${Field} label="内容"
+          desc=${forImage
+            ? '命中后原样拼入生图提示词。建议使用该生图接口所用的语言。'
+            : '命中后原样注入 prompt。'}>
           <${Textarea} rows=${6} value=${entry.content} onInput=${v => patch({ content: v })}/>
         <//>
 
-        <${Field} label="关键词" desc="以逗号分隔。扫描窗口内出现任意一个即命中。">
+        <${Field} label="关键词"
+          desc=${forImage
+            ? '以逗号分隔。生成图片时按画面描述匹配，出现任意一个即命中。'
+            : '以逗号分隔。扫描窗口内出现任意一个即命中。'}>
           <${Input} value=${(entry.keys || []).join('，')}
             placeholder="社团，学生会"
             onInput=${v => patch({ keys: v.split(/[,，]/).map(s => s.trim()).filter(Boolean) })}/>
@@ -154,23 +171,27 @@ function EntryPage({ bookId, entryId }) {
             onInput=${v => patch({ secondaryKeys: v.split(/[,，]/).map(s => s.trim()).filter(Boolean) })}/>
         <//>
 
-        <${Field} label="所属部分"
-          desc="决定该条目位于角色卡之前还是之后。世界观、时代背景一类置于角色前；角色在该世界中的处境一类置于角色后。">
-          <${Segmented} value=${partOf(entry)} items=${PARTS}
-            onChange=${v => patch({ part: v })}/>
-        <//>
+        ${forImage ? null : html`
+          <${Field} label="所属部分"
+            desc="决定该条目位于角色卡之前还是之后。世界观、时代背景一类置于角色前；角色在该世界中的处境一类置于角色后。">
+            <${Segmented} value=${partOf(entry)} items=${PARTS}
+              onChange=${v => patch({ part: v })}/>
+          <//>
 
-        <${Field} label="注入深度"
-          desc=${`填 0 表示留在设定区，位于${partOf(entry) === 'before' ? '角色卡之前' : '角色卡之后'}。`
-            + '填 N（N ≥ 1）表示从设定区取出，插入对话历史中倒数第 N 条消息之前。'
-            + '数值越小越接近当前对话，模型越不容易忽略；代价是每轮都占据靠近末尾的位置。'
-            + '深度超过现有消息条数时，落在对话最前面。'}>
-          <${NumberInput} value=${depthOf(entry)} min=${0} unit="条"
-            onChange=${v => patch({ depth: Math.max(0, Math.round(v) || 0) })}/>
-        <//>
-        <div class="field-desc pad-x">当前位置：${placeText(entry)}</div>
+          <${Field} label="注入深度"
+            desc=${`填 0 表示留在设定区，位于${partOf(entry) === 'before' ? '角色卡之前' : '角色卡之后'}。`
+              + '填 N（N ≥ 1）表示从设定区取出，插入对话历史中倒数第 N 条消息之前。'
+              + '数值越小越接近当前对话，模型越不容易忽略；代价是每轮都占据靠近末尾的位置。'
+              + '深度超过现有消息条数时，落在对话最前面。'}>
+            <${NumberInput} value=${depthOf(entry)} min=${0} unit="条"
+              onChange=${v => patch({ depth: Math.max(0, Math.round(v) || 0) })}/>
+          <//>
+          <div class="field-desc pad-x">当前位置：${placeText(entry)}</div>`}
 
-        <${Field} label=${`优先级　${entry.priority}`} desc="注入预算不足时，从低优先级开始丢弃。">
+        <${Field} label=${`优先级　${entry.priority}`}
+          desc=${forImage
+            ? '仅决定多条同时命中时的拼接先后，数值高的在前。生图提示词不设预算，不会因此丢弃。'
+            : '注入预算不足时，从低优先级开始丢弃。'}>
           <input type="range" min="0" max="400" step="10" value=${entry.priority}
             onInput=${e => patch({ priority: parseInt(e.target.value, 10) })}/>
         <//>
@@ -182,7 +203,8 @@ function EntryPage({ bookId, entryId }) {
       </div>
 
       <${List}>
-        <${ListItem} title="常驻" subtitle="无需关键词，每次均注入"
+        <${ListItem} title="常驻"
+          subtitle=${forImage ? '无需关键词，每次生成图片时均拼入' : '无需关键词，每次均注入'}
           right=${html`<${Switch} checked=${entry.constant} onChange=${v => patch({ constant: v })}/>`}/>
         <${ListItem} title="区分大小写"
           right=${html`<${Switch} checked=${entry.caseSensitive} onChange=${v => patch({ caseSensitive: v })}/>`}/>
@@ -211,7 +233,8 @@ function PreviewPage() {
   return html`
     <${Page} title="激活预览" onBack=${nav.pop}>
       <div class="pad">
-        <div class="hint-box">输入一段对话，看看会激活哪些条目、占多少 token。</div>
+        <div class="hint-box">输入一段对话，看看会激活哪些条目、占多少 token。
+          标为「只用于生图」的世界书不注入对话，因此不在此处显示。</div>
 
         <${Field} label="以哪个角色的视角">
           ${chars.length ? html`
@@ -252,13 +275,17 @@ function MapPage() {
   const attached = new Set(char?.lorebookIds || []);
 
   const all = [];
+  const forImg = [];
   for (const b of db.lorebooks.all()) {
     const applies = b.global || attached.has(b.id);
     for (const e of (b.entries || [])) {
-      all.push({ ...e, bookName: b.name, bookId: b.id, applies });
+      const row = { ...e, bookName: b.name, bookId: b.id, applies };
+      // 生图那种不进对话，按位置分组对它没有意义，单列一组
+      (ai.lore.isImageBook(b) ? forImg : all).push(row);
     }
   }
   all.sort(ai.lore.compare);
+  forImg.sort(ai.lore.compare);
 
   // 分组的顺序就是注入的顺序
   const groups = [
@@ -275,6 +302,13 @@ function MapPage() {
       key: `d${d}`, title: `对话中 · 倒数第 ${d} 条之前`,
       desc: '以 system 身份插入对话历史。越接近末尾，模型越不容易忽略。',
       rows: all.filter(e => depthOf(e) === d),
+    });
+  }
+  if (forImg.length) {
+    groups.push({
+      key: 'image', title: '生图提示词',
+      desc: '标为「只用于生图」的条目。生成图片时按画面描述匹配，不注入对话。',
+      rows: forImg,
     });
   }
 

@@ -41,6 +41,53 @@ export const FORMATS = [
   { id: 'url', label: '链接', desc: '接口返回图片链接，由本机再取一次。跨域可能取不到' },
 ];
 
+/**
+ * 常用尺寸。**这是备选，不是全部** —— 想填别的自己填（CLAUDE.md 第 13 条）。
+ *
+ * 两家的常用值不一样，所以分开列：
+ *
+ *   openai  `gpt-image-1` 只认这三档（以及 auto）。`dall-e-3` 是
+ *           1024x1024 / 1024x1792 / 1792x1024，所以那两个也列上。
+ *   nai     NovelAI 自己那套。边长要是 64 的倍数，总像素也有上限，
+ *           超了它会自己拒 —— 这一条写在界面上，不在代码里拦。
+ */
+export const SIZES = {
+  openai: [
+    { value: '1024x1024', label: '1:1' },
+    { value: '1024x1536', label: '2:3' },
+    { value: '1536x1024', label: '3:2' },
+    { value: '1024x1792', label: '9:16' },
+    { value: '1792x1024', label: '16:9' },
+  ],
+  nai: [
+    { value: '832x1216', label: '竖向' },
+    { value: '1216x832', label: '横向' },
+    { value: '1024x1024', label: '方形' },
+    { value: '1024x1536', label: '大竖向' },
+    { value: '1536x1024', label: '大横向' },
+    { value: '1472x1472', label: '大方形' },
+    { value: '512x768', label: '小竖向' },
+    { value: '768x512', label: '小横向' },
+    { value: '640x640', label: '小方形' },
+  ],
+};
+export const sizesFor = kind => SIZES[kind === 'nai' ? 'nai' : 'openai'];
+
+/** 填的是不是一个认得出的尺寸。界面拿它决定要不要标出来。 */
+export const okSize = v => /^\s*\d{2,5}\s*[x×]\s*\d{2,5}\s*$/.test(String(v || ''));
+
+/**
+ * 发出去的那个尺寸。
+ *
+ * 自己填的那一栏什么都可能出现：全角的「×」、中间的空格、一串汉字。
+ * 认得出就规整成 `宽x高` 发出去，认不出就退回 1024 见方 —— 把一句
+ * 「大一点」原样发过去，对面回的是一个看不出原因的 400。
+ */
+export function sizeText(v) {
+  const m = /^\s*(\d{2,5})\s*[x×]\s*(\d{2,5})\s*$/.exec(String(v || ''));
+  return m ? `${m[1]}x${m[2]}` : '1024x1024';
+}
+
 export function isImageReady() {
   const p = activeImage();
   return !!(p && p.apiKey && p.model);
@@ -48,8 +95,8 @@ export function isImageReady() {
 
 /** 「1024x1024」拆成两个数。拆不出来按 1024 见方。 */
 function sizeOf(preset) {
-  const m = /^(\d+)\s*[x×]\s*(\d+)$/.exec(String(preset.size || '').trim());
-  return m ? { w: +m[1], h: +m[2] } : { w: 1024, h: 1024 };
+  const [w, h] = sizeText(preset.size).split('x');
+  return { w: +w, h: +h };
 }
 
 /**
@@ -119,7 +166,7 @@ export function generateWithRef({ prompt, refBlob, preset, key }) {
     form.append('model', p.model);
     form.append('prompt', text);
     form.append('n', '1');
-    form.append('size', p.size || '1024x1024');
+    form.append('size', sizeText(p.size));
     form.append('image', new File([refBlob], 'face.png', { type: refBlob.type || 'image/png' }));
     const res = await nfetch(editEndpoint(p), {
       method: 'POST', signal,
@@ -158,7 +205,7 @@ export function generate({ prompt, preset, key }) {
       headers: { 'content-type': 'application/json', authorization: `Bearer ${p.apiKey}` },
       body: JSON.stringify({
         model: p.model, prompt: text,
-        n: 1, size: p.size || '1024x1024',
+        n: 1, size: sizeText(p.size),
         // 空字符串那一档整个字段不发，见 FORMATS
         ...(p.respFormat ? { response_format: p.respFormat } : {}),
       }),

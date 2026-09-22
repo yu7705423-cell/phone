@@ -4,6 +4,7 @@ import { runTextTask } from './engine.js';
 import { visionConfig, visionReady, visionMode } from './services.js';
 import { describe as visionDescribe } from './vision.js';
 import { toDataUrl } from '../audio.js';
+import { activateImage, textOf } from './context/lorebook.js';
 
 // 生图提示词的拼装，外加锁脸。
 //
@@ -66,10 +67,28 @@ export async function ensureFaceDesc(char) {
 const langSample = char =>
   String(char?.persona || char?.scenario || char?.name || '').slice(0, 200);
 
-// 拼最终提示词。face 是已经拿到的那段外貌描述，没有就不拼。
+/**
+ * 生图世界书命中的那几条。拿**画面描述**去扫，不是拿对话。
+ *
+ * 标了「只用于生图」的书才进这里，普通世界书一条都不进 —— 反过来也一样
+ * （见 context/lorebook.js）。角色卡上关联的书与「全局生效」的书都算，
+ * 和聊天那边同一套归属规则。
+ */
+export const loreFor = (char, prompt) => textOf(activateImage(char, prompt));
+
+/**
+ * 拼最终提示词。
+ *
+ * 顺序是：**画面描述、这一张命中的生图世界书、这个角色的固定提示词、全局提示词**。
+ * 越靠前越是「这一张要画什么」，越靠后越是「一直都这么画」。生图世界书排在
+ * 角色与全局之前，因为它是按这一张的内容命中的，比那两个更贴着这一张。
+ */
 export function compose({ prompt, char, face = '' }) {
-  const parts = [String(prompt || '').trim()];
+  const text = String(prompt || '').trim();
+  const parts = [text];
   if (face) parts.push(`The appearance of the person in frame: ${face}`);
+  const lore = loreFor(char, text);
+  if (lore) parts.push(lore);
   const own = String(char?.imagePrompt || '').trim();
   if (own) parts.push(own);
   const global = String(settings.get().imagePrompt || '').trim();

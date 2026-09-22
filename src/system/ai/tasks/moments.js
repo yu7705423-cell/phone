@@ -1,5 +1,6 @@
 import { moments, characters, persona, images } from '../../db/index.js';
 import * as imageSvc from '../image.js';
+import * as imgPrompt from '../imageprompt.js';
 import { template, runJSONTask } from '../engine.js';
 import { notify } from '../../notify.js';
 import * as extras from '../../extras.js';
@@ -32,7 +33,9 @@ export async function createMoment(charId) {
   const prompt = (r.imagePrompt || '').trim();
   if (prompt && prompt !== 'null' && imageSvc.isImageReady()) {
     moments.update(mo.id, { imagePending: true, imagePrompt: prompt });
-    imageSvc.generate({ prompt, key: `moment-img:${mo.id}` })
+    // 走 compose：全局生图提示词那一栏写的是「每次生成都会拼在画面描述后面」，
+    // 从前这一条不走它，朋友圈的图就不按那句话画（生图世界书同理）
+    imageSvc.generate({ prompt: imgPrompt.compose({ prompt, char }), key: `moment-img:${mo.id}` })
       .then(async blob => {
         const id = await images.put(new File([blob], 'moment.png', { type: blob.type || 'image/png' }), 1024);
         moments.update(mo.id, { images: [id], imagePending: false });

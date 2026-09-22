@@ -37,8 +37,9 @@ export function ContextPage() {
   const todo = ai.memvec.pending().length;
   const order = ai.resolveOrder(s.injectOrder);
   // 一句话交代世界书现在有多少条、分别落在哪儿，省得进去才看得见
-  const entries = db.lorebooks.all().flatMap(b => (b.entries || [])
-    .filter(e => e.enabled).map(e => ({ ...e })));
+  // 只数进对话的那些。标了「只用于生图」的书不注入对话，算进来这一行就不准了
+  const entries = db.lorebooks.all().filter(b => !ai.lore.isImageBook(b))
+    .flatMap(b => (b.entries || []).filter(e => e.enabled).map(e => ({ ...e })));
   const deep = entries.filter(e => Math.round(Number(e.depth) || 0) > 0).length;
   const loreLine = entries.length
     ? `共 ${entries.length} 个启用中的条目，其中 ${deep} 个插入对话历史，其余留在设定区`
