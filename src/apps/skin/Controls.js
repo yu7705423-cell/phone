@@ -41,7 +41,8 @@ export function Control({ item, value, onChange }) {
     ? html`<${ColorInput} value=${value} onChange=${onChange}/>`
     : item.type === 'num'
       ? html`<${Slider} value=${value} onChange=${onChange}
-          min=${item.min ?? 0} max=${item.max ?? 100} unit=${item.unit || ''}/>`
+          min=${item.min ?? 0} max=${item.max ?? 100} unit=${item.unit || ''}
+          fallback=${item.def === '' ? null : item.def}/>`
       : item.type === 'pick'
         ? html`<${Segmented} value=${value} onChange=${onChange}
             items=${item.options.map(o => ({ value: o.id, label: o.label }))}/>`

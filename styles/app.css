@@ -573,6 +573,9 @@ input[type="range"] {
   font-variant-numeric: tabular-nums;
 }
 .slider-unit { flex: none; font-size: var(--fs-12); color: var(--text-3); min-width: 20px; }
+/* 没设过的那一档：滑杆压淡一点，一眼看出它现在不生效 */
+.slider-row.is-unset input[type="range"] { opacity: .45; }
+.slider-row.is-unset .slider-num { color: var(--text-3); }
 
 /* 取色。色块、色值、以及那个「不改」 */
 .color-row { display: flex; align-items: center; gap: var(--sp-3); }

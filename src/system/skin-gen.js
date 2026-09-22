@@ -103,9 +103,9 @@ const iconItems = (key, label, extra = {}) => [
     ...extra },
   { id: `${key}Hide`, label: `${label}设为透明`, type: 'switch', def: false,
     desc: '图标不显示，但按钮与点击区不动，原来的位置照样点得到' },
-  { id: `${key}Size`, label: `${label}的大小`, type: 'num', unit: 'px', def: 0, min: 0, max: 64 },
-  { id: `${key}X`, label: `${label}左右移动`, type: 'num', unit: 'px', def: 0, min: -120, max: 120 },
-  { id: `${key}Y`, label: `${label}上下移动`, type: 'num', unit: 'px', def: 0, min: -60, max: 60 },
+  { id: `${key}Size`, label: `${label}的大小`, type: 'num', unit: 'px', def: '', min: 8, max: 64 },
+  { id: `${key}X`, label: `${label}左右移动`, type: 'num', unit: 'px', def: '', min: -120, max: 120 },
+  { id: `${key}Y`, label: `${label}上下移动`, type: 'num', unit: 'px', def: '', min: -60, max: 60 },
 ];
 
 /** 一张贴图：挂哪儿、哪几个、位置姿态。 */
@@ -139,12 +139,12 @@ export const GROUPS = [
       { id: 'img', label: '背景图', type: 'image', def: '' },
       { id: 'imgFill', label: '背景图怎么铺', type: 'pick', options: FILLS, def: 'cover',
         when: v => v.img },
-      { id: 'h', label: '高度', type: 'num', unit: 'px', def: 0, min: 0, max: 120 },
+      { id: 'h', label: '高度', type: 'num', unit: 'px', def: '', min: 24, max: 120 },
       { id: 'line', label: '隐藏底部的分隔线', type: 'switch', def: false },
       { id: 'titleColor', label: '标题颜色', type: 'color', def: '' },
-      { id: 'titleSize', label: '标题字号', type: 'num', unit: 'px', def: 0, min: 0, max: 40 },
-      { id: 'titleX', label: '标题左右移动', type: 'num', unit: 'px', def: 0, min: -160, max: 160 },
-      { id: 'titleY', label: '标题上下移动', type: 'num', unit: 'px', def: 0, min: -60, max: 60 },
+      { id: 'titleSize', label: '标题字号', type: 'num', unit: 'px', def: '', min: 8, max: 40 },
+      { id: 'titleX', label: '标题左右移动', type: 'num', unit: 'px', def: '', min: -160, max: 160 },
+      { id: 'titleY', label: '标题上下移动', type: 'num', unit: 'px', def: '', min: -60, max: 60 },
       ...iconItems('back', '返回键'),
       ...iconItems('act', '右上角按钮'),
     ],
@@ -169,14 +169,16 @@ export const GROUPS = [
   {
     id: 'msg', label: '消息区', icon: 'layers', focus: '.ph-chat-body',
     items: [
-      { id: 'top', label: '第一条与顶部的距离', type: 'num', unit: 'px', def: 0, min: 0, max: 200,
+      { id: 'top', label: '第一条与顶部的距离', type: 'num', unit: 'px', def: '', min: -120, max: 240,
         desc: '顶栏加高或挂了图之后，第一条消息容易被压住，用这一项让开' },
-      { id: 'bottom', label: '最后一条与底栏的距离', type: 'num', unit: 'px', def: 0, min: 0, max: 200 },
-      { id: 'sideP', label: '左右留白', type: 'num', unit: 'px', def: 0, min: 0, max: 60 },
-      { id: 'gap', label: '两条消息之间', type: 'num', unit: 'px', def: 0, min: 0, max: 80 },
-      { id: 'gapIn', label: '同一轮内两个气泡之间', type: 'num', unit: 'px', def: 0, min: 0, max: 40 },
+      { id: 'bottom', label: '最后一条与底栏的距离', type: 'num', unit: 'px', def: '', min: -120, max: 240 },
+      { id: 'sideP', label: '左右留白', type: 'num', unit: 'px', def: '', min: -40, max: 80,
+        desc: '填负数会让消息比容器更宽，气泡可以贴到屏幕边上' },
+      { id: 'gap', label: '两条消息之间', type: 'num', unit: 'px', def: '', min: -40, max: 100,
+        desc: '填负数会让两条消息叠起来' },
+      { id: 'gapIn', label: '同一轮内两个气泡之间', type: 'num', unit: 'px', def: '', min: -20, max: 60 },
       { id: 'align', label: '头像与气泡的对齐', type: 'pick', options: ALIGNS, def: 'flex-start' },
-      { id: 'width', label: '气泡最大宽度', type: 'num', unit: '%', def: 0, min: 0, max: 100 },
+      { id: 'width', label: '气泡最大宽度', type: 'num', unit: '%', def: '', min: 20, max: 100 },
       { id: 'bg', label: '聊天背景色', type: 'color', def: '' },
       { id: 'img', label: '聊天背景图', type: 'image', def: '' },
       { id: 'imgFill', label: '背景图怎么铺', type: 'pick', options: FILLS, def: 'cover',
@@ -186,14 +188,15 @@ export const GROUPS = [
   {
     id: 'avatar', label: '头像', icon: 'user', focus: '.ph-face',
     items: [
-      { id: 'size', label: '大小', type: 'num', unit: 'px', def: 0, min: 0, max: 96 },
-      { id: 'round', label: '圆角', type: 'num', unit: '%', def: 0, min: 0, max: 50,
+      { id: 'size', label: '大小', type: 'num', unit: 'px', def: '', min: 16, max: 120 },
+      { id: 'round', label: '圆角', type: 'num', unit: '%', def: '', min: 0, max: 50,
         desc: '50 是正圆，0 表示不改' },
-      { id: 'bw', label: '描边粗细', type: 'num', unit: 'px', def: 0, min: 0, max: 8 },
+      { id: 'bw', label: '描边粗细', type: 'num', unit: 'px', def: '', min: 0, max: 10 },
       { id: 'bc', label: '描边颜色', type: 'color', def: '', when: v => v.bw > 0 },
-      { id: 'gap', label: '与气泡的距离', type: 'num', unit: 'px', def: 0, min: 0, max: 48 },
-      { id: 'x', label: '左右移动', type: 'num', unit: 'px', def: 0, min: -60, max: 60 },
-      { id: 'y', label: '上下移动', type: 'num', unit: 'px', def: 0, min: -60, max: 60 },
+      { id: 'gap', label: '与气泡的距离', type: 'num', unit: 'px', def: '', min: -30, max: 60,
+        desc: '填负数会让头像和气泡叠起来' },
+      { id: 'x', label: '左右移动', type: 'num', unit: 'px', def: '', min: -60, max: 60 },
+      { id: 'y', label: '上下移动', type: 'num', unit: 'px', def: '', min: -60, max: 60 },
       { id: 'run', label: '连着的几条里哪几条有头像', type: 'pick', options: RUNS, def: 'all',
         desc: '隐藏的那几条仍然占位，气泡不会跟着左右错开。'
           + '「只有最后一条」需要 iOS 15.4 以上的系统' },
@@ -214,7 +217,7 @@ export const GROUPS = [
       { id: 'on', label: '显示小尾巴', type: 'switch', def: false,
         desc: '气泡朝向头像那一侧的小三角。默认没有' },
       { id: 'size', label: '大小', type: 'num', unit: 'px', def: 8, min: 2, max: 24, when: v => v.on },
-      { id: 'y', label: '上下位置', type: 'num', unit: 'px', def: 10, min: 0, max: 80, when: v => v.on,
+      { id: 'y', label: '上下位置', type: 'num', unit: 'px', def: 10, min: -30, max: 120, when: v => v.on,
         desc: '从气泡顶部往下算' },
       { id: 'x', label: '往外探出', type: 'num', unit: 'px', def: 0, min: -20, max: 20, when: v => v.on },
       { id: 'which', label: '一轮里哪几个气泡有', type: 'pick', options: WHICH, def: 'first',
@@ -230,9 +233,9 @@ export const GROUPS = [
     items: [
       { id: 'pos', label: '摆在哪儿', type: 'pick', options: METAPOS, def: 'side' },
       { id: 'color', label: '颜色', type: 'color', def: '' },
-      { id: 'size', label: '字号', type: 'num', unit: 'px', def: 0, min: 0, max: 20 },
-      { id: 'x', label: '左右移动', type: 'num', unit: 'px', def: 0, min: -120, max: 120 },
-      { id: 'y', label: '上下移动', type: 'num', unit: 'px', def: 0, min: -60, max: 60 },
+      { id: 'size', label: '字号', type: 'num', unit: 'px', def: '', min: 6, max: 24 },
+      { id: 'x', label: '左右移动', type: 'num', unit: 'px', def: '', min: -120, max: 120 },
+      { id: 'y', label: '上下移动', type: 'num', unit: 'px', def: '', min: -60, max: 60 },
       { id: 'hideStamp', label: '隐藏时刻', type: 'switch', def: false },
       { id: 'readText', label: '把「已读」改成', type: 'text', def: '',
         desc: '留空表示不改。填了之后原来的字不显示，换成这里写的' },
@@ -251,11 +254,12 @@ export const GROUPS = [
       { id: 'gradAngle', label: '渐变角度', type: 'num', unit: '度', def: 135, min: 0, max: 360,
         when: v => v.grad },
       { id: 'fg', label: '文字颜色', type: 'color', def: '' },
-      { id: 'r', label: '圆角', type: 'num', unit: 'px', def: 0, min: 0, max: 40 },
-      { id: 'px', label: '左右内距', type: 'num', unit: 'px', def: 0, min: 0, max: 48 },
-      { id: 'py', label: '上下内距', type: 'num', unit: 'px', def: 0, min: 0, max: 48 },
-      { id: 'fs', label: '字号', type: 'num', unit: 'px', def: 0, min: 0, max: 32 },
-      { id: 'lh', label: '行高', type: 'num', unit: '%', def: 0, min: 0, max: 260 },
+      { id: 'r', label: '圆角', type: 'num', unit: 'px', def: '', min: 0, max: 48,
+        desc: '填 0 就是方的' },
+      { id: 'px', label: '左右内距', type: 'num', unit: 'px', def: '', min: 0, max: 60 },
+      { id: 'py', label: '上下内距', type: 'num', unit: 'px', def: '', min: 0, max: 60 },
+      { id: 'fs', label: '字号', type: 'num', unit: 'px', def: '', min: 8, max: 40 },
+      { id: 'lh', label: '行高', type: 'num', unit: '%', def: '', min: 80, max: 300 },
       { id: 'img', label: '气泡底图', type: 'image', def: '' },
       { id: 'imgFill', label: '底图怎么铺', type: 'pick', options: FILLS, def: 'cover',
         when: v => v.img },
@@ -264,7 +268,7 @@ export const GROUPS = [
   {
     id: 'border', label: '边框与阴影', icon: 'sparkle', focus: '.ph-bubble-theirs',
     items: [
-      { id: 'w', label: '边框粗细', type: 'num', unit: 'px', def: 0, min: 0, max: 12 },
+      { id: 'w', label: '边框粗细', type: 'num', unit: 'px', def: '', min: 0, max: 16 },
       { id: 'c', label: '边框颜色', type: 'color', def: '', when: v => v.w > 0 },
       { id: 'grad', label: '边框用渐变', type: 'switch', def: false, when: v => v.w > 0,
         desc: '渐变边框要占用气泡的一个位置，默认占前一个' },
@@ -273,7 +277,7 @@ export const GROUPS = [
         when: v => v.w > 0 && v.grad },
       { id: 'gSlot', label: '渐变边框占哪个位置', type: 'pick', options: SLOTS, def: 'before',
         when: v => v.w > 0 && v.grad },
-      { id: 'shadow', label: '投影大小', type: 'num', unit: 'px', def: 0, min: 0, max: 48 },
+      { id: 'shadow', label: '投影大小', type: 'num', unit: 'px', def: '', min: 0, max: 60 },
       { id: 'shColor', label: '投影颜色', type: 'color', def: '#000000', when: v => v.shadow > 0 },
       { id: 'shOp', label: '投影透明度', type: 'num', unit: '%', def: 20, min: 0, max: 100,
         when: v => v.shadow > 0 },
@@ -290,15 +294,15 @@ export const GROUPS = [
       { id: 'img', label: '背景图', type: 'image', def: '' },
       { id: 'imgFill', label: '背景图怎么铺', type: 'pick', options: FILLS, def: 'cover',
         when: v => v.img },
-      { id: 'pad', label: '上下内边距', type: 'num', unit: 'px', def: 0, min: 0, max: 40 },
+      { id: 'pad', label: '上下内边距', type: 'num', unit: 'px', def: '', min: 0, max: 48 },
       { id: 'line', label: '隐藏顶部的分隔线', type: 'switch', def: false },
-      { id: 'btn', label: '圆按钮大小', type: 'num', unit: 'px', def: 0, min: 0, max: 72 },
+      { id: 'btn', label: '圆按钮大小', type: 'num', unit: 'px', def: '', min: 20, max: 80 },
       { id: 'btnFg', label: '圆按钮颜色', type: 'color', def: '' },
-      { id: 'inH', label: '输入框高度', type: 'num', unit: 'px', def: 0, min: 0, max: 96 },
+      { id: 'inH', label: '输入框高度', type: 'num', unit: 'px', def: '', min: 20, max: 120 },
       { id: 'inBg', label: '输入框底色', type: 'color', def: '' },
       { id: 'inFg', label: '输入框文字颜色', type: 'color', def: '' },
-      { id: 'inR', label: '输入框圆角', type: 'num', unit: 'px', def: 0, min: 0, max: 48 },
-      { id: 'inPad', label: '输入框左右内距', type: 'num', unit: 'px', def: 0, min: 0, max: 40 },
+      { id: 'inR', label: '输入框圆角', type: 'num', unit: 'px', def: '', min: 0, max: 48 },
+      { id: 'inPad', label: '输入框左右内距', type: 'num', unit: 'px', def: '', min: 0, max: 48 },
       { id: 'sendBg', label: '发送键底色', type: 'color', def: '' },
       ...iconItems('plus', '加号'),
       ...iconItems('stk', '表情键'),
@@ -350,6 +354,15 @@ const num = v => {
   const n = Number(v);
   return Number.isFinite(n) ? n : 0;
 };
+
+/**
+ * 这一项填了没有。
+ *
+ * **空串才是「不改」，0 是一个正常的值。** 从前拿 0 当哨兵，于是圆角调不成
+ * 方的、间距调不到 0 —— 想要的那个值恰好就是哨兵值。负数同理，从前一律
+ * 被 `if (num(x))` 挡在外面，其实「两条消息叠起来」正需要它。
+ */
+const set = v => v !== '' && v !== null && v !== undefined && Number.isFinite(Number(v));
 /** 颜色填了没有。空串表示「不改这一项」。 */
 const has = v => typeof v === 'string' && /^#[0-9a-fA-F]{3,8}$/.test(v.trim());
 /** 能嵌的图。只认 data:，理由和头像框同一条（见 4.134）。 */
@@ -373,7 +386,8 @@ const rule = (sel, decls) => {
   return body ? `${sel} {\n${body}\n}` : '';
 };
 const note = t => `/* ${t} */`;
-const move = (x, y) => (num(x) || num(y) ? `transform: translate(${num(x)}px, ${num(y)}px)` : '');
+const move = (x, y) => (set(x) || set(y)
+  ? `transform: translate(${num(x)}px, ${num(y)}px)` : '');
 
 /**
  * 「连着的几条里哪几条」翻成选择器。
@@ -401,9 +415,8 @@ function whichHide(which) {
 function iconBlock(v, key, sel, label) {
   const url = img(v[`${key}Img`]);
   const hide = v[`${key}Hide`] === true;
+  const hasSize = set(v[`${key}Size`]);
   const size = num(v[`${key}Size`]);
-  const x = num(v[`${key}X`]);
-  const y = num(v[`${key}Y`]);
   const out = [];
   if (url || hide) {
     out.push(rule(`${sel} svg`, ['opacity: 0']));
@@ -412,13 +425,15 @@ function iconBlock(v, key, sel, label) {
   if (url) {
     btn.push(`background-image: url("${url}")`,
       'background-repeat: no-repeat', 'background-position: center',
-      `background-size: ${size || 20}px`);
+      `background-size: ${hasSize ? size : 20}px`);
   }
-  if (size) btn.push(`width: ${size + 12}px`, `height: ${size + 12}px`);
-  const mv = move(x, y);
+  if (hasSize) btn.push(`width: ${size + 12}px`, `height: ${size + 12}px`);
+  const mv = move(v[`${key}X`], v[`${key}Y`]);
   if (mv) btn.push(mv);
   if (btn.length) out.push(rule(sel, btn));
-  if (!url && !hide && size) out.push(rule(`${sel} svg`, [`width: ${size}px`, `height: ${size}px`]));
+  if (!url && !hide && hasSize) {
+    out.push(rule(`${sel} svg`, [`width: ${size}px`, `height: ${size}px`]));
+  }
   const body = out.filter(Boolean).join('\n');
   return body ? `${note(label)}\n${body}` : '';
 }
@@ -458,13 +473,13 @@ function navBlocks(gen) {
   if (has(v.bg)) bar.push(`background: ${v.bg}`);
   const bi = img(v.img);
   if (bi) { bar.push(`background-image: url("${bi}")`); fillDecls(v.imgFill).forEach(d => bar.push(d)); }
-  if (num(v.h)) bar.push(`height: ${num(v.h)}px`);
+  if (set(v.h)) bar.push(`height: ${num(v.h)}px`, `min-height: ${num(v.h)}px`);
   if (v.line) bar.push('border-bottom: none', 'box-shadow: none');
   if (bar.length) out.push(`${note('顶栏')}\n${rule('.ph-navbar', bar)}`);
 
   const title = [];
   if (has(v.titleColor)) title.push(`color: ${v.titleColor}`);
-  if (num(v.titleSize)) title.push(`font-size: ${num(v.titleSize)}px`);
+  if (set(v.titleSize)) title.push(`font-size: ${num(v.titleSize)}px`);
   const tmv = move(v.titleX, v.titleY);
   if (tmv) title.push(tmv);
   if (title.length) out.push(`${note('顶栏标题')}\n${rule('.ph-nav-title', title)}`);
@@ -505,20 +520,36 @@ function msgBlocks(gen) {
   if (has(v.bg)) body.push(`background: ${v.bg}`);
   const bi = img(v.img);
   if (bi) { body.push(`background-image: url("${bi}")`); fillDecls(v.imgFill).forEach(d => body.push(d)); }
-  if (num(v.top)) body.push(`padding-top: ${num(v.top)}px`);
-  if (num(v.bottom)) body.push(`padding-bottom: ${num(v.bottom)}px`);
-  if (num(v.sideP)) body.push(`padding-left: ${num(v.sideP)}px`, `padding-right: ${num(v.sideP)}px`);
-  if (num(v.gap)) body.push(`gap: ${num(v.gap)}px`);
+  // **留白与间距都要能填负数。** padding 不接受负值，所以正数走 padding、
+  // 负数走 margin：往里让开是留白，往外顶出去是负边距，两件事一个旋钮
+  const pad = (n, padSide, marSide) => {
+    if (n >= 0) body.push(`${padSide}: ${n}px`);
+    else body.push(`${marSide}: ${n}px`);
+  };
+  if (set(v.top)) pad(num(v.top), 'padding-top', 'margin-top');
+  if (set(v.bottom)) pad(num(v.bottom), 'padding-bottom', 'margin-bottom');
+  if (set(v.sideP)) {
+    pad(num(v.sideP), 'padding-left', 'margin-left');
+    pad(num(v.sideP), 'padding-right', 'margin-right');
+  }
+  // 两条之间从 flex 的 gap 换成 margin。gap 不接受负值，而「两条叠起来」
+  // 正是要负值（那个参照的生成器也是为此用的 margin）
+  if (set(v.gap)) body.push('gap: 0');
   if (body.length) out.push(`${note('消息区')}\n${rule('.ph-chat-body', body)}`);
 
   const row = [];
   if (v.align && v.align !== 'flex-start') row.push(`align-items: ${v.align}`);
+  if (set(v.gap)) row.push(`margin-bottom: ${num(v.gap)}px`);
   if (row.length) out.push(`${note('每一行消息')}\n${rule('.ph-msg', row)}`);
 
   const col = [];
-  if (num(v.gapIn)) col.push(`gap: ${num(v.gapIn)}px`);
-  if (num(v.width)) col.push(`max-width: ${num(v.width)}%`);
+  if (set(v.gapIn)) col.push('gap: 0');
+  if (set(v.width)) col.push(`max-width: ${num(v.width)}%`);
   if (col.length) out.push(`${note('同一轮的几个气泡')}\n${rule('.ph-col', col)}`);
+  if (set(v.gapIn)) {
+    out.push(`${note('同一轮里两个气泡之间')}\n`
+      + rule('.ph-col > .ph-bubble + .ph-bubble', [`margin-top: ${num(v.gapIn)}px`]));
+  }
   return out;
 }
 
@@ -526,16 +557,22 @@ function avatarBlocks(gen) {
   const v = groupValues(gen, 'avatar');
   const out = [];
   const av = [];
-  if (num(v.size)) av.push(`width: ${num(v.size)}px`, `height: ${num(v.size)}px`);
-  if (num(v.round)) av.push(`border-radius: ${num(v.round)}%`);
-  if (num(v.bw)) av.push(`border: ${num(v.bw)}px solid ${has(v.bc) ? v.bc : 'currentColor'}`);
+  if (set(v.size)) av.push(`width: ${num(v.size)}px`, `height: ${num(v.size)}px`);
+  if (set(v.round)) av.push(`border-radius: ${num(v.round)}%`);
+  if (set(v.bw)) av.push(`border: ${num(v.bw)}px solid ${has(v.bc) ? v.bc : 'currentColor'}`);
   if (av.length) out.push(`${note('头像')}\n${rule('.ph-face .ph-avatar', av)}`);
 
   const box = [];
   const mv = move(v.x, v.y);
   if (mv) box.push(mv);
   if (box.length) out.push(`${note('头像的位置')}\n${rule('.ph-face', box)}`);
-  if (num(v.gap)) out.push(`${note('头像与气泡的距离')}\n${rule('.ph-msg', [`gap: ${num(v.gap)}px`])}`);
+  // 同样从 gap 换成 margin：负数才能让头像和气泡叠起来。
+  // 两边方向相反，所以各写一条
+  if (set(v.gap)) {
+    out.push(`${note('头像与气泡的距离')}\n${rule('.ph-msg', ['gap: 0'])}\n`
+      + rule('.ph-msg-theirs .ph-face', [`margin-right: ${num(v.gap)}px`]) + '\n'
+      + rule('.ph-msg-mine .ph-face', [`margin-left: ${num(v.gap)}px`]));
+  }
 
   // 连着的几条里藏掉哪几条的头像。**用 opacity 不用 display** ——
   // 去掉盒子会让那几条的气泡整体左移，看着像错位
@@ -614,7 +651,7 @@ function metaBlocks(gen) {
 
   const both = [];
   if (has(v.color)) both.push(`color: ${v.color}`);
-  if (num(v.size)) both.push(`font-size: ${num(v.size)}px`);
+  if (set(v.size)) both.push(`font-size: ${num(v.size)}px`);
   if (both.length) out.push(`${note('时刻与已读的字')}\n${rule('.ph-stamp, .ph-read', both)}`);
 
   if (v.hideStamp) out.push(`${note('隐藏时刻')}\n${rule('.ph-stamp', ['display: none'])}`);
@@ -627,7 +664,7 @@ function metaBlocks(gen) {
       + rule('.ph-read', ['font-size: 0', 'line-height: 0'])
       + '\n' + rule('.ph-read::after', [
         `content: "${rt}"`,
-        `font-size: ${num(v.size) || 11}px`,
+        `font-size: ${set(v.size) ? num(v.size) : 11}px`,
         'line-height: 1.4',
         has(v.readColor) ? `color: ${v.readColor}` : '',
       ]));
@@ -654,19 +691,23 @@ function bubbleBlocks(gen) {
   const bi = img(v.img);
   if (bi) { decls.push(`background-image: url("${bi}")`); fillDecls(v.imgFill).forEach(d => decls.push(d)); }
   if (has(v.fg)) decls.push(`color: ${v.fg}`);
-  if (num(v.r)) decls.push(`border-radius: ${num(v.r)}px`);
-  if (num(v.px)) decls.push(`padding-left: ${num(v.px)}px`, `padding-right: ${num(v.px)}px`);
-  if (num(v.py)) decls.push(`padding-top: ${num(v.py)}px`, `padding-bottom: ${num(v.py)}px`);
-  if (num(v.fs)) decls.push(`font-size: ${num(v.fs)}px`);
-  if (num(v.lh)) decls.push(`line-height: ${num(v.lh) / 100}`);
+  if (set(v.r)) decls.push(`border-radius: ${num(v.r)}px`);
+  if (set(v.px)) decls.push(`padding-left: ${num(v.px)}px`, `padding-right: ${num(v.px)}px`);
+  if (set(v.py)) decls.push(`padding-top: ${num(v.py)}px`, `padding-bottom: ${num(v.py)}px`);
+  if (set(v.fs)) decls.push(`font-size: ${num(v.fs)}px`);
+  if (set(v.lh)) decls.push(`line-height: ${num(v.lh) / 100}`);
 
-  const gradBorder = num(b.w) > 0 && b.grad && has(b.c) && has(b.g2);
-  if (num(b.w) > 0 && !gradBorder) {
-    decls.push(`border: ${num(b.w)}px solid ${has(b.c) ? b.c : 'currentColor'}`);
+  const gradBorder = set(b.w) && num(b.w) > 0 && b.grad && has(b.c) && has(b.g2);
+  if (set(b.w) && !gradBorder) {
+    decls.push(num(b.w) > 0
+      ? `border: ${num(b.w)}px solid ${has(b.c) ? b.c : 'currentColor'}`
+      : 'border: none');
   }
-  if (num(b.shadow) > 0) {
-    decls.push(`box-shadow: 0 ${num(b.shY)}px ${num(b.shadow)}px `
-      + rgba(b.shColor || '#000000', pct(b.shOp)));
+  if (set(b.shadow)) {
+    decls.push(num(b.shadow) > 0
+      ? `box-shadow: 0 ${num(b.shY)}px ${num(b.shadow)}px `
+        + rgba(b.shColor || '#000000', pct(b.shOp))
+      : 'box-shadow: none');
   }
   if (decls.length) out.push(`${note('气泡')}\n${rule(sel, decls)}`);
 
@@ -694,20 +735,20 @@ function composerBlocks(gen) {
   if (has(v.bg)) bar.push(`background: ${v.bg}`);
   const bi = img(v.img);
   if (bi) { bar.push(`background-image: url("${bi}")`); fillDecls(v.imgFill).forEach(d => bar.push(d)); }
-  if (num(v.pad)) bar.push(`padding-top: ${num(v.pad)}px`, `padding-bottom: ${num(v.pad)}px`);
+  if (set(v.pad)) bar.push(`padding-top: ${num(v.pad)}px`, `padding-bottom: ${num(v.pad)}px`);
   if (v.line) bar.push('border-top: none', 'box-shadow: none');
   if (bar.length) out.push(`${note('底栏')}\n${rule('.ph-composer', bar)}`);
 
   const input = [];
   if (has(v.inBg)) input.push(`background: ${v.inBg}`);
   if (has(v.inFg)) input.push(`color: ${v.inFg}`);
-  if (num(v.inR)) input.push(`border-radius: ${num(v.inR)}px`);
-  if (num(v.inH)) input.push(`min-height: ${num(v.inH)}px`);
-  if (num(v.inPad)) input.push(`padding-left: ${num(v.inPad)}px`, `padding-right: ${num(v.inPad)}px`);
+  if (set(v.inR)) input.push(`border-radius: ${num(v.inR)}px`);
+  if (set(v.inH)) input.push(`min-height: ${num(v.inH)}px`, `height: ${num(v.inH)}px`);
+  if (set(v.inPad)) input.push(`padding-left: ${num(v.inPad)}px`, `padding-right: ${num(v.inPad)}px`);
   if (input.length) out.push(`${note('输入框')}\n${rule('.ph-composer-input', input)}`);
 
   const btn = [];
-  if (num(v.btn)) btn.push(`width: ${num(v.btn)}px`, `height: ${num(v.btn)}px`);
+  if (set(v.btn)) btn.push(`width: ${num(v.btn)}px`, `height: ${num(v.btn)}px`);
   if (has(v.btnFg)) btn.push(`color: ${v.btnFg}`);
   if (btn.length) out.push(`${note('底栏圆按钮')}\n${rule('.ph-composer-btn', btn)}`);
   if (has(v.sendBg)) out.push(`${note('发送键底色')}\n${rule('.ph-send', [`background: ${v.sendBg}`])}`);
@@ -736,7 +777,7 @@ export function conflictsOf(gen) {
     if (!used.has(k)) used.set(k, []);
     used.get(k).push(who);
   };
-  if (num(b.w) > 0 && b.grad && has(b.c) && has(b.g2)) {
+  if (set(b.w) && num(b.w) > 0 && b.grad && has(b.c) && has(b.g2)) {
     take(sel, b.gSlot === 'after' ? 'after' : 'before', '渐变边框');
   }
   if (t.on === true) take('.ph-bubble', t.slot === 'after' ? 'after' : 'before', '小尾巴');

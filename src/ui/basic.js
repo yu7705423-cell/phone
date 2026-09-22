@@ -60,21 +60,30 @@ export const NumberInput = ({ value, onChange, unit = '', min = 0, max = null,
 // 不拦住的话，拨一下开关会顺着冒泡触发整行的 onClick，
 // 于是关掉一个世界书条目的同时又进了它的编辑页。
 /**
- * 滑杆。右边跟一个数字框，两边同步。
+ * 滑杆。右边跟一个数字框，后面一个「不改」。
  *
  * **两个都要。** 只有滑杆时调不到精确值，只有数字框时看不出范围，
  * 而生成器上这两件事都要 —— 拖着看效果，定下来再对齐数字。
+ *
+ * **空串是「不改这一项」，和 0 不是一回事。** 从前拿 0 当「不改」，
+ * 于是圆角调不成方的、间距调不到 0 —— 想要的那个值恰好就是哨兵值。
+ * 现在空串才是不改，0 是一个正常的值，负数也是（各项的 min 自己定）。
  */
-export const Slider = ({ value, onChange, min = 0, max = 100, step = 1, unit = '' }) => {
+export const Slider = ({ value, onChange, min = 0, max = 100, step = 1, unit = '',
+                        fallback = null }) => {
   const clamp = v => Math.max(min, Math.min(max, Number(v) || 0));
+  const unset = value === '' || value === null || value === undefined;
+  const at = unset ? (fallback == null ? Math.max(min, Math.min(max, 0)) : fallback) : Number(value);
   return html`
-    <div class="slider-row">
-      <input type="range" min=${min} max=${max} step=${step} value=${Number(value) || 0}
+    <div class=${`slider-row${unset ? ' is-unset' : ''}`}>
+      <input type="range" min=${min} max=${max} step=${step} value=${at}
         onInput=${e => onChange(clamp(e.target.value))}/>
-      <input class="slider-num" type="number" inputmode="numeric"
-        min=${min} max=${max} step=${step} value=${Number(value) || 0}
-        onInput=${e => onChange(clamp(e.target.value))}/>
+      <input class="slider-num" type="number" inputmode="numeric" placeholder="默认"
+        min=${min} max=${max} step=${step} value=${unset ? '' : at}
+        onInput=${e => onChange(e.target.value === '' ? '' : clamp(e.target.value))}/>
       ${unit ? html`<span class="slider-unit">${unit}</span>` : null}
+      ${unset ? null : html`
+        <button type="button" class="color-clear press" onClick=${() => onChange('')}>不改</button>`}
     </div>`;
 };
 

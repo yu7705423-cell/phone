@@ -1,6 +1,6 @@
 import { html, useRef, useState } from '../../lib.js';
 import { phone, useStore, useImage } from '../../sdk/index.js';
-import { Page, List, ListItem, Field, Input, Textarea, Switch, Segmented,
+import { Page, List, ListItem, Field, Input, Textarea, Switch, Segmented, Slider,
          Button, Icon, Sheet, IconPicker, toast, confirm, prompt } from '../../ui/index.js';
 import { PHOTO_MAX, ICON_MAX } from '../../system/db/images.js';
 import { BatchIcons } from './BatchIcons.js';
@@ -159,12 +159,14 @@ export function AppearancePage() {
 
       <${List} title="底部边距">
         <${ListItem} title="底部整体上移" multiline
-          subtitle=${`当前 ${s.bottomLift || 0}px。底部内容被浏览器地址栏遮挡时上调此值。以 PWA 方式添加到主屏幕后通常无需调整。`}/>
+          subtitle=${`当前 ${s.bottomLift || 0}px。底部内容被浏览器地址栏遮挡时上调此值。`
+    + `填负数则向下移，可用于遮挡不存在时收回多余的留白。`
+    + `以 PWA 方式添加到主屏幕后通常无需调整。`}/>
       <//>
       <div class="pad-x">
         <${Field} label=${`${s.bottomLift || 0} px`}>
-          <input type="range" min="0" max="80" step="2" value=${s.bottomLift || 0}
-            onInput=${e => db.settings.set({ bottomLift: parseInt(e.target.value, 10) || 0 })}/>
+          <${Slider} value=${s.bottomLift || 0} min=${-40} max=${80} step=${2} unit="px"
+            onChange=${v => db.settings.set({ bottomLift: Number(v) || 0 })}/>
         <//>
       </div>
 
