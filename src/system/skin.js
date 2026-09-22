@@ -40,7 +40,7 @@ export const SHAPES = [
   { id: 'soft', label: '圆角方形', css: '10px' },
 ];
 
-// 工坊里摆出来给人抄的那一份。**和挂载点是同一份数据**，
+// 美化页里摆出来给人抄的那一份。**和挂载点是同一份数据**，
 // 不另写一张表 —— 两张表迟早对不上。
 export const CLASSES = [
   { sel: '.conv-body', label: '消息列表' },
@@ -176,3 +176,96 @@ export function unmount() {
 
 /** 手动解除那个记号，给「它说上次崩了，但我改好了」用。 */
 export const forgive = () => settle();
+
+// ---- 美化包：导成一个文件，也导得回来 ----
+//
+// **叫「美化包」，和「角色包」同一套叫法。** 这套东西从头到尾叫美化，
+// 不另起第二个名字 —— 两个词指一件事，用户要学两遍。
+//
+// 只带这一份自己的东西：名字、令牌、头像形状、那段 CSS。**不带它挂在
+// 哪几段会话上** —— 那是本机的事，别人导进去自然要自己挂。
+
+export const PACK_VERSION = 1;
+const PACK_KIND = 'phone-skin';
+
+/**
+ * 这段 CSS 引用了哪些外部的东西。
+ *
+ * **图片不在美化行里**，它只可能出现在用户手写的那段 CSS 的 `url(...)` 里。
+ * 三种下场完全不同，所以分开数，导出前摆给人看：
+ *
+ *   data:    已经内联在文本里，跟着包走，只是包会变大
+ *   http(s): 跟着包走的只是地址。对方打得开才看得见，而且那台服务器
+ *            会知道对方什么时候开了这段会话
+ *   其余:    `blob:`、相对路径这些指的是本机的东西，**分享出去就是空框**
+ */
+export function assetsOf(css) {
+  const out = { data: 0, remote: 0, local: [] };
+  const re = /url\(\s*(['"]?)([^'")]+)\1\s*\)/gi;
+  let m;
+  while ((m = re.exec(String(css || '')))) {
+    const u = m[2].trim();
+    if (/^data:/i.test(u)) out.data += 1;
+    else if (/^https?:\/\//i.test(u)) out.remote += 1;
+    else out.local.push(u.slice(0, 60));
+  }
+  return out;
+}
+
+/** 导出成一段文本。 */
+export function pack(skin) {
+  if (!skin) throw new Error('这一份美化不存在');
+  return JSON.stringify({
+    kind: PACK_KIND, version: PACK_VERSION,
+    name: String(skin.name || '未命名'),
+    tokens: skin.tokens || {},
+    shape: String(skin.shape || ''),
+    css: String(skin.css || ''),
+  }, null, 2);
+}
+
+/**
+ * 读一个美化包。
+ *
+ * **只认识的字段才留下。** 别人给的文件里有什么不归我们管，照单全收
+ * 等于把任意字段写进库里，以后哪一处读到它都可能出怪事。
+ * 认不出就说清楚认不出在哪儿，不要一句「文件无效」。
+ */
+export function unpack(text) {
+  let raw;
+  try { raw = JSON.parse(String(text || '')); }
+  catch { throw new Error('这不是一个美化包：内容不是有效的 JSON'); }
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    throw new Error('这不是一个美化包：内容不是一个对象');
+  }
+  if (raw.kind !== PACK_KIND) {
+    throw new Error(`这不是一个美化包：标记写的是「${String(raw.kind || '空').slice(0, 20)}」`);
+  }
+  if (Number(raw.version) > PACK_VERSION) {
+    throw new Error(`这个美化包来自更新的版本（${raw.version}），当前版本读不了`);
+  }
+  const tokens = {};
+  TOKENS.forEach(t => {
+    const v = raw.tokens?.[t.id];
+    if (v === '' || v == null) return;
+    const n = Math.round(Number(v));
+    if (Number.isFinite(n)) tokens[t.id] = n;
+  });
+  const shape = SHAPES.some(x => x.id === raw.shape) ? String(raw.shape) : '';
+  return {
+    name: String(raw.name || '未命名').trim().slice(0, 40) || '未命名',
+    tokens, shape, css: String(raw.css || ''),
+  };
+}
+
+/**
+ * 装进库里。
+ *
+ * **重名不覆盖，加一个后缀。** 覆盖掉别人调了半天的那一份，比多出一行糟得多。
+ */
+export function install(data) {
+  const taken = new Set(all().map(x => x.name));
+  let name = data.name;
+  for (let i = 2; taken.has(name); i++) name = `${data.name}（${i}）`;
+  return create({ ...data, name });
+}

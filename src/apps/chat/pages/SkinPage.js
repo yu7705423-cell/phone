@@ -1,4 +1,4 @@
-import { html, useState, useEffect } from '../../../lib.js';
+import { html, useState, useEffect, useRef } from '../../../lib.js';
 import { phone, useStore } from '../../../sdk/index.js';
 import { Page, List, ListItem, Field, Textarea, NumberInput, Segmented, Switch,
          Button, Icon, EmptyState, toast, confirm, prompt } from '../../../ui/index.js';
@@ -13,7 +13,7 @@ const { db, nav, skin, receipt } = phone;
 
 // 样板间**用真的气泡组件**，不另写一份假 HTML。
 //
-// 另写一份的话，真页面改了 class 它不跟 —— 在工坊里调好的东西到聊天页
+// 另写一份的话，真页面改了 class 它不跟 —— 在这一页调好的东西到聊天页
 // 不生效，而且没人会发现。这是这类系统最常见的烂法。
 function Sample({ char, chat }) {
   const now = Date.now();
@@ -74,6 +74,8 @@ export function SkinPage({ chatId }) {
   useStore(db.skins.store);
   useStore(db.characters.store);
   const [tab, setTab] = useState('size');
+  // 提前 return 在下面，所有 hook 都要在那之前（doctor 的 hook 顺序那一项）
+  const fileRef = useRef(null);
 
   const chat = db.chats.get(chatId);
   const char = chat ? db.characters.get((chat.characterIds || [])[0]) : null;
@@ -101,6 +103,52 @@ export function SkinPage({ chatId }) {
     skin.attach(chatId, row.id);
   };
 
+  // 导出。CSS 里引用的外部东西先摆出来 —— 不说清楚的话，对方打开是空框，
+  // 而分享的人以为自己发出去的和屏幕上长得一样
+  const exportOne = async () => {
+    const a = skin.assetsOf(cur.css);
+    const lines = [];
+    if (a.local.length) {
+      lines.push(`其中 ${a.local.length} 处引用的是本机地址，导出后在别人那里显示为空白。`);
+    }
+    if (a.remote) lines.push(`其中 ${a.remote} 处引用了网络地址，对方需要能访问该地址。`);
+    if (a.data) lines.push(`其中 ${a.data} 处图片已内联在文件中，文件体积相应增大。`);
+    if (lines.length && !await confirm({
+      title: '导出美化包', okText: '继续导出',
+      message: `${lines.join('')}美化包仅包含名称、尺寸与样式，不包含它挂在哪些会话上。`,
+    })) return;
+    try {
+      const blob = new Blob([skin.pack(cur)], { type: 'application/json' });
+      const a2 = document.createElement('a');
+      a2.href = URL.createObjectURL(blob);
+      a2.download = `美化-${cur.name}.json`;
+      a2.click();
+      setTimeout(() => URL.revokeObjectURL(a2.href), 4000);
+      toast('已导出', 'ok');
+    } catch (err) { toast('导出失败：' + (err.message || err), 'error', 5000); }
+  };
+
+  const importOne = async e => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      const data = skin.unpack(await file.text());
+      const a = skin.assetsOf(data.css);
+      // 远程地址值得先说一句：打开这段会话时那台服务器会知道
+      const warn = a.remote
+        ? `该美化引用了 ${a.remote} 处网络地址，打开这段会话时会向其发起请求。`
+        : '';
+      if (!await confirm({
+        title: `导入「${data.name}」`, okText: '导入',
+        message: `${warn}导入后将新建一份，不会覆盖现有的美化。`,
+      })) return;
+      const row = skin.install(data);
+      skin.attach(chatId, row.id);
+      toast(`已导入「${row.name}」`, 'ok');
+    } catch (err) { toast(String(err.message || err), 'error', 6000); }
+  };
+
   if (!cur) {
     return html`
       <${Page} title="美化" onBack=${nav.pop}>
@@ -116,9 +164,13 @@ export function SkinPage({ chatId }) {
                 onClick=${() => skin.attach(chatId, x.id)}/>`)
     : html`<${ListItem} title="还没有任何美化" subtitle="新建一份开始" multiline/>`}
         <//>
-        <div class="pad">
+        <div class="pad btn-row">
           <${Button} onClick=${pick}>新建一份<//>
+          <${Button} variant="ghost" icon="download"
+            onClick=${() => fileRef.current?.click()}>导入美化包<//>
         </div>
+        <input type="file" accept=".json,application/json" ref=${fileRef}
+          onChange=${importOne} style="display:none"/>
         <${MsgGroup}/>
       <//>`;
   }
@@ -196,6 +248,10 @@ export function SkinPage({ chatId }) {
       <${MsgGroup}/>
 
       <${List}>
+        <${ListItem} title="导出美化包" multiline
+          subtitle="导出为一个文件，可分享给他人导入。不包含它挂在哪些会话上。"
+          left=${html`<${Icon} name="download" size=${18}/>`}
+          onClick=${exportOne}/>
         <${ListItem} title="换一份美化" subtitle=${`当前：${cur.name}`} arrow
           onClick=${() => skin.detach(chatId)}/>
         <${ListItem} title="从这段会话取下" subtitle="美化本身保留，其他会话不受影响"
