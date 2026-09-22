@@ -332,8 +332,6 @@ input[type="range"] {
 .face-one { display: flex; flex-direction: column; align-items: center; gap: var(--sp-1); }
 .face-one span { font-size: var(--fs-11); color: var(--text-3); }
 /* 主页上那张小的，贴在大头像旁边，点一下换回去 */
-.face-base { display: flex; flex-direction: column; align-items: center; gap: 2px; }
-.face-base span { font-size: var(--fs-11); color: var(--text-3); }
 
 .call-why {
   flex: none; text-align: center; font-size: var(--fs-11);
@@ -420,6 +418,10 @@ input[type="range"] {
 /* 主页（Instagram 式，见 ARCHITECTURE 4.149） */
 .ig-head { display: flex; align-items: center; gap: var(--sp-5); padding: var(--sp-4) var(--sp-4) var(--sp-3); }
 .ig-head .avatar { flex: none; }
+.ig-face { position: relative; flex: none; }
+/* 「原本的」那一张贴在头像右下角。从前它在按钮那一行里，把整行撑开 */
+.ig-face-base { position: absolute; right: -2px; bottom: -2px; border-radius: var(--r-full); }
+.ig-face-base .avatar { box-shadow: 0 0 0 2px var(--bg); }
 .ig-stats { flex: 1; display: flex; justify-content: space-around; min-width: 0; }
 .ig-stat { text-align: center; padding: var(--sp-1) var(--sp-2); }
 .ig-stat b { display: block; font-size: var(--fs-17); font-weight: var(--fw-semi); }

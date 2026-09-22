@@ -93,11 +93,21 @@ export function Profile({ subjectId, embedded }) {
     } catch (err) { toast('图片处理失败：' + err.message, 'error'); }
   };
 
-  // 原本那张与现在这张。角色在对话里自己换过、或者自己手动换过，两张才不一样
+  // 原本那张与现在这张。角色在对话里自己换过、或者自己手动换过，两张才不一样。
+  //
+  // **它挂在头像的右下角，不在按钮那一行里。** 从前挤在「发消息」旁边：
+  // 那一块 47 像素高，比 30 像素的按钮高出一截，把整行撑开，还占掉右边
+  // 五十多像素 —— 两个按钮于是既不满宽也不居中。它说的本来就是头像的事，
+  // 就该贴着头像。
   const faces = phone.avatarLink.facesOf(subject);
-  const restore = () => {
+  const restore = async () => {
     const old = subject.avatarBase;
     if (!old || old === subject.avatar) return;
+    // 角标上没有文字，点下去之前得先说清楚这一下会做什么
+    if (!await confirm({
+      title: '换回原本的头像', okText: '换回',
+      message: '当前头像将被替换为更换之前的那一张，替换后当前这张不再保留。',
+    })) return;
     if (subject.avatar) db.images.remove(subject.avatar);
     patch({ avatar: old, avatarBase: '' });
     toast('已换回原本的头像', 'ok');
@@ -135,10 +145,16 @@ export function Profile({ subjectId, embedded }) {
   const body = html`
     <div class="ig">
       <div class="ig-head">
-        <button class="press" onClick=${() => isMe && avatarRef.current?.click()}
-          aria-label=${isMe ? '更换头像' : '头像'}>
-          <${Avatar} src=${avatar} name=${subject.name} size=${84} radius=${42}/>
-        </button>
+        <div class="ig-face">
+          <button class="press" onClick=${() => isMe && avatarRef.current?.click()}
+            aria-label=${isMe ? '更换头像' : '头像'}>
+            <${Avatar} src=${avatar} name=${subject.name} size=${84} radius=${42}/>
+          </button>
+          ${faces.changed ? html`
+            <button class="ig-face-base press" onClick=${restore} aria-label="换回原本的头像">
+              <${Avatar} src=${baseFace} name=${subject.name} size=${28} radius=${14}/>
+            </button>` : null}
+        </div>
         <input type="file" accept="image/*" ref=${avatarRef} onChange=${pickAvatar} style="display:none"/>
         <div class="ig-stats">
           <button class="ig-stat press" onClick=${() => setTab('list')}>
@@ -157,18 +173,13 @@ export function Profile({ subjectId, embedded }) {
 
       <div class="ig-acts">
         ${isMe
-          ? html`<${Button} size="sm" variant="ghost" icon="edit"
+          ? html`<${Button} size="sm" variant="ghost"
               onClick=${() => phone.intent.open('contact', { route: `/me/${me.id}` })}>编辑本人人设<//>`
           : html`
-            <${Button} size="sm" icon="message"
+            <${Button} size="sm" variant="ghost"
               onClick=${() => { const c = chatFor(subjectId); nav.push(`/chat/${c.id}`); }}>发消息<//>
-            <${Button} size="sm" variant="ghost" icon="edit"
+            <${Button} size="sm" variant="ghost"
               onClick=${() => phone.intent.open('contact', { route: `/edit/${subjectId}` })}>编辑资料<//>`}
-        ${faces.changed ? html`
-          <button class="press face-base" onClick=${restore} aria-label="换回原本的头像">
-            <${Avatar} src=${baseFace} name=${subject.name} size=${30} radius=${15}/>
-            <span>原本的</span>
-          </button>` : null}
       </div>
 
       <div class="ig-hl">
