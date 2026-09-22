@@ -76,6 +76,22 @@ async function formBytes(form) {
  * 交给外壳发。回来的东西**长得像 Response**，但不是真的 Response ——
  * 只做调用方真正用得上的那几样，免得为了像而像。
  */
+/**
+ * 超时了要认得出来，因为它的下一步和别的都不一样。
+ *
+ * 「地址不通」要去查地址，「被跨域拦下」要换中转，而「超时」多半只是
+ * **这个模型本来就慢** —— 生图一张跑一两分钟是常事。把这三种混成一句
+ * 「连不上」，人只会去反复检查地址。
+ */
+export class TimeoutError extends Error {
+  constructor(seconds, url) {
+    super(`等了 ${Math.round(seconds)} 秒还没有回应（${url}）`);
+    this.name = 'TimeoutError';
+    this.seconds = seconds;
+    this.timedOut = true;
+  }
+}
+
 async function viaNative(url, init = {}) {
   const body = init.body;
   const headers = { ...(init.headers || {}) };
@@ -101,8 +117,13 @@ async function viaNative(url, init = {}) {
     method: init.method || 'GET',
     headers,
     body: bodyB64,
+    // 外壳按这个数给这一次请求定期限。不给就用它自己的默认
+    ...(init.timeout ? { timeout: Math.round(init.timeout / 1000) } : {}),
   });
-  if (got?.error) throw new TypeError(got.error);
+  if (got?.error) {
+    if (got.timedOut) throw new TimeoutError(got.seconds || 0, url);
+    throw new TypeError(got.error);
+  }
 
   const bytes = b64ToBytes(got.body || '');
   const type = got.headers?.['content-type'] || got.headers?.['Content-Type'] || '';
@@ -144,7 +165,35 @@ export function nfetch(url, init = {}, { prefer = 'auto' } = {}) {
   if (prefer !== 'direct' && canNative() && !sameOrigin(url) && !localUrl(url)) {
     return viaNative(url, init);
   }
-  return fetch(url, init);
+  return direct(url, init);
+}
+
+/**
+ * 浏览器那条路。
+ *
+ * **`fetch` 自己永远不超时。** 对面收了请求再也不回，这一条就一直挂着，
+ * 页面上那个转圈转到天荒地老，而人分不出「很慢」和「死了」。所以
+ * `init.timeout` 给了就自己掐一刀，并且抛的是 `TimeoutError` ——
+ * 和「发不出去」分开，两者的下一步不一样。
+ */
+function direct(url, init = {}) {
+  const ms = Number(init.timeout) || 0;
+  if (!ms) return fetch(url, init);
+  const ctl = new AbortController();
+  // 调用方自己那个 signal 也要连上，不然「取消」按钮按不动这一条
+  const outer = init.signal;
+  if (outer) {
+    if (outer.aborted) ctl.abort();
+    else outer.addEventListener('abort', () => ctl.abort(), { once: true });
+  }
+  let hit = false;
+  const t = setTimeout(() => { hit = true; ctl.abort(); }, ms);
+  return fetch(url, { ...init, signal: ctl.signal })
+    .catch(err => {
+      if (hit) throw new TimeoutError(ms / 1000, url);
+      throw err;
+    })
+    .finally(() => clearTimeout(t));
 }
 
 /** 这一次会走哪条路。界面上要说清楚，别让人猜。 */
@@ -165,9 +214,13 @@ export const routeOf = url =>
  *
  * 只在浏览器直连那条路上问。外壳那条本来就没有跨域一说。
  */
-export async function reachable(url) {
+export async function reachable(url, ms = 8000) {
+  // **这一问自己也要有期限。** 没有的话，对面不回时整个自检跟着挂住，
+  // 人看到的是「点了没反应」，比一句错误更难查
+  const ctl = new AbortController();
+  const t = setTimeout(() => ctl.abort(), ms);
   try {
-    await fetch(url, { method: 'GET', mode: 'no-cors', cache: 'no-store' });
+    await fetch(url, { method: 'GET', mode: 'no-cors', cache: 'no-store', signal: ctl.signal });
     return true;
-  } catch { return false; }
+  } catch { return false; } finally { clearTimeout(t); }
 }

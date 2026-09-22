@@ -24,10 +24,17 @@ final class NetBridge: NSObject {
     // JS 字符串，几十兆的 base64 会把内存顶穿，那比失败更糟。
     private static let maxBytes = 24 * 1024 * 1024
 
+    // 默认这么久。**生图这类接口一张要跑一两分钟**，从前写死 120 秒，
+    // 于是慢一点的模型每一次都在这里被掐掉，网页那头只看到一句
+    // 「请求超时」，看不出是本机掐的还是对面没回。
+    private static let defaultTimeout: TimeInterval = 300
+
     private let session: URLSession = {
         let cfg = URLSessionConfiguration.ephemeral
-        cfg.timeoutIntervalForRequest = 120
-        cfg.timeoutIntervalForResource = 300
+        // 这里放宽到很大，真正的期限由每一个请求自己带（见下面的 timeout）——
+        // 会话级的那一个是所有请求共用的，压不住也放不开单独某一类
+        cfg.timeoutIntervalForRequest = 600
+        cfg.timeoutIntervalForResource = 900
         return URLSession(configuration: cfg)
     }()
 
@@ -37,6 +44,12 @@ final class NetBridge: NSObject {
         }
         var req = URLRequest(url: url)
         req.httpMethod = (body["method"] as? String ?? "GET").uppercased()
+        // 网页那头可以按接口给一个期限。给了就用它，没给用默认
+        if let t = body["timeout"] as? Double, t > 0 {
+            req.timeoutInterval = t
+        } else {
+            req.timeoutInterval = Self.defaultTimeout
+        }
         for (k, v) in (body["headers"] as? [String: Any] ?? [:]) {
             req.setValue(String(describing: v), forHTTPHeaderField: k)
         }
@@ -63,8 +76,13 @@ final class NetBridge: NSObject {
                 "body": data.base64EncodedString(),
             ]
         } catch {
-            // 原样报。上面那层要靠这句话分清是域名解析不了、超时、还是证书问题
-            return ["error": error.localizedDescription]
+            // 原样报。上面那层要靠这句话分清是域名解析不了、超时、还是证书问题。
+            // 超时另外标一个记号：那一种的下一步是「把期限调大」，
+            // 和「地址不通」完全不是一回事，混成一句等于没说
+            let ns = error as NSError
+            let timedOut = ns.domain == NSURLErrorDomain && ns.code == NSURLErrorTimedOut
+            return ["error": error.localizedDescription, "timedOut": timedOut,
+                    "seconds": req.timeoutInterval]
         }
     }
 }

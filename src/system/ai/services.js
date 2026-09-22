@@ -129,6 +129,9 @@ export function newImagePreset(init = {}) {
     kind: init.kind || 'openai',       // openai | relay
     baseUrl: '', apiKey: '', model: '', size: '1024x1024',
     respFormat: '',                    // 见 ai/image.js 的 FORMATS。空字符串 = 不发这个字段
+    // 等多久算超时，秒。生图一张跑一两分钟是常事，所以默认给得宽
+    // （CLAUDE.md 第 13 条：能力不设上限，填 0 就是一直等）
+    timeout: 300,
     ...init,
   };
   write({ image: { ...i, presets: [...i.presets, preset], activeId: i.activeId || preset.id } });

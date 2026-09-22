@@ -1,6 +1,6 @@
 import { html, useState } from '../../lib.js';
 import { phone, useStore } from '../../sdk/index.js';
-import { Page, List, ListItem, Field, Input, Textarea, Button, Switch, Segmented,
+import { Page, List, ListItem, Field, Input, Textarea, Button, Switch, Segmented, Slider,
          Sheet, EmptyState, toast, confirm } from '../../ui/index.js';
 import { ModelPicker } from './ModelPicker.js';
 
@@ -132,6 +132,13 @@ function Editor({ id, onClose }) {
             + `接口不支持时会自动退回「读成外貌描述」的方式。`}
           right=${html`<${Switch} checked=${preset.ref === 'edits'}
             onChange=${v => set({ ref: v ? 'edits' : 'off' })}/>`}/>
+      <//>
+
+      <${Field} label="等待上限"
+        desc="超过这么久还没回应就算失败。生图一张跑一两分钟很常见，所以默认给得宽。
+          填 0 表示一直等，不主动放弃。">
+        <${Slider} value=${preset.timeout ?? 300} onChange=${v => set({ timeout: v })}
+          min=${0} max=${900} step=${10} unit="秒"/>
       <//>
 
       ${report ? html`

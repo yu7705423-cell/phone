@@ -132,7 +132,7 @@ async function naiCall(p, base, prompt, signal, tr) {
         negative_prompt: String(p.negative || ''),
       },
     }),
-  });
+  }, p);
   if (!res.ok) await asError(res);
   const files = await unzip(await res.blob());
   const png = [...files.entries()].find(([name]) => /\.png$/i.test(name));
@@ -179,10 +179,25 @@ function track({ p, url, prompt, withRef, parts }) {
  * 语音那边早就有这一套（见 ai/voice.js 的 `ask`），生图这边一直没有。
  * 「一次都没成功过」多半就是这么来的。
  */
-async function ask(url, init) {
+/** 这套接口等多久。填 0 表示一直等（第 13 条）。 */
+export const timeoutOf = p => {
+  const n = Math.round(Number(p?.timeout));
+  if (!Number.isFinite(n) || n < 0) return 300000;
+  return n * 1000;                     // 0 原样传下去，表示不设期限
+};
+
+async function ask(url, init, p) {
   try {
-    return await nfetch(url, init);
+    return await nfetch(url, { ...init, timeout: timeoutOf(p) });
   } catch (err) {
+    // 超时和「连不上」要分开：前者多半只是这个模型慢，把期限调大就行；
+    // 后者要去查地址和网络。混成一句，人只会反复检查地址
+    if (err?.timedOut) {
+      throw new Error(`生图接口等了 ${Math.round(err.seconds)} 秒还没有回应。`
+        + '生图本来就慢，一张跑一两分钟很常见。'
+        + '可在该接口的「等待上限」里调大，或填 0 表示一直等。'
+        + `原始错误：${err.message || err}`);
+    }
     const native = routeOf(url) === 'native';
     throw new Error(`连不上生图接口（${url}）。`
       + (native
@@ -236,7 +251,7 @@ export function generateWithRef({ prompt, refBlob, preset, key, parts }) {
         method: 'POST', signal,
         headers: { authorization: `Bearer ${p.apiKey}` },   // multipart 的 content-type 交给浏览器带边界
         body: form,
-      });
+      }, p);
       if (!res.ok) await asError(res);
       const out = await pickImage(await res.json(), signal);
       tr.done(`取回 ${out.size} 字节`);
@@ -278,7 +293,7 @@ export function generate({ prompt, preset, key, parts }) {
           // 空字符串那一档整个字段不发，见 FORMATS
           ...(p.respFormat ? { response_format: p.respFormat } : {}),
         }),
-      });
+      }, p);
       if (!res.ok) await asError(res);
       const out = await pickImage(await res.json(), signal);
       tr.done(`取回 ${out.size} 字节`);
@@ -375,6 +390,12 @@ export async function testImage(preset) {
       hint: `接口可用，取回 ${Math.round(blob.size / 1024)} KB 的图片。` };
   } catch (err) {
     const msg = String(err.message || err);
+    if (/还没有回应/.test(msg)) {
+      return { ...out, ok: false, step: '等超时了', detail: msg,
+        hint: '请求发出去了，只是对面在期限内没回完。生图本来就慢，'
+          + '一张跑一两分钟很常见。把这套接口的「等待上限」调大，'
+          + '或填 0 表示一直等；若调到很大仍然如此，再查接口本身。' };
+    }
     if (!/连不上生图接口/.test(msg)) {
       const linked = /只返回了图片链接/.test(msg);
       return { ...out, ok: false, step: linked ? '图片链接取不回来' : '接口报错', detail: msg,
