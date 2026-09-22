@@ -15,6 +15,16 @@
 const POSTER_MAX = 720;
 const PROBE_TIMEOUT = 10000;
 
+/**
+ * 等着的时候那一行写什么。
+ *
+ * 生成一段要一到五分钟，**一个光转圈的气泡在这种长度上说明不了任何事** ——
+ * 分不出「还在排队」和「已经卡死」。接口自己会说，照着写出来即可。
+ * 这几个词是从 ai/video.js 那边传过来的接口状态，翻成一句中文。
+ */
+const STATE = { queued: '排队中', running: '生成中', succeeded: '即将完成' };
+export const stateText = s => STATE[s] || '正在生成视频';
+
 /** 秒数写成 0:03 那种。**不四舍五入**：3.9 秒写成 0:03，写 0:04 会比进度条长。 */
 export function clock(sec) {
   const n = Math.max(0, Math.floor(Number(sec) || 0));

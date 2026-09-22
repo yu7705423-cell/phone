@@ -5,6 +5,7 @@ import { ApiPage } from './ApiPage.js';
 import { FilesPage } from './FilesPage.js';
 import { VoicePage } from './VoicePage.js';
 import { ImagePage } from './ImagePage.js';
+import { VideoPage } from './VideoPage.js';
 import { AppearancePage } from './AppearancePage.js';
 import { StoragePage } from './StoragePage.js';
 import { TracePage } from './TracePage.js';
@@ -56,6 +57,10 @@ function Home() {
       : '未配置，且这个浏览器不支持本机识别，暂时发不了语音';
   const imgActive = svc.activeImage();
   const imageDesc = imgActive ? `${imgActive.name} · ${imgActive.model || '未选择模型'}` : '未配置';
+  const vidActive = ai.video.isVideoReady() ? svc.activeVideo() : null;
+  const videoDesc = vidActive
+    ? `${vidActive.name} · ${vidActive.model}`
+    : (svc.videoPresets().length ? '已新建但未填全' : '未配置');
 
   const ne = svc.neteaseConfig();
   const musicDesc = !ne.baseUrl
@@ -112,6 +117,9 @@ function Home() {
         <${ListItem} title="生图" subtitle=${imageDesc} arrow
           left=${html`<${Icon} name="camera" size=${19}/>`}
           onClick=${() => nav.push('/image')}/>
+        <${ListItem} title="生成视频" subtitle=${videoDesc} arrow multiline
+          left=${html`<${Icon} name="film" size=${19}/>`}
+          onClick=${() => nav.push('/video')}/>
         <${ListItem} title="音乐服务" subtitle=${musicDesc} arrow multiline
           left=${html`<${Icon} name="music" size=${19}/>`}
           onClick=${() => nav.push('/music')}/>
@@ -235,6 +243,7 @@ export default function SettingsApp({ route }) {
   if (route === '/memoryapi') return html`<${MemoryApiPage}/>`;
   if (route === '/voice') return html`<${VoicePage}/>`;
   if (route === '/image') return html`<${ImagePage}/>`;
+  if (route === '/video') return html`<${VideoPage}/>`;
   if (route === "/appearance") return html`<${AppearancePage}/>`;
   if (route === '/storage') return html`<${StoragePage}/>`;
   if (route === '/storage/files') return html`<${FilesPage}/>`;

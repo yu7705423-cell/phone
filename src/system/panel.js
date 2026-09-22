@@ -24,13 +24,14 @@ export const ITEMS = [
   { id: 'share', icon: 'compass', label: '共享位置' },
   { id: 'dice', icon: 'grid', label: '骰子' },
   { id: 'offline', icon: 'book', label: '线下' },
+  { id: 'makeclip', icon: 'sparkle', label: '生成视频' },
 ];
 
 const ALL = ITEMS.map(x => x.id);
 export const itemOf = id => ITEMS.find(x => x.id === id) || null;
 
 // 默认收进「更多」的：不常用，或者一次配好就不怎么动的那几个
-const DEFAULT_MORE = ['video', 'share', 'dice', 'request'];
+const DEFAULT_MORE = ['video', 'share', 'dice', 'request', 'makeclip'];
 
 /**
  * 读出一份干净的顺序。丢掉不认识的 id，补上配置里缺失的 ——

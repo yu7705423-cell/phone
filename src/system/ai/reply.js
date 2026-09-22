@@ -1,4 +1,4 @@
-import { messages, messagesOf, chats, characters, files, settings } from '../db/index.js';
+import { messages, messagesOf, chats, characters, files, images, settings } from '../db/index.js';
 import { uid } from '../store.js';
 import * as imageSvc from './image.js';
 import { isAbort } from './queue.js';
@@ -6,6 +6,9 @@ import * as imgPrompt from './imageprompt.js';
 import { activeImage } from './services.js';
 import { isImageReady } from './image.js';
 import * as voiceSvc from './voice.js';
+import * as videoSvc from './video.js';
+import * as services from './services.js';
+import * as clip from '../clip.js';
 import { isVoiceReady } from './voice.js';
 import { byName as stickerByName, markUsed } from '../stickers.js';
 import { notify } from '../notify.js';
@@ -1030,6 +1033,70 @@ export function dropMessage(id) {
 }
 
 // 改完图片描述或语音文字之后重新生成那一份媒体
+/**
+ * 生成一段视频，落到 `msgId` 那条消息上。
+ *
+ * **提交完立刻把 task_id 写回消息**，之后才开始等。中间切页面、锁屏、
+ * 重开应用都不要紧 —— `resumeClips()` 会把没等完的接着等下去。
+ * 不写回的话，等了三分钟一刷新这笔钱就白花了。
+ *
+ * 等的过程里把状态也写回去（排队中 / 生成中），不然屏幕上只有一个转圈，
+ * 而这一等是按分钟算的。
+ */
+export async function generateClip(msgId, prompt, preset) {
+  const p = preset || services.activeVideo();
+  try {
+    if (!videoSvc.isVideoReady() && !p?.apiKey) throw new Error('还没有配置视频接口');
+    const taskId = await videoSvc.submit({ prompt, preset: p, key: `msg-clip:${msgId}` });
+    messages.update(msgId, { clipTask: taskId, clipPreset: p?.id || '', clipState: 'queued' });
+    const blob = await videoSvc.wait({
+      taskId, preset: p,
+      onTick: r => messages.update(msgId, { clipState: r.state }),
+    });
+    await storeClip(msgId, blob);
+  } catch (err) {
+    if (isAbort(err)) { messages.update(msgId, { media: 'off', mediaError: '' }); return; }
+    messages.update(msgId, { media: 'error', mediaError: String(err.message || err) });
+  }
+}
+
+/** 取回来的那段视频存进去，顺手取一帧当海报。海报取不出来不算失败。 */
+async function storeClip(msgId, blob) {
+  const { poster, duration } = await clip.probe(blob).catch(() => ({ poster: null, duration: 0 }));
+  const clipId = await files.put(blob, { name: 'clip.mp4', type: blob.type || 'video/mp4' });
+  const posterId = poster
+    ? await images.put(new File([poster], 'poster.jpg', { type: 'image/jpeg' }))
+    : null;
+  messages.update(msgId, { clipId, posterId, clipDur: duration, media: 'done', clipState: '' });
+}
+
+/**
+ * 重开应用之后，把没等完的接着等下去。
+ *
+ * **不重新提交**，只是接着问那个 task_id —— 任务一直在对方那边跑着，
+ * 重提一次是再花一份钱换同一段视频。
+ *
+ * 查询只支持最近七天的任务（接口自己的限制），更早的问过去会说
+ * 「invalid task_id」，那时候照实把错误写在气泡上。
+ */
+export function resumeClips() {
+  for (const m of messages.all()) {
+    if (m.kind !== 'clip' || m.media !== 'pending' || !m.clipTask || m.clipId) continue;
+    const preset = services.videoPresets().find(x => x.id === m.clipPreset) || null;
+    (async () => {
+      try {
+        const blob = await videoSvc.wait({
+          taskId: m.clipTask, preset,
+          onTick: r => messages.update(m.id, { clipState: r.state }),
+        });
+        await storeClip(m.id, blob);
+      } catch (err) {
+        messages.update(m.id, { media: 'error', mediaError: String(err.message || err) });
+      }
+    })();
+  }
+}
+
 export function regenMedia(id) {
   const m = messages.get(id);
   if (!m) return;

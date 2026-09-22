@@ -2,6 +2,7 @@ import { html, render } from './lib.js';
 import { ready, settings } from './system/db/index.js';
 import { registerApps } from './apps/index.js';
 import { setConcurrency } from './system/ai/queue.js';
+import { resumeClips } from './system/ai/reply.js';
 import { healAndSave } from './screens/home/layout.js';
 import { Root } from './shell/Root.js';
 import { applyLook, applyCustomCSS } from './system/look.js';
@@ -28,6 +29,8 @@ function boot() {
     applyLook(s);
     applyCustomCSS(s.customCSS);
     setConcurrency(2);
+    // 没等完的视频任务接着等。不重新提交，只是接着问那个 task_id
+    resumeClips();
     if (!s.showLockScreen) nav.set({ screen: 'home' });
 
     render(html`<${Root}/>`, mount);

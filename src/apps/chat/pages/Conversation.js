@@ -1,7 +1,7 @@
 import { html, useState, useEffect, useLayoutEffect, useRef, useMemo, memo } from '../../../lib.js';
 import { phone, useStore, useImage } from '../../../sdk/index.js';
-import { Page, Avatar, Icon, IconButton, FullSheet, List, ListItem,
-         EmptyState, Spinner, toast, confirm, prompt } from '../../../ui/index.js';
+import { Page, Avatar, Icon, IconButton, FullSheet, Sheet, List, ListItem,
+         Button, Textarea, EmptyState, Spinner, toast, confirm, prompt } from '../../../ui/index.js';
 import { splitBubbles, quoteOf } from '../helpers.js';
 import { StickerPanel, StickerSuggest } from './StickerPanel.js';
 import { StickerImg } from './StickerBits.js';
@@ -320,7 +320,9 @@ export function Conversation({ chatId, focusId = '' }) {
   const [listenLog, setListenLog] = useState(null); // 正在看的那一场
   const [letter, setLetter] = useState(null);    // 正在读的那封信
   const [pact, setPact] = useState(null);        // 正在标完成的那条约定
-  const [dicing, setDicing] = useState(false);   // 骰子面板开着
+  const [dicing, setDicing] = useState(false);
+  const [making, setMaking] = useState(false);
+  const [clipText, setClipText] = useState('');   // 骰子面板开着
   const [ordering, setOrdering] = useState(false);  // 点外卖面板开着
   const [sharing, setSharing] = useState(false);    // 共享位置面板开着
   const [more, setMore] = useState(false);          // 面板的「更多」开着
@@ -1089,6 +1091,13 @@ export function Conversation({ chatId, focusId = '' }) {
     request: () => setAsking(true),
     share: () => setSharing(true),
     dice: () => setDicing(true),
+    makeclip: () => {
+      if (!ai.video.isVideoReady()) {
+        toast('还没有配置视频接口，请在「设置 - 生成视频」中添加', 'error', 4500);
+        return;
+      }
+      setClipText(''); setMaking(true);
+    },
     offline: () => {
       if (stage.get().placement !== 'inline') { nav.push(`/stage/${chatId}`); return; }
       if (live) { toast('这一场还没有收场'); return; }
@@ -1263,6 +1272,25 @@ export function Conversation({ chatId, focusId = '' }) {
       <${LetterSheet} msg=${letter} onClose=${() => setLetter(null)}/>
       <${PactSheet} msg=${pact} onClose=${() => setPact(null)}/>
       <${DiceSheet} open=${dicing} chatId=${chatId} onClose=${() => setDicing(false)}/>
+
+      <${Sheet} open=${making} onClose=${() => setMaking(false)} title="生成视频">
+        <${Textarea} rows=${4} value=${clipText} onInput=${setClipText}
+          placeholder="描述要生成的画面"/>
+        <div class="settings-foot">
+          由所选的视频接口生成，通常需要一到五分钟。期间可以离开这一页，
+          生成完成后会出现在这段对话里。按时长与分辨率计费。
+        </div>
+        <${Button} full disabled=${!clipText.trim()} onClick=${() => {
+    const prompt = clipText.trim();
+    setMaking(false);
+    const msg = db.messages.create({
+      chatId, role: 'user', authorId: 'me', kind: 'clip',
+      prompt, content: `[视频：${prompt}]`, status: 'done', media: 'pending',
+    });
+    db.chats.update(chatId, { lastMessageAt: Date.now() });
+    ai.reply.generateClip(msg.id, prompt);
+  }}>开始生成<//>
+      <//>
       <${TakeoutSheet} open=${ordering} chatId=${chatId} onClose=${() => setOrdering(false)}/>
       <${ShareSheet} open=${sharing} chatId=${chatId} onClose=${() => setSharing(false)}/>
       <${MealSettleSheet} msg=${meal} onClose=${() => setMeal(null)}/>

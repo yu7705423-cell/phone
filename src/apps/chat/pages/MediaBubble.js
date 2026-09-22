@@ -120,15 +120,17 @@ function VideoBubble({ msg }) {
   const poster = useThumb(msg.posterId);
   const url = useFile(msg.clipId);
   const [playing, setPlaying] = useState(false);
-  const mine = msg.role === 'user';
 
-  if (!mine && msg.media === 'pending') {
+  // **这几档不分谁发的。** 自己点「生成视频」和角色写 [视频：…] 走的是同一条路，
+  // 都要等上一到五分钟 —— 一个光转圈的气泡在这种长度上说明不了任何事，
+  // 所以把接口报回来的状态照着写出来
+  if (msg.media === 'pending' && !msg.clipId) {
     return html`
       <div class="bubble media-pending">
-        <${Spinner} size=${16}/><span>正在生成视频</span>
+        <${Spinner} size=${16}/><span>${clip.stateText(msg.clipState)}</span>
       </div>`;
   }
-  if (!mine && (msg.media === 'error' || msg.media === 'off')) {
+  if (msg.media === 'error' || msg.media === 'off') {
     return html`
       <div class="bubble media-failed">
         <div class="media-prompt">[视频] ${msg.prompt}</div>

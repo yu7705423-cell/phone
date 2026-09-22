@@ -5,6 +5,7 @@ import { uid } from '../store.js';
 export const EMPTY_SERVICES = {
   chat:  { presets: [], activeId: null, fallbackId: null },
   image: { presets: [], activeId: null },
+  video: { presets: [], activeId: null },
   voice: { enabled: false, kind: 'minimax', baseUrl: '', groupId: '', apiKey: '', model: '',
     lang: '', prompt: '' },
   embed: { baseUrl: '', apiKey: '', model: '', dims: 0 },
@@ -48,6 +49,7 @@ export function services() {
   return {
     chat:  { ...EMPTY_SERVICES.chat,  ...(s?.chat || {}) },
     image: { ...EMPTY_SERVICES.image, ...(s?.image || {}) },
+    video: { ...EMPTY_SERVICES.video, ...(s?.video || {}) },
     voice: { ...EMPTY_SERVICES.voice, ...(s?.voice || {}) },
     embed: { ...EMPTY_SERVICES.embed, ...(s?.embed || {}) },
     rerank: { ...EMPTY_SERVICES.rerank, ...(s?.rerank || {}) },
@@ -147,6 +149,42 @@ export function removeImagePreset(id) {
   write({ image: { ...i, presets, activeId: i.activeId === id ? (presets[0]?.id || null) : i.activeId } });
 }
 export function setActiveImage(id) { write({ image: { ...services().image, activeId: id } }); }
+
+// ---- 视频接口。和生图那一套同一个形状：多套配置，一套生效 ----
+//
+// **多套不是为了好看。** 同一套接口有好几个中转站在转，地址和密钥各不相同；
+// 换一家试试不该是「把原来那套改掉」——改掉就回不去了。
+export function videoPresets() { return services().video.presets; }
+export function activeVideo() {
+  const v = services().video;
+  return v.presets.find(p => p.id === v.activeId) || v.presets[0] || null;
+}
+export function newVideoPreset(init = {}) {
+  const v = services().video;
+  const preset = {
+    id: uid('vid'),
+    name: init.name || '未命名',
+    kind: init.kind || 'minimax',
+    baseUrl: '', apiKey: '', model: '',
+    resolution: '768P', duration: 5, ratio: '16:9',
+    // 隔多久问一次、最多等多久，秒。生成一段要一到五分钟，
+    // 所以等待给得宽；填 0 就是一直等（第 13 条）
+    pollEvery: 6, maxWait: 600,
+    ...init,
+  };
+  write({ video: { ...v, presets: [...v.presets, preset], activeId: v.activeId || preset.id } });
+  return preset;
+}
+export function updateVideoPreset(id, patch) {
+  const v = services().video;
+  write({ video: { ...v, presets: v.presets.map(p => p.id === id ? { ...p, ...patch } : p) } });
+}
+export function removeVideoPreset(id) {
+  const v = services().video;
+  const presets = v.presets.filter(p => p.id !== id);
+  write({ video: { ...v, presets, activeId: v.activeId === id ? (presets[0]?.id || null) : v.activeId } });
+}
+export function setActiveVideo(id) { write({ video: { ...services().video, activeId: id } }); }
 
 // ---- 接口来源 ----
 //

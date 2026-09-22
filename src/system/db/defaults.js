@@ -35,6 +35,7 @@ export const DEFAULT_SETTINGS = {
   services: {
     chat:  { presets: [], activeId: null, fallbackId: null },
     image: { presets: [], activeId: null },
+    video: { presets: [], activeId: null },
     voice: { enabled: false, baseUrl: '', groupId: '', apiKey: '', model: '' },
     embed: { baseUrl: '', apiKey: '', model: '', dims: 0 },
     rerank: { baseUrl: '', apiKey: '', model: '' },
