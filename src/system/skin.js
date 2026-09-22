@@ -331,12 +331,21 @@ export function unmountGlobal() {
   trying = null;
 }
 
-/** 当前设为全局的那一份。没设、设的那份没了、或者总开关关着，都回 null。 */
+/**
+ * 当前设为全局的那一份。没设、设的那份没了、或者总开关关着，都回 null。
+ *
+ * **读不出来就当没有，不许抛。** 这个函数在 `shell/Root.js` 的渲染路径上，
+ * 位置比错误边界还靠外 —— 它抛一下，整棵树当场没了，屏幕全白，
+ * 而错误边界本来是能把单个 app 的崩溃兜住的。少一个 try 就是「一个 app
+ * 出问题，整台手机打不开」。
+ */
 export function globalSkin() {
-  const s = settings.get();
-  if (s.skinOff === true) return null;
-  const row = get(s.globalSkinId || '');
-  return row && isGlobal(row) ? row : null;
+  try {
+    const s = settings.get();
+    if (s.skinOff === true) return null;
+    const row = get(s.globalSkinId || '');
+    return row && isGlobal(row) ? row : null;
+  } catch { return null; }
 }
 
 /** 设为全局。传空就是取消。设了全局的那一份自动带上 shell 这一档。 */
