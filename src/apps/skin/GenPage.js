@@ -38,6 +38,9 @@ function Stage({ row, focus, open }) {
   const hostRef = useRef(null);
   const [ready, setReady] = useState(0);
 
+  // 整块只搭一次。**拖滑杆时不能重建 DOM** —— 从前这个 effect 的依赖里带着
+  // `updatedAt`，于是每动一格就把 shadow root 的 innerHTML 整个换掉：
+  // 六条消息、两条栏、十几个图标全部重画，屏幕上就是一阵闪。
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -45,13 +48,18 @@ function Stage({ row, focus, open }) {
       if (!alive || !hostRef.current) return;
       const host = hostRef.current;
       const root = host.shadowRoot || host.attachShadow({ mode: 'open' });
-      root.innerHTML = `<style>${base}\n${skin.STAGE_CSS}\n`
-        + `${skin.compile(row, { varsOn: ':host' })}</style>`
+      root.innerHTML = `<style>${base}\n${skin.STAGE_CSS}</style><style class="skin-css"></style>`
         + `<div class="stage-scale">${skin.buildStage()}</div>`;
       setReady(n => n + 1);
     })();
     return () => { alive = false; };
-  }, [row?.id, row?.updatedAt]);
+  }, [row?.id]);
+
+  // 改样式时只换那一个 style 节点的文字。DOM 一个都不动，所以不闪
+  useEffect(() => {
+    const el = hostRef.current?.shadowRoot?.querySelector('style.skin-css');
+    if (el) el.textContent = skin.compile(row, { varsOn: ':host' });
+  }, [ready, row?.updatedAt]);
 
   // 摆位。
   //
@@ -77,6 +85,8 @@ function Stage({ row, focus, open }) {
     const fitW = w / STAGE_W;
     const target = focus ? root.querySelector(focus) : null;
 
+    // **算好了一次写完。** 从前先写一次基准倍率再写最终的，
+    // 于是每次改动都能看见画面弹一下
     if (!target) {
       const k0 = Math.min(fitW, boxH / stageH);
       const base = (w / k0 - STAGE_W) / 2;

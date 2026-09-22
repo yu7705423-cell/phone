@@ -1,4 +1,4 @@
-import { html, useRef, useEffect } from '../../lib.js';
+import { html, useRef, useEffect, useState } from '../../lib.js';
 import { phone } from '../../sdk/index.js';
 
 const { skin } = phone;
@@ -17,7 +17,10 @@ const STAGE_W = 430;
 
 export function Preview({ row }) {
   const ref = useRef(null);
+  const [ready, setReady] = useState(0);
 
+  // 整块只搭一次，改样式时只换那一个 style 节点的文字。
+  // 依赖里带上 updatedAt 会把 DOM 整个重建，拖滑杆时屏幕上就是一阵闪
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -25,8 +28,7 @@ export function Preview({ row }) {
       if (!alive || !ref.current) return;
       const host = ref.current;
       const root = host.shadowRoot || host.attachShadow({ mode: 'open' });
-      root.innerHTML = `<style>${base}\n${skin.STAGE_CSS}\n`
-        + `${skin.compile(row, { varsOn: ':host' })}</style>`
+      root.innerHTML = `<style>${base}\n${skin.STAGE_CSS}</style><style class="skin-css"></style>`
         + `<div class="stage-scale">${skin.buildStage()}</div>`;
       const scaler = root.querySelector('.stage-scale');
       if (!scaler) return;
@@ -34,9 +36,15 @@ export function Preview({ row }) {
         (host.clientHeight || 200) / (scaler.offsetHeight || 620));
       const pad = ((host.clientWidth || STAGE_W) / k - STAGE_W) / 2;
       scaler.style.transform = `scale(${k}) translateX(${pad}px)`;
+      setReady(n => n + 1);
     })();
     return () => { alive = false; };
-  }, [row?.id, row?.updatedAt]);
+  }, [row?.id]);
+
+  useEffect(() => {
+    const el = ref.current?.shadowRoot?.querySelector('style.skin-css');
+    if (el) el.textContent = skin.compile(row, { varsOn: ':host' });
+  }, [ready, row?.updatedAt]);
 
   return html`<div class="skin-preview" ref=${ref}></div>`;
 }

@@ -6319,6 +6319,53 @@ Negative 那几十行被原样拼进正向提示词发出去。
 **模式匹配对面的话是权宜之计**，说法千变万化，认不出来时仍然原样转出。
 但这一类太常见，认出一次就省一轮来回。
 
+### 4.147 只改 CSS 的时候不要重建 DOM
+
+生成器与美化列表的预览都画在 shadow root 里，原先是这么搭的：
+
+```js
+useEffect(() => {
+  root.innerHTML = `<style>${base}</style><style>${skin.compile(row)}</style>` + buildStage();
+}, [row?.id, row?.updatedAt]);
+```
+
+依赖里带着 `updatedAt`，于是**滑杆每动一格就把整块重搭一遍**：六条消息、
+两条栏、十几个图标、每个图标里的内嵌图片全部丢掉重画。浏览器画的是新节点，
+布局、图片解码、字体都从头来，屏幕上就是一阵闪。滑杆一秒能发几十次改动，
+闪就连成了一片。
+
+拖滑杆改的只有 CSS。**要换的是那段文字，不是那些节点。** 拆成两个 effect：
+
+```js
+// 只认 id。换一份美化才重搭
+useEffect(() => {
+  root.innerHTML = `<style>${base}</style><style class="skin-css"></style>` + buildStage();
+  setReady(n => n + 1);
+}, [row?.id]);
+
+// 改样式时只写那一个 style 节点的文字，DOM 一个都不动
+useEffect(() => {
+  const el = root.querySelector('style.skin-css');
+  if (el) el.textContent = skin.compile(row, { varsOn: ':host' });
+}, [ready, row?.updatedAt]);
+```
+
+`ready` 是必须的：第一个 effect 里有一次 `await`（底样式是 fetch 回来的），
+第二个 effect 先跑完时 style 节点还不存在。让第一个搭完之后推一下，
+第二个才有东西可写。
+
+同一条道理也用在倍率上：`scaler.style.transform` **一次写完**。从前先写
+一个基准倍率再写最终值，每次改动都能看见画面弹一下。
+
+`innerHTML` 整个重写是最粗的那一档 DOM 操作，代价随内容线性涨；
+`textContent` 换一段样式表只走一次 CSS 重解析，节点全都还在原处。
+凡是「界面没变，只是样子变了」的地方都该走后面这条。
+
+`scratchpad/noflicker.mjs` 守着这件事。「闪」测不了，但「那几个节点还是不是
+原来那几个」测得了：给气泡打上 `data-mark`，连改十次、再真的用鼠标拖一遍
+滑杆，记号都还在就说明没重建；同时量 `getComputedStyle` 的背景色与圆角，
+确认样式确实跟着变了。换成另一份美化时记号该消失 —— 那一次本来就要重搭。
+
 ### 13.2 接下来
 
 按「用户能不能感觉到」排序，不按实现难度。
