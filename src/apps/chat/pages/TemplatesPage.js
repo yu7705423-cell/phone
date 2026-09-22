@@ -63,6 +63,8 @@ const LABELS = {
   'task.npc-batch': '任务 · 批量生成 NPC',
   'task.event-batch': '任务 · 批量生成随机事件',
   'task.day-plan': '任务 · 排当天的日程',
+  'task.health-day': '任务 · 生成角色当天的健康记录',
+  'task.snap': '任务 · 角色自己往相册存照片',
   'task.recipe-batch': '任务 · 批量生成食谱',
   'task.recipe-search': '任务 · 联网搜索吃处',
   'skeleton.agenda': '骨架 · 今天的安排',
