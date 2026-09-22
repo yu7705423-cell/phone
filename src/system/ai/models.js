@@ -15,7 +15,9 @@ async function asError(res, label) {
 function normalize(json) {
   const rows = json?.data || json?.models || (Array.isArray(json) ? json : []);
   return rows
-    .map(m => (typeof m === 'string' ? m : m.id || m.name || m.model))
+    // model_id 是 ElevenLabs 那一家的写法。少认这一个，取到的就是它的显示名
+    //（「Eleven Multilingual v2」），而接口要的是 id（eleven_multilingual_v2）
+    .map(m => (typeof m === 'string' ? m : m.id || m.model_id || m.name || m.model))
     .filter(Boolean)
     .map(String);
 }

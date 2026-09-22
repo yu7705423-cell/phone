@@ -43,6 +43,89 @@ export const KINDS = [
 
 export const kindOf = id => KINDS.find(k => k.id === id) || KINDS[0];
 
+// ---- 语音模型从哪儿来 ----
+//
+// **`/v1/models` 回的是文本模型，不是语音模型。** 那个端点列的是这个账号能用的
+// 聊天模型；语音合成走的是另一个端点（MiniMax 是 `/v1/t2a_v2`，OpenAI 兼容是
+// `/audio/speech`），它们的模型名**不在那份列表里**。
+//
+// 从前「选择语音模型」不分家，一律去拉 `/v1/models` —— 于是 MiniMax 那边列出来
+// 满屏 `MiniMax-Text-01`、`abab6.5s-chat`，挑哪个都合成不出声音，而界面上看不出
+// 哪儿不对：名字是真的，接口也是真的，只是这批模型不会说话。
+//
+// 三家各有各的来源，所以分开：
+
+/**
+ * MiniMax 的语音模型。**它没有「列出语音模型」这个接口**，只能内置一份。
+ *
+ * 这是备选不是上限（CLAUDE.md 第 13 条）：新出的型号手填即可，不必等这张表更新。
+ * 界面上要写清楚这份列表是内置的，免得新型号没列出来时以为是不支持。
+ */
+export const MINIMAX_MODELS = [
+  'speech-2.5-hd-preview',
+  'speech-2.5-turbo-preview',
+  'speech-02-hd',
+  'speech-02-turbo',
+  'speech-01-hd',
+  'speech-01-turbo',
+  'speech-01-240228',
+  'speech-01-turbo-240228',
+];
+
+// 一个模型名像不像是会说话的那种。OpenAI 兼容那一档的 `/models` 把几百个
+// 模型混在一起回来，文本、向量、重排、生图都有，语音只占几条
+const VOICEY = /(^|[-_./])(tts|speech|audio|voice|sovits|vits|t2a)/i;
+export const looksLikeVoice = id => VOICEY.test(String(id || ''));
+
+/**
+ * 拉这一家的语音模型列表。
+ *
+ * 回的是 `{ list, from, all }`：
+ *   list  这一家的语音模型
+ *   all   接口回的全部（只有 openai 那一档有，界面上给一个「显示全部」）
+ *   from  这份列表哪儿来的。**界面上要说出来** —— 内置的一份和接口拉回来的
+ *         一份，可信程度不一样，而用户有权知道自己在看哪一种
+ */
+export async function fetchVoiceModels(v, signal) {
+  const k = kindOf(v?.kind);
+
+  if (k.id === 'minimax') {
+    // 不发请求：那个账号有哪些语音模型，接口本来就不说
+    return { list: MINIMAX_MODELS, all: [], from: 'builtin' };
+  }
+
+  if (!v?.apiKey) throw new Error('先填 API Key');
+
+  if (k.id === 'eleven') {
+    // 这一家有自己的列表接口，而且回的就是语音模型。鉴权走 xi-api-key
+    const base = baseOf(v.baseUrl, k.base);
+    const res = await ask(`${base}/v1/models`, {
+      method: 'GET', signal, headers: { 'xi-api-key': v.apiKey },
+    });
+    const rows = await res.json();
+    const list = (Array.isArray(rows) ? rows : rows?.models || [])
+      // can_do_text_to_speech 没有这一项的按「能」算：少认一个总比多滤掉一个好
+      .filter(m => m?.can_do_text_to_speech !== false)
+      .map(m => m?.model_id || m?.id || m?.name)
+      .filter(Boolean).map(String);
+    return { list, all: [], from: 'api' };
+  }
+
+  // OpenAI 兼容：只有一份混在一起的总表，自己挑出像语音的那几条。
+  // **挑剩下的不丢掉**，界面上给一个「显示全部」—— 中转站的命名千奇百怪，
+  // 猜错了得有条路走回去（第 13 条）
+  const base = baseOf(v.baseUrl, k.base);
+  const url = /\/v\d+$/.test(base) ? `${base}/models` : `${base}/v1/models`;
+  const res = await ask(url, {
+    method: 'GET', signal, headers: { authorization: `Bearer ${v.apiKey}` },
+  });
+  const json = await res.json();
+  const rows = json?.data || json?.models || (Array.isArray(json) ? json : []);
+  const all = rows.map(m => (typeof m === 'string' ? m : m.id || m.model_id || m.name || m.model))
+    .filter(Boolean).map(String);
+  return { list: all.filter(looksLikeVoice), all, from: 'api' };
+}
+
 // ---- 语种 ----
 //
 // 各家收的写法不一样：MiniMax 要它自己那套英文名（language_boost），

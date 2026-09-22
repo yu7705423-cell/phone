@@ -1,4 +1,4 @@
-import { html, useState } from '../../lib.js';
+import { html, useState, useEffect } from '../../lib.js';
 import { phone, useStore } from '../../sdk/index.js';
 import { Page, Segmented, List, ListItem, Field, Input, Button, Switch, Icon,
          Sheet, EmptyState, Spinner, toast } from '../../ui/index.js';
@@ -6,33 +6,62 @@ import { Page, Segmented, List, ListItem, Field, Input, Button, Switch, Icon,
 const { db, nav, ai } = phone;
 const svc = ai.services;
 
+// 选语音模型。**不能拿聊天那一套来选** —— `/v1/models` 回的是文本模型，
+// 语音模型压根不在那份列表里（见 system/ai/voice.js 的 fetchVoiceModels）。
+// 列表哪儿来的写在标题下面：内置的一份和接口拉回来的一份不是一回事。
 function VoiceModelPicker({ open, cfg, onPick, onClose }) {
-  const [list, setList] = useState([]);
+  const [rows, setRows] = useState({ list: [], all: [], from: '' });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
   const [q, setQ] = useState('');
+  const [showAll, setShowAll] = useState(false);
 
   const load = async () => {
     setBusy(true); setErr(null);
-    try {
-      const rows = await ai.fetchModels({ provider: 'openai', baseUrl: cfg.baseUrl, apiKey: cfg.apiKey });
-      setList(rows);
-    } catch (e) { setErr(String(e.message || e)); }
+    try { setRows(await ai.voice.fetchVoiceModels(cfg)); }
+    catch (e) { setErr(String(e.message || e)); }
     finally { setBusy(false); }
   };
 
+  // 打开就拉。从前要自己点一下「拉取列表」，而那一步没有任何理由让人来做
+  useEffect(() => {
+    if (!open) return;
+    setQ(''); setShowAll(false);
+    load();
+  }, [open, cfg.kind, cfg.baseUrl, cfg.apiKey]);
+
   if (!open) return null;
-  const shown = ai.filterModels(list, q);
+
+  const kind = ai.voice.kindOf(cfg.kind);
+  const base = showAll ? rows.all : rows.list;
+  const shown = ai.filterModels(base, q);
+  const hidden = rows.all.length - rows.list.length;
+  const source = rows.from === 'builtin'
+    ? `${kind.label} 没有提供语音模型列表，以下是内置的常用型号。新型号可在上方输入后手动填入。`
+    : rows.from === 'api'
+      ? (hidden > 0
+        ? `已从接口取得 ${rows.all.length} 个模型，其中 ${rows.list.length} 个名称符合语音模型的写法。`
+        : `已从接口取得 ${rows.list.length} 个语音模型。`)
+      : '';
 
   return html`
     <${Sheet} open=${true} onClose=${onClose} title="选择语音模型" height="80%">
       <${Input} value=${q} placeholder="搜索" onInput=${setQ}/>
-      <div class="pad-t">
-        <${Button} size="sm" variant="ghost" icon="refresh" disabled=${busy}
-          onClick=${load}>${busy ? '拉取中' : '拉取列表'}<//>
+      ${source ? html`<div class="field-desc pad-t">${source}</div>` : null}
+      <div class="btn-row pad-t">
+        <${Button} size="sm" variant="ghost" icon="refresh" disabled=${busy || rows.from === 'builtin'}
+          onClick=${load}>${busy ? '拉取中' : '重新拉取'}<//>
+        ${hidden > 0 ? html`
+          <${Button} size="sm" variant="ghost"
+            onClick=${() => setShowAll(!showAll)}>
+            ${showAll ? `只看语音模型（${rows.list.length}）` : `显示全部（${rows.all.length}）`}
+          <//>` : null}
       </div>
       ${busy ? html`<div class="picker-state"><${Spinner}/><span>正在拉取</span></div>` : null}
       ${err ? html`<div class="warn-box">拉取失败：${err}<br/>直接手填模型名即可。</div>` : null}
+      ${!busy && !err && !base.length ? html`
+        <${EmptyState} icon="layers" title="没有可选的语音模型"
+          desc="在上方输入模型名称后，使用下方的按钮直接填入。"/>` : null}
       ${shown.length ? html`
         <div class="model-list">
           ${shown.map(m => html`
@@ -42,11 +71,13 @@ function VoiceModelPicker({ open, cfg, onPick, onClose }) {
               ${cfg.model === m ? html`<${Icon} name="check" size=${16}/>` : null}
             </button>`)}
         </div>` : null}
+      ${q && !shown.length && base.length ? html`
+        <div class="field-desc">没有匹配的模型</div>` : null}
       <div class="sheet-acts">
         <${Button} variant="ghost" full onClick=${() => {
-          if (!q.trim()) { toast('请先在上方输入模型名称'); return; }
-          onPick(q.trim()); onClose();
-        }}>用输入框里的名字<//>
+    if (!q.trim()) { toast('请先在上方输入模型名称'); return; }
+    onPick(q.trim()); onClose();
+  }}>用输入框里的名字<//>
       </div>
     <//>`;
 }
