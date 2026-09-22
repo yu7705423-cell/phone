@@ -21,6 +21,9 @@ export async function parseCard(file) {
     name: str(r.name) || '未命名',
     age: str(r.age), gender: str(r.gender), birthday: str(r.birthday),
     signature: str(r.signature), persona: str(r.persona),
+    // 外貌单独一格：它要发给收不到对话的生图与视频模型（见 ai/imageprompt.js
+    // 的 appearanceOf），混在人设里那一大段送过去只会把画面带偏
+    appearance: str(r.appearance),
     scenario: str(r.scenario), firstMessage: str(r.firstMessage),
     exampleDialogue: str(r.exampleDialogue),
     raw,

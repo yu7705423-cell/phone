@@ -106,9 +106,51 @@ export function cut(text) {
   return { pos, neg: hit ? t.slice(hit.at).trim() : '' };
 }
 
+/**
+ * 画面描述里点了谁的名字，就把谁的外貌一并发过去。
+ *
+ * **这是这一整件事的根。** 生图与视频模型收不到这段对话：角色写
+ * `[图片：乃木绿实在窗边]`，「乃木绿实」对它来说只是四个字，画出来当然不是她。
+ * 从前对此只有两道防线，而两道都不顶用：
+ *
+ *   一道是在提示词里叫角色**自己写清楚长什么样** —— 它记不住，照样写名字；
+ *   一道是 `promptwrite` 另调一次接口改写 —— 那个**默认关着**，
+ *     而且要多花一次钱。
+ *
+ * 所以加一道**本地的、免费的、默认就开着的**：名字在描述里出现过，
+ * 就把那张卡上写的外貌接在后面。不改描述本身 —— 用户写的那句话原样保留，
+ * 只是后面多了一段「这个名字长这样」。
+ *
+ * **不止当前这个角色。** 相册里、故事里常出现别人：另一张角色卡、
+ * 一只做成卡片的猫。任何一张卡的名字出现在描述里，都把它的外貌带上 ——
+ * 不然「乃木喵」和「乃木绿实」是同一种问题，只修一半没有意义。
+ *
+ * 名字短的（一个字）不做匹配：那种名字在任何一句话里都撞得上。
+ */
+export function appearanceOf(text, char) {
+  const t = String(text || '');
+  if (!t) return [];
+  const out = [];
+  const seen = new Set();
+  const take = c => {
+    if (!c || seen.has(c.id)) return;
+    const name = String(c.name || '').trim();
+    const look = String(c.appearance || '').trim() || String(c.faceDesc || '').trim();
+    if (!name || name.length < 2 || !look || !t.includes(name)) return;
+    seen.add(c.id);
+    out.push({ from: `「${name}」的外貌`, text: `${name}: ${look}` });
+  };
+  // 当前这个角色先来：它最常出现，排在前面读起来也顺
+  take(char);
+  characters.all().forEach(take);
+  return out;
+}
+
 export function parts({ prompt, char, face = '' }) {
   const text = String(prompt || '').trim();
   const raw = [{ from: '画面描述', text }];
+  // 描述里点了名的那几位，各自的外貌
+  raw.push(...appearanceOf(text, char));
   if (face) raw.push({ from: '角色外貌（锁脸读出来的）', text: `The appearance of the person in frame: ${face}` });
   const lore = loreFor(char, text);
   if (lore) raw.push({ from: '生图世界书', text: lore });

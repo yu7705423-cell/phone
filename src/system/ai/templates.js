@@ -1076,6 +1076,11 @@ never depart from.
   When the material has none, distil one from the character card
 - persona is the main body: who this person is, what they are like, how they
   speak. Fold the settings from the material into this field
+- appearance is what this character looks like, taken from the material:
+  hair, face, build, what they usually wear. It is sent to an image model that
+  never sees the conversation, so write only what can be drawn, and do not
+  write the name, the personality or the backstory. Leave it empty when the
+  material describes no appearance
 - scenario is the relationship between the two parties and the situation they
   are in; leave it empty when the source does not give one
 - firstMessage is the first message this character sends; leave it empty when
@@ -1085,7 +1090,7 @@ never depart from.
 - Write every field in the language of the source material
 
 ## Output JSON only, with no other text
-{"name":"","age":"","gender":"","birthday":"","signature":"","persona":"","scenario":"","firstMessage":"","exampleDialogue":""}`,
+{"name":"","age":"","gender":"","birthday":"","signature":"","persona":"","appearance":"","scenario":"","firstMessage":"","exampleDialogue":""}`,
 
   'task.npc-batch':
 `You are the author of {{charName}}'s settings. Write {{count}} further people

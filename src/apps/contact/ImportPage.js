@@ -63,7 +63,8 @@ export function ImportPage() {
   const save = async () => {
     const c = db.characters.create({
       name: got.name, age: got.age, gender: got.gender, birthday: got.birthday,
-      signature: got.signature, persona: got.persona, scenario: got.scenario,
+      signature: got.signature, persona: got.persona, appearance: got.appearance,
+      scenario: got.scenario,
       firstMessage: got.firstMessage, exampleDialogue: got.exampleDialogue,
       relations: [], lorebookIds: [], canSendVoice: true, canSendImage: true,
     });
@@ -80,7 +81,8 @@ export function ImportPage() {
 
   const rows = got ? [
     ['名字', got.name], ['年龄', got.age], ['性别', got.gender], ['生日', got.birthday],
-    ['签名', got.signature], ['人设', got.persona], ['情境', got.scenario],
+    ['签名', got.signature], ['人设', got.persona], ['外貌', got.appearance],
+    ['情境', got.scenario],
     ['开场白', got.firstMessage], ['说话示例', got.exampleDialogue],
   ].filter(([, v]) => v) : [];
 

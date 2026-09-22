@@ -1099,10 +1099,19 @@ export async function generateClip(msgId, prompt, preset) {
   try {
     if (!videoSvc.isVideoReady() && !p?.apiKey) throw new Error('还没有配置视频接口');
     const row = messages.get(msgId);
+    const who = characters.get(row?.authorId);
     const said = await promptwrite.forVideo(prompt, {
-      chatId: row?.chatId, char: characters.get(row?.authorId), key: `clip-prompt:${msgId}`,
+      chatId: row?.chatId, char: who, key: `clip-prompt:${msgId}`,
     });
-    const taskId = await videoSvc.submit({ prompt: said, preset: p, key: `msg-clip:${msgId}` });
+    // **和生图拼同一套。** 从前这里把那句话原样发出去 —— 没有外貌、
+    // 没有生图世界书、没有全局提示词，于是「乃木绿实在窗边」发过去就是
+    // 四个字加一个地点，视频模型无从下手。那几段说的都是「这东西长什么样」，
+    // 对视频一样成立，没有理由只给图片用
+    const full = imgPrompt.compose({ prompt: said, char: who });
+    const taskId = await videoSvc.submit({
+      prompt: full, preset: p, key: `msg-clip:${msgId}`,
+      parts: imgPrompt.explain({ prompt: said, char: who }),
+    });
     messages.update(msgId, { clipTask: taskId, clipPreset: p?.id || '', clipState: 'queued' });
     const blob = await videoSvc.wait({
       taskId, preset: p,

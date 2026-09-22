@@ -134,7 +134,7 @@ export const needPrompt = text => {
  * 宽高比由那张图决定，`ratio` 恒为 adaptive —— 所以有首帧时不发 ratio，
  * 发过去也只会被忽略。文生视频反过来，ratio 必填且不能是 adaptive。
  */
-export function submit({ prompt, preset, first = '', key }) {
+export function submit({ prompt, preset, first = '', key, parts = '' }) {
   const p = preset || activeVideo();
   if (!p || !p.apiKey) throw new Error('还没有配置视频接口');
   if (!p.model) throw new Error('这套视频接口还没有填模型名称');
@@ -157,7 +157,10 @@ export function submit({ prompt, preset, first = '', key }) {
       model: p.model,
       system: `${url}\n${body.resolution} · ${body.duration} 秒`
         + (first ? '\n这一次带了首帧图' : `\n宽高比 ${body.ratio}`),
-      messages: [{ role: '画面描述', content: text }],
+      messages: [
+        { role: '最终发出去的描述', content: text },
+        ...(parts ? [{ role: '它由哪几段拼成', content: parts }] : []),
+      ],
     });
     try {
       const res = await ask(url, {

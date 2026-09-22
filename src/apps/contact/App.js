@@ -483,6 +483,14 @@ function EditPage({ id }) {
             placeholder="例如：林晓，二十二岁，美术学院三年级。说话略带漫不经心，熟悉后会突然认真。不喜欢被安慰。"
             onInput=${v => patch({ persona: v })}/>
         <//>
+        <${Field} label="外貌"
+          desc="仅用于生成图片与视频。生图与视频模型收不到这段对话，写了名字它也不知道是谁，
+            所以画面描述里出现这个名字时，会把这一段一并发过去。留空则不发。
+            写发型、五官、身形、常穿什么，不写性格。">
+          <${Textarea} rows=${4} value=${char.appearance || ''}
+            placeholder="例如：及肩黑发，眼角有一颗痣，身形偏瘦，常穿宽大的深色毛衣。"
+            onInput=${v => patch({ appearance: v })}/>
+        <//>
         <${Field} label="情境" desc="双方是什么关系，当前处于什么场景。">
           <${Textarea} rows=${3} value=${char.scenario || ''}
             onInput=${v => patch({ scenario: v })}/>
