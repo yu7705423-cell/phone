@@ -218,15 +218,87 @@ final class ShellViewController: UIViewController {
         web.evaluateJavaScript("window.phoneBack && window.phoneBack()")
     }
 
+    // MARK: - 载入：先问一句版本，没变就走缓存
+    //
+    // 这个站点是**无构建**的原生 ES Module，开机要拉 167 个 js。在 localhost 上
+    // 一百多毫秒就画出来了，移动网络下每个往返 60 到 150 毫秒，最坏要十几秒 ——
+    // 「直接打开也白屏很久」就是这么来的。
+    //
+    // 从前每次载入都 `.reloadRevalidatingCacheData`，等于每次把这 167 个全部
+    // 重新验一遍。但**真正需要每次回源的只有 index.html 一个** —— 它里面那行
+    // `<meta name="build">` 就是这一版的版本号（见 src/main.js 那段自愈）。
+    //
+    // 所以：每次只拿它去问一句。
+    //
+    //   版本没变   →  整站走缓存（`.returnCacheDataElseLoad`），一个子资源都不必再取
+    //   版本变了   →  清掉 HTTP 缓存，整站重新取一遍
+    //   问不到     →  用缓存开。离线时这样反而打得开，比一张白纸强
+    //
+    // **「改了网页刷新就生效」没有丢**：那一问是每次都做的，新版下一次启动就认得出。
+    // 而且清缓存是**整站一起清**，不会出现新旧模块混在一起（那正是无构建方案
+    // 被坑过的那一次，见 src/system/refresh.js）。
+
+    private static let buildKey = "siteBuild"
+
+    /// 这一次载入之后要记下来的版本号。didFinish 里落盘 —— 没载成就不算数。
+    private var pendingBuild: String?
+
+    private static let buildRe = try? NSRegularExpression(
+        pattern: "<meta\\s+name=[\"']build[\"']\\s+content=[\"']([^\"']*)[\"']",
+        options: [.caseInsensitive])
+
+    /// 从 index.html 里抠出那行 `<meta name="build" content="…">`。
+    static func buildFrom(_ html: String) -> String? {
+        guard let re = buildRe else { return nil }
+        let ns = html as NSString
+        guard let m = re.firstMatch(in: html, options: [],
+                                    range: NSRange(location: 0, length: ns.length)),
+              m.numberOfRanges > 1 else { return nil }
+        let got = ns.substring(with: m.range(at: 1))
+        return got.isEmpty ? nil : got
+    }
+
+    /// 去问站点现在是哪一版。**这一条必须绕开缓存**，否则问到的是旧的。
+    /// 问不到（离线、超时、站点挂了）回 nil，由调用方决定怎么办。
+    private func fetchBuild(_ url: URL, done: @escaping (String?) -> Void) {
+        var req = URLRequest(url: url)
+        req.cachePolicy = .reloadIgnoringLocalCacheData
+        req.timeoutInterval = 6
+        URLSession.shared.dataTask(with: req) { data, _, _ in
+            let html = data.flatMap { String(data: $0, encoding: .utf8) } ?? ""
+            done(Self.buildFrom(html))
+        }.resume()
+    }
+
+    /// 只清 HTTP 缓存，不动 IndexedDB 与 localStorage。
+    private func purgeCache(_ done: @escaping () -> Void) {
+        let types: Set<String> = [WKWebsiteDataTypeDiskCache, WKWebsiteDataTypeMemoryCache]
+        WKWebsiteDataStore.default().removeData(
+            ofTypes: types, modifiedSince: .distantPast, completionHandler: done)
+    }
+
     private func load() {
         hideFailure()
         guard let url = siteURL else {
             showFailure("尚未设置站点地址。摇动设备打开菜单，选择「设置站点地址」。")
             return
         }
+        fetchBuild(url) { [weak self] got in
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                let last = UserDefaults.standard.string(forKey: Self.buildKey) ?? ""
+                // 问不到就用缓存开 —— 离线时这样打得开，而白屏什么都救不了
+                guard let got = got else { self.start(url, cached: true); return }
+                if got == last { self.start(url, cached: true); return }
+                self.pendingBuild = got
+                self.purgeCache { self.start(url, cached: false) }
+            }
+        }
+    }
+
+    private func start(_ url: URL, cached: Bool) {
         var req = URLRequest(url: url)
-        // 每次载入都回源问一遍。改了网页代码，刷新就能拿到新的
-        req.cachePolicy = .reloadRevalidatingCacheData
+        req.cachePolicy = cached ? .returnCacheDataElseLoad : .reloadIgnoringLocalCacheData
         web.load(req)
     }
 
@@ -261,13 +333,12 @@ final class ShellViewController: UIViewController {
     }
 
     /// 只清 HTTP 缓存，不动 IndexedDB 与 localStorage。角色卡与聊天记录都在后者里。
+    ///
+    /// 记着的那个版本号也一并忘掉：不忘的话下一次载入会认为「版本没变」而继续
+    /// 走缓存，这个菜单项就成了摆设。
     private func clearCacheAndReload() {
-        let types: Set<String> = [WKWebsiteDataTypeDiskCache, WKWebsiteDataTypeMemoryCache]
-        WKWebsiteDataStore.default().removeData(
-            ofTypes: types, modifiedSince: .distantPast
-        ) { [weak self] in
-            self?.load()
-        }
+        UserDefaults.standard.removeObject(forKey: Self.buildKey)
+        purgeCache { [weak self] in self?.load() }
     }
 
     private func promptForURL() {
@@ -393,6 +464,11 @@ extension ShellViewController: WKNavigationDelegate {
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         hideFailure()
+        // 载成了才记下这一版。没载成就记，下一次会以为「版本没变」而一直用旧缓存
+        if let b = pendingBuild {
+            UserDefaults.standard.set(b, forKey: Self.buildKey)
+            pendingBuild = nil
+        }
         // 页面载完才交得动点通知那一下：更早打过去，文档马上就被换掉，等于没打
         notifyBridge.flush()
     }
