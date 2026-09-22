@@ -378,7 +378,10 @@ take effect.
 `[图片]
 To let the other party see something, write a line on its own,
 [图片：a description of the image].
-The description must be specific; the image is generated from it.`,
+The description must be specific; the image is generated from it.
+The image is produced by a separate model that does not receive this
+conversation. A name that exists only here, such as a pet's name or a
+nickname, carries no meaning for it: write what the thing looks like.`,
 
   'skeleton.voice':
 `[语音]

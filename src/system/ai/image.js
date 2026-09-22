@@ -89,6 +89,30 @@ export function sizeText(v) {
   return m ? `${m[1]}x${m[2]}` : '1024x1024';
 }
 
+/**
+ * 这段提示词里像不像塞了一整段「负面提示词」。
+ *
+ * **OpenAI 兼容那一档的 `images/generations` 没有负面提示词这个字段。**
+ * 于是很多人照着别处的习惯，把 Positive 与 Negative 两大段一起贴进
+ * 「全局生图提示词」—— 结果 Negative 那几十行被原样当成**要画的东西**
+ * 发过去：写着 `selfie, portrait, studio lighting, Ghibli style`，
+ * 模型就照着画自拍、棚拍、吉卜力。
+ *
+ * 这件事在界面上一点痕迹都没有，图画出来只是「不对劲」，没人会想到是这儿。
+ * 所以认出来，直接说。
+ */
+const NEG_HEAD = /(^|\n)\s*(negative(\s*prompt)?|负面(提示词)?|反向(提示词)?)\s*[:：]?\s*(\n|$)/i;
+
+export function negativeBlock(text) {
+  const t = String(text || '');
+  const m = NEG_HEAD.exec(t);
+  if (!m) return null;
+  const at = m.index + m[0].length;
+  const tail = t.slice(at).trim();
+  if (!tail) return null;
+  return { at, lines: tail.split(/\n/).filter(x => x.trim()).length, head: m[2] };
+}
+
 export function isImageReady() {
   const p = activeImage();
   return !!(p && p.apiKey && p.model);
@@ -306,6 +330,11 @@ export function generate({ prompt, preset, key, parts }) {
           n: 1, size: sizeText(p.size),
           // 空字符串那一档整个字段不发，见 FORMATS
           ...(p.respFormat ? { response_format: p.respFormat } : {}),
+          // **默认不发。** `images/generations` 的标准里没有这个字段，
+          // OpenAI 本身见到不认识的键直接 400，而那个 400 里看不出是哪个键。
+          // 有些中转站认它，所以留一个开关，由用的人自己说这套认不认
+          ...(p.negOn && String(p.negative || '').trim()
+            ? { negative_prompt: String(p.negative).trim() } : {}),
         }),
       }, p);
       if (!res.ok) await asError(res);

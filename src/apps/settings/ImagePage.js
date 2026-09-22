@@ -99,10 +99,23 @@ function Editor({ id, onClose }) {
         <${Field} label="接口地址" desc="留空则使用 https://image.novelai.net。">
           <${Input} value=${preset.baseUrl} placeholder="https://image.novelai.net"
             onInput=${v => set({ baseUrl: v })}/>
-        <//>
-        <${Field} label="负面提示词" desc="每次生成都会带上，用来排除不想要的画面元素。">
-          <${Input} value=${preset.negative || ''} placeholder="lowres, bad anatomy"
-            onInput=${v => set({ negative: v })}/>
+        <//>` : null}
+
+      <${Field} label="负面提示词"
+        desc=${preset.kind === 'nai'
+    ? '每次生成都会带上，用来排除不想要的画面元素。'
+    : 'OpenAI 兼容的接口标准里没有这一项。写在这里不会被当成要画的内容，'
+      + '但也只有下面那个开关打开、且该接口认得 negative_prompt 时才真的发出去。'}>
+        <${Textarea} rows=${3} value=${preset.negative || ''}
+          placeholder="lowres, bad anatomy" onInput=${v => set({ negative: v })}/>
+      <//>
+      ${preset.kind !== 'nai' ? html`
+        <${List} inset=${false}>
+          <${ListItem} title="这套接口认得 negative_prompt" multiline
+            subtitle=${'打开才会把上面那段作为单独字段发出去。OpenAI 本身见到不认识的'
+    + '字段会直接返回 400，所以默认关着；中转站转给别的模型时常常是认的。'}
+            right=${html`<${Switch} checked=${preset.negOn === true}
+              onChange=${v => set({ negOn: v })}/>`}/>
         <//>` : null}
 
       <${Field} label="模型">
@@ -193,6 +206,9 @@ export function ImagePage() {
   };
 
   const s = db.settings.get();
+  // 把 Positive 与 Negative 两大段一起贴进来的，Negative 那几十行会被
+  // 当成要画的东西发出去。这件事在界面上没有任何痕迹，所以认出来直接说
+  const neg = ai.image.negativeBlock(s.imagePrompt);
 
   return html`
     <${Page} title="生图" onBack=${nav.pop}>
@@ -204,6 +220,13 @@ export function ImagePage() {
             placeholder="例如：柔和的自然光，胶片质感，不要文字水印"
             onInput=${v => db.settings.set({ imagePrompt: v })}/>
         <//>
+        ${neg ? html`
+          <div class="warn-box">
+            这段文字里有一行单独的「${neg.head}」，它后面还有 ${neg.lines} 行。
+            OpenAI 兼容的生图接口没有负面提示词这个字段，这些文字会被当成
+            <b>要画的内容</b>一并发出去。请把它们移到下面对应接口的
+            「负面提示词」一栏，或整段删掉。
+          </div>` : null}
       </div>
 
       ${img.presets.length ? html`

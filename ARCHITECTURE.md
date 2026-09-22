@@ -6247,6 +6247,49 @@ Authorization、请求体、五种回包形状（纯 base64、带 `data:` 前缀
 抓包里那一条会写着「生图 · 带参考图」还是「生图」，以及用的是哪一套接口的
 名字（见 4.142）。这两件事各对应上面一条。
 
+### 4.145 那条 400 里有两件事
+
+上游回的是：
+
+> 请上传你希望作为参考的图片，或说明需要生成的具体对象
+>（例如「乃木喵」和「调色盘」分别是什么样的形象）
+
+#### 一、只有这段对话里才有的名字，生图那一步不认得
+
+「乃木喵」「调色盘」是这两只宠物在这段对话里的名字。**生图是另一个模型，
+它收到的只有那一串提示词，看不到任何对话。** 所以这两个词对它毫无意义，
+这一家干脆就拒了。
+
+`skeleton.image` 补一句。这一句是**机制**不是判断（第 16 条）——
+「生图那一步收不到对话」是客观事实，和「该怎么描述」无关：
+
+```
+The image is produced by a separate model that does not receive this
+conversation. A name that exists only here, such as a pet's name or a
+nickname, carries no meaning for it: write what the thing looks like.
+```
+
+#### 二、整段负面提示词正被当成「要画的东西」发出去
+
+这一条更隐蔽。`images/generations` 的标准里**没有负面提示词这个字段**，
+而「负面提示词」那一栏从前只给 NovelAI 那一档。于是照着别处的习惯，
+把 Positive 与 Negative 两大段一起贴进「全局生图提示词」——
+Negative 那几十行被原样拼进正向提示词发出去。
+
+写着 `selfie, portrait, studio lighting, Ghibli style`，模型就照着画自拍、
+棚拍、吉卜力 —— 正好是想排除的那些。而界面上一点痕迹都没有，
+画出来只是「不对劲」。
+
+两处一起补：
+
+- `negativeBlock()` 认出提示词里单独成行的 `Negative` / `负面提示词` /
+  `Negative prompt:`，设置页上直接说「这些会被当成**要画的内容**发出去」，
+  并数出后面还有几行。句子里出现 negative 这个词不误报，后面没内容的不报。
+- 「负面提示词」那一栏对所有档都开，另配一个开关
+  **「这套接口认得 negative_prompt」，默认关着**。OpenAI 本身见到不认识的
+  字段直接 400，而那个 400 里看不出是哪个键（和 `response_format` 同一个
+  坑，见 `FORMATS`）；中转站转给别的模型时常常是认的，所以由用的人自己说。
+
 ### 13.2 接下来
 
 按「用户能不能感觉到」排序，不按实现难度。
