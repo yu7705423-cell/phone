@@ -1,4 +1,5 @@
 import { skins, chats } from './db/index.js';
+import { compressFit } from './db/images.js';
 
 // 美化。见 ARCHITECTURE 4.111
 //
@@ -40,6 +41,82 @@ export const SHAPES = [
   { id: 'soft', label: '圆角方形', css: '10px' },
 ];
 
+// ---- 头像框 ----
+//
+// **画在头像外面的一圈，不改头像本身。** 挂在 `.msg-face` 的 `::after` 上：
+// 那个盒子正好就是头像那一块，框按它的百分比放大，头像是圆是方都不受影响。
+//
+// 图存成 data URL，直接写进生成的那段 CSS 里。**不走 images 库**，理由是
+// `compile` 是同步的 —— 挂载、预览、卡片光栅三处都在同步路径上，
+// 换成按 id 现取就要让这三处全部变成异步。代价是美化包会变大，
+// 导出前把这件事写在确认框里。
+
+export const FRAME_WHO = [
+  { id: 'both', label: '双方', sel: '.msg-face' },
+  { id: 'char', label: '仅角色', sel: '.msg:not(.is-mine) .msg-face' },
+  { id: 'mine', label: '仅自己', sel: '.msg.is-mine .msg-face' },
+];
+export const frameWhoOf = skin => FRAME_WHO.find(x => x.id === skin?.frameWho) || FRAME_WHO[0];
+
+/** 框比头像大多少。100 是正好一样大，框本身四周留白的多少由图决定。 */
+export const FRAME_SCALE_DEF = 160;
+export const FRAME_SCALE_MIN = 100;
+export const FRAME_SCALE_MAX = 300;
+export function frameScaleOf(skin) {
+  const n = Math.round(Number(skin?.frameScale));
+  if (!Number.isFinite(n) || n <= 0) return FRAME_SCALE_DEF;
+  return Math.max(FRAME_SCALE_MIN, Math.min(FRAME_SCALE_MAX, n));
+}
+
+/**
+ * 存成多大。头像本身只有 36 像素，三倍屏上 108，512 已经绰绰有余。
+ * 再大只是把美化包撑起来，屏幕上一点看不出来。
+ */
+export const FRAME_MAX = 512;
+
+/** 只认 data:image/。别的一律不往生成的 CSS 里写 —— 那段是我们自己拼的字符串。 */
+const frameUrlOk = url => /^data:image\/[a-z+.-]+;base64,[A-Za-z0-9+/=]+$/.test(String(url || ''));
+
+/**
+ * 换一张头像框。
+ *
+ * 用 `compressFit`：整张图放进正方形画布，留白透明，**不居中裁切** ——
+ * 框的四个角正是它最要紧的地方，裁掉就不成其为框了。
+ * 它输出 webp（带透明通道），不支持的退回 png，两者都留得住透明。
+ */
+export async function setFrame(id, file) {
+  const { blob } = await compressFit(file, FRAME_MAX);
+  const url = await new Promise((res, rej) => {
+    const fr = new FileReader();
+    fr.onload = () => res(String(fr.result || ''));
+    fr.onerror = () => rej(new Error('这张图读不出来'));
+    fr.readAsDataURL(blob);
+  });
+  if (!frameUrlOk(url)) throw new Error('这张图转不成可嵌入的格式');
+  return update(id, { frame: url });
+}
+
+export const clearFrame = id => update(id, { frame: '' });
+
+/** 这张框占多少字节（按 base64 算，比原图大三分之一）。界面上要说得出来。 */
+export const frameBytes = skin => {
+  const url = String(skin?.frame || '');
+  const i = url.indexOf(',');
+  return i < 0 ? 0 : Math.round((url.length - i - 1) * 3 / 4);
+};
+
+function frameCss(skin) {
+  const url = String(skin?.frame || '');
+  if (!frameUrlOk(url)) return '';
+  const sel = frameWhoOf(skin).sel;
+  const pct = frameScaleOf(skin);
+  // `.msg-face` 本身没有定位，`::after` 没处可挂，所以这一条要一起发
+  return `${sel}{position:relative}\n`
+    + `${sel}::after{content:'';position:absolute;left:50%;top:50%;`
+    + `transform:translate(-50%,-50%);width:${pct}%;height:${pct}%;`
+    + `background:url("${url}") center/contain no-repeat;pointer-events:none}`;
+}
+
 // 美化页里摆出来给人抄的那一份。**和挂载点是同一份数据**，
 // 不另写一张表 —— 两张表迟早对不上。
 export const CLASSES = [
@@ -70,6 +147,10 @@ export function create(init = {}) {
   return skins.create({
     name: String(init.name || '未命名').trim() || '未命名',
     tokens: init.tokens || {}, shape: init.shape || '', css: String(init.css || ''),
+    // 头像框三件一起存。少存一件，复制和导入过来的那一份就会戴错人或错大小
+    frame: frameUrlOk(init.frame) ? String(init.frame) : '',
+    frameWho: FRAME_WHO.some(x => x.id === init.frameWho) ? String(init.frameWho) : 'both',
+    frameScale: frameScaleOf(init),
     createdAt: Date.now(), updatedAt: Date.now(),
   });
 }
@@ -109,6 +190,10 @@ export function compile(skin, { varsOn = ':root' } = {}) {
   // 用户手写的那一段一个字都不改（见上面「不重写用户的选择器」）。
   // 画在 shadow root 里时要换成 :host：那里面没有 :root，整段会静静地不生效
   if (vars.length) out.push(`${varsOn}{${vars.join(';')}}`);
+  // 头像框排在令牌之后、手写 CSS 之前：它和令牌一样是「我们生成的那一层」，
+  // 手写那一段仍然盖得住它
+  const frame = frameCss(skin);
+  if (frame) out.push(frame);
   const css = String(skin.css || '').trim();
   if (css) out.push(css);
   return out.join('\n');
@@ -223,6 +308,9 @@ export function pack(skin) {
     name: String(skin.name || '未命名'),
     tokens: skin.tokens || {},
     shape: String(skin.shape || ''),
+    frame: String(skin.frame || ''),
+    frameWho: frameWhoOf(skin).id,
+    frameScale: frameScaleOf(skin),
     css: String(skin.css || ''),
   }, null, 2);
 }
@@ -255,9 +343,14 @@ export function unpack(text) {
     if (Number.isFinite(n)) tokens[t.id] = n;
   });
   const shape = SHAPES.some(x => x.id === raw.shape) ? String(raw.shape) : '';
+  // 头像框是别人文件里的一张图。**只认 data:image 的 base64**：
+  // 这个字符串会被原样拼进一段 CSS，放行别的形式等于让包决定往哪儿发请求
+  const frame = frameUrlOk(raw.frame) ? String(raw.frame) : '';
+  const frameWho = FRAME_WHO.some(x => x.id === raw.frameWho) ? String(raw.frameWho) : 'both';
   return {
     name: String(raw.name || '未命名').trim().slice(0, 40) || '未命名',
-    tokens, shape, css: String(raw.css || ''),
+    tokens, shape, frame, frameWho, frameScale: frameScaleOf(raw),
+    css: String(raw.css || ''),
   };
 }
 
@@ -286,7 +379,8 @@ export function duplicate(id) {
   const base = `${src.name} 副本`;
   let name = base;
   for (let i = 2; taken.has(name); i++) name = `${base} ${i}`;
-  return create({ name, tokens: { ...(src.tokens || {}) }, shape: src.shape, css: src.css });
+  return create({ name, tokens: { ...(src.tokens || {}) }, shape: src.shape, css: src.css,
+    frame: src.frame || '', frameWho: src.frameWho || 'both', frameScale: frameScaleOf(src) });
 }
 
 /** 这一份挂在哪几段会话上。库那一页要能说清楚「删了会影响谁」。 */

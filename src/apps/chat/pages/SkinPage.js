@@ -76,6 +76,7 @@ export function SkinPage({ chatId }) {
   const [tab, setTab] = useState('size');
   // 提前 return 在下面，所有 hook 都要在那之前（doctor 的 hook 顺序那一项）
   const fileRef = useRef(null);
+  const frameRef = useRef(null);
 
   const chat = db.chats.get(chatId);
   const char = chat ? db.characters.get((chat.characterIds || [])[0]) : null;
@@ -103,6 +104,15 @@ export function SkinPage({ chatId }) {
     skin.attach(chatId, row.id);
   };
 
+  // 换一张头像框。压到 512 见方、留白透明之后内联进这一份美化
+  const pickFrame = async e => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    try { await skin.setFrame(cur.id, file); toast('已更换头像框', 'ok'); }
+    catch (err) { toast(String(err.message || err), 'error', 5000); }
+  };
+
   // 导出。CSS 里引用的外部东西先摆出来 —— 不说清楚的话，对方打开是空框，
   // 而分享的人以为自己发出去的和屏幕上长得一样
   const exportOne = async () => {
@@ -113,9 +123,12 @@ export function SkinPage({ chatId }) {
     }
     if (a.remote) lines.push(`其中 ${a.remote} 处引用了网络地址，对方需要能访问该地址。`);
     if (a.data) lines.push(`其中 ${a.data} 处图片已内联在文件中，文件体积相应增大。`);
+    const fb = skin.frameBytes(cur);
+    if (fb) lines.push(`头像框一并带走，约 ${Math.round(fb / 1024)} KB。`);
     if (lines.length && !await confirm({
       title: '导出美化包', okText: '继续导出',
-      message: `${lines.join('')}美化包仅包含名称、尺寸与样式，不包含它挂在哪些会话上。`,
+      message: `${lines.join('')}美化包仅包含名称、尺寸、头像框与样式，`
+        + '不包含它挂在哪些会话上。',
     })) return;
     try {
       const blob = new Blob([skin.pack(cur)], { type: 'application/json' });
@@ -200,6 +213,50 @@ export function SkinPage({ chatId }) {
             <${Segmented} value=${cur.shape || ''} onChange=${v => set({ shape: v })}
               items=${skin.SHAPES.map(x => ({ value: x.id, label: x.label }))}/>
           <//>
+
+          <${Field} label="头像框"
+            desc="画在头像外围的一圈图案，不改变头像本身。图片中间需要是透明的，
+              否则会把头像盖住。图片存入这一份美化，导出时一并带走。
+              移除之后头像恢复为不带外框。">
+            ${cur.frame ? html`
+              <div class="frame-try">
+                <div class="frame-try-face">
+                  <div class="avatar avatar-fallback"
+                    style=${`width:36px;height:36px;border-radius:${
+  skin.SHAPES.find(x => x.id === cur.shape)?.css || '18px'}`}>样</div>
+                  <img class="frame-try-ring" src=${cur.frame} alt=""
+                    style=${`width:${skin.frameScaleOf(cur)}%;height:${skin.frameScaleOf(cur)}%`}/>
+                </div>
+                <div class="frame-try-note">约 ${Math.round(skin.frameBytes(cur) / 1024)} KB</div>
+              </div>` : null}
+            <div class="btn-row">
+              <${Button} size="sm" variant="ghost" icon="image"
+                onClick=${() => frameRef.current?.click()}>
+                ${cur.frame ? '换一张' : '选择图片'}
+              <//>
+              ${cur.frame ? html`
+                <${Button} size="sm" variant="ghost"
+                  onClick=${() => { skin.clearFrame(cur.id); toast('已移除', 'ok'); }}>移除<//>` : null}
+            </div>
+          <//>
+          <input type="file" accept="image/*" ref=${frameRef}
+            onChange=${pickFrame} style="display:none"/>
+
+          ${cur.frame ? html`
+            <${Field} label="谁戴这个框"
+              desc="按消息的发出方决定。选定之后，另一方的头像不带框。">
+              <${Segmented} value=${skin.frameWhoOf(cur).id}
+                onChange=${v => set({ frameWho: v })}
+                items=${skin.FRAME_WHO.map(x => ({ value: x.id, label: x.label }))}/>
+            <//>
+            <${Field} label="框的大小"
+              desc=${`按头像的百分比计算。100 表示与头像同样大小，`
+    + `留空使用默认值 ${skin.FRAME_SCALE_DEF}。`}>
+              <${NumberInput} value=${skin.frameScaleOf(cur)} unit="%"
+                placeholder=${`默认 ${skin.FRAME_SCALE_DEF}`}
+                min=${skin.FRAME_SCALE_MIN} max=${skin.FRAME_SCALE_MAX}
+                onChange=${v => set({ frameScale: v || skin.FRAME_SCALE_DEF })}/>
+            <//>` : null}
           ${skin.TOKENS.map(t => html`
             <${Field} key=${t.id} label=${t.label}
               desc=${`${t.desc ? t.desc + '。' : ''}留空表示不改，使用默认值 ${t.def}${t.unit}。`}>
@@ -211,6 +268,7 @@ export function SkinPage({ chatId }) {
             <${Button} variant="ghost" onClick=${() => set({ tokens: {}, shape: '' })}>
               尺寸全部恢复默认
             <//>
+            <div class="settings-foot">恢复默认不影响头像框。移除头像框请使用上方的按钮。</div>
           </div>
         </div>` : null}
 

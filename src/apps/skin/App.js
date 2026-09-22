@@ -111,9 +111,12 @@ function OnePage({ id }) {
     if (a.local.length) lines.push(`其中 ${a.local.length} 处引用的是本机地址，导出后在别人那里显示为空白。`);
     if (a.remote) lines.push(`其中 ${a.remote} 处引用了网络地址，对方需要能访问该地址。`);
     if (a.data) lines.push(`其中 ${a.data} 处图片已内联在文件中，文件体积相应增大。`);
+    const fb = skin.frameBytes(row);
+    if (fb) lines.push(`头像框一并带走，约 ${Math.round(fb / 1024)} KB。`);
     if (lines.length && !await confirm({
       title: '导出美化包', okText: '继续导出',
-      message: `${lines.join('')}美化包仅包含名称、尺寸与样式，不包含它挂在哪些会话上。`,
+      message: `${lines.join('')}美化包仅包含名称、尺寸、头像框与样式，`
+        + '不包含它挂在哪些会话上。',
     })) return;
     try {
       const blob = new Blob([skin.pack(row)], { type: 'application/json' });

@@ -563,6 +563,16 @@ input[type="range"] {
 .btn-row { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
 .btn-row .btn { flex: 1; min-width: 0; }
 
+/* 头像框：编辑页上那一小块试戴。和会话里一样，框挂在头像那个盒子外面，
+   所以这里的结构也是「一个 36 见方的盒子 + 一张绝对定位的图」。 */
+.frame-try { display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-2) 0; }
+.frame-try-face { position: relative; width: 36px; height: 36px; flex: none; }
+.frame-try-ring {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  object-fit: contain; pointer-events: none;
+}
+.frame-try-note { font-size: var(--fs-11); color: var(--text-3); }
+
 .picker-state {
   display: flex; align-items: center; justify-content: center; gap: var(--sp-2);
   padding: var(--sp-5); color: var(--text-3); font-size: var(--fs-12);
