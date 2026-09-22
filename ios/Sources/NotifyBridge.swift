@@ -110,24 +110,55 @@ extension NotifyBridge: UNUserNotificationCenterDelegate {
     ///       （push.js 的 shouldUseSystem），前台根本不会走到这儿。
     ///   二、真正会在前台走到这儿的只有「试一条系统通知」—— 人正看着屏幕
     ///       按下去，却什么都不出现，看起来就是通知坏了。
+    ///
+    /// **两个回调都用「完成句柄」那一版，不用 async 那一版。** 理由见下面。
     func userNotificationCenter(_ c: UNUserNotificationCenter,
-                                willPresent n: UNNotification) async
-        -> UNNotificationPresentationOptions { [.banner, .list, .sound] }
+                                willPresent n: UNNotification,
+                                withCompletionHandler done:
+                                    @escaping (UNNotificationPresentationOptions) -> Void) {
+        done([.banner, .list, .sound])
+    }
 
+    /// 点开通知。**这一条崩过，而且崩了不止一次才查出来。**
+    ///
+    /// 从前写的是 `async` 那一版：
+    ///
+    ///     func userNotificationCenter(_:didReceive:) async { … }
+    ///
+    /// 看着更干净，但 async 版返回时，**Swift 并发是在协作线程池上回调
+    /// 完成句柄的，不是主线程**。UIKit 收到这个完成之后要接着跑
+    /// `_updateSnapshotAndStateRestorationWithAction:`，那一步的断言要求
+    /// 主线程，于是直接 `abort()`：
+    ///
+    ///     SIGABRT · com.apple.root.user-initiated-qos.cooperative
+    ///     -[UIApplication _performBlockAfterCATransactionCommitSynchronizes:]
+    ///     @objc closure #1 in NotifyBridge.userNotificationCenter(_:didReceive:)
+    ///
+    /// 表现是「点通知 → 打开 → 白屏 → 闪退」。**白屏是网页还在载，闪退是这一句**，
+    /// 两件事看起来是一件，所以前几轮一直在查「为什么没跳过去」，方向就错了。
+    /// 前台试通知不受影响，因为那条走 willPresent，不触发这一段收尾。
+    ///
+    /// 所以改用完成句柄那一版，并且**把交付和 done() 都放到主线程上**。
     func userNotificationCenter(_ c: UNUserNotificationCenter,
-                                didReceive r: UNNotificationResponse) async {
+                                didReceive r: UNNotificationResponse,
+                                withCompletionHandler done: @escaping () -> Void) {
         let info = r.notification.request.content.userInfo
         let payload: [String: Any] = [
             "appId": info["appId"] as? String ?? "",
             "route": info["route"] as? String ?? "",
         ]
-        guard let data = try? JSONSerialization.data(withJSONObject: payload),
-              let json = String(data: data, encoding: .utf8) else { return }
-        await MainActor.run { deliver(json) }
+        let json = (try? JSONSerialization.data(withJSONObject: payload))
+            .flatMap { String(data: $0, encoding: .utf8) }
+        // **done() 一定要叫，而且一定在主线程上。** 交付失败也得叫 ——
+        // 不叫的话系统会一直等着这一次响应收尾
+        DispatchQueue.main.async { [weak self] in
+            if let json = json { self?.deliver(json) }
+            done()
+        }
     }
 
-    /// 交给网页。页面还在载就先记着，载完再交。
-    @MainActor private func deliver(_ json: String) {
+    /// 交给网页。页面还在载就先记着，载完再交。**只在主线程上叫。**
+    private func deliver(_ json: String) {
         pending = json
         reloads = 0
         flush()

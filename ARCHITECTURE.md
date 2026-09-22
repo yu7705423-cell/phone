@@ -5204,6 +5204,61 @@ migrateLegacy()                  // → settings.set({ services: services() })
 **真删掉**。记录在这里：这一类「引用丢了但数据还在」的事故之后，
 那个按钮是第二把刀。
 
+### 4.125 点通知闪退：async 版的委托回调不在主线程
+
+4.120 修的是「点通知白屏」，没修好，因为**白屏和闪退是两件事，而我把它们当成了一件**。
+白屏是网页还在载，闪退是另一句 —— 前几轮一直在查「为什么没跳过去」，方向从一开始就错了。
+
+崩溃日志一句话点名：
+
+```
+SIGABRT · abort() called
+faultingThread queue: com.apple.root.user-initiated-qos.cooperative
+  -[NSAssertionHandler handleFailureInMethod:…]
+  -[UIApplication _performBlockAfterCATransactionCommitSynchronizes:]
+  -[UIApplication _updateStateRestorationArchiveForBackgroundEvent:…]
+  -[UIApplication _updateSnapshotAndStateRestorationWithAction:windowScene:]
+  @objc closure #1 in NotifyBridge.userNotificationCenter(_:didReceive:)
+  specialized thunk for @escaping @isolated(any) @async
+  completeTaskWithClosure
+```
+
+#### async 那一版看着更干净，代价在返回的那一刻
+
+`UNUserNotificationCenterDelegate` 的两个回调各有两版：完成句柄版，和 `async` 版。
+从前写的是 async 版：
+
+```swift
+func userNotificationCenter(_:didReceive:) async { … }
+```
+
+**async 版返回时，Swift 并发在协作线程池上回调那个完成句柄，不是主线程。**
+UIKit 收到完成之后要接着跑 `_updateSnapshotAndStateRestorationWithAction:`，
+那一步的断言要求主线程 —— 于是 `abort()`。
+
+`await MainActor.run { … }` 挡不住这个：那只保证**我们自己那段**在主线程，
+而崩的是**我们返回之后 UIKit 自己那段**。
+
+#### 为什么前台试通知一直是好的
+
+那条走 `willPresent`，不触发响应收尾这一段。于是「授权正常、试通知能收到、
+一点就崩」三件事同时成立，看起来像是通知功能好的、跳转功能坏的 ——
+实际上坏的是收尾。
+
+#### 改法
+
+两个回调都换成完成句柄版，交付与 `done()` 都放进 `DispatchQueue.main.async`。
+`done()` 无论交付成没成都要叫：不叫的话系统一直等着这一次响应收尾。
+
+`deliver` 上那个 `@MainActor` 也去掉了 —— 现在由调用点保证主线程，
+标注反而会让人以为编译器替你保证了什么。
+
+#### 这一条要记住的
+
+**「我自己那段在主线程」不等于「这个回调在主线程完成」。** 系统框架的回调
+是不是要求主线程完成，看的是它拿到完成通知之后还要做什么，而那部分不在你的代码里。
+拿不准的时候，用完成句柄版并在主线程上叫它 —— 那一版没有这个歧义。
+
 ### 13.2 接下来
 
 按「用户能不能感觉到」排序，不按实现难度。
