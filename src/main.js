@@ -48,35 +48,87 @@ function boot() {
 //
 // index.html 是导航请求，浏览器对它的重新验证比对子资源积极得多，
 // 所以拿 HTML 里那行 meta 当「真实版本」，和 version.js 一比就知道缓存有没有落后。
-// 对不上就把代码全换一遍再重开。同一个构建号只自愈一次，免得来回刷。
-const declared = document.querySelector('meta[name="build"]')?.content || '';
-const HEALED = 'build-healed';
-
-// 记在 localStorage 里，**按构建号记**：这一版自愈过一次就不再愈第二次。
 //
-// 从前记在 sessionStorage 里。外壳重新载入网页（回到前台、点通知进来、
-// 网页进程被系统回收）都会开一个新的 session，那一份记号跟着没了，于是
-// 每次进来都要再自愈、再重载一次 —— 人看到的就是「点一下通知，小手机
-// 自己刷新了一遍」。构建号一变，这个键的值也变，该愈的下一版照样会愈。
-const readHealed = () => {
-  try { if (localStorage.getItem(HEALED) === declared) return true; } catch { /* 隐私模式会抛 */ }
-  try { return sessionStorage.getItem(HEALED) === declared; } catch { return false; }
-};
-const markHealed = () => {
-  try { localStorage.setItem(HEALED, declared); } catch { /* 同上 */ }
-  try { sessionStorage.setItem(HEALED, declared); } catch { /* 同上 */ }
-};
-const healedBefore = readHealed();
+// ---- 自愈失败的时候不许安静地照常开 ----
+//
+// 从前是「愈过一次就记上，以后再对不上也直接开」。记号还是在真正重载**之前**
+// 写的。于是只要那一次重载没能换掉 js（WKWebView 上很常见），这台设备就
+// **永远**以新旧混着的代码开机，而且一声不响：屏幕上的东西时好时坏，
+// 看不出和版本有关。「刷新之后图标画不出来」就是这么来的。
+//
+// 现在记的是**试了几次**，最多试两次：
+//   第一次  把同源的 js/css 全部 cache:'reload' 取一遍，再 reload
+//   第二次  同上，但换成带查询串的地址 —— 换个地址，文档本身也要重新验证
+//   第三次  不再试，照常开，但顶上挂一条明说「代码是旧的」，给一个按钮
+//
+// 版本对上了就把记号清掉，下一版该愈照样愈。
+const declared = document.querySelector('meta[name="build"]')?.content || '';
+const HEAL_KEY = 'build-heal';
+const HEAL_MAX = 2;
 
-if (declared && declared !== BUILD && !healedBefore) {
-  console.warn(`[boot] 代码版本对不上：页面声明 ${declared}，实际加载 ${BUILD}。正在更新`);
-  markHealed();
+// localStorage 优先，隐私模式下退回 sessionStorage。
+// 从前只记在 sessionStorage：外壳重新载入网页（回到前台、点通知进来、
+// 网页进程被回收）都会开一个新 session，记号跟着没了，于是每次进来都要
+// 再愈一次、再重载一遍 —— 人看到的就是「点一下通知，小手机自己刷新了一遍」。
+function readHeal() {
+  for (const box of [() => localStorage, () => sessionStorage]) {
+    try {
+      const raw = box().getItem(HEAL_KEY);
+      if (raw) return JSON.parse(raw);
+    } catch { /* 隐私模式会抛 */ }
+  }
+  return null;
+}
+function writeHeal(v) {
+  const raw = v == null ? null : JSON.stringify(v);
+  for (const box of [() => localStorage, () => sessionStorage]) {
+    try { raw == null ? box().removeItem(HEAL_KEY) : box().setItem(HEAL_KEY, raw); }
+    catch { /* 同上 */ }
+  }
+}
+
+/** 顶上那一条。DOM 直接写，不经过任何模块 —— 出问题的正是那些模块。 */
+function showStale() {
+  const bar = document.getElementById('stale');
+  if (!bar) return;
+  bar.classList.add('is-on');
+  const btn = document.getElementById('stale-go');
+  if (btn) {
+    btn.onclick = () => {
+      writeHeal(null);
+      forceUpdate().finally(() => location.replace(bustedUrl()));
+    };
+  }
+}
+
+/** 带查询串的本页地址。换个地址，浏览器对文档本身也要重新验证一次。 */
+const bustedUrl = () =>
+  `${location.pathname}?v=${encodeURIComponent(declared)}.${Date.now().toString(36)}`;
+
+const heal = readHeal();
+const tries = heal && heal.build === declared ? Math.max(0, heal.tries | 0) : 0;
+const stale = !!declared && declared !== BUILD;
+
+if (stale && tries < HEAL_MAX) {
+  console.warn(`[boot] 代码版本对不上：页面声明 ${declared}，实际加载 ${BUILD}。`
+    + `正在更新（第 ${tries + 1} 次）`);
+  writeHeal({ build: declared, tries: tries + 1 });
   render(html`
     <div class="boot">
       <span class="spinner"></span>
       <div class="boot-msg">正在更新到最新版本</div>
     </div>`, mount);
-  forceUpdate().finally(() => location.reload());
+  // 第一次原地重载就够了；还不行说明连文档都在拿缓存，换个地址再来
+  forceUpdate().finally(() => {
+    if (tries === 0) location.reload();
+    else location.replace(bustedUrl());
+  });
 } else {
+  if (stale) {
+    console.error(`[boot] 自愈 ${HEAL_MAX} 次仍然对不上：页面声明 ${declared}，实际加载 ${BUILD}`);
+    showStale();
+  } else if (heal) {
+    writeHeal(null);        // 对上了，记号清掉
+  }
   boot();
 }

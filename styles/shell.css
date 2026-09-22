@@ -73,7 +73,9 @@
   box-shadow: none;
 }
 :root[data-wallpaper="on"][data-glass="on"] .app-tile { backdrop-filter: blur(var(--glass-blur)); -webkit-backdrop-filter: blur(var(--glass-blur)); }
-.app-tile svg { color: var(--icon-color); width: 52%; height: 52%; }
+/* 变量没设上时退回当前文字色。少了这个兜底，`--icon-color` 一旦缺失，
+   整格图标就是「位置在、画不出来」，而那正是最难查的一种 */
+.app-tile svg { color: var(--icon-color, currentColor); width: 52%; height: 52%; }
 /* 图标整张放进去，永远不裁。存的时候已经补成方图带透明边，
    这里再用 contain 兜一层：格子万一不是正方也不会切掉。 */
 .app-tile.has-image {

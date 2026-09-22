@@ -7,7 +7,7 @@
 <!-- 构建号。和 src/version.js 里的必须一致，由 scripts/check-build.mjs 拦着。
      HTML 比 js 子资源更容易被浏览器重新验证，所以拿它当「真实版本」，
      启动时和 version.js 一比就知道缓存里的 js 是不是旧的。见 src/main.js -->
-<meta name="build" content="2026-09-23.35">
+<meta name="build" content="2026-09-23.36">
 <meta name="theme-color" content="#F2F3F5" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0D0E10" media="(prefers-color-scheme: dark)">
 <meta name="mobile-web-app-capable" content="yes">
@@ -28,6 +28,29 @@
 <link rel="stylesheet" href="styles/app.css">
 </head>
 <body>
+<!-- 代码版本对不上、而且自愈过两次仍然对不上时露出来的那一条。
+     **放在 HTML 里，不放在 css/js 里**：HTML 是导航请求，浏览器对它的
+     重新验证最积极，所以出问题的时候它是唯一保证是新的那一份。
+     颜色写死也是同一个理由 —— tokens.css 有可能正是那个旧文件。 -->
+<style>
+#stale { display: none; }
+#stale.is-on {
+  display: flex; align-items: center; gap: 10px;
+  position: fixed; left: 0; right: 0; top: 0; z-index: 99999;
+  padding: 10px 14px; padding-top: calc(10px + env(safe-area-inset-top));
+  font-size: 13px; line-height: 1.5;
+  background: #26282E; color: #FFFFFF;
+}
+#stale .grow { flex: 1; min-width: 0; }
+#stale button {
+  flex: none; border: 1px solid #FFFFFF; border-radius: 6px;
+  background: transparent; color: #FFFFFF; font-size: 13px; padding: 5px 10px;
+}
+</style>
+<div id="stale">
+  <span class="grow">浏览器仍在使用旧版本的代码，界面可能显示不正常。</span>
+  <button type="button" id="stale-go">彻底刷新</button>
+</div>
 <div id="app"></div>
 <!-- 点通知那一下可能比 js 早到：外壳（或系统）常常是先把网页重新载入，
      再喊 window.phoneNotifyOpen。那时 push.js 还没挂上去，这一下就丢了，
