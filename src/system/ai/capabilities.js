@@ -1,4 +1,5 @@
 import { characters, stickers } from '../db/index.js';
+import { DEFAULT_GROUP } from '../stickers.js';
 import * as theirs from '../theirs.js';
 import * as clock from '../time.js';
 import * as currency from '../currency.js';
@@ -44,15 +45,45 @@ const usedRecently = (msgs, re) =>
 
 // 列几个表情名字给模型。冷着的时候少列几个，热起来多列几个，
 // 两个数都在设置里，填 0 就是全列。
+/**
+ * 列几个表情名字给模型。
+ *
+ * **名额要在各个分组之间轮着分，不能只按用得多排。**
+ *
+ * 从前是把所有表情按 `useCount` 从多到少排一遍取前 N 个。分组一多，
+ * 这里就出一个**自己锁死自己的圈**：某一组先用起来，计数涨上去，名单被它
+ * 占满；另一组一次都没被列出来，模型根本不知道有这些名字，也就永远发不出来，
+ * 计数永远是 0，于是永远进不了名单。表现出来正是「有一个分组不能用」。
+ *
+ * 所以改成各组轮流取一个：**每一组都至少露一个名字**，组内仍然按用得多的
+ * 排在前面。名额一个都不少给，只是换了个分法。
+ */
 function stickerNames(char, limit) {
   if (char.canSendSticker === false) return '';
-  return stickers.all()
-    .slice()
-    .sort((a, b) => (b.useCount || 0) - (a.useCount || 0))
-    .slice(0, limit > 0 ? limit : Infinity)
-    .map(s => String(s.name || '').trim())
-    .filter(Boolean)
-    .join('、');
+  const cap = limit > 0 ? limit : Infinity;
+  const byGroup = new Map();
+  for (const s of stickers.all()) {
+    const g = (s.group || '').trim() || DEFAULT_GROUP;
+    if (!byGroup.has(g)) byGroup.set(g, []);
+    byGroup.get(g).push(s);
+  }
+  for (const list of byGroup.values()) {
+    list.sort((a, b) => (b.useCount || 0) - (a.useCount || 0));
+  }
+  const lists = [...byGroup.values()];
+  const out = [];
+  for (let i = 0; out.length < cap; i++) {
+    let any = false;
+    for (const list of lists) {
+      if (i >= list.length) continue;
+      any = true;
+      const n = String(list[i].name || '').trim();
+      if (n) out.push(n);
+      if (out.length >= cap) break;
+    }
+    if (!any) break;
+  }
+  return out.join('、');
 }
 
 // 这段对话里有没有还没处理完的东西。有的话这个能力必须是热的 ——
