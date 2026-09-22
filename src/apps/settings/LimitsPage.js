@@ -79,12 +79,21 @@ export function LimitsPage() {
             + `填 0 表示不重试，最多 ${ai.cost.RETRY_CAP} 次。主动取消不计为失败，不会重试。`}
           right=${html`<${NumberInput} value=${Number(s.retryMax) || 0} min=${0}
             max=${ai.cost.RETRY_CAP} onChange=${v => set({ retryMax: v })}/>`}/>
-        <${ListItem} title="接口失败时改用另一套" multiline
+        <${ListItem} title="接口失败时自动换下一套" multiline
           subtitle=${s.chatFallback === true
-            ? '主用接口报错时改用副用接口重发一次，失败的那次同样计费。'
-            : '已关闭。接口报错时直接报错，不改用另一套重发。开启后失败的回合会调用两次。'}
+            ? (ai.cost.swapCount() > 0
+              ? `接口报错时按「主用、副用、其余」的顺序依次换，最多再换 ${ai.cost.swapCount()} 套。`
+                + '失败的那几次同样计费。没填全密钥与模型的接口会跳过。'
+              : '已开启，但目前只有一套填全了的接口，换不出去。在「接口」中再配一套后生效。')
+            : '已关闭。接口报错时直接报错，不改用另一套重发。开启后失败的回合会多次计费。'}
           right=${html`<${Switch} checked=${s.chatFallback === true}
             onChange=${v => set({ chatFallback: v })}/>`}/>
+        ${s.chatFallback === true ? html`
+          <${ListItem} title="最多再换几套" multiline
+            subtitle=${`失败之后最多依次试这么多套。填 0 表示把其余填全了的接口全部试一遍。`
+              + `当前填全的共 ${ai.cost.usableChatCount()} 套。`}
+            right=${html`<${NumberInput} value=${Number(s.failoverMax) || 0} min=${0}
+              onChange=${v => set({ failoverMax: v })}/>`}/>` : null}
         <${ListItem} title="自动生成关系底色" multiline
           subtitle=${s.bondAuto !== true
             ? '已关闭。关系底色不会自动更新，可在会话菜单中手动生成或手写。'

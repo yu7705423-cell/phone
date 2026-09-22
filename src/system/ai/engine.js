@@ -9,7 +9,8 @@ import { fillTemplate, template } from './templates.js';
 import { capabilityBlock } from './capabilities.js';
 import { embedQuery, embedReady } from './embed.js';
 import { getProvider } from './providers/index.js';
-import { activeChat, fallbackChat, visionMode, memoryConfig, memoryMode, translateMode } from './services.js';
+import { activeChat, fallbackChat, chatPresets, visionMode, memoryConfig, memoryMode, translateMode } from './services.js';
+import { failoverMax } from './cost.js';
 import { images } from '../db/images.js';
 import * as avatarLib from '../avatar.js';
 import { toDataUrl } from '../audio.js';
@@ -115,33 +116,58 @@ export function presetFor(taskId) {
   return fallbackConfig() || config();
 }
 
-// 挑剩下的那一套，给「失败了换一个再试」用。和 a 是同一套就当没有。
-function otherThan(a) {
-  const list = [config(), fallbackConfig()].filter(Boolean);
-  return list.find(c => c && c.id !== a.id) || null;
+/**
+ * 这一套失败之后，还能按顺序试哪几套。
+ *
+ * 排法和界面上的主次一致：**先主用，再副用，然后是列表里其余的**。
+ * 已经试过的那一套、以及没填全的（缺密钥或模型），都不在里面 ——
+ * 换过去也只是白撞一次墙，还多一次计费。
+ */
+function othersThan(a) {
+  const seen = new Set(a?.id ? [a.id] : []);
+  const out = [];
+  const add = c => { if (c && !seen.has(c.id)) { seen.add(c.id); out.push(c); } };
+  add(config());
+  add(fallbackConfig());
+  chatPresets().forEach(p => add(usable(asConfig(p))));
+  return out;
 }
 
 /**
- * 跑一次。
+ * 跑一次，失败了按顺序换下一套。
  *
- * **失败之后换另一套再试是第二次调用，所以默认关着**（第 15 条）。
- * 想开在「设置 - 用量与上限」里。取消不算失败，任何时候都不触发。
+ * **换一套再试是第二次调用，所以默认关着**（第 15 条）。开关和「最多换几套」
+ * 都在「设置 - 用量与上限」里，默认那一档只换一套 —— 和从前的「改用副用」
+ * 一模一样，所以开着这个开关的人不会因为这次改动突然多花钱。
+ *
+ * **取消不算失败**，任何时候都不往下换：人都不要了，再换一套是凭空一笔账。
  */
 async function runWith(taskId, run) {
   const a = presetFor(taskId);
   if (!a) throw new Error('还没有配置接口，或者配的那个没填全（缺密钥或模型）');
-  try {
-    return await run(a);
-  } catch (err) {
-    const b = settings.get().chatFallback === true && !isAbort(err) ? otherThan(a) : null;
-    if (!b) {
-      // 把是哪个预设挂的写进报错，不然一句「请求失败」根本没法查
-      err.message = `${a.name || '接口'}：${err.message}`;
-      throw err;
+  const rest = settings.get().chatFallback === true
+    ? othersThan(a).slice(0, failoverMax()) : [];
+  const chain = [a, ...rest];
+
+  let last = null;
+  for (let i = 0; i < chain.length; i++) {
+    try {
+      return await run(chain[i]);
+    } catch (err) {
+      if (isAbort(err)) throw err;
+      last = err;
+      if (i + 1 < chain.length) {
+        console.warn(`[ai] ${chain[i].name || '接口'} 失败，改用 ${chain[i + 1].name || '下一套'}`,
+          err.message);
+      }
     }
-    console.warn('[ai] 接口失败，改用另一套', err.message);
-    return run(b);
   }
+  // 是哪几套挂的要写进报错。只说「请求失败」的话，配了五套的人根本没法查
+  const names = chain.map(c => c.name || '接口').join('、');
+  last.message = chain.length > 1
+    ? `${names} 都失败了。最后一个的报错：${last.message}`
+    : `${names}：${last.message}`;
+  throw last;
 }
 
 const runnerFor = taskId => run => runWith(taskId, run);

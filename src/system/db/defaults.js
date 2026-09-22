@@ -53,7 +53,8 @@ export const DEFAULT_SETTINGS = {
   // 一次回复只允许一次接口调用。会让它变成两次以上的，一律默认关着。
   // 见 CLAUDE.md 第 15 条，清单在 ai/cost.js
   retryMax: 0,                    // 429 / 5xx 自动重试几次。上限 3，0 为不重试
-  chatFallback: false,            // 主用接口失败时改用另一套再试一次
+  chatFallback: false,            // 接口失败时按顺序换下一套再试
+  failoverMax: 1,                 // 最多再换几套。0 = 列表里其余的全试（第 13 条）
 
   // 翻译。语言挂在会话上（chat.translateTo），这里只管怎么显示
   translateOpen: 'tap',           // tap | always

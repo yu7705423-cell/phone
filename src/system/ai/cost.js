@@ -44,10 +44,13 @@ export const EXTRA_CALLS = [
   },
   {
     id: 'chatFallback',
-    label: '主用接口失败时改用副用',
+    label: '接口失败时自动换下一套',
     setting: 'chatFallback', off: false,
     on: s => s.chatFallback === true,
-    when: '仅在主用接口报错时',
+    when: () => {
+      const n = swapCount();
+      return n > 0 ? `仅在接口报错时，最多再换 ${n} 套` : '仅在接口报错时（当前没有别的接口可换）';
+    },
   },
   {
     id: 'retryMax',
@@ -145,6 +148,30 @@ export const EXTRA_CALLS = [
   },
 ];
 
+/**
+ * 失败之后最多再换几套。
+ *
+ * **填 0 是「其余的全试」，不是「一套都不试」**（第 13 条：能改到「全都要」）。
+ * 关不关这件事归 `chatFallback` 那个开关管，不归这个数字管 —— 两个都能关
+ * 的话，用户会在两处之间来回猜到底哪个说了算。
+ */
+export function failoverMax() {
+  const n = Math.round(Number(settings.get().failoverMax));
+  if (!Number.isFinite(n) || n < 0) return 1;
+  return n === 0 ? Infinity : n;
+}
+
+/** 填全了的聊天接口有几套。没填全的不算 —— 换过去也是白撞一次墙。 */
+export const usableChatCount = () =>
+  svc.chatPresets().filter(p => p && p.apiKey && p.model).length;
+const usablePresets = usableChatCount;
+
+/** 这一次失败之后，实际还能换几套。 */
+export function swapCount() {
+  if (settings.get().chatFallback !== true) return 0;
+  return Math.max(0, Math.min(failoverMax(), usablePresets() - 1));
+}
+
 // 重试次数。上限写死 3 —— 再多也救不回来，只是把同一个错误的账单乘以四。
 export const RETRY_CAP = 3;
 export function retryMax() {
@@ -182,13 +209,6 @@ export function perTurn(chatId) {
   return n;
 }
 
-/** 主用和副用是不是两套不同的。允许配成同一个，那种情况下换不出去。 */
-function twoConfigs() {
-  const a = svc.activeChat();
-  const b = svc.fallbackChat();
-  return !!(a && b && a.id !== b.id);
-}
-
 /**
  * **一次调用失败时，实际会打出去几个请求。**
  *
@@ -204,7 +224,9 @@ function twoConfigs() {
 export function attemptsPerCall() {
   // 聊天那几处 enqueue 给的 retries 都写的 1，真正试几次取它与 retryMax 里小的那个
   const tries = 1 + Math.min(1, retryMax());
-  const swap = settings.get().chatFallback === true && twoConfigs() ? 2 : 1;
+  // 换几套要按**真能换出去几套**算：开关开着但只配了一套，换不出去，
+  // 那就还是 1。界面上写「最多 4 次」而实际只有 2 次，同样是把账说错
+  const swap = 1 + swapCount();
   return tries * swap;
 }
 
