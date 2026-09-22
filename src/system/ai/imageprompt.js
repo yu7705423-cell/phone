@@ -83,17 +83,33 @@ export const loreFor = (char, prompt) => textOf(activateImage(char, prompt));
  * 越靠前越是「这一张要画什么」，越靠后越是「一直都这么画」。生图世界书排在
  * 角色与全局之前，因为它是按这一张的内容命中的，比那两个更贴着这一张。
  */
-export function compose({ prompt, char, face = '' }) {
+export function parts({ prompt, char, face = '' }) {
   const text = String(prompt || '').trim();
-  const parts = [text];
-  if (face) parts.push(`The appearance of the person in frame: ${face}`);
+  const out = [{ from: '画面描述', text }];
+  if (face) out.push({ from: '角色外貌（锁脸读出来的）', text: `The appearance of the person in frame: ${face}` });
   const lore = loreFor(char, text);
-  if (lore) parts.push(lore);
+  if (lore) out.push({ from: '生图世界书', text: lore });
   const own = String(char?.imagePrompt || '').trim();
-  if (own) parts.push(own);
+  if (own) out.push({ from: '这个角色的固定提示词', text: own });
   const global = String(settings.get().imagePrompt || '').trim();
-  if (global) parts.push(global);
-  return parts.filter(Boolean).join('\n');
+  if (global) out.push({ from: '全局生图提示词', text: global });
+  return out.filter(x => x.text);
+}
+
+export function compose(args) {
+  return parts(args).map(x => x.text).join('\n');
+}
+
+/**
+ * 拼出来的每一段各是从哪儿来的。
+ *
+ * **最终发出去的那一串常常不止「画面描述」。** 后面还接着锁脸读出来的外貌、
+ * 生图世界书、角色自己的固定提示词、全局提示词 —— 画出来不对劲时，
+ * 十有八九是后面这几段里写了什么，而它们平时一个字都不露。
+ * 抓包里逐段标出来，一眼就看得出是哪一段带进去的。
+ */
+export function explain(args) {
+  return parts(args).map(x => `【${x.from}】\n${x.text}`).join('\n\n');
 }
 
 // 这一次要不要把脸图本身传过去

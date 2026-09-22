@@ -4,6 +4,7 @@ import { enqueue } from './queue.js';
 import { unzip } from '../zip.js';
 import { nfetch, routeOf, canNative, reachable } from '../net.js';
 import { images } from '../db/index.js';
+import * as trace from './trace.js';
 
 /**
  * 生图。两套接口，一套一个 kind：
@@ -108,6 +109,13 @@ function sizeOf(preset) {
  */
 async function novelai(p, { prompt, signal }) {
   const base = baseOf(p.baseUrl, 'https://image.novelai.net');
+  const tr = track({ p, url: `${base}/ai/generate-image`, prompt });
+  try {
+    return await naiCall(p, base, prompt, signal, tr);
+  } catch (err) { tr.fail(err); throw err; }
+}
+
+async function naiCall(p, base, prompt, signal, tr) {
   const { w, h } = sizeOf(p);
   const res = await ask(`${base}/ai/generate-image`, {
     method: 'POST', signal,
@@ -129,7 +137,34 @@ async function novelai(p, { prompt, signal }) {
   const files = await unzip(await res.blob());
   const png = [...files.entries()].find(([name]) => /\.png$/i.test(name));
   if (!png) throw new Error('接口回来的压缩包里没有图片');
-  return new Blob([await png[1].arrayBuffer()], { type: 'image/png' });
+  const out = new Blob([await png[1].arrayBuffer()], { type: 'image/png' });
+  tr.done(`取回 ${out.size} 字节`);
+  return out;
+}
+
+/**
+ * 把这一次生图记进抓包。
+ *
+ * **从前一条都不记。** 聊天那边记得清清楚楚，生图这边发出去什么、
+ * 走的哪个端点、带没带参考图，屏幕上一点痕迹都没有 —— 于是「画出来的
+ * 东西不对」这件事既没法自己查，也没法说给别人听。
+ *
+ * 记的是**拼完的最终提示词**：画面描述之外还接了外貌描述、生图世界书、
+ * 角色固定提示词、全局提示词，出问题的常常正是后面这几段。
+ */
+function track({ p, url, prompt, withRef, parts }) {
+  return trace.begin({
+    taskId: withRef ? '生图 · 带参考图' : '生图',
+    preset: p?.name || '生图接口',
+    model: p?.model || '',
+    system: `${url}\n尺寸 ${sizeText(p?.size)}`
+      + (p?.respFormat ? `\n返回格式 ${p.respFormat}` : '\n返回格式 自动')
+      + (withRef ? '\n这一次带了参考图（走 images/edits）' : '\n这一次是纯文生图'),
+    messages: [
+      { role: '最终发出去的提示词', content: prompt },
+      ...(parts ? [{ role: '它由哪几段拼成', content: parts }] : []),
+    ],
+  });
 }
 
 /**
@@ -180,7 +215,7 @@ function editEndpoint(preset) {
 
 // 带参考图的那条路。走 multipart 的 images/edits —— 文生图那个端点收不了图，
 // 想让它照着一张脸画就只能换端点。接口不认的话由调用方退回纯文字那条路。
-export function generateWithRef({ prompt, refBlob, preset, key }) {
+export function generateWithRef({ prompt, refBlob, preset, key, parts }) {
   const p = preset || activeImage();
   if (!p || !p.apiKey) throw new Error('还没有配置生图接口');
   const text = needPrompt(prompt);
@@ -195,13 +230,18 @@ export function generateWithRef({ prompt, refBlob, preset, key }) {
     form.append('n', '1');
     form.append('size', sizeText(p.size));
     form.append('image', new File([refBlob], 'face.png', { type: refBlob.type || 'image/png' }));
-    const res = await ask(editEndpoint(p), {
-      method: 'POST', signal,
-      headers: { authorization: `Bearer ${p.apiKey}` },   // multipart 的 content-type 交给浏览器带边界
-      body: form,
-    });
-    if (!res.ok) await asError(res);
-    return pickImage(await res.json(), signal);
+    const tr = track({ p, url: editEndpoint(p), prompt: text, withRef: true, parts });
+    try {
+      const res = await ask(editEndpoint(p), {
+        method: 'POST', signal,
+        headers: { authorization: `Bearer ${p.apiKey}` },   // multipart 的 content-type 交给浏览器带边界
+        body: form,
+      });
+      if (!res.ok) await asError(res);
+      const out = await pickImage(await res.json(), signal);
+      tr.done(`取回 ${out.size} 字节`);
+      return out;
+    } catch (err) { tr.fail(err); throw err; }
   }, { retries: 0 });
 }
 
@@ -220,25 +260,30 @@ export const needPrompt = text => {
 };
 
 // 返回一个 Blob，交给 images 域压缩入库，和其他图片一样存本地
-export function generate({ prompt, preset, key }) {
+export function generate({ prompt, preset, key, parts }) {
   const p = preset || activeImage();
   if (!p || !p.apiKey) throw new Error('还没有配置生图接口');
   const text = needPrompt(prompt);
 
   return enqueue(key || `img:${Date.now()}`, async signal => {
     if (kindOf(p.kind).id === 'nai') return novelai(p, { prompt: text, signal });
-    const res = await ask(endpoint(p), {
-      method: 'POST', signal,
-      headers: { 'content-type': 'application/json', authorization: `Bearer ${p.apiKey}` },
-      body: JSON.stringify({
-        model: p.model, prompt: text,
-        n: 1, size: sizeText(p.size),
-        // 空字符串那一档整个字段不发，见 FORMATS
-        ...(p.respFormat ? { response_format: p.respFormat } : {}),
-      }),
-    });
-    if (!res.ok) await asError(res);
-    return pickImage(await res.json(), signal);
+    const tr = track({ p, url: endpoint(p), prompt: text, parts });
+    try {
+      const res = await ask(endpoint(p), {
+        method: 'POST', signal,
+        headers: { 'content-type': 'application/json', authorization: `Bearer ${p.apiKey}` },
+        body: JSON.stringify({
+          model: p.model, prompt: text,
+          n: 1, size: sizeText(p.size),
+          // 空字符串那一档整个字段不发，见 FORMATS
+          ...(p.respFormat ? { response_format: p.respFormat } : {}),
+        }),
+      });
+      if (!res.ok) await asError(res);
+      const out = await pickImage(await res.json(), signal);
+      tr.done(`取回 ${out.size} 字节`);
+      return out;
+    } catch (err) { tr.fail(err); throw err; }
   }, { retries: 0 });
 }
 

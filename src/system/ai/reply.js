@@ -1071,6 +1071,7 @@ async function generateImage(msgId, prompt, char) {
         if (ref) {
           blob = await imageSvc.generateWithRef({
             prompt: imgPrompt.compose({ prompt, char }), refBlob: ref,
+            parts: imgPrompt.explain({ prompt, char }),
             preset, key: `msg-img:${msgId}`,
           });
         }
@@ -1088,6 +1089,7 @@ async function generateImage(msgId, prompt, char) {
     const face = lock ? await imgPrompt.ensureFaceDesc(char).catch(() => '') : '';
     const blob = await imageSvc.generate({
       prompt: imgPrompt.compose({ prompt, char, face }),
+      parts: imgPrompt.explain({ prompt, char, face }),
       preset, key: `msg-img:${msgId}`,
     });
     messages.update(msgId, { imageId: await imageSvc.toLibrary(blob), media: 'done' });
