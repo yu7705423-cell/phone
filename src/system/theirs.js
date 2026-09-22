@@ -63,10 +63,19 @@ function mmddOf(raw) {
   return '';
 }
 
-/** 设定正文里出现过的头一串四位数。用 (^|\D) 而不是后顾断言：iOS 15 上没有。 */
-function fourInText(text) {
-  const m = String(text || '').match(/(^|\D)(\d{4})(\D|$)/);
-  return m ? m[2] : '';
+/** 设定正文里出现过的四位数，按出现顺序。用 (^|\D) 而不是后顾断言：iOS 15 上没有。 */
+function foursInText(text) {
+  const out = [];
+  const re = /(^|\D)(\d{4})(?=\D|$)/g;
+  let m;
+  while ((m = re.exec(String(text || '')))) out.push(m[2]);
+  return out;
+}
+
+/** 生日那一栏里的年份。只认像年份的那个范围，免得把 0314 当成年。 */
+function yearOf(raw) {
+  const m = String(raw || '').match(/(19\d{2}|20\d{2})/);
+  return m ? m[1] : '';
 }
 
 // 两样都没有的时候按角色 id 推一串。**这一串是猜不出来的**，
@@ -78,47 +87,85 @@ const hashOf = s => {
 };
 
 /**
- * 不调接口，按角色卡当场推一个密码出来。
- * 依据按这个顺序取：生日、设定正文里的四位数、角色 id。
+ * 这个角色身上有哪几样能当密码。按「好猜到难猜」排，但**排在前面不等于会被选中**。
+ *
+ * 从前是「有生日就用生日」，于是几乎每台手机都是生日 —— 第一次猜中之后，
+ * 后面每一台都不用猜了，这个玩法当场失效。
  */
-export function localLock(char) {
-  if (!char) return null;
+function lockPicks(char) {
+  const out = [];
+  const seen = new Set();
+  const add = x => { if (x.code && !seen.has(x.code)) { seen.add(x.code); out.push(x); } };
+
   const bd = mmddOf(char.birthday);
-  if (bd) {
-    return {
-      code: bd,
-      why: '该角色的生日',
-      src: 'birthday',
-      hints: [
-        '这串数字是一个日期。',
-        '那是这台手机的主人自己的日期。',
-        `月份是 ${Number(bd.slice(0, 2))} 月。`,
-      ],
-      shown: 0,
-    };
-  }
-  const four = fourInText([char.persona, char.description, char.signature]
+  add({
+    code: bd, why: '该角色的生日', src: 'birthday',
+    hints: [
+      '这串数字是一个日期。',
+      '那是这台手机的主人自己的日期。',
+      bd ? `月份是 ${Number(bd.slice(0, 2))} 月。` : '',
+    ].filter(Boolean),
+  });
+
+  const yr = yearOf(char.birthday);
+  add({
+    code: yr, why: '该角色出生的年份', src: 'birthyear',
+    hints: [
+      '这串数字是一个年份。',
+      '那是这台手机的主人出生的那一年。',
+      yr ? `它在 ${yr.slice(0, 3)}0 年代。` : '',
+    ].filter(Boolean),
+  });
+
+  const fours = foursInText([char.persona, char.description, char.signature]
     .filter(Boolean).join('\n'));
-  if (four) {
-    return {
-      code: four,
-      why: '该角色设定中出现过的四位数字',
-      src: 'text',
+  if (fours[0]) {
+    add({
+      code: fours[0], why: '该角色设定中出现的第一串四位数字', src: 'text',
       hints: [
         '这串数字在该角色的设定里写着。',
         '它是设定正文中出现的第一串四位数字。',
-        `第一位是 ${four[0]}。`,
+        `第一位是 ${fours[0][0]}。`,
       ],
+    });
+  }
+  if (fours.length > 1) {
+    const last = fours[fours.length - 1];
+    add({
+      code: last, why: '该角色设定中出现的最后一串四位数字', src: 'text-last',
+      hints: [
+        '这串数字在该角色的设定里写着。',
+        '它是设定正文中出现的最后一串四位数字。',
+        `第一位是 ${last[0]}。`,
+      ],
+    });
+  }
+  return out;
+}
+
+/**
+ * 不调接口，按角色卡当场推一个密码出来。
+ *
+ * **依据是随机挑的，但对同一个角色永远挑中同一个。** 用角色 id 当种子 ——
+ * 真随机的话，这个函数每调一次就换一个密码，人昨天记住的今天就打不开了
+ * （密码并不落库，见本文件开头）。
+ *
+ * 为什么要挑：从前「有生日就用生日」，几乎每台手机都是生日，
+ * 猜中一台之后剩下的全都不用猜了。
+ */
+export function localLock(char) {
+  if (!char) return null;
+  const picks = lockPicks(char);
+  if (!picks.length) {
+    return {
+      code: String(hashOf(char.id) % 10000).padStart(4, '0'),
+      why: '该角色的设定中没有可以作为依据的数字，这串是按角色标识推出的',
+      src: 'random',
+      hints: ['该角色的设定中没有可以作为密码依据的信息。这串数字无从推测，可以直接查看。'],
       shown: 0,
     };
   }
-  return {
-    code: String(hashOf(char.id) % 10000).padStart(4, '0'),
-    why: '该角色的设定中没有可以作为依据的数字，这串是按角色标识推出的',
-    src: 'random',
-    hints: ['该角色的设定中没有可以作为密码依据的信息。这串数字无从推测，可以直接查看。'],
-    shown: 0,
-  };
+  return { ...picks[hashOf(`${char.id}:lock`) % picks.length], shown: 0 };
 }
 
 /**

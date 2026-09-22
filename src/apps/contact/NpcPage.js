@@ -1,6 +1,6 @@
 import { html, useState } from '../../lib.js';
 import { phone, useStore } from '../../sdk/index.js';
-import { Page, List, ListItem, Field, Input, Button, Icon, Spinner,
+import { Page, List, ListItem, Field, Input, Textarea, Button, Icon, Spinner,
          Sheet, EmptyState, NumberInput, toast, prompt } from '../../ui/index.js';
 
 const { db, nav, ai } = phone;
@@ -15,6 +15,8 @@ export function NpcPage({ id }) {
   const [rows, setRows] = useState(null);
   const [off, setOff] = useState(new Set());
   const [picking, setPicking] = useState(false);
+  // 直接打字新建那一张表。空对象表示没开着
+  const [draft, setDraft] = useState(null);
 
   if (!char) {
     return html`<${Page} title="关联角色" onBack=${nav.pop}>
@@ -61,6 +63,31 @@ export function NpcPage({ id }) {
     toast('已建立关联', 'ok');
   };
 
+  // 直接在这一页打字建一个人，建完当场关联。
+  //
+  // 从前只有两条路：从已有角色里挑、或者让模型批量生成。想加一个自己想好的人，
+  // 得先退出去到「联系」里新建，再回来绑 —— 中间那两步和这件事本身无关。
+  //
+  // 存进去的和批量生成那批是同一种东西（`commitNpcs`），所以此后它也能单独聊天。
+  const addTyped = () => {
+    const d = draft || {};
+    const name = String(d.name || '').trim();
+    if (!name) { toast('请填写姓名'); return; }
+    const mine = String(d.mine || '').trim();      // 在主角看来，这个人是什么
+    const theirs = String(d.theirs || '').trim();  // 反过来
+    // 反向没填就沿用正向。多数关系是对称的（同事、邻居），
+    // 强迫填两遍只会让人填一样的字
+    const [made] = card.commitNpcs(id, [{
+      name,
+      signature: String(d.signature || '').trim(),
+      persona: String(d.persona || '').trim(),
+      relation: theirs || mine,
+      reverse: mine || theirs,
+    }]);
+    setDraft(null);
+    toast(`已添加 ${made.name}`, 'ok');
+  };
+
   const cut = r => {
     card.unlink(id, r.charId);
     toast('已解除关联');
@@ -102,8 +129,12 @@ export function NpcPage({ id }) {
                 right=${html`<button class="press li-cut" onClick=${e => { e.stopPropagation(); cut(r); }}>
                   <${Icon} name="close" size=${15}/></button>`}/>`;
           })}
-          <${ListItem} title="手动添加关联" subtitle=${`从已有的 ${others.length} 个角色中选择`} arrow multiline
+          <${ListItem} title="直接新建一个人" multiline arrow
+            subtitle="在此处填写姓名与关系即可，无需先到「联系」中新建再回来关联"
             left=${html`<${Icon} name="plus" size=${18}/>`}
+            onClick=${() => setDraft({})}/>
+          <${ListItem} title="关联已有的角色" subtitle=${`从已有的 ${others.length} 个角色中选择`} arrow multiline
+            left=${html`<${Icon} name="users" size=${18}/>`}
             onClick=${() => others.length ? setPicking(true) : toast('没有可关联的其他角色')}/>
         <//>
 
@@ -122,6 +153,34 @@ export function NpcPage({ id }) {
           <//>
         </div>
       `}
+
+      <${Sheet} open=${!!draft} onClose=${() => setDraft(null)} title="新建一个人" height="86%">
+        <${Field} label="姓名">
+          <${Input} value=${draft?.name || ''} placeholder="必填"
+            onInput=${v => setDraft(d => ({ ...d, name: v }))}/>
+        <//>
+        <${Field} label=${`在 ${char.name} 看来，这个人是`}>
+          <${Input} value=${draft?.mine || ''} placeholder="例如 妈妈 / 室友 / 前男友"
+            onInput=${v => setDraft(d => ({ ...d, mine: v }))}/>
+        <//>
+        <${Field} label=${`反过来，在这个人看来，${char.name} 是`}
+          desc="留空则与上一栏相同。同事、邻居一类的关系本就对称。">
+          <${Input} value=${draft?.theirs || ''} placeholder="例如 女儿 / 室友 / 前女友"
+            onInput=${v => setDraft(d => ({ ...d, theirs: v }))}/>
+        <//>
+        <${Field} label="一句话签名" desc="可留空。列表中显示的就是这一句。">
+          <${Input} value=${draft?.signature || ''} placeholder="可留空"
+            onInput=${v => setDraft(d => ({ ...d, signature: v }))}/>
+        <//>
+        <${Field} label="人设" desc="可留空，之后仍可在该角色的编辑页中补写。">
+          <${Textarea} rows=${5} value=${draft?.persona || ''} placeholder="可留空"
+            onInput=${v => setDraft(d => ({ ...d, persona: v }))}/>
+        <//>
+        <div class="sheet-acts">
+          <${Button} variant="ghost" onClick=${() => setDraft(null)}>取消<//>
+          <${Button} onClick=${addTyped}>建好并关联<//>
+        </div>
+      <//>
 
       <${Sheet} open=${picking} onClose=${() => setPicking(false)} title="选择要关联的角色" height="70%">
         <${List} inset=${false}>
