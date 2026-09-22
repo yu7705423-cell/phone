@@ -1,4 +1,4 @@
-import { html, useState } from '../../../lib.js';
+import { html, useState, useRef, useEffect } from '../../../lib.js';
 import { phone, useStore } from '../../../sdk/index.js';
 import { Sheet, Field, Input, Button, Icon, List, ListItem, Switch, Segmented, toast } from '../../../ui/index.js';
 
@@ -360,22 +360,95 @@ export function CallBubble({ msg, onOpen }) {
 }
 
 // 通话全文
+// 一句话的声音。一轮可能合成了好几段（按句切的），依次接着放
+function LinePlay({ ids }) {
+  const [on, setOn] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => () => { ref.current?.pause(); }, []);
+  const play = async () => {
+    if (on) { ref.current?.pause(); setOn(false); return; }
+    setOn(true);
+    for (const id of ids) {
+      const url = await db.files.url(id).catch(() => null);
+      if (!url) continue;
+      const a = new Audio(url);
+      ref.current = a;
+      const ended = await new Promise(res => { a.onended = () => res(true); a.onpause = () => res(false);
+        a.onerror = () => res(true); a.play().catch(() => res(true)); });
+      if (!ended) break;
+    }
+    ref.current = null;
+    setOn(false);
+  };
+  return html`<button class="log-play press" onClick=${play} aria-label=${on ? '停止' : '播放这一句'}>
+    <${Icon} name=${on ? 'pause' : 'play'} size=${13}/></button>`;
+}
+
+/**
+ * 通话记录。
+ *
+ * 原文、译文、每一句的声音、总结，以及整通电话的声音下载。
+ * 声音只有走语音接口合成的那几句才有 —— 浏览器自带那档是现念的，
+ * 自己说的话是现场识别的，都没有文件可存。界面上照实说。
+ */
 export function CallLogSheet({ msg, onClose }) {
+  useStore(db.messages.store);
+  const [summing, setSumming] = useState(false);
   if (!msg) return null;
-  const chat = db.chats.get(msg.chatId);
+  const fresh = db.messages.get(msg.id) || msg;
+  const chat = db.chats.get(fresh.chatId);
   const char = db.characters.get((chat?.characterIds || [])[0]);
   const me = phone.accounts.current()?.name || '我';
-  const lines = msg.callLog || [];
+  const lines = fresh.callLog || [];
+  const voiced = lines.some(l => (l.audio || []).length);
+
+  const sum = async () => {
+    setSumming(true);
+    try { await call.summarize(fresh.id); }
+    catch (err) { toast(String(err.message || err), 'error', 4000); }
+    finally { setSumming(false); }
+  };
+  const download = async () => {
+    const blob = await call.wholeAudio(fresh.id);
+    if (!blob) { toast('这通电话没有可下载的声音'); return; }
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `${char?.name || '通话'}-${new Date(fresh.createdAt || Date.now())
+      .toISOString().slice(0, 16).replace(/[:T]/g, '')}.mp3`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  };
+
   return html`
     <${Sheet} open=${!!msg} onClose=${onClose}
-      title=${call.label(msg.direction, msg.outcome, msg.seconds, msg.callKind === 'video')} height="72%">
+      title=${call.label(fresh.direction, fresh.outcome, fresh.seconds, fresh.callKind === 'video')} height="80%">
       ${lines.length ? html`
         <div class="pad-x">
+          <div class="log-sum">
+            ${fresh.callSummary
+    ? html`<div class="log-sum-text">${fresh.callSummary}</div>`
+    : html`<div class="log-sum-empty">尚未生成总结。</div>`}
+            <div class="btn-row">
+              <${Button} size="sm" variant="ghost" icon="sparkle" disabled=${summing} onClick=${sum}>
+                ${summing ? '正在生成' : (fresh.callSummary ? '重新生成总结' : '生成总结')}<//>
+              ${voiced ? html`
+                <${Button} size="sm" variant="ghost" icon="download" onClick=${download}>下载整通语音<//>` : null}
+            </div>
+          </div>
           ${lines.map((l, i) => html`
             <div key=${i} class="log-line">
               <span class="log-who">${l.role === 'user' ? me : (char?.name || '对方')}</span>
-              <span class="log-text">${l.text}</span>
+              <span class="log-body">
+                <span class="log-text">${l.text}</span>
+                ${l.trans ? html`<span class="log-trans">${l.trans}</span>` : null}
+              </span>
+              ${(l.audio || []).length ? html`<${LinePlay} ids=${l.audio}/>` : null}
             </div>`)}
+          ${voiced ? null : html`
+            <div class="settings-foot">
+              这通电话没有保存声音。只有在通话中打开喇叭、且通过语音接口合成的句子才会保存；
+              浏览器自带的合成与你自己说的话没有文件。
+            </div>`}
         </div>`
       : html`<div class="settings-foot">这通电话没有留下内容。</div>`}
     <//>`;

@@ -364,6 +364,16 @@ Do not write actions, do not write inner thoughts, and do not use quotation
 marks. Use no bracketed markers of any kind. Images, stickers, and transfers
 cannot be sent during a call, and no timestamp is needed.`,
 
+  'task.call-summary':
+`Summarize the phone call transcript below into a short record.
+
+Cover, in order: what the call was about, what each side said that matters,
+anything agreed or left open, and how the call ended. Name each person the
+way the transcript names them.
+
+Write plainly, in {{lang}}. Do not add anything the transcript does not
+state, and do not leave out what it does state. No commentary.`,
+
   'task.call-open':
 `The call has just connected{{origin}}. You speak first: say one thing, then
 stop and wait for them to respond.`,

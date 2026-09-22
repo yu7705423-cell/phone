@@ -89,6 +89,23 @@ export const EXTRA_CALLS = [
     when: '角色每写一个 [语音：…]，先多一次接口标出该用什么语气（走副用接口）',
   },
   {
+    id: 'callSummary',
+    label: '打完电话自动总结',
+    setting: 'callSummary', off: false,
+    on: s => s.callSummary === true,
+    when: '每通接通过的电话挂断时一次（走副用接口）',
+  },
+  {
+    // 开关是那段对话自己的「翻译」设置，不是全局一项，所以没有 setting 要比对。
+    // 普通聊天在「随回复给出」那一档不另花钱，通话里一律另翻一道 ——
+    // 台词里夹着的译文会被念出来（见 system/call.js 的 plain）
+    id: 'callTranslate',
+    label: '通话中翻译角色的话',
+    setting: null,
+    on: () => chats.all().some(c => !!c.translateTo),
+    when: '开了翻译的对话里打电话时，角色每说完一轮一次（有单独的翻译接口就走它，否则走副用）',
+  },
+  {
     id: 'rerankOn',
     label: '召回之后重排一遍',
     setting: 'rerankOn', off: false,

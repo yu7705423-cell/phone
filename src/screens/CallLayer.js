@@ -23,6 +23,7 @@ function Lines({ lines, draft, thinking, me, char, onDark }) {
         <div key=${i} class=${`call-line${l.role === 'user' ? ' is-mine' : ''}`}>
           <span class="call-who">${l.role === 'user' ? me : char}</span>
           <span class="call-text">${l.text}</span>
+          ${l.trans ? html`<span class="call-trans">${l.trans}</span>` : null}
         </div>`)}
       ${draft ? html`
         <div class="call-line">

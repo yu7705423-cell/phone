@@ -1,4 +1,4 @@
-import { runJSONWithPreset } from './engine.js';
+import { runJSONWithPreset, runJSONTask } from './engine.js';
 import { template, fillTemplate } from './templates.js';
 import { translateConfig, translateMode, translateFilled } from './services.js';
 import { settings } from '../db/index.js';
@@ -83,6 +83,31 @@ export async function run(texts, opts = {}) {
     maxTokens: Math.max(600, list.join('').length * 4),
   });
 
+  const rows = rowsOf(r, list.length);
+  return list.map((_, i) => String(rows[i] ?? '').trim());
+}
+
+/**
+ * 翻一批，哪套接口都行。配了单独的翻译接口就走它，没配就走副用。
+ *
+ * **通话走这一条。** 普通聊天里「随回复给出」那一档是让模型在台词后面顺手
+ * 写一行 `[译文：…]`，不另花钱；可通话里那一行会被**原样念出来**、原样混进
+ * 字幕，而且 `skeleton.call` 明文禁止一切方括号标记 —— 两句话在同一份提示词里
+ * 打架。所以通话一律另翻一道：台词只管说，翻译归翻译。
+ *
+ * 走副用时用的是**同一份** `payload()`：只送要翻的那几行和翻译规则，
+ * 人设、记忆、对话一个字都不送（本文件开头那一段的理由在这里一样成立）。
+ */
+export async function runAny(texts, opts = {}) {
+  const list = (texts || []).map(t => String(t || '').trim());
+  if (!list.length) return [];
+  if (ready()) return run(list, opts);
+  const { system, user } = payload(list, opts);
+  const r = await runJSONTask('translate.lines', {
+    system, user,
+    key: opts.key || `translate-any:${Date.now()}`,
+    maxTokens: Math.max(600, list.join('').length * 4),
+  });
   const rows = rowsOf(r, list.length);
   return list.map((_, i) => String(rows[i] ?? '').trim());
 }

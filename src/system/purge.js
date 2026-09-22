@@ -40,6 +40,7 @@ export function clearHistory(charId) {
       if (m.posterId) imgs.push(m.posterId);     // 视频消息的海报
       if (m.audioId) files.remove(m.audioId);
       if (m.clipId) files.remove(m.clipId);
+      callAudio(m).forEach(id => files.remove(id));
     }
     n += messages.removeWhere(m => m.chatId === chat.id);
     chats.update(chat.id, { memoryUpTo: null, memoryTriedId: null, summary: '', unread: 0 });
@@ -78,6 +79,7 @@ export function dropChat(chatId) {
     if (m.posterId) imgs.push(m.posterId);       // 视频消息的海报
     if (m.audioId) files.remove(m.audioId);
     if (m.clipId) files.remove(m.clipId);
+    callAudio(m).forEach(id => files.remove(id));
   }
   messages.removeWhere(m => m.chatId === chatId);
   spaceItems.byIndex(chatId).slice().forEach(x => spaceItems.remove(x.id));
@@ -158,6 +160,9 @@ export function clearAll(charId) {
  * 库里有哪些图片还有人引用。清理无引用图片时照着这张单子留。
  * **漏一处就是删一批**，所以往 images 里存东西的地方都要在这里留一行。
  */
+/** 一条通话记录里存下来的声音。每一行一个清单，按句切的所以可能不止一段 */
+export const callAudio = m => (m?.kind === 'call' ? (m.callLog || []).flatMap(l => l?.audio || []) : []);
+
 export function usedImageIds() {
   const used = new Set();
   const add = id => id && used.add(id);
@@ -241,8 +246,14 @@ export function fileUsers() {
   songs.all().forEach(g => put(g.audioId, 'song', g.title || '未命名歌曲'));
   ebooks.all().forEach(b => put(b.fileId, 'book', b.title || '未命名书籍'));
 
-  // 语音与视频消息。标上是哪个会话的，删之前看得出要紧不要紧
+  // 语音与视频消息，以及通话里存下来的声音。标上是哪个会话的，删之前看得出要紧不要紧
   messages.all().forEach(m => {
+    const said = callAudio(m);
+    if (said.length) {
+      const chat = chats.get(m.chatId);
+      const who = (chat?.characterIds || []).map(id => characters.get(id)?.name).filter(Boolean).join('、');
+      said.forEach(id => put(id, 'call', who ? `与${who}的通话` : '通话中的声音'));
+    }
     if (!m.audioId && !m.clipId) return;
     const chat = chats.get(m.chatId);
     const who = (chat?.characterIds || [])

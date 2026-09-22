@@ -35,6 +35,11 @@ export function TranslatePage({ chatId }) {
           right=${html`<${Switch} checked=${on}
             onChange=${v => { setDraft(null); set({ translateTo: v ? (draft || '中文') : '' }); }}/>`}/>
       <//>
+      ${on ? html`
+        <div class="settings-foot">
+          通话中也按这一项翻译：角色说的原文照常交给语音接口念出，字幕在原文下方显示译文。
+          通话中的翻译单独调用接口，角色每说完一轮调用一次；配置了翻译接口时走翻译接口，否则走副用接口。
+        </div>` : null}
 
       ${on ? html`
         <div class="pad">

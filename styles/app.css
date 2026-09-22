@@ -1113,6 +1113,8 @@ button.search-bar { width: 100%; border: none; }
 .call-line.is-mine { text-align: right; }
 .call-who { display: block; font-size: var(--fs-12); color: var(--text-3); margin-bottom: 2px; }
 .call-text { font-size: var(--fs-17); line-height: 1.65; }
+/* 译文在原文下面另起一行。念出来的是原文，看得懂的是这一行 */
+.call-trans { display: block; margin-top: 2px; font-size: var(--fs-14); line-height: 1.6; color: var(--text-2); }
 
 .call-heard {
   flex: none; min-height: 22px; text-align: center;
@@ -1158,6 +1160,23 @@ button.search-bar { width: 100%; border: none; }
 .log-line { margin-bottom: var(--sp-4); }
 .log-who { display: block; font-size: var(--fs-12); color: var(--text-3); margin-bottom: 2px; }
 .log-text { font-size: var(--fs-15); line-height: 1.65; }
+.log-line { display: grid; grid-template-columns: 1fr auto; column-gap: var(--sp-2); align-items: start; }
+.log-line .log-who { grid-column: 1 / -1; }
+.log-body { display: block; min-width: 0; }
+.log-trans { display: block; margin-top: 2px; font-size: var(--fs-13); line-height: 1.6; color: var(--text-2); }
+.log-play {
+  width: 28px; height: 28px; border-radius: var(--r-full); margin-top: 2px;
+  background: var(--surface-2); color: var(--text-2);
+  display: flex; align-items: center; justify-content: center;
+}
+/* 总结放最上面：打开记录先看到的是「这通电话说了什么」，不是第一句话 */
+.log-sum {
+  margin-bottom: var(--sp-5); padding: var(--sp-3);
+  border-radius: var(--r-md); background: var(--surface-2);
+  display: flex; flex-direction: column; gap: var(--sp-2);
+}
+.log-sum-text { font-size: var(--fs-14); line-height: 1.7; white-space: pre-wrap; }
+.log-sum-empty { font-size: var(--fs-13); color: var(--text-3); }
 
 /* 视频通话：对方铺满整屏，字幕压在上面，所以要一层压暗 */
 .call-layer.is-video { color: var(--on-scrim); }
@@ -1183,6 +1202,7 @@ button.search-bar { width: 100%; border: none; }
 .call-layer.is-video .call-foot { opacity: .8; }
 .call-lines.on-dark .call-who { color: var(--on-scrim); opacity: .7; }
 .call-lines.on-dark .call-text { color: var(--on-scrim); }
+.call-lines.on-dark .call-trans { color: var(--on-scrim); opacity: .75; }
 /* 压在画面上时全部半透明；开着的那个加一圈描边，挂断是唯一的实心，
    这样「实心=挂断」在视频里也成立 */
 .call-layer.is-video .call-key { background: rgba(255, 255, 255, .2); color: var(--on-scrim); }

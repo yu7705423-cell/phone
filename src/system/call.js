@@ -1,10 +1,11 @@
 import { createStore } from './store.js';
-import { chats, characters, messages, settings } from './db/index.js';
+import { chats, characters, messages, settings, files } from './db/index.js';
 import * as accounts from './accounts.js';
 import * as audio from './audio.js';
 import * as voice from './ai/voice.js';
 import { isVoiceReady } from './ai/voice.js';
-import { buildCallSystem, streamCall, cancelCall, template, isConfigured } from './ai/engine.js';
+import { buildCallSystem, streamCall, cancelCall, template, isConfigured, runTextTask } from './ai/engine.js';
+import * as translate from './ai/translate.js';
 import { isAbort } from './ai/queue.js';
 import { fillTemplate } from './ai/templates.js';
 import { configOf, inQuiet } from './ai/proactive.js';
@@ -109,12 +110,33 @@ function canUseApi(char) {
   return isVoiceReady() && !!char?.voiceId && char.canSendVoice !== false;
 }
 
-async function playOne(text, char) {
+/**
+ * 念一句。`item` 是 `{ text, bucket }`：bucket 是这一句所属那一轮的音频清单，
+ * 合成出来的声音存一份进去。
+ *
+ * **从前播完就 revoke，声音直接扔了。** 通话结束之后回不去听、也下载不了。
+ * 现在存进 files，挂在通话记录上（见 finish）。只有走语音接口的才有得存 ——
+ * 浏览器自带那档是现念的，本来就没有文件。
+ *
+ * **挂断之后不许再出声。** 从前挂断时正在合成的那一句，合成完照样 new Audio
+ * 播出来：人已经挂了，手机还在说话。hush 换代之后回来一看代号不对就作罢，
+ * 那一句也不存 —— 它没被听见，存下来反而对不上。
+ */
+async function playOne(item, char) {
+  const { text, bucket } = typeof item === 'string' ? { text: item, bucket: null } : item;
+  const mine = era;
   if (canUseApi(char)) {
     try {
       const url = await voice.speak({ text, voiceId: char.voiceId, speed: char.voiceSpeed || 1,
         ...voice.styleFor(char),
         key: `call-tts:${Date.now()}:${Math.random()}` });
+      if (mine !== era) { URL.revokeObjectURL(url); return; }
+      if (bucket) {
+        try {
+          const blob = await (await fetch(url)).blob();
+          bucket.push(await files.put(blob, { name: 'call.mp3', type: blob.type || 'audio/mpeg' }));
+        } catch (err) { console.warn('[call] 这一句的声音没存下来:', err.message || err); }
+      }
       await new Promise(resolve => {
         player = new Audio(url);
         player.onended = resolve;
@@ -129,6 +151,7 @@ async function playOne(text, char) {
       console.warn('[call] 语音接口没出声，改用浏览器合成:', err.message || err);
     }
   }
+  if (mine !== era) return;
   await audio.speakLocally(text);
 }
 
@@ -289,7 +312,7 @@ async function connect() {
   const chat = chats.get(chatId);
   const char = characters.get(charId);
   try {
-    systemPrompt = await buildCallSystem(chat, char);
+    systemPrompt = await buildCallSystem(plain(chat), char);
   } catch (err) {
     call.set({ error: '准备通话内容时出错：' + (err.message || err) });
   }
@@ -326,6 +349,7 @@ async function turn(opening) {
   call.set({ thinking: true, draft: '', error: '' });
   let buf = '';
   let spoken = 0;            // 已经排进播放队列的字数
+  const bucket = [];         // 这一轮合成出来的声音，存进 files 之后的 id
 
   // 一轮最多带一帧，而且离上一帧至少这么久 —— 你来我往说得快的时候，
   // 每句话都传一张图，贵得没道理，画面也没怎么变。
@@ -337,7 +361,7 @@ async function turn(opening) {
 
   try {
     const full = await streamCall({
-      chat, char, system: systemPrompt, lines: call.get().lines, opening, image: frame,
+      chat: plain(chat), char, system: systemPrompt, lines: call.get().lines, opening, image: frame,
       onDelta: (_, all) => {
         if (call.get().phase !== 'active') return;
         buf = all;
@@ -347,7 +371,7 @@ async function turn(opening) {
           const { out, rest } = takeSentences(all.slice(spoken));
           if (out.length) {
             spoken = all.length - rest.length;
-            queue.push(...out);
+            queue.push(...out.map(t => ({ text: t, bucket })));
             drain(char);
           }
         }
@@ -358,16 +382,18 @@ async function turn(opening) {
     if (call.get().phase !== 'active') return;
     if (!text) { call.set({ thinking: false, error: '对方那边没有声音' }); return; }
 
+    const idx = call.get().lines.length;
     call.set({
-      lines: [...call.get().lines, { role: 'char', text }],
+      lines: [...call.get().lines, { role: 'char', text, audio: bucket }],
       draft: '', thinking: false,
     });
     // 最后半句没有标点，收尾时补进去。这里按未整理过的 buf 下标算，
     // spoken 记的就是它的下标。
     if (call.get().speak && buf.length > spoken) {
       const tailText = buf.slice(spoken).trim();
-      if (tailText) { queue.push(tailText); drain(char); }
+      if (tailText) { queue.push({ text: tailText, bucket }); drain(char); }
     }
+    transLine(chat, idx, text);
   } catch (err) {
     if (isAbort(err)) return;
     call.set({ thinking: false, error: String(err.message || err) });
@@ -438,18 +464,117 @@ function finish(outcome) {
   if (chat && char) {
     const me = accounts.get(chat.personaId)?.name || accounts.current()?.name || '我';
     const body = lines.map(l => `${l.role === 'user' ? me : (char.name || '对方')}：${l.text}`).join('\n');
-    messages.create({
+    // **抄一份再存。** 每一行的 audio 是那一轮的 bucket，挂断时还可能有一句
+    // 在合成、回来往里 push —— 不抄的话那一 push 改的是库里这条记录的内存
+    // 副本，重开应用就没了，文件却留在那儿成了孤儿
+    const log = lines.map(l => ({ ...l, ...(l.audio ? { audio: [...l.audio] } : {}) }));
+    const msg = messages.create({
       chatId, kind: 'call',
       // 记在发起的那一方名下，气泡才落在正确的一侧
       role: direction === 'out' ? 'user' : 'char',
       authorId: direction === 'out' ? 'me' : charId,
-      direction, outcome, seconds, callLog: lines, callKind: video ? 'video' : 'voice',
+      direction, outcome, seconds, callLog: log, callKind: video ? 'video' : 'voice',
       content: `[${label(direction, outcome, seconds, video)}]${body ? '\n' + body : ''}`,
       status: 'done',
     });
+    lastMsgId = msg.id;
     chats.update(chatId, { lastMessageAt: Date.now() });
+    // 打完就总结。默认关着（第 15 条）：一通电话多一次调用
+    if (outcome === 'done' && log.length && settings.get().callSummary === true) {
+      summarize(msg.id).catch(err => console.warn('[call] 总结没生成:', err.message || err));
+    }
   }
   reset({ outcome });
+}
+
+// ---- 通话里的翻译 ----
+//
+// **台词只管说，翻译另翻一道。** 通话里不让模型在台词后面夹 `[译文：…]`：
+// 那一行会被原样念出来、混进字幕，而 skeleton.call 明文禁止方括号 ——
+// 两句话在同一份提示词里打架。所以拼提示词时把这段对话的翻译设置摘掉（plain），
+// 角色说完一整轮再单独翻。
+//
+// **念出来的永远是原文。** 送进语音接口的是角色说的那句话本身，
+// 字幕在原文下面另起一行显示译文。
+//
+// 开关就是这段对话自己的「翻译」设置（第 5 条），没开就一次都不翻。
+// 一轮一次，登记在 cost.js 的 callTranslate。
+const plain = chat => (chat && chat.translateTo ? { ...chat, translateTo: '' } : chat);
+
+let lastMsgId = '';
+
+async function transLine(chat, idx, text) {
+  if (!chat?.translateTo || !text) return;
+  let tr = '';
+  try {
+    [tr] = await translate.runAny([text], {
+      lang: chat.translateTo, extra: chat.translateRules, key: `call-tr:${chat.id}:${idx}`,
+    });
+  } catch (err) {
+    console.warn('[call] 这一句没翻出来:', err.message || err);
+    return;
+  }
+  if (!tr) return;
+  // 电话还在打：写回字幕
+  const cur = call.get().lines;
+  if (call.get().chatId === chat.id && cur[idx] && cur[idx].text === text) {
+    call.set({ lines: cur.map((l, i) => (i === idx ? { ...l, trans: tr } : l)) });
+    return;
+  }
+  // 已经挂了：写回刚落下的那条通话记录。翻译比挂断慢一步是常事，
+  // 不补回去的话最后那一句在记录里永远没有译文
+  const m = lastMsgId && messages.get(lastMsgId);
+  if (m && m.chatId === chat.id && m.callLog?.[idx]?.text === text) {
+    messages.update(m.id, { callLog: m.callLog.map((l, i) => (i === idx ? { ...l, trans: tr } : l)) });
+  }
+}
+
+// ---- 总结 ----
+//
+// 打完电话写一段总结。自动的那一档默认关着（第 15 条，登记在 cost.js 的
+// callSummary）；通话记录里另有一个按钮，随时手动生成一次。
+//
+// 总结写成**这段对话设置的翻译语言**，没设就跟通话本身同一种语言 ——
+// 那是写给人看的，而人已经在这段对话里说过自己要看什么语言了。
+export async function summarize(msgId) {
+  const m = messages.get(msgId);
+  if (!m || m.kind !== 'call') throw new Error('这条不是通话记录');
+  const lines = m.callLog || [];
+  if (!lines.length) throw new Error('这通电话没有留下内容');
+  const chat = chats.get(m.chatId);
+  const char = characters.get((chat?.characterIds || [])[0]);
+  const me = accounts.get(chat?.personaId)?.name || accounts.current()?.name || '我';
+  const body = lines.map(l => `${l.role === 'user' ? me : (char?.name || '对方')}：${l.text}`).join('\n');
+  const out = await runTextTask('call.summary', {
+    system: fillTemplate(template('task.call-summary'), {
+      lang: chat?.translateTo || 'the same language as the transcript',
+    }),
+    user: body,
+    key: `call-sum:${msgId}`,
+    maxTokens: 600,
+  });
+  const text = String(out || '').trim();
+  if (!text) throw new Error('没有生成出内容');
+  messages.update(msgId, { callSummary: text });
+  return text;
+}
+
+/**
+ * 整通电话的声音，按说话顺序接成一个文件。
+ *
+ * 各家语音接口回的都是 mp3，mp3 按帧存，首尾直接相接大多数播放器都认。
+ * 接不成（某一句的文件已被清理）就跳过那一句，不让整个下载失败。
+ */
+export async function wholeAudio(msgId) {
+  const m = messages.get(msgId);
+  const ids = (m?.callLog || []).flatMap(l => l.audio || []);
+  const blobs = [];
+  for (const id of ids) {
+    const b = await files.blob(id).catch(() => null);
+    if (b) blobs.push(b);
+  }
+  if (!blobs.length) return null;
+  return new Blob(blobs, { type: blobs[0].type || 'audio/mpeg' });
 }
 
 export function duration(sec) {

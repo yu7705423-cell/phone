@@ -88,6 +88,8 @@ export function collect(charId, { history = true } = {}) {
     if (m.posterId) imgIds.add(m.posterId);      // 视频消息的海报
     if (m.audioId) fileIds.add(m.audioId);
     if (m.clipId) fileIds.add(m.clipId);
+    // 通话里存下来的那几段声音
+    if (m.kind === 'call') (m.callLog || []).forEach(l => (l?.audio || []).forEach(id => id && fileIds.add(id)));
   });
   momentRows.forEach(m => (m.images || []).forEach(id => id && imgIds.add(id)));
   // 那台手机上的三处图：相册、壁纸、换过的应用图标
