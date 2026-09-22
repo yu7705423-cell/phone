@@ -54,7 +54,7 @@ export function Dock() {
   };
 
   return html`
-    <div class="dock">
+    <div class="dock ph-dock">
       <div class=${`dock-capsule${edit ? ' is-edit' : ''}`}>
         ${slots.map((appId, i) => {
           const app = appId ? appLook(appId) : null;

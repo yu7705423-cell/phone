@@ -124,7 +124,20 @@
 .seg-item.is-active { background: var(--surface); color: var(--text); box-shadow: var(--shadow-1); }
 
 /* ---- 头像 / 角标 ---- */
-.avatar { object-fit: cover; background: var(--surface-3); flex: none; }
+/* 尺寸从公开变量读起，没有才用组件传下来的那一份。
+   这三条从前是内联写的，内联赢过一切，「美化」改不动头像 —— 见 4.136。
+   --ph-avatar-size 只管会话里的头像（.ph-face 那一层），不然一份会话美化
+   会把整个应用的头像一起改大。圆角是全局的，形状本来就该一致。 */
+.avatar {
+  object-fit: cover; background: var(--surface-3); flex: none;
+  width: var(--av-size, 44px); height: var(--av-size, 44px);
+  border-radius: var(--ph-avatar-r, var(--avatar-r, var(--av-r, 14px)));
+  font-size: var(--av-fs, 17px);
+}
+.ph-face .avatar {
+  width: var(--ph-avatar-size, var(--av-size, 36px));
+  height: var(--ph-avatar-size, var(--av-size, 36px));
+}
 .avatar-fallback {
   display: flex; align-items: center; justify-content: center;
   color: var(--text-2); font-weight: var(--fw-medium); text-transform: uppercase;
@@ -182,7 +195,10 @@
 .overlay-center { align-items: center; justify-content: center; padding: var(--sp-5); }
 
 .sheet {
-  width: 100%; max-height: 85%; display: flex; flex-direction: column;
+  /* 高度由调用方给，但走变量而不是内联样式：契约钩子上写内联样式，
+     外部作者写什么都盖不住它，而且完全看不出为什么（见 ARCHITECTURE 4.136） */
+  width: 100%; height: var(--sheet-h, auto);
+  max-height: 85%; display: flex; flex-direction: column;
   background: var(--surface); border-radius: var(--r-xl) var(--r-xl) 0 0;
   padding-bottom: var(--safe-bottom);
   animation: slide-up var(--dur) var(--ease-out);

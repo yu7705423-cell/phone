@@ -13,11 +13,11 @@ const { db, nav, album } = phone;
 export function Thumb({ photo }) {
   const url = useThumb(photo.kind === 'card' ? photo.imageId : photo.imageId);
   if (url) {
-    return html`<div class="ph-tile" style=${`background-image:url(${url})`}></div>`;
+    return html`<div class="photo-tile" style=${`background-image:url(${url})`}></div>`;
   }
   // 卡片没光栅成功时给个能认出来的占位，别留一块空白
   return html`
-    <div class=${`ph-tile is-blank${photo.kind === 'card' ? ' is-card' : ''}`}>
+    <div class=${`photo-tile is-blank${photo.kind === 'card' ? ' is-card' : ''}`}>
       <${Icon} name=${photo.kind === 'card' ? 'message' : 'image'} size=${18}/>
       ${photo.kind === 'card' ? html`<span>${(photo.msgs || []).length} 条</span>` : null}
     </div>`;
@@ -74,9 +74,9 @@ function Home() {
 
       ${loose.length ? html`
         <div class="list-title">未归类 · ${loose.length}</div>
-        <div class="ph-grid">
+        <div class="photo-grid">
           ${loose.map(p => html`
-            <button key=${p.id} class="ph-cell press"
+            <button key=${p.id} class="photo-cell press"
               onClick=${() => nav.push(`/photo/${p.id}`)}>
               <${Thumb} photo=${p}/>
             </button>`)}

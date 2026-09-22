@@ -12,6 +12,8 @@ export const DEFAULT_SETTINGS = {
   fontBody: '',                   // 正文用哪一个，空 = 系统默认
   fontSerif: '',                  // 衬线槽位用哪一个（挂件里的标题会用到）
   customCSS: '',                  // 用户自定义 CSS，注入到独立 style 节点
+  globalSkinId: '',               // 设为全局的那一份美化。空表示没有
+  skinOff: false,                 // 总开关。开着就两层都不注入，见 system/skin.js
   statusBar: 'auto',              // auto | on | off  见 shell/StatusBar.js
   // 返回怎么做。二选一，不并存：
   //   bar   底部一条横条。点一下回主界面，双击开多任务。默认

@@ -37,7 +37,7 @@ export function FolderView({ cell, onClose }) {
             onTouchMove=${end} onTouchCancel=${end}
             onContextMenu=${e => { e.preventDefault(); setEditing(a.id); }}>
             <${AppTile} app=${a}/>
-            <span class="app-name ellipsis">${a.name}</span>
+            <span class="app-name ph-tile-name ellipsis">${a.name}</span>
           </button>`)}
       </div>
       <div class="pad">

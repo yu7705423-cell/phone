@@ -62,11 +62,11 @@ export function PhotoPage({ photoId }) {
 
   return html`
     <${Page} title=${isCard ? '消息卡片' : '照片'} onBack=${nav.pop}>
-      <div class="ph-stage">
+      <div class="photo-stage">
         ${isCard
           ? html`<${CardBox} photo=${p}/>`
           : (url
-            ? html`<img class="ph-full" src=${url} alt=""/>`
+            ? html`<img class="photo-full" src=${url} alt=""/>`
             : html`<div class="pad"><${Spinner} size=${18}/></div>`)}
       </div>
 

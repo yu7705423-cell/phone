@@ -42,7 +42,7 @@ function jumpTo(id) {
 function QuoteRef({ quote, onClick }) {
   if (!quote) return null;
   return html`
-    <button class=${`quote-ref${quote.id ? ' press' : ' is-dead'}`}
+    <button class=${`quote-ref ph-quote${quote.id ? ' press' : ' is-dead'}`}
       onClick=${quote.id && onClick ? onClick : null}>
       ${quote.name ? html`<span class="quote-name">${quote.name}</span>` : null}
       <span class="quote-text ellipsis">${quote.text}</span>
@@ -55,9 +55,9 @@ function QuoteRef({ quote, onClick }) {
 // 那个是剧情里的时间，两者常常差着好几天。
 function MsgMeta({ slot, stamp, read }) {
   return html`
-    <div class=${`msg-meta at-${slot}`}>
-      ${stamp ? html`<span class="msg-stamp">${stamp}</span>` : null}
-      ${read ? html`<span class="msg-read">${read}</span>` : null}
+    <div class=${`msg-meta ph-meta at-${slot}`}>
+      ${stamp ? html`<span class="msg-stamp ph-stamp">${stamp}</span>` : null}
+      ${read ? html`<span class="msg-read ph-read">${read}</span>` : null}
     </div>`;
 }
 
@@ -76,11 +76,11 @@ export function ComposerBar({ draft = '', live = false, busy = false, frozen = f
                               onStop, onGenerate }) {
   const tap = fn => (frozen || !fn ? null : fn);
   return html`
-    <div class="composer-bar">
-      <button class="composer-side press" onClick=${tap(onMenu)}
+    <div class="composer-bar ph-composer">
+      <button class="composer-side ph-composer-btn press" onClick=${tap(onMenu)}
         aria-label="添加内容"><${Icon} name="plus" size=${20}/></button>
 
-      <textarea class=${`composer-input${live ? ' is-scene' : ''}`} rows="1" value=${draft}
+      <textarea class=${`composer-input ph-composer-input${live ? ' is-scene' : ''}`} rows="1" value=${draft}
         placeholder=${live ? '写你这一段' : '说点什么'} readOnly=${frozen}
         onInput=${frozen ? null : e => onDraft && onDraft(e.target.value)}
         onKeyDown=${frozen ? null : e => {
@@ -89,21 +89,21 @@ export function ComposerBar({ draft = '', live = false, busy = false, frozen = f
 
       ${live
         ? html`
-          <button class="composer-side press" disabled=${busy} onClick=${tap(onMore)}
+          <button class="composer-side ph-composer-btn press" disabled=${busy} onClick=${tap(onMore)}
             aria-label="接着上一段往下写"><${Icon} name="chevronDown" size=${20}/></button>
-          <button class="composer-side press" onClick=${tap(onLook)}
+          <button class="composer-side ph-composer-btn press" onClick=${tap(onLook)}
             aria-label="外观"><${Icon} name="sun" size=${20}/></button>`
         : html`
-          <button class="composer-side press" onClick=${tap(onSticker)}
+          <button class="composer-side ph-composer-btn press" onClick=${tap(onSticker)}
             aria-label="表情"><${Icon} name="heart" size=${20}/></button>`}
 
       ${draft.trim()
-        ? html`<button class="send-btn press" onClick=${tap(onSend)} aria-label="发送">
+        ? html`<button class="send-btn ph-send press" onClick=${tap(onSend)} aria-label="发送">
             <${Icon} name="send" size=${17}/></button>`
         : busy
-          ? html`<button class="send-btn is-stop press" onClick=${tap(onStop)} aria-label="停止">
+          ? html`<button class="send-btn ph-send is-stop press" onClick=${tap(onStop)} aria-label="停止">
               <${Icon} name="close" size=${17}/></button>`
-          : html`<button class="send-btn is-ghost press" onClick=${tap(onGenerate)}
+          : html`<button class="send-btn ph-send is-ghost press" onClick=${tap(onGenerate)}
               aria-label="让对方回复"><${Icon} name="reply" size=${22}/></button>`}
     </div>`;
 }
@@ -174,7 +174,7 @@ export const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, o
 
   return html`
     <div id=${`msg-${msg.id}`}
-      class=${`msg no-callout${mine ? ' is-mine' : ''}${selecting && !frozen ? ' is-picking' : ''}${selected ? ' is-picked' : ''}${hasMeta && slot === 'side' ? ' has-aside' : ''}`}
+      class=${`msg no-callout ph-msg ${mine ? 'ph-msg-mine is-mine' : 'ph-msg-theirs'}${selecting && !frozen ? ' is-picking' : ''}${selected ? ' is-picked' : ''}${hasMeta && slot === 'side' ? ' has-aside' : ''}`}
       onClickCapture=${capture}
       onTouchStart=${start} onTouchEnd=${end} onTouchMove=${end} onTouchCancel=${end}
       onContextMenu=${e => { e.preventDefault(); if (!selecting && !frozen) onHold(msg); }}>
@@ -184,14 +184,14 @@ export const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, o
           ${selected ? html`<${Icon} name="check" size=${11}/>` : null}
         </span>` : null}
 
-      <div class="msg-face no-callout"
+      <div class="msg-face no-callout ph-face"
         onClick=${selecting || frozen ? null : () => {
           if (tap.current) { clearTimeout(tap.current); tap.current = null; onPat && onPat(); return; }
           tap.current = setTimeout(() => { tap.current = null; setOpenInner(v => !v); }, 260);
         }}>
         <${Avatar} src=${avatar} name=${mine ? phone.accounts.current()?.name : char?.name} size=${36} radius=${18}/>
       </div>
-      <div class="msg-col">
+      <div class="msg-col ph-col">
         <${QuoteRef} quote=${quote} onClick=${() => jumpTo(quote.id)}/>
 
         ${msg.kind === 'transfer'
@@ -223,7 +223,7 @@ export const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, o
           : msg.kind === 'trip'
           ? html`<${TripBubble} msg=${msg} onSettle=${selecting ? null : onSettle}/>`
           : msg.kind === 'sticker'
-          ? html`<div class="bubble-sticker">
+          ? html`<div class="bubble-sticker ph-sticker">
               ${sticker ? html`<${StickerImg} sticker=${sticker} size=${112}/>`
                 : html`<span class="stk-gone">
                     ${msg.stickerName ? `表情：${msg.stickerName}` : '表情已删除'}
@@ -233,7 +233,7 @@ export const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, o
           ? html`<${MediaBubble} msg=${msg} char=${char}/>`
           : parts.length ? parts.map((p, i) => html`
               <div key=${i}
-                class=${`bubble${trans && i === parts.length - 1 ? ' has-trans' : ''}`}
+                class=${`bubble ph-bubble ${mine ? 'ph-bubble-mine' : 'ph-bubble-theirs'}${trans && i === parts.length - 1 ? ' has-trans' : ''}`}
                 onClick=${trans && i === parts.length - 1 && !selecting
                   ? () => setOpenTrans(v => !v) : null}>
                 ${p}
@@ -279,12 +279,12 @@ function StackRow({ msgs, char, onExpand }) {
   const mine = msgs[0].role === 'user';
   const avatar = useImage(mine ? phone.accounts.current()?.avatar : char?.avatar);
   return html`
-    <div class=${`msg no-callout${mine ? ' is-mine' : ''}`}>
-      <div class="msg-face no-callout">
+    <div class=${`msg no-callout ph-msg ${mine ? 'ph-msg-mine is-mine' : 'ph-msg-theirs'}`}>
+      <div class="msg-face no-callout ph-face">
         <${Avatar} src=${avatar} name=${mine ? phone.accounts.current()?.name : char?.name}
           size=${36} radius=${18}/>
       </div>
-      <div class="msg-col">
+      <div class="msg-col ph-col">
         <${ImageStack} msgs=${msgs} onExpand=${onExpand}/>
       </div>
     </div>`;
@@ -1099,7 +1099,7 @@ export function Conversation({ chatId, focusId = '' }) {
       right=${selecting
         ? html`<button class="nav-text press" onClick=${() => setPicked(view.map(m => m.id))}>全选</button>`
         : html`<${IconButton} name="more" onClick=${() => setMenu(true)} label="更多"/>`}>
-      <div class="conv">
+      <div class="conv ph-chat">
         <${ListenBar} chatId=${chatId}/>
         <${WatchBar} chatId=${chatId}/>
         ${(() => {
@@ -1108,12 +1108,12 @@ export function Conversation({ chatId, focusId = '' }) {
           const line = [banner, left === null ? '' : `已送达 · ${pace.leftText(left)}`]
             .filter(Boolean).join(' · ');
           return line ? html`
-            <button class="pace-bar press" onClick=${() => nav.push(`/pace/${chatId}`)}>
+            <button class="pace-bar ph-toolbar press" onClick=${() => nav.push(`/pace/${chatId}`)}>
               ${line}
             </button>` : null;
         })()}
         <div class="conv-main">
-        <div class="conv-body scroll" ref=${bodyRef} onScroll=${onScroll}>
+        <div class="conv-body ph-chat-body scroll" ref=${bodyRef} onScroll=${onScroll}>
           ${char.firstMessage && !msgs.length ? html`
             <${Bubble} msg=${greeting} char=${char} chat=${chat} frozen
               onRetry=${stable.onRetry} onSwipe=${stable.onSwipe}
@@ -1152,7 +1152,7 @@ export function Conversation({ chatId, focusId = '' }) {
         </div>
 
         ${recSec >= 0 ? html`
-          <div class="select-bar">
+          <div class="select-bar ph-toolbar">
             <button class="nav-text press" onClick=${cancelRec}>取消</button>
             <span class="rec-live">
               <span class="rec-dot"></span>
@@ -1162,7 +1162,7 @@ export function Conversation({ chatId, focusId = '' }) {
             <button class="nav-text press" onClick=${sendRec}>发送</button>
           </div>`
         : selecting ? html`
-          <div class="select-bar">
+          <div class="select-bar ph-toolbar">
             <button class="nav-text press" onClick=${() => setPicked(null)}>取消</button>
             <span class="select-hint">
               ${picked.length ? '' : '点击消息进行选择'}
@@ -1177,7 +1177,7 @@ export function Conversation({ chatId, focusId = '' }) {
             ? html`<${StickerSuggest} text=${draft} onSend=${sendSticker}/>` : null}
 
           ${todoAsk ? html`
-            <div class="todo-bar">
+            <div class="todo-bar ph-toolbar">
               <div class="todo-ask">
                 <span class="todo-tag">${phone.alarm.timeOf(todoAsk)
                   ? phone.when.show(phone.alarm.timeOf(todoAsk))
@@ -1206,7 +1206,7 @@ export function Conversation({ chatId, focusId = '' }) {
             onGenerate=${() => generate()}/>
 
           ${panel && !live ? html`
-            <div class="composer-panel">
+            <div class="composer-panel ph-panel">
               ${panel === 'menu'
                 ? html`<div class="panel-grid">
                     ${PANEL_ITEMS.map(it => html`

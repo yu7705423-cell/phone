@@ -26,6 +26,8 @@
    它纯粹是背景,不参与布局,所以不会像 dvh 那样把界面抽动。 */
 .wallpaper {
   position: fixed; inset: 0; z-index: 0;
+  /* 同上：图由 --wall 喂进来，声明写在这儿，美化盖得住 */
+  background-image: var(--wall, none);
   background-size: cover; background-position: center;
 }
 
@@ -79,6 +81,9 @@
 /* 图标整张放进去，永远不裁。存的时候已经补成方图带透明边，
    这里再用 contain 兜一层：格子万一不是正方也不会切掉。 */
 .app-tile.has-image {
+  /* 图走变量，不走内联样式。挂了契约钩子的元素上写内联样式，作者写什么
+     都盖不住它（见 ARCHITECTURE 4.136）。变量喂进来，这条声明在这儿 */
+  background-image: var(--tile-img, none);
   background-size: contain; background-position: center; background-repeat: no-repeat;
 }
 .app-name {

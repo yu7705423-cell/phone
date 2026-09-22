@@ -35,7 +35,7 @@ function Sample({ char, chat, hostRef }) {
   const readOn = receipt.on();
   return html`
     <div class="skin-sample-wrap" ref=${hostRef}>
-      <div class="conv-body skin-sample">
+      <div class="conv-body ph-chat-body skin-sample">
         ${rows.map(m => html`
           <${Bubble} key=${m.id} msg=${m} char=${char} chat=${chat} frozen
             onRetry=${noop} onSwipe=${noop} onHold=${noop} onToggle=${noop}

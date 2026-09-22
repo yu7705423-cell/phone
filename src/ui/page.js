@@ -190,14 +190,14 @@ export function Page({ title, onBack, right, tabs, children, noScroll,
   useBackRegistry(onBack);
 
   return html`
-    <div class="page" ref=${swipe.ref} ...${swipe.handlers}>
+    <div class="page ph-page" ref=${swipe.ref} ...${swipe.handlers}>
       ${(!hideBar && (title || onBack || right)) ? html`
-        <div class="navbar">
-          <div class="nav-left">
+        <div class="navbar ph-navbar">
+          <div class="nav-left ph-nav-left">
             ${onBack ? html`<${IconButton} name="chevronLeft" size=${22} onClick=${onBack} label="返回"/>` : null}
           </div>
-          <div class="nav-title ellipsis">${title}</div>
-          <div class="nav-right">${right || null}</div>
+          <div class="nav-title ellipsis ph-nav-title">${title}</div>
+          <div class="nav-right ph-nav-right">${right || null}</div>
         </div>` : null}
       ${headerExtra || null}
       <div class=${`page-body${noScroll ? '' : ' scroll'}`} ref=${scrollRef}>${children}</div>
@@ -206,9 +206,9 @@ export function Page({ title, onBack, right, tabs, children, noScroll,
 }
 
 export const TabBar = ({ items, value, onChange }) => html`
-  <div class="tabbar">
+  <div class="tabbar ph-tabbar">
     ${items.map(it => html`
-      <button key=${it.id} class=${`tab${value === it.id ? ' is-active' : ''}`}
+      <button key=${it.id} class=${`tab ph-tab${value === it.id ? ' is-active ph-tab-on' : ''}`}
         onClick=${() => onChange(it.id)}>
         <div class="tab-icon">
           <${Icon} name=${it.icon} size=${21}/>

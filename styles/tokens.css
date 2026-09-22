@@ -113,19 +113,28 @@
   /* 底部整体上移多少。Safari 标签页里地址栏会压住最下面那排，
      用这个抬起来。PWA 里不需要，默认 0。在「主题」里调。 */
   --bottom-lift: 0px;
-  --navbar-h:    48px;
   --tabbar-h:    54px;
 
   /* 会话页那几个尺寸。原来写死在 app.css 里，提成令牌是为了「美化」能按
-     会话覆盖它们（见 system/skin.js）。值和从前一模一样，不改观感。 */
-  --composer-h:   38px;   /* 输入栏那几个圆按钮，也是输入框的最小高 */
-  --composer-pad: var(--sp-2);
-  --bubble-gap:   var(--sp-4);   /* 两轮消息之间 */
-  --bubble-gap-in: 5px;          /* 同一轮里两个气泡之间 */
-  --bubble-r:     var(--r-md);
-  --bubble-px:    var(--sp-3);
-  --bubble-py:    var(--sp-2);
-  --bubble-fs:    var(--fs-14);
+     会话覆盖它们（见 system/skin.js）。值和从前一模一样，不改观感。
+
+     ---- 每一条都从一个 --ph- 变量读起 ----
+
+     `--ph-*` 是**契约**：外部作者写的那份 CSS 只认这一套名字，我们保证
+     不改名（见 src/system/skin-contract.js）。内部这些名字照旧用，
+     以后想改随时改 —— 中间隔着这一层，改内部名字不会毁掉别人的美化。
+
+     应用里那几个旋钮写的也是 `--ph-*`，不是内部名。**只留一条路**：
+     两条路的话，用户调的和作者写的会互相盖，而盖的顺序谁也说不清。 */
+  --navbar-h:     var(--ph-navbar-h, 48px);
+  --composer-h:   var(--ph-composer-h, 38px);   /* 输入栏那几个圆按钮，也是输入框的最小高 */
+  --composer-pad: var(--ph-composer-pad, var(--sp-2));
+  --bubble-gap:   var(--ph-bubble-gap, var(--sp-4));   /* 两轮消息之间 */
+  --bubble-gap-in: var(--ph-bubble-gap-in, 5px);       /* 同一轮里两个气泡之间 */
+  --bubble-r:     var(--ph-bubble-r, var(--r-md));
+  --bubble-px:    var(--ph-bubble-px, var(--sp-3));
+  --bubble-py:    var(--ph-bubble-py, var(--sp-2));
+  --bubble-fs:    var(--ph-bubble-fs, var(--fs-14));
 
   /* 安全区。由根容器换算，组件不自己算 */
   --safe-top:    0px;

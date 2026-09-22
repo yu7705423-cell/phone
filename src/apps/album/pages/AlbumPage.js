@@ -31,9 +31,9 @@ export function AlbumPage({ albumId }) {
     <${Page} title=${row.name} onBack=${nav.pop}
       right=${html`<button class="nav-text press" onClick=${rename}>改名</button>`}>
       ${list.length ? html`
-        <div class="ph-grid">
+        <div class="photo-grid">
           ${list.map(p => html`
-            <button key=${p.id} class="ph-cell press"
+            <button key=${p.id} class="photo-cell press"
               onClick=${() => nav.push(`/photo/${p.id}`)}>
               <${Thumb} photo=${p}/>
             </button>`)}

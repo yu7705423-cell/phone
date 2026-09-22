@@ -8,8 +8,8 @@ function Cell({ photo, onPick }) {
   const url = useThumb(photo.imageId);
   if (!url) return null;
   return html`
-    <button class="ph-cell press" onClick=${() => onPick(photo.imageId)}>
-      <div class="ph-tile" style=${`background-image:url(${url})`}></div>
+    <button class="photo-cell press" onClick=${() => onPick(photo.imageId)}>
+      <div class="photo-tile" style=${`background-image:url(${url})`}></div>
     </button>`;
 }
 
@@ -29,7 +29,7 @@ export function PhotoSource({ open, onClose, onFile, onPick }) {
       <//>
       ${list.length ? html`
         <div class="list-title">相册 · ${list.length}</div>
-        <div class="ph-grid">
+        <div class="photo-grid">
           ${list.map(p => html`<${Cell} key=${p.id} photo=${p} onPick=${onPick}/>`)}
         </div>`
       : html`<div class="settings-foot">相册里还没有图片。</div>`}

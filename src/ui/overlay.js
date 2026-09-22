@@ -42,7 +42,7 @@ export const Sheet = ({ open, onClose, title, children, height }) => {
   if (!open) return null;
   return html`
     <div class="overlay" onClick=${onClose}>
-      <div class="sheet" style=${height ? `height:${height}` : ''} onClick=${e => e.stopPropagation()}>
+      <div class="sheet ph-sheet" style=${height ? `--sheet-h:${height}` : ''} onClick=${e => e.stopPropagation()}>
         <div class="sheet-grip"></div>
         ${title ? html`<div class="sheet-title">${title}</div>` : null}
         <div class="sheet-body scroll">${children}</div>
@@ -99,7 +99,7 @@ export function confirm({ title, message, okText = '确定', cancelText = '取�
     pop = pushCloser(() => done(false));
     render(html`
       <div class="overlay overlay-center" onClick=${() => done(false)}>
-        <div class="modal" onClick=${e => e.stopPropagation()}>
+        <div class="modal ph-modal" onClick=${e => e.stopPropagation()}>
           <div class="modal-title">${title}</div>
           ${message ? html`<div class="modal-body modal-message">${message}</div>` : null}
           <div class="modal-actions">

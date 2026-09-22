@@ -6,13 +6,13 @@ import { Icon } from '../icons/Icon.js';
 // 底下的东西全被推到看不见的地方。
 export const List = ({ children, title, inset = true, cap = false }) => html`
   <div class="list-wrap">
-    ${title ? html`<div class="list-title">${title}</div>` : null}
-    <div class=${`list${inset ? ' list-inset' : ''}${cap ? ' list-cap' : ''}`}>${children}</div>
+    ${title ? html`<div class="list-title ph-list-title">${title}</div>` : null}
+    <div class=${`list ph-list${inset ? ' list-inset' : ''}${cap ? ' list-cap' : ''}`}>${children}</div>
   </div>`;
 
 export const ListItem = ({ title, subtitle, left, right, onClick, arrow, danger, multiline,
                           class: cls = '' }) => html`
-  <div class=${`list-item${onClick ? ' is-tappable press' : ''}${danger ? ' is-danger' : ''}${cls ? ' ' + cls : ''}`}
+  <div class=${`list-item ph-list-item${onClick ? ' is-tappable press' : ''}${danger ? ' is-danger' : ''}${cls ? ' ' + cls : ''}`}
     onClick=${onClick}>
     ${left ? html`<div class="li-left">${left}</div>` : null}
     <div class=${`li-body${multiline ? ' li-multiline' : ''}`}>

@@ -1,8 +1,9 @@
 import { html, useState, useRef } from '../../lib.js';
 import { phone, useStore } from '../../sdk/index.js';
-import { Page, List, ListItem, Button, Icon,
+import { Page, List, ListItem, Button, Icon, Switch,
          EmptyState, toast, confirm, prompt } from '../../ui/index.js';
 import { Preview } from './Preview.js';
+import { ContractPage } from './ContractPage.js';
 
 const { db, nav, skin, intent } = phone;
 
@@ -74,6 +75,13 @@ function ListPage() {
       <input type="file" accept=".json,application/json" ref=${fileRef}
         onChange=${importOne} style="display:none"/>
 
+      <${List}>
+        <${ListItem} title="写给作者" arrow multiline
+          subtitle=${`可用的类名与变量，以及编写须知。契约版本 ${skin.CONTRACT_VERSION}`}
+          left=${html`<${Icon} name="book" size=${18}/>`}
+          onClick=${() => nav.push('/contract')}/>
+      <//>
+
       <div class="settings-foot">
         调整样式请在会话中进行：那里的样板间是真实的气泡组件，改动即时可见。
       </div>
@@ -82,6 +90,7 @@ function ListPage() {
 
 function OnePage({ id }) {
   useStore(db.skins.store);
+  useStore(db.settings.store);
   useStore(db.chats.store);
   useStore(db.characters.store);
   const [picking, setPicking] = useState(false);
@@ -90,6 +99,17 @@ function OnePage({ id }) {
     return html`<${Page} title="美化" onBack=${nav.pop}>
       <${EmptyState} title="这一份已经不在了"/><//>`;
   }
+
+  const scopes = skin.scopeOf(row);
+  const isGlobalNow = db.settings.get().globalSkinId === id;
+  // 一份美化可以两档都要，但至少要留一档 —— 一档都不留等于它永远不生效，
+  // 而界面上看不出这件事，人会以为是坏了
+  const toggleScope = sc => {
+    const next = scopes.includes(sc) ? scopes.filter(x => x !== sc) : [...scopes, sc];
+    if (!next.length) { toast('至少要保留一档生效范围'); return; }
+    skin.update(id, { scope: next });
+    if (!next.includes('shell') && isGlobalNow) skin.setGlobal('');
+  };
 
   const used = skin.chatsUsing(id);
   const nameOf = c => db.characters.get((c.characterIds || [])[0])?.name || c.title || '未命名会话';
@@ -173,6 +193,19 @@ function OnePage({ id }) {
           onClick=${() => chats.length ? setPicking(true) : toast('还没有任何会话')}/>
       <//>
 
+      <${List} title="生效范围">
+        ${skin.SCOPES.map(sc => html`
+          <${ListItem} key=${sc.id} title=${sc.label} multiline subtitle=${sc.desc}
+            right=${html`<${Switch} checked=${scopes.includes(sc.id)}
+              onChange=${() => toggleScope(sc.id)}/>`}/>`)}
+        ${scopes.includes('shell') ? html`
+          <${ListItem} title="设为当前的全局美化" multiline
+            subtitle=${isGlobalNow ? '已经是当前的全局美化。关闭后恢复默认样式'
+    : '整个应用都会套用这一份。同一时间只能有一份'}
+            right=${html`<${Switch} checked=${isGlobalNow}
+              onChange=${v => { skin.setGlobal(v ? id : ''); }}/>`}/>` : null}
+      <//>
+
       <${List}>
         <${ListItem} title="复制一份" multiline
           subtitle="在现有的基础上改，不必从头写一遍"
@@ -201,6 +234,7 @@ function OnePage({ id }) {
 }
 
 export default function SkinApp({ route }) {
+  if (route === '/contract') return html`<${ContractPage}/>`;
   const one = route?.match(/^\/one\/(.+)$/);
   if (one) return html`<${OnePage} id=${one[1]}/>`;
   return html`<${ListPage}/>`;

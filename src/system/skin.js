@@ -1,5 +1,8 @@
-import { skins, chats } from './db/index.js';
+import { skins, chats, settings } from './db/index.js';
 import { compressFit } from './db/images.js';
+import { SCOPES, scopeOf, isGlobal } from './skin-contract.js';
+
+export { SCOPES, scopeOf, isGlobal, HOOKS, VARS, CONTRACT_VERSION } from './skin-contract.js';
 
 // 美化。见 ARCHITECTURE 4.111
 //
@@ -22,16 +25,16 @@ export { skins };
  * 在界面上当提示，不参与生成。
  */
 export const TOKENS = [
-  { id: 'navH', css: '--navbar-h', label: '顶栏高度', unit: 'px', def: 48, min: 28, max: 88 },
-  { id: 'barH', css: '--composer-h', label: '底栏按钮大小', unit: 'px', def: 38, min: 26, max: 60,
+  { id: 'navH', css: '--ph-navbar-h', label: '顶栏高度', unit: 'px', def: 48, min: 28, max: 88 },
+  { id: 'barH', css: '--ph-composer-h', label: '底栏按钮大小', unit: 'px', def: 38, min: 26, max: 60,
     desc: '输入框的最小高度也是它。底栏偏高多半调这一项' },
-  { id: 'barPad', css: '--composer-pad', label: '底栏内边距', unit: 'px', def: 8, min: 0, max: 24 },
-  { id: 'gap', css: '--bubble-gap', label: '消息间距', unit: 'px', def: 16, min: 0, max: 48 },
-  { id: 'gapIn', css: '--bubble-gap-in', label: '同一轮内间距', unit: 'px', def: 5, min: 0, max: 24 },
-  { id: 'bubbleR', css: '--bubble-r', label: '气泡圆角', unit: 'px', def: 14, min: 0, max: 30 },
-  { id: 'bubblePX', css: '--bubble-px', label: '气泡左右内距', unit: 'px', def: 12, min: 2, max: 32 },
-  { id: 'bubblePY', css: '--bubble-py', label: '气泡上下内距', unit: 'px', def: 8, min: 2, max: 28 },
-  { id: 'bubbleFS', css: '--bubble-fs', label: '气泡字号', unit: 'px', def: 14, min: 11, max: 24 },
+  { id: 'barPad', css: '--ph-composer-pad', label: '底栏内边距', unit: 'px', def: 8, min: 0, max: 24 },
+  { id: 'gap', css: '--ph-bubble-gap', label: '消息间距', unit: 'px', def: 16, min: 0, max: 48 },
+  { id: 'gapIn', css: '--ph-bubble-gap-in', label: '同一轮内间距', unit: 'px', def: 5, min: 0, max: 24 },
+  { id: 'bubbleR', css: '--ph-bubble-r', label: '气泡圆角', unit: 'px', def: 14, min: 0, max: 30 },
+  { id: 'bubblePX', css: '--ph-bubble-px', label: '气泡左右内距', unit: 'px', def: 12, min: 2, max: 32 },
+  { id: 'bubblePY', css: '--ph-bubble-py', label: '气泡上下内距', unit: 'px', def: 8, min: 2, max: 28 },
+  { id: 'bubbleFS', css: '--ph-bubble-fs', label: '气泡字号', unit: 'px', def: 14, min: 11, max: 24 },
 ];
 
 export const SHAPES = [
@@ -158,6 +161,8 @@ export function create(init = {}) {
   return skins.create({
     name: String(init.name || '未命名').trim() || '未命名',
     tokens: init.tokens || {}, shape: init.shape || '', css: String(init.css || ''),
+    // 生效范围。不写就是「单段会话」，那是从前唯一的行为
+    scope: scopeOf(init),
     // 头像框三件一起存。少存一件，复制和导入过来的那一份就会戴错人或错大小
     frame: frameUrlOk(init.frame) ? String(init.frame) : '',
     frameWho: FRAME_WHO.some(x => x.id === init.frameWho) ? String(init.frameWho) : 'both',
@@ -174,6 +179,9 @@ export function update(id, patch) {
 /** 删一份。挂着它的会话一并摘掉，否则那几段会话指向一个不存在的 id。 */
 export function remove(id) {
   chats.all().forEach(c => { if (c.skinId === id) chats.update(c.id, { skinId: '' }); });
+  // 设为全局的正是它的话，一并取消。少这一行就是一个指向空 id 的全局设置，
+  // 表现为「删了之后全局美化再也设不回来」
+  if (settings.get().globalSkinId === id) settings.set({ globalSkinId: '' });
   skins.remove(id);
 }
 
@@ -196,7 +204,7 @@ export function compile(skin, { varsOn = ':root' } = {}) {
     .filter(t => skin.tokens?.[t.id] != null && skin.tokens[t.id] !== '')
     .map(t => `${t.css}:${Math.round(Number(skin.tokens[t.id]))}${t.unit || ''}`);
   const shape = SHAPES.find(s => s.id === skin.shape);
-  if (shape?.css) vars.push(`--avatar-r:${shape.css}`);
+  if (shape?.css) vars.push(`--ph-avatar-r:${shape.css}`);
   // 令牌挂在哪个选择器上。**只有这一段是我们自己生成的，所以换得起** ——
   // 用户手写的那一段一个字都不改（见上面「不重写用户的选择器」）。
   // 画在 shadow root 里时要换成 :host：那里面没有 :root，整段会静静地不生效
@@ -276,6 +284,71 @@ export function unmount() {
 /** 手动解除那个记号，给「它说上次崩了，但我改好了」用。 */
 export const forgive = () => settle();
 
+// ---- 全局那一层 ----
+//
+// 会话那一层挂在 `<head>` 里的 `skin-css`，进那一页才有，离开就摘。
+// 全局这一层是另一个节点 `skin-global`，一直挂着。**两层分开，不许合并**：
+// 合了的话，关掉全局的那一下会把会话那一份也摘掉。
+//
+// ---- 逃生口 ----
+//
+// 会话那一层的逃生口是「消息列表不上美化」，天然存在。全局这一层没有
+// 这种天然的地方，所以人为留两个：
+//
+//   一、**设置 app 永不注入。** 由 shell 判断，见 shell/Root.js。
+//       写坏了整个界面的时候，设置那一页仍然是素颜的，进得去、点得到
+//   二、**一个总开关。** settings.skinOff，在「外观」里，关掉两层都不注入
+//
+// 崩溃记号（上面那个 MARK）两层共用：全局那一份挂上之前也记，活过一段
+// 时间才清。上次进来就崩在它身上的，这次不注入。
+
+const GLOBAL_ID = 'skin-global';
+
+const dropGlobal = () => document.getElementById(GLOBAL_ID)?.remove();
+
+/**
+ * 全局那一层挂上或摘掉。`skin` 为空、或者这一页不许注入时摘掉。
+ *
+ * 返回真表示这一次是挂上了。调用方拿它决定要不要起那个「活过来了」的定时器。
+ */
+export function mountGlobal(skin) {
+  dropGlobal();
+  if (!skin || !isGlobal(skin)) return false;
+  if (crashed(skin.id)) return false;
+  const text = compile(skin);
+  if (!text.trim()) return true;
+  try { localStorage.setItem(MARK, skin.id); trying = skin.id; } catch { /* 无痕模式，认了 */ }
+  const el = document.createElement('style');
+  el.id = GLOBAL_ID;
+  el.textContent = text;
+  document.head.appendChild(el);
+  return true;
+}
+
+export function unmountGlobal() {
+  dropGlobal();
+  if (trying && !broke) settle();
+  trying = null;
+}
+
+/** 当前设为全局的那一份。没设、设的那份没了、或者总开关关着，都回 null。 */
+export function globalSkin() {
+  const s = settings.get();
+  if (s.skinOff === true) return null;
+  const row = get(s.globalSkinId || '');
+  return row && isGlobal(row) ? row : null;
+}
+
+/** 设为全局。传空就是取消。设了全局的那一份自动带上 shell 这一档。 */
+export function setGlobal(id) {
+  if (!id) { settings.set({ globalSkinId: '' }); return null; }
+  const row = get(id);
+  if (!row) return null;
+  if (!isGlobal(row)) update(id, { scope: [...scopeOf(row), 'shell'] });
+  settings.set({ globalSkinId: id });
+  return get(id);
+}
+
 // ---- 美化包：导成一个文件，也导得回来 ----
 //
 // **叫「美化包」，和「角色包」同一套叫法。** 这套东西从头到尾叫美化，
@@ -319,6 +392,7 @@ export function pack(skin) {
     name: String(skin.name || '未命名'),
     tokens: skin.tokens || {},
     shape: String(skin.shape || ''),
+    scope: scopeOf(skin),
     frame: String(skin.frame || ''),
     frameWho: frameWhoOf(skin).id,
     frameScale: frameScaleOf(skin),
@@ -360,6 +434,9 @@ export function unpack(text) {
   const frameWho = FRAME_WHO.some(x => x.id === raw.frameWho) ? String(raw.frameWho) : 'both';
   return {
     name: String(raw.name || '未命名').trim().slice(0, 40) || '未命名',
+    // 老包（v1）没有这一项，一律当「单段会话」—— 那是从前唯一的行为。
+    // 默认成全局就等于替作者把影响面扩大了一圈，而他当初没这么写
+    scope: scopeOf(raw),
     tokens, shape, frame, frameWho, frameScale: frameScaleOf(raw),
     css: String(raw.css || ''),
   };
@@ -391,6 +468,7 @@ export function duplicate(id) {
   let name = base;
   for (let i = 2; taken.has(name); i++) name = `${base} ${i}`;
   return create({ name, tokens: { ...(src.tokens || {}) }, shape: src.shape, css: src.css,
+    scope: scopeOf(src),
     frame: src.frame || '', frameWho: src.frameWho || 'both', frameScale: frameScaleOf(src) });
 }
 

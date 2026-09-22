@@ -58,7 +58,7 @@ export function StatusBar() {
   const mm = String(now.getMinutes()).padStart(2, '0');
 
   return html`
-    <div class="statusbar">
+    <div class="statusbar ph-statusbar">
       <div class="sb-time">${hh}:${mm}</div>
       <div class="sb-icons">
         <${Icon} name="signal" size=${14}/>

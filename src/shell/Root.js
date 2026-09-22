@@ -15,6 +15,7 @@ import * as alarm from '../system/alarm.js';
 import { notify } from '../system/notify.js';
 import { useImage } from '../system/db/useImage.js';
 import { applyLook, applyCustomCSS } from '../system/look.js';
+import * as skin from '../system/skin.js';
 import { apply as applyFonts } from '../system/fonts.js';
 import { layout } from '../system/db/index.js';
 import { start as startProactive } from '../system/ai/proactive.js';
@@ -38,6 +39,23 @@ export function Root() {
   useEffect(() => {
     document.documentElement.dataset.theme = cfg.theme;
   }, [cfg.theme]);
+
+  // 全局那一层美化。见 ARCHITECTURE 4.136
+  //
+  // **设置 app 打开时一律摘掉。** 这是全局美化唯一的逃生口：一份写坏了
+  // 整个界面的美化，人还得进得去设置把它关掉。会话那一层的逃生口是
+  // 「消息列表不上美化」，天然存在；全局这一层没有天然的地方，只能人为留。
+  const globalSkin = skin.globalSkin();
+  const inSettings = s.screen === 'app' && s.appId === 'settings';
+  const gid = inSettings ? '' : (globalSkin?.id || '');
+  const gat = inSettings ? 0 : (globalSkin?.updatedAt || 0);
+  useEffect(() => {
+    if (!gid) { skin.unmountGlobal(); return; }
+    skin.mountGlobal(skin.get(gid));
+    // 活过这么久就认为它没把页面弄垮，把「上次崩在它身上」那个记号清掉
+    const t = setTimeout(() => skin.settle(), 1200);
+    return () => { clearTimeout(t); skin.unmountGlobal(); };
+  }, [gid, gat]);
 
   useEffect(() => { applyLook(cfg); },
     [cfg.iconColor, cfg.iconShadow, cfg.iconLabels, cfg.bottomLift, cfg.glass]);
@@ -108,9 +126,9 @@ export function Root() {
   return html`
     <div class="root">
       ${wallpaper ? html`
-        <div class="wallpaper" style=${`background-image:url(${wallpaper})`}></div>` : null}
+        <div class="wallpaper ph-wallpaper" style=${`--wall:url(${wallpaper})`}></div>` : null}
       <${StatusBar}/>
-      <div class="screen">
+      <div class="screen ph-screen">
         ${s.screen === 'lock' ? html`<${LockScreen}/>` : null}
         ${s.screen === 'home' ? html`
           <div class="home-layer"><${HomeScreen}/></div>` : null}

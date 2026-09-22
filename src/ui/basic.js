@@ -71,15 +71,18 @@ export const Segmented = ({ items, value, onChange }) => html`
         onClick=${() => onChange(it.value)}>${it.label}</button>`)}
   </div>`;
 
+// 头像。
+//
+// **一条真正的尺寸声明都不写在这儿。** 内联样式赢过任何选择器，从前这里
+// 直接写 width / height，于是「美化」根本改不动头像大小 —— 外面写什么都
+// 盖不住，而且完全看不出为什么。现在只喂三个自定义属性，真正那几条声明
+// 在 ui.css 里，从公开变量读起（见 ARCHITECTURE 4.136）。
 export const Avatar = ({ src, name = '', size = 44, radius }) => {
   const r = radius != null ? `${radius}px` : `${Math.round(size * .32)}px`;
-  // 圆角留一个变量口子。内联样式盖得过类选择器，不留口子的话「美化」
-  // 改不动头像形状，只能靠 !important（见 system/skin.js）
-  const st = `width:${size}px;height:${size}px;border-radius:var(--avatar-r, ${r});`
-    + `font-size:${Math.round(size * .38)}px`;
+  const st = `--av-size:${size}px;--av-r:${r};--av-fs:${Math.round(size * .38)}px`;
   return src
-    ? html`<img class="avatar" src=${src} style=${st} alt=""/>`
-    : html`<div class="avatar avatar-fallback" style=${st}>${(name || '?').slice(0, 1)}</div>`;
+    ? html`<img class="avatar ph-avatar" src=${src} style=${st} alt=""/>`
+    : html`<div class="avatar ph-avatar avatar-fallback" style=${st}>${(name || '?').slice(0, 1)}</div>`;
 };
 
 export const Spinner = ({ size = 18 }) => html`

@@ -48,7 +48,7 @@ function Cell({ cell, edit, onPick, picked, onEditWidget, onOpenFolder, onEditFo
         onMouseDown=${start} onMouseUp=${end} onMouseLeave=${end}
         onTouchStart=${start} onTouchEnd=${end} onTouchMove=${end} onTouchCancel=${end}>
         <${FolderTile} cell=${cell}/>
-        <span class="app-name ellipsis">${cell.name || '文件夹'}</span>
+        <span class="app-name ph-tile-name ellipsis">${cell.name || '文件夹'}</span>
       </div>`;
   }
 
@@ -72,7 +72,7 @@ function Cell({ cell, edit, onPick, picked, onEditWidget, onOpenFolder, onEditFo
     <div class=${`cell cell-app${edit ? ' is-edit' : ''}${picked ? ' is-picked' : ''}`} style=${style}
       onClick=${() => edit ? onPick(cell) : openApp(cell.ref)}>
       <${AppTile} app=${app} badge=${unreadFor(cell.ref)}/>
-      <span class="app-name ellipsis">${app.name}</span>
+      <span class="app-name ph-tile-name ellipsis">${app.name}</span>
     </div>`;
 }
 
@@ -187,11 +187,11 @@ export function HomeScreen() {
   };
 
   return html`
-    <div class="home no-callout"
+    <div class="home no-callout ph-home"
       onMouseDown=${startPress} onMouseUp=${endPress} onMouseLeave=${endPress}
       onTouchStart=${onTouchStart} onTouchMove=${onTouchMove} onTouchEnd=${onTouchEnd}>
 
-      <div class=${`home-grid${edit ? ' is-edit' : ''}`} ref=${gridRef}
+      <div class=${`home-grid ph-home-grid${edit ? ' is-edit' : ''}`} ref=${gridRef}
         style=${cell
           ? `grid-template-columns:repeat(${GRID_COLS},${cell}px);grid-auto-rows:${cell}px`
           : `grid-template-columns:repeat(${GRID_COLS},1fr);grid-auto-rows:1fr`}>
