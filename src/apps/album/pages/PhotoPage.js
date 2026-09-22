@@ -31,10 +31,21 @@ export function PhotoPage({ photoId }) {
       const blob = await cardshot.rasterCard({
         msgs: p.msgs || [], css: album.shotCss(p.shotId),
       });
-      if (!blob) { toast('这台设备画不出这张图。卡片本身不受影响', 'error', 5000); return; }
-      const id = await db.images.put(new File([blob], 'card.png', { type: 'image/png' }));
-      if (p.imageId) db.images.remove(p.imageId);
+      if (!blob) {
+        // 画不出来分两种：这张太长（cardshot 会说清楚），或者这台设备不支持
+        toast(cardshot.whyNot() || '这台设备画不出这张图。卡片本身不受影响', 'error', 6000);
+        return;
+      }
+      // **按卡片自己的上限存，不能用默认的 1280。** 默认那档会把一张
+      // 500x6000 的长卡片压成 107x1280，字全糊了 —— 而这一项的说明写的是
+      // 「便于导出」。光栅那边已经保证不超过 MAX_SIDE，这里照它存就不缩
+      const id = await db.images.put(
+        new File([blob], 'card.png', { type: 'image/png' }), cardshot.MAX_SIDE);
+      const old = p.imageId;
       album.attachRaster(p.id, id);
+      // 先换上新的再放旧的：直接 images.remove 会把别处共用同一个 id 的那张
+      // 一起删掉（「保存到相册」存的就是同一个 id，见 ARCHITECTURE 4.114）
+      if (old) phone.purge.releaseImages([old]);
       toast('已生成图片', 'ok');
     } catch (err) { toast(String(err.message || err), 'error', 5000); }
     finally { setBusy(false); }

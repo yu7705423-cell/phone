@@ -884,7 +884,9 @@ export function Conversation({ chatId, focusId = '' }) {
       toast(`已存入相册，共 ${frozen.length} 条`, 'ok');
       phone.cardshot.rasterCard({ msgs: frozen, css }).then(async blob => {
         if (!blob) return;
-        const id = await db.images.put(new File([blob], 'card.png', { type: 'image/png' }));
+        // 按卡片的上限存。默认那档 1280 会把长卡片压成一条糊的（见 PhotoPage 同一处）
+        const id = await db.images.put(
+          new File([blob], 'card.png', { type: 'image/png' }), phone.cardshot.MAX_SIDE);
         phone.album.attachRaster(photo.id, id);
       }).catch(() => { /* 画不出来就只留快照那一份 */ });
     } catch (err) { toast(String(err.message || err), 'error'); }
