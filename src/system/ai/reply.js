@@ -9,6 +9,7 @@ import * as voiceSvc from './voice.js';
 import * as videoSvc from './video.js';
 import * as services from './services.js';
 import * as clip from '../clip.js';
+import * as promptwrite from './promptwrite.js';
 import { isVoiceReady } from './voice.js';
 import { byName as stickerByName, markUsed } from '../stickers.js';
 import { notify } from '../notify.js';
@@ -1056,7 +1057,11 @@ export async function generateClip(msgId, prompt, preset) {
   const p = preset || services.activeVideo();
   try {
     if (!videoSvc.isVideoReady() && !p?.apiKey) throw new Error('还没有配置视频接口');
-    const taskId = await videoSvc.submit({ prompt, preset: p, key: `msg-clip:${msgId}` });
+    const row = messages.get(msgId);
+    const said = await promptwrite.forVideo(prompt, {
+      chatId: row?.chatId, char: characters.get(row?.authorId), key: `clip-prompt:${msgId}`,
+    });
+    const taskId = await videoSvc.submit({ prompt: said, preset: p, key: `msg-clip:${msgId}` });
     messages.update(msgId, { clipTask: taskId, clipPreset: p?.id || '', clipState: 'queued' });
     const blob = await videoSvc.wait({
       taskId, preset: p,
@@ -1131,6 +1136,11 @@ async function generateImage(msgId, prompt, char) {
     // 角色自己的提示词都会把它撑成非空，于是照着一句画风描述画出一张
     // 谁也没要过的图，钱照花
     imageSvc.needPrompt(prompt);
+    // 先把这一句改写成一份自带全部信息的描述。默认关着，开了才多这一次调用。
+    // 写不出来就用原话 —— 为了改写把整张图断掉，比不改写更糟
+    prompt = await promptwrite.forImage(prompt, {
+      chatId: messages.get(msgId)?.chatId, char, key: `img-prompt:${msgId}`,
+    });
     const preset = activeImage();
     const lock = imgPrompt.faceApplies(char, prompt);
 
@@ -1186,9 +1196,16 @@ async function generateVoice(msgId, text, char) {
     return;
   }
   try {
+    // 这一句该用什么语气，只看那行字是读不出来的。默认关着，开了才多这一次调用。
+    // 标不出来就退回角色卡与全局那一份，不影响这一句发不发得出去
+    const tone = await promptwrite.forVoice(text, {
+      chatId: messages.get(msgId)?.chatId, char, key: `tts-tone:${msgId}`,
+    });
+    const style = voiceSvc.styleFor(char);
     const url = await voiceSvc.speak({
       text, voiceId: char.voiceId, speed: char.voiceSpeed || 1,
-      ...voiceSvc.styleFor(char),
+      ...style,
+      ...(tone ? { prompt: tone } : {}),
       key: `msg-tts:${msgId}`,
     });
     const blob = await (await fetch(url)).blob();

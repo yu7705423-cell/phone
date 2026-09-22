@@ -5,6 +5,11 @@ export const DEFAULT_SETTINGS = {
   // 角色能不能自己发视频。**默认关着**（CLAUDE.md 第 15 条）：
   // 一条回复里写一个 [视频：…] 就多一次生成，而生成视频按秒计费，比生图贵得多
   videoOn: false,
+  // 生成之前先单独调一次接口，把角色随手写的那一句改写成一份真正的提示词。
+  // **一律默认关着**（第 15 条）：开一个就等于那一条多一次接口调用
+  writeImagePrompt: false,
+  writeVideoPrompt: false,
+  writeVoicePrompt: false,
   appIcons: {},                   // appId -> { icon }  单独换某个 app 的图标
   iconColor: '#000000',           // SVG 颜色
   iconShadow: true,               // 图标阴影

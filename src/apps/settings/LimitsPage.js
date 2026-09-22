@@ -94,6 +94,27 @@ export function LimitsPage() {
               + `当前填全的共 ${ai.cost.usableChatCount()} 套。`}
             right=${html`<${NumberInput} value=${Number(s.failoverMax) || 0} min=${0}
               onChange=${v => set({ failoverMax: v })}/>`}/>` : null}
+        <${ListItem} title="生图前先写一遍提示词" multiline
+          subtitle=${s.writeImagePrompt !== true
+            ? '已关闭。角色写的那一句会原样交给生图接口。'
+            : '在生成之前额外调用一次接口，把角色写的那一句改写成完整的画面描述，'
+              + '并把对话里才说得通的称呼换成具体的样子。每一张图多一次调用，走副用接口。'}
+          right=${html`<${Switch} checked=${s.writeImagePrompt === true}
+            onChange=${v => set({ writeImagePrompt: v })}/>`}/>
+        <${ListItem} title="生成视频前先写一遍提示词" multiline
+          subtitle=${s.writeVideoPrompt !== true
+            ? '已关闭。角色写的那一句会原样交给视频接口。'
+            : '在生成之前额外调用一次接口，把角色写的那一句改写成完整的画面与运动描述。'
+              + '每一段视频多一次调用，走副用接口。'}
+          right=${html`<${Switch} checked=${s.writeVideoPrompt === true}
+            onChange=${v => set({ writeVideoPrompt: v })}/>`}/>
+        <${ListItem} title="合成语音前先标一遍语气" multiline
+          subtitle=${s.writeVoicePrompt !== true
+            ? '已关闭。语气沿用角色卡与全局设置中填写的那一份。'
+            : '在合成之前额外调用一次接口，为这一句单独标出情绪、语速与音量，'
+              + '仅对这一句生效。每一条语音多一次调用，走副用接口。'}
+          right=${html`<${Switch} checked=${s.writeVoicePrompt === true}
+            onChange=${v => set({ writeVoicePrompt: v })}/>`}/>
         <${ListItem} title="角色自己发视频" multiline
           subtitle=${s.videoOn !== true
             ? '已关闭。角色不会发视频，你仍可在会话面板中自己生成。'

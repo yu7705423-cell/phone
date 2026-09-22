@@ -411,6 +411,60 @@ reading [拒收].
 You do not know what is inside before opening it. Do not pretend to know, and
 do not guess. The contents are reported to you once it is opened.`,
 
+  'task.image-prompt':
+`Rewrite a short line into a prompt for an image model.
+
+The image model does not receive the conversation. A name, nickname or
+object that only exists in the conversation means nothing to it: replace it
+with what the thing looks like. The context below is there for that purpose.
+
+## Context
+{{context}}
+
+## The line
+{{desc}}
+
+Write what is in frame: the subject, what it is doing, what it wears or how
+it is shaped, the setting, the light, the framing.
+Keep everything the line already states. Do not add a story, do not name
+anyone, and do not write anything the line and the context do not support.
+Write one paragraph, in the same language as the line.
+Output the paragraph only.`,
+
+  'task.video-prompt':
+`Rewrite a short line into a prompt for a video model.
+
+The video model does not receive the conversation. A name, nickname or
+object that only exists in the conversation means nothing to it: replace it
+with what the thing looks like. The context below is there for that purpose.
+
+## Context
+{{context}}
+
+## The line
+{{desc}}
+
+Write what is in frame, then write the motion: what moves, in which
+direction, how fast, and what the camera does.
+Keep everything the line already states. Do not add a story, do not name
+anyone, and do not write anything the line and the context do not support.
+Write one paragraph, in the same language as the line.
+Output the paragraph only.`,
+
+  'task.voice-prompt':
+`State how one spoken line sounds.
+
+## Context
+{{context}}
+
+## The line
+{{line}}
+
+Write at most twelve words: the emotion, the pace, the volume.
+Describe the delivery only. Do not rewrite the line, do not explain the
+reason, and do not write anything the line and the context do not support.
+Output those words only.`,
+
   'task.face-describe':
 `Describe this person's appearance, so that someone else can draw them from
 the description. Write it in the same language as the sample below.

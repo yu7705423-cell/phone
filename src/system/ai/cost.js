@@ -68,6 +68,27 @@ export const EXTRA_CALLS = [
     when: '角色每写一个 [视频：…]，多一次视频生成（走视频接口，按秒计费）',
   },
   {
+    id: 'writeImagePrompt',
+    label: '生图前先写一遍提示词',
+    setting: 'writeImagePrompt', off: false,
+    on: s => s.writeImagePrompt === true,
+    when: '角色每写一个 [图片：…]，先多一次接口把它改写成完整描述（走副用接口）',
+  },
+  {
+    id: 'writeVideoPrompt',
+    label: '生成视频前先写一遍提示词',
+    setting: 'writeVideoPrompt', off: false,
+    on: s => s.writeVideoPrompt === true,
+    when: '角色每写一个 [视频：…]，先多一次接口把它改写成完整描述（走副用接口）',
+  },
+  {
+    id: 'writeVoicePrompt',
+    label: '合成语音前先标一遍语气',
+    setting: 'writeVoicePrompt', off: false,
+    on: s => s.writeVoicePrompt === true,
+    when: '角色每写一个 [语音：…]，先多一次接口标出该用什么语气（走副用接口）',
+  },
+  {
     id: 'rerankOn',
     label: '召回之后重排一遍',
     setting: 'rerankOn', off: false,
