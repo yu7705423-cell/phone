@@ -24,6 +24,22 @@ export const KINDS = [
 ];
 export const kindOf = id => KINDS.find(k => k.id === id) || KINDS[0];
 
+/**
+ * 回来的是 base64 还是一个链接。
+ *
+ * **默认那一档整个字段都不发。** 这个参数惹的麻烦比它解决的多：
+ * `gpt-image-1` 根本不认它，发了直接 400（而且报错里看不出是哪个字段）；
+ * 中转站转到别家模型时同样常常 400。不发的话，服务端用它自己的默认值。
+ *
+ * 只有一种情形需要手动指定：接口默认给链接，而那个链接跨域取不回来 ——
+ * 那时候选 base64。取不回来时的报错里写了这句话。
+ */
+export const FORMATS = [
+  { id: '', label: '自动', desc: '不指定，由接口自己决定。gpt-image-1 一类只认这一档' },
+  { id: 'b64_json', label: 'base64', desc: '图片直接随响应回来。接口给的链接取不回来时选它' },
+  { id: 'url', label: '链接', desc: '接口返回图片链接，由本机再取一次。跨域可能取不到' },
+];
+
 export function isImageReady() {
   const p = activeImage();
   return !!(p && p.apiKey && p.model);
@@ -92,6 +108,7 @@ function editEndpoint(preset) {
 export function generateWithRef({ prompt, refBlob, preset, key }) {
   const p = preset || activeImage();
   if (!p || !p.apiKey) throw new Error('还没有配置生图接口');
+  const text = needPrompt(prompt);
 
   return enqueue(key || `imgref:${Date.now()}`, async signal => {
     // NovelAI 那套的「照着一张脸画」是另一条路（img2img / vibe transfer），
@@ -99,7 +116,7 @@ export function generateWithRef({ prompt, refBlob, preset, key }) {
     if (kindOf(p.kind).id === 'nai') throw new Error('NovelAI 这一档还不支持参考图');
     const form = new FormData();
     form.append('model', p.model);
-    form.append('prompt', prompt);
+    form.append('prompt', text);
     form.append('n', '1');
     form.append('size', p.size || '1024x1024');
     form.append('image', new File([refBlob], 'face.png', { type: refBlob.type || 'image/png' }));
@@ -113,20 +130,36 @@ export function generateWithRef({ prompt, refBlob, preset, key }) {
   }, { retries: 0 });
 }
 
+/**
+ * 提示词是空的就别发出去。
+ *
+ * **这一条栽过。** 空提示词发过去，接口那边通常不会说「提示词是空的」，
+ * 而是把它当成没收到，报一句上游的 400，里面是它自己那套字段
+ *（`{"prompt":null,...}`）—— 看半天也不知道是本机没填。
+ * `undefined` 更糟：`JSON.stringify` 会把整个键丢掉，对面收到的是「没这个字段」。
+ */
+export const needPrompt = text => {
+  const t = String(text || '').trim();
+  if (!t) throw new Error('这一张没有提示词，没有可画的内容');
+  return t;
+};
+
 // 返回一个 Blob，交给 images 域压缩入库，和其他图片一样存本地
 export function generate({ prompt, preset, key }) {
   const p = preset || activeImage();
   if (!p || !p.apiKey) throw new Error('还没有配置生图接口');
+  const text = needPrompt(prompt);
 
   return enqueue(key || `img:${Date.now()}`, async signal => {
-    if (kindOf(p.kind).id === 'nai') return novelai(p, { prompt, signal });
+    if (kindOf(p.kind).id === 'nai') return novelai(p, { prompt: text, signal });
     const res = await nfetch(endpoint(p), {
       method: 'POST', signal,
       headers: { 'content-type': 'application/json', authorization: `Bearer ${p.apiKey}` },
       body: JSON.stringify({
-        model: p.model, prompt,
+        model: p.model, prompt: text,
         n: 1, size: p.size || '1024x1024',
-        response_format: 'b64_json',
+        // 空字符串那一档整个字段不发，见 FORMATS
+        ...(p.respFormat ? { response_format: p.respFormat } : {}),
       }),
     });
     if (!res.ok) await asError(res);
@@ -140,7 +173,10 @@ async function pickImage(j, signal) {
   if (row?.url) {
     // 中转站常只给 URL。跨域可能取不回来，取不到就把 URL 抛出去让上层提示
     const img = await fetch(row.url, { signal }).catch(() => null);
-    if (!img || !img.ok) throw new Error('接口只返回了图片链接，且跨域取不回来');
+    if (!img || !img.ok) {
+      throw new Error('接口只返回了图片链接，且跨域取不回来。'
+        + '可在该生图接口的「返回格式」中改为 base64');
+    }
     return img.blob();
   }
   throw new Error('接口没有返回图片');

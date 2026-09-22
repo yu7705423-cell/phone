@@ -1050,6 +1050,10 @@ async function generateImage(msgId, prompt, char) {
     return;
   }
   try {
+    // 先看这一张有没有画面描述。**拼过之后再看就晚了** —— 全局提示词、
+    // 角色自己的提示词都会把它撑成非空，于是照着一句画风描述画出一张
+    // 谁也没要过的图，钱照花
+    imageSvc.needPrompt(prompt);
     const preset = activeImage();
     const lock = imgPrompt.faceApplies(char, prompt);
 

@@ -7,6 +7,8 @@ import { ModelPicker } from './ModelPicker.js';
 const { db, nav, ai } = phone;
 const svc = ai.services;
 
+const fmtDesc = v => (ai.image.FORMATS.find(f => f.id === (v || '')) || ai.image.FORMATS[0]).desc;
+
 const SIZES = [
   { value: '1024x1024', label: '1:1' },
   { value: '1024x1536', label: '2:3' },
@@ -86,6 +88,13 @@ function Editor({ id, onClose }) {
         <${Segmented} value=${preset.size || '1024x1024'} items=${SIZES}
           onChange=${v => set({ size: v })}/>
       <//>
+
+      ${preset.kind === 'nai' ? null : html`
+        <${Field} label="返回格式" desc=${fmtDesc(preset.respFormat)}>
+          <${Segmented} value=${preset.respFormat || ''}
+            items=${ai.image.FORMATS.map(f => ({ value: f.id, label: f.label }))}
+            onChange=${v => set({ respFormat: v })}/>
+        <//>`}
 
       <${List} inset=${false}>
         <${ListItem} title="支持参考图" multiline

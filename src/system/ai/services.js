@@ -128,6 +128,7 @@ export function newImagePreset(init = {}) {
     name: init.name || '未命名',
     kind: init.kind || 'openai',       // openai | relay
     baseUrl: '', apiKey: '', model: '', size: '1024x1024',
+    respFormat: '',                    // 见 ai/image.js 的 FORMATS。空字符串 = 不发这个字段
     ...init,
   };
   write({ image: { ...i, presets: [...i.presets, preset], activeId: i.activeId || preset.id } });
