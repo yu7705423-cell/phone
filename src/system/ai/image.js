@@ -186,9 +186,23 @@ export const timeoutOf = p => {
   return n * 1000;                     // 0 原样传下去，表示不设期限
 };
 
-async function ask(url, init, p) {
+/**
+ * 参考图那条路等多久。
+ *
+ * **它是一次「试试看」，不该花掉整份预算。** 失败了上层会退回纯文生图
+ * （见 ai/reply.js），所以早点失败反而好。很多中转站没有 images/edits，
+ * 而它们不回 404，是直接把连接挂在那儿 —— 于是一张图先白等两分钟，
+ * 再从头画一次。这里给它一个短得多的期限。
+ */
+export const REF_TIMEOUT = 45000;
+export const refTimeoutOf = p => {
+  const full = timeoutOf(p);
+  return full === 0 ? REF_TIMEOUT : Math.min(full, REF_TIMEOUT);
+};
+
+async function ask(url, init, p, ms) {
   try {
-    return await nfetch(url, { ...init, timeout: timeoutOf(p) });
+    return await nfetch(url, { ...init, timeout: ms == null ? timeoutOf(p) : ms });
   } catch (err) {
     // 超时和「连不上」要分开：前者多半只是这个模型慢，把期限调大就行；
     // 后者要去查地址和网络。混成一句，人只会反复检查地址
@@ -251,7 +265,7 @@ export function generateWithRef({ prompt, refBlob, preset, key, parts }) {
         method: 'POST', signal,
         headers: { authorization: `Bearer ${p.apiKey}` },   // multipart 的 content-type 交给浏览器带边界
         body: form,
-      }, p);
+      }, p, refTimeoutOf(p));
       if (!res.ok) await asError(res);
       const out = await pickImage(await res.json(), signal);
       tr.done(`取回 ${out.size} 字节`);
@@ -377,7 +391,15 @@ export async function testImage(preset) {
   const p = preset || activeImage();
   const k = kindOf(p?.kind);
   const base = baseOf(p?.baseUrl, k.base);
-  const out = { kind: k.label, base, route: canNative() ? '外壳转发' : '浏览器直连' };
+  const live = activeImage();
+  const out = {
+    kind: k.label, base,
+    route: canNative() ? '外壳转发' : '浏览器直连',
+    // **自检用的是你正在编辑的这一套，发消息用的是「当前生效」的那一套。**
+    // 两者不是同一套时，自检通过了消息照样失败 —— 而屏幕上看不出区别
+    active: live?.name || '',
+    isActive: !live || !p || live.id === p.id,
+  };
 
   if (!p) return { ...out, ok: false, step: '没有接口', hint: '先新建一套生图接口。' };
   if (!p.apiKey) return { ...out, ok: false, step: '没填密钥', hint: '先填 API Key。' };
@@ -387,7 +409,10 @@ export async function testImage(preset) {
     const blob = await generate({ prompt: 'a single small black circle on white',
       preset: p, key: `img:test:${Date.now()}` });
     return { ...out, ok: true, step: '连通', bytes: blob.size,
-      hint: `接口可用，取回 ${Math.round(blob.size / 1024)} KB 的图片。` };
+      hint: `接口可用，取回 ${Math.round(blob.size / 1024)} KB 的图片。`
+        + (out.isActive ? ''
+          : `但发消息时用的是「${out.active}」那一套，不是这一套。`
+            + '把这一套设为生效，或去那一套里自检。') };
   } catch (err) {
     const msg = String(err.message || err);
     if (/还没有回应/.test(msg)) {

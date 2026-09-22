@@ -42,6 +42,8 @@ function Editor({ id, onClose }) {
   const preset = svc.imagePresets().find(p => p.id === id);
   if (!preset) return null;
   const set = patch => svc.updateImagePreset(id, patch);
+  // 自检用的是这一套，发消息用的是「当前生效」的那一套。不是同一套时要说出来
+  const isLive = svc.services().image.activeId === id;
 
   // 一句「失败了」等于什么都没说。底下至少藏着五件事，每一件的下一步都不同，
   // 所以自检把断在哪一步、以及下一步该做什么一起摆出来（见 ai/image.js 的 testImage）
@@ -128,11 +130,26 @@ function Editor({ id, onClose }) {
 
       <${List} inset=${false}>
         <${ListItem} title="支持参考图" multiline
-          subtitle=${`开启后，角色锁脸将把脸部照片随请求一并发送（images/edits 端点）。`
-            + `接口不支持时会自动退回「读成外貌描述」的方式。`}
+          subtitle=${`开启后，角色设了脸图时会先试 images/edits 那条路，`
+    + `不认再退回纯文生图。多数中转站没有这个端点，而且常常是挂着不回、`
+    + `不是直接报错，所以这一条会先白等一段时间。只想要文生图就关着。`}
           right=${html`<${Switch} checked=${preset.ref === 'edits'}
             onChange=${v => set({ ref: v ? 'edits' : 'off' })}/>`}/>
       <//>
+
+      ${!isLive ? html`
+        <div class="pad-x">
+          <div class="warn-box">
+            这一套不是当前生效的接口。发消息时用的是
+            「${svc.activeImage()?.name || '另一套'}」，在这里自检通过也不代表发消息能成。
+          </div>
+          <div class="pad-t">
+            <${Button} size="sm" variant="ghost"
+              onClick=${() => { svc.setActiveImage(id); toast('已设为生效', 'ok'); }}>
+              把这一套设为生效
+            <//>
+          </div>
+        </div>` : null}
 
       <${Field} label="等待上限"
         desc="超过这么久还没回应就算失败。生图一张跑一两分钟很常见，所以默认给得宽。
