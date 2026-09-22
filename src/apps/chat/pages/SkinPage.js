@@ -3,7 +3,6 @@ import { phone, useStore } from '../../../sdk/index.js';
 import { Page, List, ListItem, Field, Textarea, NumberInput, Segmented, Switch,
          Button, Icon, EmptyState, toast, confirm, prompt } from '../../../ui/index.js';
 import { Bubble, ComposerBar } from './Conversation.js';
-import { SkinGen } from './SkinGen.js';
 
 const { db, nav, skin, receipt } = phone;
 
@@ -103,7 +102,7 @@ export function SkinPage({ chatId }) {
   useStore(db.chats.store);
   useStore(db.skins.store);
   useStore(db.characters.store);
-  const [tab, setTab] = useState('gen');
+  const [tab, setTab] = useState('size');
   // 提前 return 在下面，所有 hook 都要在那之前（doctor 的 hook 顺序那一项）
   const fileRef = useRef(null);
   const sampleRef = useRef(null);
@@ -217,10 +216,7 @@ export function SkinPage({ chatId }) {
       <//>`;
   }
 
-  // 「生成」排第一，而且是新建那一份的默认页 —— 绝大多数人要的是拖旋钮，
-  // 不是写 CSS。把写 CSS 排在前面，等于默认所有人都会写
   const TABS = [
-    { value: 'gen', label: '生成' },
     { value: 'size', label: '尺寸' },
     { value: 'css', label: '自定义 CSS' },
     { value: 'names', label: '类名' },
@@ -238,8 +234,6 @@ export function SkinPage({ chatId }) {
       <div class="pad-x pad-t">
         <${Segmented} value=${tab} onChange=${setTab} items=${TABS}/>
       </div>
-
-      ${tab === 'gen' ? html`<${SkinGen} row=${cur} onChange=${set}/>` : null}
 
       ${tab === 'size' ? html`
         <div class="pad-x pad-t">
@@ -309,6 +303,10 @@ export function SkinPage({ chatId }) {
       <${MsgGroup}/>
 
       <${List}>
+        <${ListItem} title="打开生成器" arrow multiline
+          subtitle="拖旋钮调顶栏、消息、头像、气泡与底栏，不必手写 CSS"
+          left=${html`<${Icon} name="edit" size=${18}/>`}
+          onClick=${() => phone.intent.open('skin', { route: `/gen/${cur.id}`, back: true })}/>
         <${ListItem} title="导出美化包" multiline
           subtitle="导出为一个文件，可分享给他人导入。不包含它挂在哪些会话上。"
           left=${html`<${Icon} name="download" size=${18}/>`}

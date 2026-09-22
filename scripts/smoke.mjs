@@ -42,7 +42,7 @@ const ROUTES = {
   album: ['/', '/album/:alb', '/photo/:pho', '/photo/:card'],
   health: ['/', '/log', '/cycle', '/meds', '/settings', '/char/:char'],
   todo: ['/', '/detect', '/alarm', '/notes'],
-  skin: ['/', '/one/:skin', '/one/nope', '/contract'],
+  skin: ['/', '/one/:skin', '/one/nope', '/contract', '/gen/:skin', '/gen/nope'],
   us: ['/', `/chat/:chat`, '/work/:work', '/work/:work/edit', '/work/nope',
     '/chapter/:chapter', '/chapter/nope', '/read/:chapter', '/read/nope'],
   settings: ['/', '/api', '/voice', '/image', '/embed', '/notify', '/music',

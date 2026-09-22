@@ -28,7 +28,7 @@
 // 不是一次重构的事。
 
 /** 契约本身的版本。加钩子不动它；改名或删名才动，而且那是个大事。 */
-export const CONTRACT_VERSION = 1;
+export const CONTRACT_VERSION = 2;
 
 /** 美化能挂在哪一层。美化包自己声明，见 `scope`。 */
 export const SCOPES = [
@@ -91,6 +91,10 @@ export const HOOKS = [
   { hook: 'composer', label: '底栏', on: ['chat'], since: 1 },
   { hook: 'composer-input', label: '输入框', on: ['chat'], since: 1 },
   { hook: 'composer-btn', label: '底栏圆按钮', on: ['chat'], since: 1 },
+  { hook: 'plus', label: '底栏的加号', on: ['chat'], since: 2,
+    note: '图标是内联 svg，换图要先把它藏起来：.ph-plus svg { opacity: 0 }，再给按钮铺背景图' },
+  { hook: 'sticker-btn', label: '底栏的表情键', on: ['chat'], since: 2,
+    needs: '当前不在线下模式' },
   { hook: 'send', label: '发送键', on: ['chat'], since: 1 },
   { hook: 'panel', label: '底栏展开的面板', on: ['chat'], since: 1,
     needs: '点开底栏左侧的加号或表情' },
@@ -104,6 +108,10 @@ export const HOOKS = [
   { hook: 'nav-title', label: '顶栏标题', on: ['chat', 'shell'], since: 1 },
   { hook: 'nav-left', label: '顶栏左侧', on: ['chat', 'shell'], since: 1 },
   { hook: 'nav-right', label: '顶栏右侧', on: ['chat', 'shell'], since: 1 },
+  { hook: 'back', label: '顶栏的返回键', on: ['chat', 'shell'], since: 2,
+    needs: '这一页能返回', note: '换图同 .ph-plus。设为透明仍然点得到，点击区不变' },
+  { hook: 'nav-action', label: '顶栏右上角那个按钮', on: ['chat'], since: 2,
+    needs: '会话页，且不在多选中' },
   { hook: 'tabbar', label: '底部标签栏', on: ['shell'], since: 1,
     needs: '当前这个 app 分了几个标签' },
   { hook: 'tab', label: '一个标签', on: ['shell'], since: 1, needs: '同上' },

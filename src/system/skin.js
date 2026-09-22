@@ -5,6 +5,7 @@ import { emit as emitGen } from './skin-gen.js';
 
 export { SCOPES, scopeOf, isGlobal, HOOKS, VARS, CONTRACT_VERSION } from './skin-contract.js';
 export * as gen from './skin-gen.js';
+export { buildStage, SAMPLE, hooksInStage, stageCss } from './skin-stage.js';
 
 // 美化。见 ARCHITECTURE 4.111
 //
@@ -217,6 +218,22 @@ export function compile(skin, { varsOn = ':root' } = {}) {
   if (css) out.push(css);
   return out.join('\n');
 }
+
+
+/**
+ * 复刻页外面那一圈。**只管把它摆成一部手机的形状**，里面每一件的样子
+ * 都来自 app.css，和真页面同一份 —— 这儿多写一条，预览就和真页面差一条。
+ */
+export const STAGE_CSS = `
+:host { display: block; }
+.stage-scale { width: 430px; transform-origin: 0 0; }
+.stage-page { display: flex; flex-direction: column; height: 620px; background: var(--bg); }
+.stage-page .conv { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.stage-page .conv-main { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.stage-page .conv-body { flex: 1; min-height: 0; overflow: hidden; }
+.stage-page .composer-bar { padding-bottom: var(--composer-pad); }
+.stage-page textarea { pointer-events: none; }
+`;
 
 // ---- 挂上去 / 摘下来 ----
 

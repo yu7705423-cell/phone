@@ -77,7 +77,7 @@ export function ComposerBar({ draft = '', live = false, busy = false, frozen = f
   const tap = fn => (frozen || !fn ? null : fn);
   return html`
     <div class="composer-bar ph-composer">
-      <button class="composer-side ph-composer-btn press" onClick=${tap(onMenu)}
+      <button class="composer-side ph-composer-btn ph-plus press" onClick=${tap(onMenu)}
         aria-label="添加内容"><${Icon} name="plus" size=${20}/></button>
 
       <textarea class=${`composer-input ph-composer-input${live ? ' is-scene' : ''}`} rows="1" value=${draft}
@@ -94,7 +94,7 @@ export function ComposerBar({ draft = '', live = false, busy = false, frozen = f
           <button class="composer-side ph-composer-btn press" onClick=${tap(onLook)}
             aria-label="外观"><${Icon} name="sun" size=${20}/></button>`
         : html`
-          <button class="composer-side ph-composer-btn press" onClick=${tap(onSticker)}
+          <button class="composer-side ph-composer-btn ph-sticker-btn press" onClick=${tap(onSticker)}
             aria-label="表情"><${Icon} name="heart" size=${20}/></button>`}
 
       ${draft.trim()
@@ -1098,7 +1098,7 @@ export function Conversation({ chatId, focusId = '' }) {
       onBack=${selecting ? () => setPicked(null) : nav.pop} noScroll
       right=${selecting
         ? html`<button class="nav-text press" onClick=${() => setPicked(view.map(m => m.id))}>全选</button>`
-        : html`<${IconButton} name="more" onClick=${() => setMenu(true)} label="更多"/>`}>
+        : html`<${IconButton} name="more" onClick=${() => setMenu(true)} label="更多" cls="ph-nav-action"/>`}>
       <div class="conv ph-chat">
         <${ListenBar} chatId=${chatId}/>
         <${WatchBar} chatId=${chatId}/>

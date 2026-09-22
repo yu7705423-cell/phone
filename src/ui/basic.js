@@ -9,8 +9,11 @@ export const Button = ({ children, onClick, variant = 'primary', size = 'md',
     ${children}
   </button>`;
 
-export const IconButton = ({ name, onClick, size = 20, label, active, style = '' }) => html`
-  <button class=${`icon-btn press${active ? ' is-active' : ''}`}
+// cls 是给契约钩子留的口子。图标是内联 svg，CSS 换不掉里面的路径，
+// 换图那一招是「把 svg 藏起来、在按钮上铺一张背景图」—— 那就得先能
+// 单独选中这一个按钮，而不是选中所有 .icon-btn（见 ARCHITECTURE 4.138）
+export const IconButton = ({ name, onClick, size = 20, label, active, style = '', cls = '' }) => html`
+  <button class=${`icon-btn press${active ? ' is-active' : ''}${cls ? ' ' + cls : ''}`}
     onClick=${onClick} aria-label=${label || name} style=${style}>
     <${Icon} name=${name} size=${size}/>
   </button>`;

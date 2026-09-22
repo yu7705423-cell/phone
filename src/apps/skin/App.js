@@ -4,6 +4,7 @@ import { Page, List, ListItem, Button, Icon, Switch,
          EmptyState, toast, confirm, prompt } from '../../ui/index.js';
 import { Preview } from './Preview.js';
 import { ContractPage } from './ContractPage.js';
+import { GenPage } from './GenPage.js';
 
 const { db, nav, skin, intent } = phone;
 
@@ -178,6 +179,9 @@ function OnePage({ id }) {
     <${Page} title=${row.name} onBack=${nav.pop}
       right=${html`<button class="nav-text press" onClick=${rename}>改名</button>`}>
       <${Preview} row=${row}/>
+      <div class="pad">
+        <${Button} full icon="edit" onClick=${() => nav.push(`/gen/${id}`)}>打开生成器<//>
+      </div>
       <div class="settings-foot">
         这是静态预览，用于辨认这一份大致是什么样子。
         实时效果请在会话中查看：那里的样板间使用真实的气泡组件。
@@ -238,6 +242,8 @@ function OnePage({ id }) {
 
 export default function SkinApp({ route }) {
   if (route === '/contract') return html`<${ContractPage}/>`;
+  const g = route?.match(/^\/gen\/(.+)$/);
+  if (g) return html`<${GenPage} id=${g[1]}/>`;
   const one = route?.match(/^\/one\/(.+)$/);
   if (one) return html`<${OnePage} id=${one[1]}/>`;
   return html`<${ListPage}/>`;

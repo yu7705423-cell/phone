@@ -194,7 +194,7 @@ export function Page({ title, onBack, right, tabs, children, noScroll,
       ${(!hideBar && (title || onBack || right)) ? html`
         <div class="navbar ph-navbar">
           <div class="nav-left ph-nav-left">
-            ${onBack ? html`<${IconButton} name="chevronLeft" size=${22} onClick=${onBack} label="返回"/>` : null}
+            ${onBack ? html`<${IconButton} name="chevronLeft" size=${22} onClick=${onBack} label="返回" cls="ph-back"/>` : null}
           </div>
           <div class="nav-title ellipsis ph-nav-title">${title}</div>
           <div class="nav-right ph-nav-right">${right || null}</div>

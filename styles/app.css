@@ -121,6 +121,7 @@
 .skin-preview {
   margin: var(--sp-4); border-radius: var(--r-lg); overflow: hidden;
   border: 1px solid var(--border); background: var(--surface);
+  height: 220px;
 }
 
 .chip-row { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-top: var(--sp-2); }
@@ -585,7 +586,14 @@ input[type="range"] {
   background: none; color: var(--text-2); font-size: var(--fs-12); padding: 4px var(--sp-2);
 }
 
-/* 生成器：一组一张卡，顶上是组名 */
+/* 生成器：顶上钉一块预览，下面是一组一组的旋钮 */
+.gen-stage-wrap {
+  flex: none; border-bottom: 1px solid var(--border); background: var(--surface-2);
+}
+.gen-stage {
+  height: 330px; overflow: hidden; position: relative; width: 100%;
+}
+.gen-scroll { flex: 1; min-height: 0; }
 .gen-group { padding: 0 var(--sp-4) var(--sp-4); }
 .gen-out {
   margin: var(--sp-4); padding: var(--sp-3); border-radius: var(--r-md);
