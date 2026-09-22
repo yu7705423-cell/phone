@@ -140,7 +140,11 @@ final class ShellViewController: UIViewController {
         //                    见 KeepAliveBridge
         //   phoneAlarm       这套构建带得动系统闹钟（要 iOS 26，见 AlarmBridge）
         //   phoneNet         第三方接口的请求可以交给外壳发。跨域是浏览器的规矩，
-        //                    外壳用系统的网络栈发就没这回事（见 NetBridge）
+        //                    外壳用系统的网络栈发就没这回事（见 NetBridge）。
+        //                    从前是一个 true；现在是一张能力表，`timeout: true`
+        //                    表示每一次请求自带的期限它认。旧外壳只有 true，
+        //                    网页那边靠这一项分得出手机上装的是不是旧版 ——
+        //                    旧版一律 120 秒掐断，「等待上限」对它不生效
         //   phoneAppVersion  这只 app 自己的版本。网页那份构建号是从站点取的，
         //                    说明不了手机上装的是哪一版外壳 —— 而外壳里那半边
         //                    （闹钟、通知、健康）只能靠重装才会变
@@ -150,7 +154,7 @@ final class ShellViewController: UIViewController {
                 + "window.phoneKeepAlive = true;"
                 + "window.phoneHealth = \(HealthBridge.available);"
                 + "window.phoneAlarm = \(AlarmBridge.available);"
-                + "window.phoneNet = true;"
+                + "window.phoneNet = { timeout: true };"
                 + "window.phoneAppVersion = \"\(Self.appVersion)\";",
             injectionTime: .atDocumentStart,
             forMainFrameOnly: false))

@@ -2,7 +2,7 @@ import { baseOf } from './url.js';
 import { activeImage } from './services.js';
 import { enqueue } from './queue.js';
 import { unzip } from '../zip.js';
-import { nfetch, routeOf, canNative, reachable } from '../net.js';
+import { nfetch, routeOf, canNative, reachable, shellTimeoutOk, OLD_SHELL_CAP } from '../net.js';
 import { images } from '../db/index.js';
 import * as trace from './trace.js';
 
@@ -239,7 +239,9 @@ async function ask(url, init, p, ms) {
     if (err?.timedOut) {
       throw new Error(`生图接口等了 ${Math.round(err.seconds)} 秒还没有回应。`
         + '生图本来就慢，一张跑一两分钟很常见。'
-        + '可在该接口的「等待上限」里调大，或填 0 表示一直等。'
+        + (err.oldShell
+          ? oldShellNote()
+          : '可在该接口的「等待上限」里调大，或填 0 表示一直等。')
         + `原始错误：${err.message || err}`);
     }
     const native = routeOf(url) === 'native';
@@ -252,6 +254,20 @@ async function ask(url, init, p, ms) {
       + `原始错误：${err.message || err}`);
   }
 }
+
+/**
+ * 旧外壳那一句。
+ *
+ * 「自检能过、发消息就超时」多半就是它：自检画的是一个黑圆点，几秒钟回来；
+ * 消息里那一张带着几百字的提示词，在慢一点的中转上要跑两三分钟 ——
+ * 而旧外壳不管网页传了多大的期限，一律 120 秒掐断。
+ */
+export const oldShellNote = () =>
+  `本机安装的外壳是旧版，期限写死 ${OLD_SHELL_CAP} 秒，「等待上限」对它不生效。`
+  + '重新打包并安装最新的 ipa 后，才按填的数等。';
+
+/** 当前外壳会不会无视「等待上限」。浏览器直连不存在这个问题。 */
+export const oldShell = () => canNative() && !shellTimeoutOk();
 
 function endpoint(preset) {
   const base = baseOf(preset.baseUrl, 'https://api.openai.com/v1');
@@ -461,18 +477,28 @@ export async function testImage(preset) {
   try {
     const blob = await generate({ prompt: 'a single small black circle on white',
       preset: p, key: `img:test:${Date.now()}` });
+    // **自检过了不等于发消息也过得了。** 自检这一张几秒钟就回来，消息里那一张
+    // 带着长提示词要跑几分钟；旧外壳 120 秒一到就掐，等待上限填多大都没用。
+    // 这一条要在「通过」的时候就说，等到消息失败再说就晚了
     return { ...out, ok: true, step: '连通', bytes: blob.size,
       hint: `接口可用，取回 ${Math.round(blob.size / 1024)} KB 的图片。`
         + (out.isActive ? ''
           : `但发消息时用的是「${out.active}」那一套，不是这一套。`
-            + '把这一套设为生效，或去那一套里自检。') };
+            + '把这一套设为生效，或去那一套里自检。')
+        + (oldShell()
+          ? `注意：${oldShellNote()}自检这一张几秒钟就回来，`
+            + '消息里带长提示词的一张常常不止这么久。'
+          : '') };
   } catch (err) {
     const msg = String(err.message || err);
     if (/还没有回应/.test(msg)) {
       return { ...out, ok: false, step: '等超时了', detail: msg,
         hint: '请求发出去了，只是对面在期限内没回完。生图本来就慢，'
-          + '一张跑一两分钟很常见。把这套接口的「等待上限」调大，'
-          + '或填 0 表示一直等；若调到很大仍然如此，再查接口本身。' };
+          + '一张跑一两分钟很常见。'
+          + (oldShell()
+            ? oldShellNote()
+            : '把这套接口的「等待上限」调大，'
+              + '或填 0 表示一直等；若调到很大仍然如此，再查接口本身。') };
     }
     if (!/连不上生图接口/.test(msg)) {
       const linked = /只返回了图片链接/.test(msg);

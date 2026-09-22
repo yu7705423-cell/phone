@@ -23,6 +23,23 @@ const BRIDGE = () => window.webkit?.messageHandlers?.net;
 /** 这台设备能不能让外壳代发。 */
 export const canNative = () => !!(window.phoneNet && BRIDGE());
 
+/**
+ * 外壳认不认每一次请求自带的期限。
+ *
+ * 旧外壳把 `window.phoneNet` 注成一个 `true`，期限写死 120 秒，
+ * 网页传过去的 `timeout` 它看都不看；新外壳注的是 `{ timeout: true }`。
+ * 「等待上限」那个旋钮在旧外壳上是个摆设 —— 而这件事不说出来，
+ * 人会把它调到 900 再试一次，然后仍然在 120 秒被掐断。
+ */
+export const shellTimeoutOk = () => window.phoneNet?.timeout === true;
+
+/** 旧外壳写死的那个期限（秒）。见 ios/Sources/NetBridge.swift 的历史。 */
+export const OLD_SHELL_CAP = 120;
+
+// 旧外壳超时时只回一句系统的本地化文案，没有 timedOut 那个标志。
+// 中文系统是「请求超时」，英文是「The request timed out.」，都是 NSURLErrorTimedOut
+const IOS_TIMEOUT = /请求超时|request timed out|NSURLErrorDomain.*-1001/i;
+
 const b64ToBytes = b64 => {
   const bin = atob(String(b64 || ''));
   const out = new Uint8Array(bin.length);
@@ -122,6 +139,13 @@ async function viaNative(url, init = {}) {
   });
   if (got?.error) {
     if (got.timedOut) throw new TimeoutError(got.seconds || 0, url);
+    // 旧外壳的超时。从前这一句落到下面那个 TypeError 里，上层照着
+    // 报成「连不上生图接口」—— 而它明明连上了，只是等到 120 秒被掐断
+    if (!shellTimeoutOk() && IOS_TIMEOUT.test(String(got.error))) {
+      const err = new TimeoutError(OLD_SHELL_CAP, url);
+      err.oldShell = true;
+      throw err;
+    }
     throw new TypeError(got.error);
   }
 
