@@ -42,6 +42,7 @@ const ROUTES = {
   album: ['/', '/album/:alb', '/photo/:pho', '/photo/:card'],
   health: ['/', '/log', '/cycle', '/meds', '/settings', '/char/:char'],
   todo: ['/', '/detect', '/alarm', '/notes'],
+  skin: ['/', '/one/:skin', '/one/nope'],
   us: ['/', `/chat/:chat`, '/work/:work', '/work/:work/edit', '/work/nope',
     '/chapter/:chapter', '/chapter/nope', '/read/:chapter', '/read/nope'],
   settings: ['/', '/api', '/voice', '/image', '/embed', '/notify', '/music',
@@ -231,8 +232,11 @@ const ids = await page.evaluate(async () => {
     at: '19:40', text: '雨还没停。' + '很长的一段'.repeat(60) });
   sceneMod.addBeat({ sceneId: cpRow.id, role: 'me', text: '我把行李放下。' });
 
+  const skinRow = (await import('/src/system/skin.js')).create({ name: '样例美化',
+    tokens: { bubbleR: 18 }, shape: 'round', css: '.bubble{opacity:.95}' });
   return { char: a.id, chat: chat.id, mem: mem.id, work: wkRow.id, chapter: cpRow.id, persona: me.id, book: bk.id, ebook: ebk.id, video: vid.id, lore: lore.id,
-    alb: book1.id, pho: pho.id, card: cardPhoto.id, trip: trRow.id, scene: scRow.id };
+    alb: book1.id, pho: pho.id, card: cardPhoto.id, trip: trRow.id, scene: scRow.id,
+    skin: skinRow.id };
 });
 await page.waitForTimeout(400);
 

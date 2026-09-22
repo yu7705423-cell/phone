@@ -116,6 +116,13 @@
   padding: var(--sp-6) var(--sp-4);
 }
 
+/* 美化库里的静态预览。里面是一个 shadow root，那份美化的 CSS 只在里面生效，
+   所以外面这一圈框由本表负责，不会被它改掉。 */
+.skin-preview {
+  margin: var(--sp-4); border-radius: var(--r-lg); overflow: hidden;
+  border: 1px solid var(--border); background: var(--surface);
+}
+
 .chip-row { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-top: var(--sp-2); }
 .chip {
   padding: 5px var(--sp-3); border-radius: var(--r-full);

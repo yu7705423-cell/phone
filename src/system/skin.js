@@ -97,7 +97,7 @@ export const usedBy = id => chats.where(c => c.skinId === id).length;
  * 选择器 —— 重写要一个真的 CSS 解析器，而 @media、嵌套、伪元素上每一处
  * 想当然都会写错，错了还是静默的。时间上的隔离够用，而且解释得清楚。
  */
-export function compile(skin) {
+export function compile(skin, { varsOn = ':root' } = {}) {
   if (!skin) return '';
   const out = [];
   const vars = TOKENS
@@ -105,7 +105,10 @@ export function compile(skin) {
     .map(t => `${t.css}:${Math.round(Number(skin.tokens[t.id]))}${t.unit || ''}`);
   const shape = SHAPES.find(s => s.id === skin.shape);
   if (shape?.css) vars.push(`--avatar-r:${shape.css}`);
-  if (vars.length) out.push(`:root{${vars.join(';')}}`);
+  // 令牌挂在哪个选择器上。**只有这一段是我们自己生成的，所以换得起** ——
+  // 用户手写的那一段一个字都不改（见上面「不重写用户的选择器」）。
+  // 画在 shadow root 里时要换成 :host：那里面没有 :root，整段会静静地不生效
+  if (vars.length) out.push(`${varsOn}{${vars.join(';')}}`);
   const css = String(skin.css || '').trim();
   if (css) out.push(css);
   return out.join('\n');
@@ -269,3 +272,22 @@ export function install(data) {
   for (let i = 2; taken.has(name); i++) name = `${data.name}（${i}）`;
   return create({ ...data, name });
 }
+
+/**
+ * 复制一份。名字后面缀一个「副本」，重名再加数字。
+ *
+ * 调好一份再在它基础上改，比从头写一遍常见得多 —— 而从前只能导出再导入，
+ * 绕一大圈还多出一个文件。
+ */
+export function duplicate(id) {
+  const src = get(id);
+  if (!src) return null;
+  const taken = new Set(all().map(x => x.name));
+  const base = `${src.name} 副本`;
+  let name = base;
+  for (let i = 2; taken.has(name); i++) name = `${base} ${i}`;
+  return create({ name, tokens: { ...(src.tokens || {}) }, shape: src.shape, css: src.css });
+}
+
+/** 这一份挂在哪几段会话上。库那一页要能说清楚「删了会影响谁」。 */
+export const chatsUsing = id => chats.all().filter(c => c.skinId === id);
