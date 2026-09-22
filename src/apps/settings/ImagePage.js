@@ -221,6 +221,23 @@ export function ImagePage() {
             placeholder="例如：柔和的自然光，胶片质感，不要文字水印"
             onInput=${v => db.settings.set({ imagePrompt: v })}/>
         <//>
+        <${List} title="内置预设" inset=${false}>
+          ${ai.imagePrompt.STYLES.map(x => html`
+            <${ListItem} key=${x.id} title=${x.label} subtitle=${x.desc} multiline
+              right=${html`<${Switch}
+                checked=${(s.imageStyles || []).includes(x.id)}
+                onChange=${on => db.settings.set({
+    imageStyles: on
+      ? [...new Set([...(s.imageStyles || []), x.id])]
+      : (s.imageStyles || []).filter(v => v !== x.id),
+  })}/>`}/>`)}
+        <//>
+        <div class="settings-foot">
+          预设分两部分：一部分要求角色在写画面描述时写明哪些内容，
+          一部分拼在最终提示词末尾用于固定成片的样子。
+          正文可在「提示词模板」中修改。开启预设不会增加接口调用次数。
+        </div>
+
         ${neg ? html`
           <div class="warn-box">
             这段文字里有一行单独的「${neg.head}」，它后面还有 ${neg.lines} 行。

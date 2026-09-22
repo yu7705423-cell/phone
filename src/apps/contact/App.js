@@ -8,7 +8,8 @@ import { ImportPage } from './ImportPage.js';
 import { Page, List, ListItem, Field, Input, Textarea, Avatar, Button,
          Icon, IconButton, Sheet, EmptyState, toast, confirm, prompt } from '../../ui/index.js';
 
-const { db, nav, images, accounts } = phone;
+const { db, nav, images, accounts, ai } = phone;
+const cardApi = ai.card;
 
 // 「这个人是谁」都在这儿：我的人设，和每个角色的人设。
 // 聊天里的角色卡只留「她在对话里怎么表现」那部分（语音、发图、主动找我、世界书）。
@@ -435,6 +436,20 @@ function MePage({ id }) {
 
 function EditPage({ id }) {
   useStore(db.characters.store);
+  // **hook 要在提前 return 之前调完**，否则角色被删掉那一次数量对不上
+  const [looking, setLooking] = useState(false);
+  const pullLook = async c => {
+    const persona = String(c.persona || '').trim();
+    if (!persona) { toast('人设是空的，没有可提取的内容'); return; }
+    setLooking(true);
+    try {
+      const out = await cardApi.makeAppearance(persona);
+      if (!out) { toast('这段人设里没有写到外貌'); return; }
+      db.characters.update(c.id, { appearance: out });
+      toast('已提取', 'ok');
+    } catch (err) { toast(String(err.message || err), 'error', 5000); }
+    finally { setLooking(false); }
+  };
   const char = db.characters.get(id);
   if (!char) {
     return html`<${Page} title="人设" onBack=${nav.pop}>
@@ -490,6 +505,14 @@ function EditPage({ id }) {
           <${Textarea} rows=${4} value=${char.appearance || ''}
             placeholder="例如：及肩黑发，眼角有一颗痣，身形偏瘦，常穿宽大的深色毛衣。"
             onInput=${v => patch({ appearance: v })}/>
+          <div class="btn-row pad-t">
+            <${Button} size="sm" variant="ghost" icon="sparkle" disabled=${!!looking}
+              onClick=${() => pullLook(char)}>
+              ${looking ? '正在提取' : '从人设中提取'}<//>
+          </div>
+          <div class="field-desc">
+            读取上方的人设，调用一次接口整理出外貌，覆盖这一栏的现有内容。
+          </div>
         <//>
         <${Field} label="情境" desc="双方是什么关系，当前处于什么场景。">
           <${Textarea} rows=${3} value=${char.scenario || ''}

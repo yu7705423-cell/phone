@@ -49,6 +49,27 @@ export async function makeCore(persona) {
   return str(out).slice(0, 400);
 }
 
+/**
+ * 从人设里把外貌抽出来。
+ *
+ * 角色卡上那一栏要手填，而外貌本来多半已经写在人设里了 —— 让人再抄一遍
+ * 是没道理的。抽出来的东西发给的是一个**收不到对话的模型**，
+ * 所以只留画得出来的那部分（见 ai/imageprompt.js 的 appearanceOf）。
+ *
+ * 这是一次手动点出去的调用，不是「发一条消息变成两次」，所以不进
+ * EXTRA_CALLS（第 15 条）。和核心设定那一条同样的道理。
+ */
+export async function makeAppearance(persona) {
+  const text = str(persona);
+  if (!text) return '';
+  const system = fillTemplate(template('task.appearance'), { persona: text.slice(0, 6000) });
+  const out = await runTextTask('card.appearance', {
+    system, user: 'Produce the output as instructed.',
+    key: `card-look:${Date.now()}`, maxTokens: 400,
+  });
+  return str(out).slice(0, 600);
+}
+
 // ---- 关系 ----
 // 存在角色自己身上：relations: [{ charId, label }]
 // label 的含义统一成「对方是我的什么」，加的时候两边各写一条。

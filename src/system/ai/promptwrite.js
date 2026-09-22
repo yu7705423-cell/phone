@@ -1,6 +1,7 @@
 import { settings, messagesOf, characters } from '../db/index.js';
 import { template, fillTemplate } from './templates.js';
 import { runTextTask } from './engine.js';
+import { styleAsk } from './imageprompt.js';
 
 /**
  * 把角色随手写的那一句，改写成一份真正能用的生成提示词。
@@ -77,7 +78,7 @@ export async function forImage(desc, { chatId, char, key } = {}) {
   if (!imageOn() || !raw) return raw;
   try {
     const out = await write('image.prompt', 'task.image-prompt',
-      { desc: raw, context: contextOf(chatId, char) }, key);
+      { desc: raw, context: contextOf(chatId, char), ask: styleAsk() }, key);
     return out || raw;
   } catch { return raw; }
 }
@@ -88,7 +89,7 @@ export async function forVideo(desc, { chatId, char, key } = {}) {
   if (!videoOn() || !raw) return raw;
   try {
     const out = await write('video.prompt', 'task.video-prompt',
-      { desc: raw, context: contextOf(chatId, char) }, key);
+      { desc: raw, context: contextOf(chatId, char), ask: styleAsk() }, key);
     return out || raw;
   } catch { return raw; }
 }

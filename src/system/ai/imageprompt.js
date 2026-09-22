@@ -146,6 +146,43 @@ export function appearanceOf(text, char) {
   return out;
 }
 
+/**
+ * 内置的生图预设。**默认全关**，开哪个由用户决定。
+ *
+ * 一个预设分两段，因为「画得好」这件事落在两个不同的地方：
+ *
+ *   `ask`   描述里要写到什么。加在**写描述的那一方**身上 —— 角色写
+ *           `[图片：…]` 的时候、以及改写那一步。光有画风没有内容，
+ *           画出来的还是一句话那么空。
+ *   `tail`  看起来像什么。拼在**最终提示词**末尾，和全局提示词并排。
+ *
+ * 正文存在模板里（第 11 条），可以改；改语气不该需要改代码。
+ *
+ * 这和第 16 条不冲突：那一条管的是**内置提示词不替角色作判断**，
+ * 而这里是用户自己打开的一档画风，默认关着，开不开是他的事。
+ */
+export const STYLES = [
+  {
+    id: 'daily',
+    label: '日常拍照分享',
+    desc: '要求描述写明场景、环境、构图、光线；画面里有人时写明穿着，'
+      + '并与场景相称。成片看起来像随手拍下来分享的照片，不像棚拍或海报。',
+    ask: 'style.daily.ask',
+    tail: 'style.daily.tail',
+  },
+];
+
+/** 开着的那几个。存的是 id 清单，没有就是一个都没开。 */
+export function stylesOn() {
+  const on = settings.get().imageStyles;
+  const set = new Set(Array.isArray(on) ? on : []);
+  return STYLES.filter(x => set.has(x.id));
+}
+
+/** 加在写描述那一方身上的那几句。角色与改写那一步共用。 */
+export const styleAsk = () =>
+  stylesOn().map(x => template(x.ask)).filter(Boolean).join('\n');
+
 export function parts({ prompt, char, face = '' }) {
   const text = String(prompt || '').trim();
   const raw = [{ from: '画面描述', text }];
@@ -156,6 +193,11 @@ export function parts({ prompt, char, face = '' }) {
   if (lore) raw.push({ from: '生图世界书', text: lore });
   const own = String(char?.imagePrompt || '').trim();
   if (own) raw.push({ from: '这个角色的固定提示词', text: own });
+  // 画风预设排在全局提示词前面：全局那一段是用户自己写的，让它有最后一句
+  stylesOn().forEach(x => {
+    const t = String(template(x.tail) || '').trim();
+    if (t) raw.push({ from: `生图预设「${x.label}」`, text: t });
+  });
   const global = String(settings.get().imagePrompt || '').trim();
   if (global) raw.push({ from: '全局生图提示词', text: global });
 

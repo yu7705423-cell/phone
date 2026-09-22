@@ -36,6 +36,7 @@ import { estimate as estimateTokens } from '../system/ai/tokens.js';
 import * as voice from '../system/ai/voice.js';
 import * as image from '../system/ai/image.js';
 import * as aiVideo from '../system/ai/video.js';
+import * as imagePrompt from '../system/ai/imageprompt.js';
 import * as visionApi from '../system/ai/vision.js';
 import * as asrApi from '../system/ai/asr.js';
 import * as translateApi from '../system/ai/translate.js';
@@ -205,6 +206,7 @@ export const phone = {
     voice,
     image,
     video: aiVideo,
+    imagePrompt,
     vision: visionApi,
     asr: asrApi,
     translate: translateApi,

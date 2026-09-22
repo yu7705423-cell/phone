@@ -7,6 +7,8 @@ export const DEFAULT_SETTINGS = {
   videoOn: false,
   // 生成之前先单独调一次接口，把角色随手写的那一句改写成一份真正的提示词。
   // **一律默认关着**（第 15 条）：开一个就等于那一条多一次接口调用
+  // 内置生图预设开了哪几个，存 id 清单。默认一个都不开，见 ai/imageprompt.js
+  imageStyles: [],
   writeImagePrompt: false,
   writeVideoPrompt: false,
   writeVoicePrompt: false,

@@ -412,6 +412,31 @@ reading [拒收].
 You do not know what is inside before opening it. Do not pretend to know, and
 do not guess. The contents are reported to you once it is opened.`,
 
+  // 内置生图预设。一个预设两段：ask 是「描述里要写到什么」，加在写描述的那一方
+  // 身上（角色、以及改写那一步）；tail 是「看起来像什么」，拼在最终提示词末尾。
+  // 见 ai/imageprompt.js 的 STYLES。默认全关，开哪个由用户决定
+  'style.daily.ask':
+`State the setting and the surroundings, the framing, and the light.
+When a person is in frame, state what they are wearing, and let it fit the
+setting and the weather.`,
+
+  'style.daily.tail':
+`Shot like an everyday photo someone would share: ordinary framing, available
+light, no studio setup, no retouching, no poster composition.`,
+
+  'task.appearance':
+`Pull the appearance out of the character settings below.
+
+## The settings
+{{persona}}
+
+Write only what can be drawn: hair, face, build, skin, and the clothes this
+person usually wears. Keep every detail the settings state, and add none.
+Do not write the name, the personality, the history, or the relationships.
+Leave the output empty when the settings describe no appearance at all.
+Write one paragraph, in the language of the settings.
+Output the paragraph only.`,
+
   'task.image-prompt':
 `Rewrite a short line into a prompt for an image model.
 
@@ -429,6 +454,7 @@ Write what is in frame: the subject, what it is doing, what it wears or how
 it is shaped, the setting, the light, the framing.
 Keep everything the line already states. Do not add a story, do not name
 anyone, and do not write anything the line and the context do not support.
+{{ask}}
 Write one paragraph, in the same language as the line.
 Output the paragraph only.`,
 
@@ -449,6 +475,7 @@ Write what is in frame, then write the motion: what moves, in which
 direction, how fast, and what the camera does.
 Keep everything the line already states. Do not add a story, do not name
 anyone, and do not write anything the line and the context do not support.
+{{ask}}
 Write one paragraph, in the same language as the line.
 Output the paragraph only.`,
 

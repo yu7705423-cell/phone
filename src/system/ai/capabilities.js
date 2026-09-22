@@ -7,6 +7,7 @@ import { template, fillTemplate } from './templates.js';
 import { translateMode } from './services.js';
 import { isImageReady } from './image.js';
 import { isVideoReady } from './video.js';
+import { styleAsk } from './imageprompt.js';
 import { isVoiceReady } from './voice.js';
 import { PENDING as TR_PENDING } from '../transfer.js';
 import { PENDING as GIFT_PENDING } from '../gift.js';
@@ -114,7 +115,9 @@ export const CAPS = [
     on: ({ char }) => isImageReady() && char.canSendImage !== false,
     hot: ({ msgs }) => usedRecently(msgs, /^image$|[[【](图片|照片)/),
     line: () => 'Send an image: write a line on its own, [图片：a description of the image]',
-    detail: () => template('skeleton.image'),
+    // 开着的生图预设里那几句「描述要写到什么」也给它 —— 光有画风没有内容，
+    // 画出来的还是一句话那么空（见 ai/imageprompt.js 的 STYLES）
+    detail: () => [template('skeleton.image'), styleAsk()].filter(Boolean).join('\n'),
   },
   {
     // 视频比图片贵得多，而且一跑就是几分钟，所以**默认关着**（第 15 条）。
