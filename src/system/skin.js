@@ -119,25 +119,36 @@ function frameCss(skin) {
 
 // 美化页里摆出来给人抄的那一份。**和挂载点是同一份数据**，
 // 不另写一张表 —— 两张表迟早对不上。
+//
+// `where` 填 'page' 的那几条不在样板间里（顶栏就是这一页自己的顶栏），
+// 数命中要对着整页数，不是对着样板间数 —— 对着样板间数会把它们报成
+// 「可能已失效」，而它们好好的。
+//
+// `needs` 是「这一条要满足什么才看得见」。样板间画不出来的那几条各有原因，
+// 写清楚才不至于让人以为规则没生效。**没写 needs 的都该在样板间里命中**，
+// 命中不了就是这张表该改了 —— 美化页每次打开都真的查一遍（见 SkinPage 的
+// useHits），不靠人去核对。
 export const CLASSES = [
   { sel: '.conv-body', label: '消息列表' },
   { sel: '.msg', label: '一条消息（含头像）' },
   { sel: '.msg.is-mine', label: '我发的那一条' },
+  { sel: '.msg-face', label: '头像那一块（头像框挂在它上面）' },
   { sel: '.msg-col', label: '同一轮的几个气泡' },
   { sel: '.bubble', label: '气泡' },
   { sel: '.msg.is-mine .bubble', label: '我的气泡' },
   { sel: '.avatar', label: '头像' },
-  { sel: '.navbar', label: '顶栏' },
-  { sel: '.nav-title', label: '顶栏标题' },
+  // 顶栏不在样板间里，它就是这一页自己的顶栏 —— 美化挂着的时候直接看它
+  { sel: '.navbar', label: '顶栏', where: 'page' },
+  { sel: '.nav-title', label: '顶栏标题', where: 'page' },
   { sel: '.composer-bar', label: '底栏' },
   { sel: '.composer-input', label: '输入框' },
   { sel: '.composer-side', label: '底栏圆按钮' },
   { sel: '.send-btn', label: '发送键' },
   { sel: '.quote-ref', label: '引用条' },
-  { sel: '.msg-meta', label: '气泡上的那行小字' },
-  { sel: '.msg-stamp', label: '消息时刻' },
-  { sel: '.msg-read', label: '已读回执' },
-  { sel: '.bubble-sticker', label: '表情气泡' },
+  { sel: '.msg-meta', label: '气泡上的那行小字', needs: '开启下方的消息时刻或已读回执' },
+  { sel: '.msg-stamp', label: '消息时刻', needs: '开启下方的消息时刻' },
+  { sel: '.msg-read', label: '已读回执', needs: '开启下方的已读回执' },
+  { sel: '.bubble-sticker', label: '表情气泡', needs: '会话中出现表情消息' },
 ];
 
 export const all = () => skins.all().sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));

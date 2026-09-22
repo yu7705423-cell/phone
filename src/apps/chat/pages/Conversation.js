@@ -61,6 +61,53 @@ function MsgMeta({ slot, stamp, read }) {
     </div>`;
 }
 
+/**
+ * 底栏那一条。**抽出来是为了美化页的样板间能用同一份。**
+ *
+ * 和 Bubble 同一个理由（见这一页开头那段）：另写一份假的，真页面改了 class
+ * 它不跟，在美化页调好的底栏回到会话里不生效，而且没人会发现。
+ * 从前样板间里根本没有底栏，于是「底栏按钮大小」「底栏内边距」这两项令牌
+ * 怎么调都看不出动静 —— 那两项摆在那里，却没有一处能验证它。
+ *
+ * frozen 时一律不响应：样板间里的这一条是给人看的，不是给人用的。
+ */
+export function ComposerBar({ draft = '', live = false, busy = false, frozen = false,
+                              onDraft, onSend, onMenu, onSticker, onMore, onLook,
+                              onStop, onGenerate }) {
+  const tap = fn => (frozen || !fn ? null : fn);
+  return html`
+    <div class="composer-bar">
+      <button class="composer-side press" onClick=${tap(onMenu)}
+        aria-label="添加内容"><${Icon} name="plus" size=${20}/></button>
+
+      <textarea class=${`composer-input${live ? ' is-scene' : ''}`} rows="1" value=${draft}
+        placeholder=${live ? '写你这一段' : '说点什么'} readOnly=${frozen}
+        onInput=${frozen ? null : e => onDraft && onDraft(e.target.value)}
+        onKeyDown=${frozen ? null : e => {
+          if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); onSend && onSend(); }
+        }}></textarea>
+
+      ${live
+        ? html`
+          <button class="composer-side press" disabled=${busy} onClick=${tap(onMore)}
+            aria-label="接着上一段往下写"><${Icon} name="chevronDown" size=${20}/></button>
+          <button class="composer-side press" onClick=${tap(onLook)}
+            aria-label="外观"><${Icon} name="sun" size=${20}/></button>`
+        : html`
+          <button class="composer-side press" onClick=${tap(onSticker)}
+            aria-label="表情"><${Icon} name="heart" size=${20}/></button>`}
+
+      ${draft.trim()
+        ? html`<button class="send-btn press" onClick=${tap(onSend)} aria-label="发送">
+            <${Icon} name="send" size=${17}/></button>`
+        : busy
+          ? html`<button class="send-btn is-stop press" onClick=${tap(onStop)} aria-label="停止">
+              <${Icon} name="close" size=${17}/></button>`
+          : html`<button class="send-btn is-ghost press" onClick=${tap(onGenerate)}
+              aria-label="让对方回复"><${Icon} name="reply" size=${22}/></button>`}
+    </div>`;
+}
+
 // 记忆化：流式回复时只有最后那条在变，别的几百条没必要跟着重画。
 // 下面传给它的函数属性都是稳定身份的，见 Conversation 里的 stable。
 export const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, onSwipe, onHold,
@@ -1149,39 +1196,14 @@ export function Conversation({ chatId, focusId = '' }) {
                 <${Icon} name="close" size=${15}/></button>
             </div>` : null}
 
-          <div class="composer-bar">
-            <button class="composer-side press" onClick=${() => setPanel(panel === 'menu' ? null : 'menu')}
-              aria-label="添加内容"><${Icon} name="plus" size=${20}/></button>
-
-            <textarea class=${`composer-input${live ? ' is-scene' : ''}`} rows="1" value=${draft}
-              placeholder=${live ? '写你这一段' : '说点什么'}
-              onInput=${e => setDraft(e.target.value)}
-              onKeyDown=${e => {
-                if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); }
-              }}></textarea>
-
-            ${live
-              ? html`
-                <button class="composer-side press" disabled=${busy}
-                  onClick=${() => generateScene({ more: true })}
-                  aria-label="接着上一段往下写"><${Icon} name="chevronDown" size=${20}/></button>
-                <button class="composer-side press" onClick=${() => setLook(true)}
-                  aria-label="外观"><${Icon} name="sun" size=${20}/></button>`
-              : html`
-                <button class="composer-side press" onClick=${() => setPanel(panel === 'sticker' ? null : 'sticker')}
-                  aria-label="表情"><${Icon} name="heart" size=${20}/></button>`}
-
-            ${draft.trim()
-              ? html`<button class="send-btn press" onClick=${send} aria-label="发送">
-                  <${Icon} name="send" size=${17}/></button>`
-              : busy
-                ? html`<button class="send-btn is-stop press"
-                    onClick=${() => (live ? ai.cancelScene(live.id) : ai.cancelReply(chatId, char.id))}
-                    aria-label="停止">
-                    <${Icon} name="close" size=${17}/></button>`
-                : html`<button class="send-btn is-ghost press" onClick=${() => generate()}
-                    aria-label="让对方回复"><${Icon} name="reply" size=${22}/></button>`}
-          </div>
+          <${ComposerBar} draft=${draft} live=${!!live} busy=${busy}
+            onDraft=${setDraft} onSend=${send}
+            onMenu=${() => setPanel(panel === 'menu' ? null : 'menu')}
+            onSticker=${() => setPanel(panel === 'sticker' ? null : 'sticker')}
+            onMore=${() => generateScene({ more: true })}
+            onLook=${() => setLook(true)}
+            onStop=${() => (live ? ai.cancelScene(live.id) : ai.cancelReply(chatId, char.id))}
+            onGenerate=${() => generate()}/>
 
           ${panel && !live ? html`
             <div class="composer-panel">

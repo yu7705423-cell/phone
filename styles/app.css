@@ -573,6 +573,12 @@ input[type="range"] {
 }
 .frame-try-note { font-size: var(--fs-11); color: var(--text-3); }
 
+/* 美化页的样板间：上面几条消息，下面一条底栏。底栏也画进来，否则
+   「底栏按钮大小」「底栏内边距」两项令牌怎么调都看不出动静。 */
+.skin-sample-wrap { display: flex; flex-direction: column; border-bottom: 1px solid var(--border); }
+/* 样板间不在屏幕底部，Home Indicator 那一块留白挪过来只会多出一条空档 */
+.skin-sample-wrap .composer-bar { padding-bottom: var(--composer-pad); }
+
 .picker-state {
   display: flex; align-items: center; justify-content: center; gap: var(--sp-2);
   padding: var(--sp-5); color: var(--text-3); font-size: var(--fs-12);

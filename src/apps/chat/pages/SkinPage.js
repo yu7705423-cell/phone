@@ -2,7 +2,7 @@ import { html, useState, useEffect, useRef } from '../../../lib.js';
 import { phone, useStore } from '../../../sdk/index.js';
 import { Page, List, ListItem, Field, Textarea, NumberInput, Segmented, Switch,
          Button, Icon, EmptyState, toast, confirm, prompt } from '../../../ui/index.js';
-import { Bubble } from './Conversation.js';
+import { Bubble, ComposerBar } from './Conversation.js';
 
 const { db, nav, skin, receipt } = phone;
 
@@ -15,15 +15,18 @@ const { db, nav, skin, receipt } = phone;
 //
 // 另写一份的话，真页面改了 class 它不跟 —— 在这一页调好的东西到聊天页
 // 不生效，而且没人会发现。这是这类系统最常见的烂法。
-function Sample({ char, chat }) {
+function Sample({ char, chat, hostRef }) {
   const now = Date.now();
-  const fake = (id, role, content, ago) => ({
+  const fake = (id, role, content, ago, extra) => ({
     id, chatId: chat.id, role, authorId: role === 'user' ? 'me' : char.id,
-    kind: 'text', content, status: 'done', createdAt: now - ago,
+    kind: 'text', content, status: 'done', createdAt: now - ago, ...extra,
   });
   const rows = [
     fake('s1', 'char', '样板间里的这几条是假的，改动会当场反映在这里。', 4000),
-    fake('s2', 'user', '底栏和气泡都可以调。', 3000),
+    // 中间这条带一个引用块。**样板间要盖住类名那一页列出的每一处** ——
+    // 列在那里却在这儿看不到的，等于调了也验不了
+    fake('s2', 'user', '底栏和气泡都可以调。', 3000,
+      { quoteText: '样板间里的这几条是假的。', quoteRole: 'char' }),
     fake('s3', 'char', '调好之后回到会话里就是这个样子。', 2000),
   ];
   const noop = () => {};
@@ -31,14 +34,40 @@ function Sample({ char, chat }) {
   const stampAt = receipt.stampMode();
   const readOn = receipt.on();
   return html`
-    <div class="conv-body skin-sample">
-      ${rows.map(m => html`
-        <${Bubble} key=${m.id} msg=${m} char=${char} chat=${chat} frozen
-          onRetry=${noop} onSwipe=${noop} onHold=${noop} onToggle=${noop}
-          onSettle=${noop} onOpenLog=${noop} onUnwrap=${noop} onPat=${noop}
-          selecting=${false} selected=${false} transOpen="never" innerStyle=""
-          stampAt=${stampAt} readOn=${readOn} readUpTo=${now - 2000}/>`)}
+    <div class="skin-sample-wrap" ref=${hostRef}>
+      <div class="conv-body skin-sample">
+        ${rows.map(m => html`
+          <${Bubble} key=${m.id} msg=${m} char=${char} chat=${chat} frozen
+            onRetry=${noop} onSwipe=${noop} onHold=${noop} onToggle=${noop}
+            onSettle=${noop} onOpenLog=${noop} onUnwrap=${noop} onPat=${noop}
+            selecting=${false} selected=${false} transOpen="never" innerStyle=""
+            stampAt=${stampAt} readOn=${readOn} readUpTo=${now - 2000}/>`)}
+      </div>
+      <${ComposerBar} frozen/>
     </div>`;
+}
+
+/**
+ * 类名那一页上那个「此刻命中几处」。
+ *
+ * 这张表（`skin.CLASSES`）是手写的，而页面结构会变。「两张表迟早对不上」
+ * 在这个项目里已经反复发生，所以不靠人去核对：每次打开都在样板间里
+ * **真的查一遍**。命中 0 处的，要么在那一条上写清楚了需要什么条件，
+ * 要么就是这张表该改了 —— 后者在页面上直接说出来。
+ */
+function useHits(hostRef, deps) {
+  const [hits, setHits] = useState(null);
+  useEffect(() => {
+    const root = hostRef.current;
+    if (!root) { setHits(null); return; }
+    const next = {};
+    skin.CLASSES.forEach(c => {
+      const scope = c.where === 'page' ? document : root;
+      try { next[c.sel] = scope.querySelectorAll(c.sel).length; } catch { next[c.sel] = -1; }
+    });
+    setHits(next);
+  }, deps);
+  return hits;
 }
 
 // 时刻与已读回执是**所有会话共用**的一项，不属于某一份美化，所以不存在
@@ -77,6 +106,7 @@ export function SkinPage({ chatId }) {
   // 提前 return 在下面，所有 hook 都要在那之前（doctor 的 hook 顺序那一项）
   const fileRef = useRef(null);
   const frameRef = useRef(null);
+  const sampleRef = useRef(null);
 
   const chat = db.chats.get(chatId);
   const char = chat ? db.characters.get((chat.characterIds || [])[0]) : null;
@@ -89,6 +119,11 @@ export function SkinPage({ chatId }) {
     const t = setTimeout(() => skin.settle(), 600);
     return () => { clearTimeout(t); skin.unmount(); };
   }, [cur && cur.id, cur && cur.updatedAt]);
+
+  // **要在早退之前调** —— hook 每次渲染都得以同样的顺序走一遍（见 doctor 的
+  // 「hook 顺序」那一项）。命中数跟着这份美化、这两个开关与所在页签变
+  const hits = useHits(sampleRef,
+    [cur && cur.id, cur && cur.updatedAt, receipt.stampMode(), receipt.on(), tab]);
 
   if (!chat || !char) {
     return html`<${Page} title="美化" onBack=${nav.pop}><${EmptyState} title="该会话已不存在"/><//>`;
@@ -201,7 +236,7 @@ export function SkinPage({ chatId }) {
     if (v !== null) set({ name: v.trim() || '未命名' });
   }}>改名<//>`}>
 
-      <${Sample} char=${char} chat=${chat}/>
+      <${Sample} char=${char} chat=${chat} hostRef=${sampleRef}/>
 
       <div class="pad-x pad-t">
         <${Segmented} value=${tab} onChange=${setTab} items=${TABS}/>
@@ -292,15 +327,23 @@ export function SkinPage({ chatId }) {
       ${tab === 'names' ? html`
         <div class="settings-foot">
           这段会话页面里可以用的选择器。点一下复制。
+          每一条后面是它此刻在上方样板间里命中的数量。
         </div>
         <${List}>
-          ${skin.CLASSES.map(c => html`
-            <${ListItem} key=${c.sel} title=${c.sel} subtitle=${c.label}
+          ${skin.CLASSES.map(c => {
+    const n = hits ? hits[c.sel] : null;
+    const sub = n == null ? c.label
+      : n > 0 ? `${c.label} · ${c.where === 'page' ? '本页中' : '样板间中'} ${n} 处`
+        : c.needs ? `${c.label} · 样板间中暂不可见，需要${c.needs}`
+          : `${c.label} · 样板间中未命中，该选择器可能已失效`;
+    return html`
+            <${ListItem} key=${c.sel} title=${c.sel} subtitle=${sub} multiline
               right=${html`<${Icon} name="copy" size=${16}/>`}
               onClick=${() => {
-    navigator.clipboard?.writeText(c.sel);
-    toast('已复制', 'ok');
-  }}/>`)}
+      navigator.clipboard?.writeText(c.sel);
+      toast('已复制', 'ok');
+    }}/>`;
+  })}
         <//>` : null}
 
       <${MsgGroup}/>
