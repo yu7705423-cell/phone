@@ -27,7 +27,6 @@ const gen = skin.gen;
 // 所以这一页从上到下每一层都把高度钉死，见 styles/app.css 里 `.gen` 那一组。
 
 const STAGE_W = 430;
-const MAX_ZOOM = 2.4;
 
 /**
  * 预览。
@@ -56,10 +55,14 @@ function Stage({ row, focus, open }) {
 
   // 摆位。
   //
-  // 没聚焦时整页看得见：宽高各算一个倍率取小的，再横向居中。
-  // 聚焦时**按目标的高度算倍率** —— 顶栏只有几十像素，要放大不少才看得清；
-  // 消息区本来几百像素高，再放大只会看不到全貌。横向也跟着挪，
-  // 不然放大之后只看得见左半边。
+  // **倍率永远不超过「一整页宽刚好装下」。** 第一版按目标的高度算倍率，
+  // 顶栏只有几十像素高，于是算出一个很大的倍率 —— 结果是 430 宽的页面
+  // 只看得见中间 240，两边全切掉了。而顶栏、底栏、消息区、气泡这几样
+  // 本来就是整行宽的，横向放大一点好处没有，全是坏处。
+  //
+  // 所以只有两档：
+  //   没聚焦  整页都看得见（宽高各算一个，取小的）
+  //   聚焦    按宽度铺满，再纵向滚到那一块
   //
   // 收起旋钮时这一块会变高，所以 `open` 也在依赖里。少了它，收起之后
   // 还按原来那个高度算，上下空一大片。
@@ -71,24 +74,22 @@ function Stage({ row, focus, open }) {
     const w = host.clientWidth || STAGE_W;
     const boxH = host.clientHeight || 330;
     const stageH = scaler.offsetHeight || 620;
-    const k0 = Math.min(w / STAGE_W, boxH / stageH);
-    const base = (w / k0 - STAGE_W) / 2;
-    scaler.style.transform = `scale(${k0}) translateX(${base}px)`;
+    const fitW = w / STAGE_W;
     const target = focus ? root.querySelector(focus) : null;
-    if (!target) return;
 
-    const h = target.offsetHeight || 1;
-    const want = (boxH * 0.55) / (h * k0);
-    const k = k0 * Math.max(1, Math.min(MAX_ZOOM, want));
+    if (!target) {
+      const k0 = Math.min(fitW, boxH / stageH);
+      const base = (w / k0 - STAGE_W) / 2;
+      scaler.style.transform = `scale(${k0}) translateX(${base}px)`;
+      return;
+    }
 
-    const cx = target.offsetLeft + target.offsetWidth / 2;
+    const k = fitW;
     const cy = target.offsetTop + target.offsetHeight / 2;
-    const viewW = w / k;
     const viewH = boxH / k;
-    const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
-    const tx = clamp(viewW / 2 - cx, Math.min(0, viewW - STAGE_W), Math.max(0, viewW - STAGE_W));
-    const ty = clamp(viewH / 2 - cy, Math.min(0, viewH - stageH), 0);
-    scaler.style.transform = `scale(${k}) translate(${tx}px, ${ty}px)`;
+    // 纵向滚到它，但不许滚出页面上下两头
+    const ty = Math.max(Math.min(0, viewH - stageH), Math.min(0, viewH / 2 - cy));
+    scaler.style.transform = `scale(${k}) translateY(${ty}px)`;
   }, [focus, open, ready, row?.updatedAt]);
 
   return html`<div class="gen-stage" ref=${hostRef}></div>`;
