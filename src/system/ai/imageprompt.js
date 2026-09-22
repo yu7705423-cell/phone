@@ -5,6 +5,7 @@ import { visionConfig, visionReady, visionMode } from './services.js';
 import { describe as visionDescribe } from './vision.js';
 import { toDataUrl } from '../audio.js';
 import { activateImage, textOf } from './context/lorebook.js';
+import { negativeBlock } from './image.js';
 
 // 生图提示词的拼装，外加锁脸。
 //
@@ -83,22 +84,52 @@ export const loreFor = (char, prompt) => textOf(activateImage(char, prompt));
  * 越靠前越是「这一张要画什么」，越靠后越是「一直都这么画」。生图世界书排在
  * 角色与全局之前，因为它是按这一张的内容命中的，比那两个更贴着这一张。
  */
-export function parts({ prompt, char, face = '' }) {
-  const text = String(prompt || '').trim();
-  const out = [{ from: '画面描述', text }];
-  if (face) out.push({ from: '角色外貌（锁脸读出来的）', text: `The appearance of the person in frame: ${face}` });
-  const lore = loreFor(char, text);
-  if (lore) out.push({ from: '生图世界书', text: lore });
-  const own = String(char?.imagePrompt || '').trim();
-  if (own) out.push({ from: '这个角色的固定提示词', text: own });
-  const global = String(settings.get().imagePrompt || '').trim();
-  if (global) out.push({ from: '全局生图提示词', text: global });
-  return out.filter(x => x.text);
+/**
+ * 一段提示词里如果写了「Negative」那一行，就在那儿切开。
+ *
+ * **不是提醒，是真的摘出来。** `images/generations` 没有负面提示词这个字段，
+ * 于是照着别处习惯把 Positive 与 Negative 两大段一起贴进来的人，
+ * 那几十行会被原样当成**要画的东西**发出去：写着
+ * `selfie, portrait, Ghibli style`，模型就照着画自拍、棚拍、吉卜力。
+ *
+ * 人已经写了「Negative」这三个字，意思没有任何含糊 —— 照它办不是替谁做决定，
+ * 是读懂他写的东西。摘出来之后走负面那一栏（发不发由那一栏自己的开关定）。
+ */
+// 单独成行的「Positive」也是个抬头，不是要画的东西。和 Negative 成对出现
+const POS_HEAD = /(^|\n)\s*(positive(\s*prompt)?|正面(提示词)?)\s*[:：]?\s*(\n|$)/i;
+
+export function cut(text) {
+  const t = String(text || '').trim();
+  const hit = negativeBlock(t);
+  // 切到那一行本身的前面，不然「Negative」这三个字会留在正向的末尾
+  const pos = (hit ? t.slice(0, hit.start) : t).replace(POS_HEAD, '$1').trim();
+  return { pos, neg: hit ? t.slice(hit.at).trim() : '' };
 }
 
-export function compose(args) {
-  return parts(args).map(x => x.text).join('\n');
+export function parts({ prompt, char, face = '' }) {
+  const text = String(prompt || '').trim();
+  const raw = [{ from: '画面描述', text }];
+  if (face) raw.push({ from: '角色外貌（锁脸读出来的）', text: `The appearance of the person in frame: ${face}` });
+  const lore = loreFor(char, text);
+  if (lore) raw.push({ from: '生图世界书', text: lore });
+  const own = String(char?.imagePrompt || '').trim();
+  if (own) raw.push({ from: '这个角色的固定提示词', text: own });
+  const global = String(settings.get().imagePrompt || '').trim();
+  if (global) raw.push({ from: '全局生图提示词', text: global });
+
+  const out = [];
+  for (const seg of raw) {
+    const { pos, neg } = cut(seg.text);
+    if (pos) out.push({ ...seg, text: pos, kind: 'pos' });
+    if (neg) out.push({ from: `${seg.from} 里的负面部分（已从正向里摘出来）`, text: neg, kind: 'neg' });
+  }
+  return out;
 }
+
+export const compose = args => parts(args).filter(x => x.kind === 'pos').map(x => x.text).join('\n');
+
+/** 从各段里摘出来的负面提示词。和接口自己那一栏合并后交给 generate。 */
+export const negativeOf = args => parts(args).filter(x => x.kind === 'neg').map(x => x.text).join('\n');
 
 /**
  * 拼出来的每一段各是从哪儿来的。

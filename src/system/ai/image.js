@@ -110,7 +110,9 @@ export function negativeBlock(text) {
   const at = m.index + m[0].length;
   const tail = t.slice(at).trim();
   if (!tail) return null;
-  return { at, lines: tail.split(/\n/).filter(x => x.trim()).length, head: m[2] };
+  // start 是那一行本身的起点。切正向的时候要切到它前面，
+  // 切到 at 会把「Negative」这三个字留在正向的末尾
+  return { start: m.index, at, lines: tail.split(/\n/).filter(x => x.trim()).length, head: m[2] };
 }
 
 export function isImageReady() {
@@ -203,6 +205,10 @@ function track({ p, url, prompt, withRef, parts }) {
  * 语音那边早就有这一套（见 ai/voice.js 的 `ask`），生图这边一直没有。
  * 「一次都没成功过」多半就是这么来的。
  */
+/** 这一次的负面提示词：接口自己那一栏，加上从正向里摘出来的那几段。 */
+export const negText = (p, extra) =>
+  [String(p?.negative || '').trim(), String(extra || '').trim()].filter(Boolean).join('\n');
+
 /** 这套接口等多久。填 0 表示一直等（第 13 条）。 */
 export const timeoutOf = p => {
   const n = Math.round(Number(p?.timeout));
@@ -252,13 +258,30 @@ function endpoint(preset) {
   return /\/v\d+$/.test(base) ? `${base}/images/generations` : `${base}/v1/images/generations`;
 }
 
+/**
+ * 对面在要一张输入图。
+ *
+ * 有些中转站把生图转给一个**对话式的多模态模型**，那种模型收到纯文字时
+ * 会回一句「请上传你希望参考或编辑的图片」，而不是画一张。这不是本机
+ * 发错了，是那个模型根本不做纯文生图 —— 而原样转出来的那句话，
+ * 看的人只会以为是自己少填了什么。
+ */
+const WANTS_IMAGE = /上传.{0,6}图片|提供.{0,6}图片|参考或编辑|upload .{0,20}image|provide .{0,20}image|image[_ ]?url is required|reference image/i;
+
 async function asError(res) {
   let detail = '';
   try {
     const j = await res.json();
-    detail = j?.error?.message || JSON.stringify(j).slice(0, 200);
+    detail = j?.error?.message || JSON.stringify(j).slice(0, 400);
   } catch { detail = await res.text().catch(() => ''); }
-  throw new Error(`生图接口 ${res.status}: ${detail || res.statusText}`);
+  const said = detail || res.statusText;
+  if (WANTS_IMAGE.test(said)) {
+    throw new Error(`生图接口 ${res.status}: ${said}\n`
+      + '这一家在要一张输入图，多半是把生图转给了一个只做图像编辑的'
+      + '对话式模型，它不做纯文生图。换一个真正的生图模型，'
+      + '或者换一套接口。');
+  }
+  throw new Error(`生图接口 ${res.status}: ${said}`);
 }
 
 function editEndpoint(preset) {
@@ -313,7 +336,7 @@ export const needPrompt = text => {
 };
 
 // 返回一个 Blob，交给 images 域压缩入库，和其他图片一样存本地
-export function generate({ prompt, preset, key, parts }) {
+export function generate({ prompt, preset, key, parts, negative }) {
   const p = preset || activeImage();
   if (!p || !p.apiKey) throw new Error('还没有配置生图接口');
   const text = needPrompt(prompt);
@@ -333,8 +356,9 @@ export function generate({ prompt, preset, key, parts }) {
           // **默认不发。** `images/generations` 的标准里没有这个字段，
           // OpenAI 本身见到不认识的键直接 400，而那个 400 里看不出是哪个键。
           // 有些中转站认它，所以留一个开关，由用的人自己说这套认不认
-          ...(p.negOn && String(p.negative || '').trim()
-            ? { negative_prompt: String(p.negative).trim() } : {}),
+          // 接口自己那一栏，加上从提示词里摘出来的那几段
+          ...(p.negOn && negText(p, negative)
+            ? { negative_prompt: negText(p, negative) } : {}),
         }),
       }, p);
       if (!res.ok) await asError(res);
@@ -452,11 +476,18 @@ export async function testImage(preset) {
     }
     if (!/连不上生图接口/.test(msg)) {
       const linked = /只返回了图片链接/.test(msg);
-      return { ...out, ok: false, step: linked ? '图片链接取不回来' : '接口报错', detail: msg,
-        hint: linked
-          ? '接口本身是通的，但它给的那个图片链接本机取不到。'
-            + '把「返回格式」改成 base64，让图片随响应一起回来。'
-          : '已经连上了，是对方拒绝了这次请求。多半是密钥、模型名或尺寸不对。' };
+      const wants = /这一家在要一张输入图/.test(msg);
+      return { ...out, ok: false,
+        step: wants ? '这个模型不做纯文生图' : linked ? '图片链接取不回来' : '接口报错',
+        detail: msg,
+        hint: wants
+          ? '这一家要求先给一张输入图，多半是把生图转给了一个只做图像编辑的'
+            + '对话式模型。换一个真正的生图模型（例如 gpt-image-1、dall-e-3 一类），'
+            + '或者换一套接口。'
+          : linked
+            ? '接口本身是通的，但它给的那个图片链接本机取不到。'
+              + '把「返回格式」改成 base64，让图片随响应一起回来。'
+            : '已经连上了，是对方拒绝了这次请求。多半是密钥、模型名或尺寸不对。' };
     }
     if (canNative()) {
       return { ...out, ok: false, step: '没连上', detail: msg,

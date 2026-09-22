@@ -1089,6 +1089,7 @@ async function generateImage(msgId, prompt, char) {
     const face = lock ? await imgPrompt.ensureFaceDesc(char).catch(() => '') : '';
     const blob = await imageSvc.generate({
       prompt: imgPrompt.compose({ prompt, char, face }),
+      negative: imgPrompt.negativeOf({ prompt, char, face }),
       parts: imgPrompt.explain({ prompt, char, face }),
       preset, key: `msg-img:${msgId}`,
     });
