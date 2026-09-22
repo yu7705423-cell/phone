@@ -1,5 +1,6 @@
 import { settings, chats, characters } from '../db/index.js';
 import * as svc from './services.js';
+import { isVideoReady as videoReady } from './video.js';
 
 // 一轮聊天会打几次接口。
 //
@@ -58,6 +59,13 @@ export const EXTRA_CALLS = [
     setting: 'retryMax', off: 0,
     on: s => Number(s.retryMax) > 0,
     when: s => `接口返回 429 或 5xx 时，最多再试 ${retryMax()} 次`,
+  },
+  {
+    id: 'videoOn',
+    label: '角色自己发视频',
+    setting: 'videoOn', off: false,
+    on: s => s.videoOn === true && videoReady(),
+    when: '角色每写一个 [视频：…]，多一次视频生成（走视频接口，按秒计费）',
   },
   {
     id: 'rerankOn',

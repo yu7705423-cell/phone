@@ -94,6 +94,14 @@ export function LimitsPage() {
               + `当前填全的共 ${ai.cost.usableChatCount()} 套。`}
             right=${html`<${NumberInput} value=${Number(s.failoverMax) || 0} min=${0}
               onChange=${v => set({ failoverMax: v })}/>`}/>` : null}
+        <${ListItem} title="角色自己发视频" multiline
+          subtitle=${s.videoOn !== true
+            ? '已关闭。角色不会发视频，你仍可在会话面板中自己生成。'
+            : '角色每写一个视频标记，额外调用一次视频接口生成一段。'
+              + '按时长与分辨率计费，比生成图片贵得多，且需要一到五分钟。'
+              + '未配置视频接口时不生效。'}
+          right=${html`<${Switch} checked=${s.videoOn === true}
+            onChange=${v => set({ videoOn: v })}/>`}/>
         <${ListItem} title="自动生成关系底色" multiline
           subtitle=${s.bondAuto !== true
             ? '已关闭。关系底色不会自动更新，可在会话菜单中手动生成或手写。'

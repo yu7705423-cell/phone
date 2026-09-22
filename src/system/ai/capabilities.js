@@ -5,6 +5,7 @@ import * as currency from '../currency.js';
 import { template, fillTemplate } from './templates.js';
 import { translateMode } from './services.js';
 import { isImageReady } from './image.js';
+import { isVideoReady } from './video.js';
 import { isVoiceReady } from './voice.js';
 import { PENDING as TR_PENDING } from '../transfer.js';
 import { PENDING as GIFT_PENDING } from '../gift.js';
@@ -78,6 +79,17 @@ export const CAPS = [
     hot: ({ msgs }) => usedRecently(msgs, /^image$|[[【](图片|照片)/),
     line: () => 'Send an image: write a line on its own, [图片：a description of the image]',
     detail: () => template('skeleton.image'),
+  },
+  {
+    // 视频比图片贵得多，而且一跑就是几分钟，所以**默认关着**（第 15 条）。
+    // 开关在「设置 - 用量与上限」，角色那一份在角色卡上
+    id: 'video',
+    label: '发视频',
+    on: ({ char, settings }) => settings.videoOn === true && isVideoReady()
+      && char.canSendVideo !== false,
+    hot: ({ msgs }) => usedRecently(msgs, /^clip$|[[【]视频/),
+    line: () => 'Send a video: write a line on its own, [视频：a description of the video]',
+    detail: () => template('skeleton.video'),
   },
   {
     id: 'voice',

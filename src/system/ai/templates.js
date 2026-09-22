@@ -383,6 +383,16 @@ The image is produced by a separate model that does not receive this
 conversation. A name that exists only here, such as a pet's name or a
 nickname, carries no meaning for it: write what the thing looks like.`,
 
+  'skeleton.video':
+`[视频]
+To send a short video, write a line on its own,
+[视频：a description of the video].
+The description must be specific; the video is generated from it.
+The video is produced by a separate model that does not receive this
+conversation. A name that exists only here, such as a pet's name or a
+nickname, carries no meaning for it: write what the thing looks like.
+State the motion as well as the scene: what moves, and how.`,
+
   'skeleton.voice':
 `[语音]
 To speak instead of typing, write a line on its own, [语音：what you say].`,

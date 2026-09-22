@@ -2,6 +2,9 @@ import { DEFAULT_TEMPLATES } from '../ai/templates.js';
 
 export const DEFAULT_SETTINGS = {
   theme: 'light',                 // light | dark
+  // 角色能不能自己发视频。**默认关着**（CLAUDE.md 第 15 条）：
+  // 一条回复里写一个 [视频：…] 就多一次生成，而生成视频按秒计费，比生图贵得多
+  videoOn: false,
   appIcons: {},                   // appId -> { icon }  单独换某个 app 的图标
   iconColor: '#000000',           // SVG 颜色
   iconShadow: true,               // 图标阴影

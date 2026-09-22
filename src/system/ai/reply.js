@@ -36,9 +36,11 @@ import { cropKept } from './tasks/phone.js';
 // 中英文冒号都认，方括号也认全角。
 // 「约定完成」必须排在「约定」前面 —— 交替是从左往右试的，反过来写
 // 「约定完成：早点睡」会先被「约定」吃掉，剩下「完成：早点睡」当成内容。
-const MARK = /[[【]\s*(图片|照片|image|pic|语音|voice|audio|表情|sticker|emoji|转账|transfer|位置|定位|location|礼物|gift|点歌|建歌单|约定完成|约定|pact|信|letter|事项完成|事项取消|心声|换头像|外卖|请客|代付|申请|亲属卡|旅行|攻略|待办|todo)\s*[:：]\s*([^\]】]+)[\]】]/gi;
+const MARK = /[[【]\s*(图片|照片|image|pic|视频|video|语音|voice|audio|表情|sticker|emoji|转账|transfer|位置|定位|location|礼物|gift|点歌|建歌单|约定完成|约定|pact|信|letter|事项完成|事项取消|心声|换头像|外卖|请客|代付|申请|亲属卡|旅行|攻略|待办|todo)\s*[:：]\s*([^\]】]+)[\]】]/gi;
 
 const IMAGE_KINDS = new Set(['图片', '照片', 'image', 'pic']);
+// 「视频通话」那一格叫 video，这里是会话里那一段片子，两回事
+const CLIP_KINDS = new Set(['视频']);
 const STICKER_KINDS = new Set(['表情', 'sticker', 'emoji']);
 const TRANSFER_KINDS = new Set(['转账', 'transfer']);
 const PLACE_KINDS = new Set(['位置', '定位', 'location']);
@@ -522,6 +524,7 @@ export function splitReply(raw) {
         if (a) push({ type: 'transfer', amount: Number(a[1]), note: (a[2] || '').trim() });
       } else {
         push(IMAGE_KINDS.has(kind) ? { type: 'image', prompt: body }
+          : CLIP_KINDS.has(kind) ? { type: 'clip', prompt: body }
           : STICKER_KINDS.has(kind) ? { type: 'sticker', name: body }
           : { type: 'voice', text: body });
       }
@@ -896,6 +899,12 @@ export function materialize(part, base, char) {
     generateImage(msg.id, part.prompt, char);
     return msg;
   }
+  if (part.type === 'clip') {
+    const msg = messages.create({ ...row, kind: 'clip', content: `[视频：${part.prompt}]`,
+      prompt: part.prompt, clipId: null, posterId: null, media: 'pending' });
+    generateClip(msg.id, part.prompt);
+    return msg;
+  }
   if (part.type === 'voice') {
     const msg = messages.create({ ...row, kind: 'voice', content: `[语音：${part.text}]`,
       voiceText: part.text, audioId: null, media: 'pending' });
@@ -923,7 +932,7 @@ function shouldNotify(chatId) {
 // 通知里那一行写什么。「[图片：一段给生图接口的描述]」是给机器看的，
 // 不能原样露出来。
 const BODY_OF = {
-  image: '[图片]', voice: '[语音]', sticker: '[表情]', transfer: '[转账]', gift: '[礼物]',
+  image: '[图片]', clip: '[视频]', voice: '[语音]', sticker: '[表情]', transfer: '[转账]', gift: '[礼物]',
   location: '[位置]', call: '[通话]', listen: '[一起听]', watch: '[一起看]',
   takeout: '[外卖]', request: '[申请]', share: '[分享]', dice: '[骰子]',
   trip: '[旅行]',
