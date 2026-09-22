@@ -337,9 +337,22 @@ export function heal(raw) {
   return lay;
 }
 
+/**
+ * 自愈，然后存回去 —— **但库里没有这一条时只在内存里愈，不回写**。
+ *
+ * 这一条是数据丢失修回来的（ARCHITECTURE 4.124）。开机时 `main.js` 会叫一次，
+ * 而 `makeKV.load()` 读不到记录就回落成默认布局。从前这里不问来路，照样
+ * `replace` 一次 —— 于是「这一次没读到」被当场写成了「用户的布局就是默认的」，
+ * 壁纸、自排的图标、文件夹、Dock 全部永久没了，而且一个字的报错都没有。
+ *
+ * heal 本身是确定的：同一份输入每次愈出同一个结果，所以**开机根本不必回写**。
+ * 真正需要落盘的是用户自己改过之后那几次，而那几处都先 `layout.replace` 过了
+ * （`stored()` 因此为真），照旧存。
+ */
 export function healAndSave() {
   const healed = heal(layout.get());
-  layout.replace(healed);
+  if (layout.stored()) layout.replace(healed);
+  else layout.store.replace(healed);
   return healed;
 }
 

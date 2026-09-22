@@ -75,12 +75,24 @@ const COLLECTIONS = { characters, lorebooks, memories, chats, messages, moments,
 // ---- kv: settings / persona / layout ----
 function makeKV(key, fallback, { deep = false } = {}) {
   const store = createStore(structuredClone(fallback));
+  // 库里到底有没有这一条。**「读出来是默认值」和「库里真是默认值」必须分得开** ——
+  // 分不开的话，一次没读到就会被当成「这个用户还没设置过」，而紧接着任何一次
+  // 回写都会把库里真实的那一份盖掉。主界面布局就是这么丢的，见 ARCHITECTURE 4.124
+  let found = false;
   return {
     store,
     get() { return store.get(); },
+    /** 这一条是从库里读出来的（而不是回落到默认值）。回写前要先问它。 */
+    stored() { return found; },
     async load() {
       const row = await idb.get('kv', key);
-      if (!row) { store.replace(structuredClone(fallback)); return; }
+      if (!row) {
+        found = false;
+        store.replace(structuredClone(fallback));
+        console.warn(`[db] kv/${key} 库里没有这一条，本次使用默认值`);
+        return;
+      }
+      found = true;
       const merged = deep
         ? { ...fallback, ...row.v, promptTemplates: { ...fallback.promptTemplates, ...(row.v.promptTemplates || {}) } }
         : { ...fallback, ...row.v };
@@ -89,11 +101,13 @@ function makeKV(key, fallback, { deep = false } = {}) {
     set(patch) {
       const next = { ...store.get(), ...(typeof patch === 'function' ? patch(store.get()) : patch) };
       store.replace(next);
+      found = true;
       idb.put('kv', { k: key, v: next });
       return next;
     },
     replace(next) {
       store.replace(next);
+      found = true;
       idb.put('kv', { k: key, v: next });
       return next;
     },

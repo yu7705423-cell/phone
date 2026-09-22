@@ -288,6 +288,11 @@ export function asrReady() {
 
 // 旧版把接口配置平铺在 settings 顶层，首次进入时收敛成一条预设
 export function migrateLegacy() {
+  // **库里没读到 settings 这一条就什么都不要写。** 开机时叫这个，而
+  // makeKV.load() 读不到会回落成默认值 —— 那时候 apiKey 是空的、presets 也是空的，
+  // 正好命中下面那两条，于是把一份默认 settings 盖回库里，自定义图标、接口配置
+  // 一起没了。这一次没读到不等于用户没设置过，见 ARCHITECTURE 4.124
+  if (!settings.stored()) return;
   const s = settings.get();
   if (s.services?.chat?.presets?.length) return;
   if (!s.apiKey) { settings.set({ services: services() }); return; }
