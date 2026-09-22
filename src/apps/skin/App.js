@@ -131,8 +131,11 @@ function OnePage({ id }) {
     if (a.local.length) lines.push(`其中 ${a.local.length} 处引用的是本机地址，导出后在别人那里显示为空白。`);
     if (a.remote) lines.push(`其中 ${a.remote} 处引用了网络地址，对方需要能访问该地址。`);
     if (a.data) lines.push(`其中 ${a.data} 处图片已内联在文件中，文件体积相应增大。`);
-    const fb = skin.frameBytes(row);
-    if (fb) lines.push(`头像框一并带走，约 ${Math.round(fb / 1024)} KB。`);
+    // 生成器里传进去的图（头像框、角落贴图、各种背景）都内嵌在这一份里
+    const pics = skin.gen.weigh(row.gen);
+    if (pics.n) {
+      lines.push(`其中内嵌 ${pics.n} 张图片，约 ${Math.round(pics.bytes / 1024)} KB，一并带走。`);
+    }
     if (lines.length && !await confirm({
       title: '导出美化包', okText: '继续导出',
       message: `${lines.join('')}美化包仅包含名称、尺寸、头像框与样式，`

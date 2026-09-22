@@ -1,8 +1,10 @@
 import { skins, chats, settings } from './db/index.js';
 import { compressFit } from './db/images.js';
 import { SCOPES, scopeOf, isGlobal } from './skin-contract.js';
+import { emit as emitGen } from './skin-gen.js';
 
 export { SCOPES, scopeOf, isGlobal, HOOKS, VARS, CONTRACT_VERSION } from './skin-contract.js';
+export * as gen from './skin-gen.js';
 
 // 美化。见 ARCHITECTURE 4.111
 //
@@ -87,7 +89,7 @@ const frameUrlOk = url => /^data:image\/[a-z+.-]+;base64,[A-Za-z0-9+/=]+$/.test(
  * 框的四个角正是它最要紧的地方，裁掉就不成其为框了。
  * 它输出 webp（带透明通道），不支持的退回 png，两者都留得住透明。
  */
-export async function setFrame(id, file) {
+export async function toDataUrl(file) {
   const { blob } = await compressFit(file, FRAME_MAX);
   const url = await new Promise((res, rej) => {
     const fr = new FileReader();
@@ -96,17 +98,9 @@ export async function setFrame(id, file) {
     fr.readAsDataURL(blob);
   });
   if (!frameUrlOk(url)) throw new Error('这张图转不成可嵌入的格式');
-  return update(id, { frame: url });
+  return url;
 }
 
-export const clearFrame = id => update(id, { frame: '' });
-
-/** 这张框占多少字节（按 base64 算，比原图大三分之一）。界面上要说得出来。 */
-export const frameBytes = skin => {
-  const url = String(skin?.frame || '');
-  const i = url.indexOf(',');
-  return i < 0 ? 0 : Math.round((url.length - i - 1) * 3 / 4);
-};
 
 function frameCss(skin) {
   const url = String(skin?.frame || '');
@@ -163,6 +157,8 @@ export function create(init = {}) {
     tokens: init.tokens || {}, shape: init.shape || '', css: String(init.css || ''),
     // 生效范围。不写就是「单段会话」，那是从前唯一的行为
     scope: scopeOf(init),
+    // 生成器那一堆旋钮的值。存着才能回来接着调，而不是每次从头来
+    gen: init.gen && typeof init.gen === 'object' ? structuredClone(init.gen) : {},
     // 头像框三件一起存。少存一件，复制和导入过来的那一份就会戴错人或错大小
     frame: frameUrlOk(init.frame) ? String(init.frame) : '',
     frameWho: FRAME_WHO.some(x => x.id === init.frameWho) ? String(init.frameWho) : 'both',
@@ -213,6 +209,10 @@ export function compile(skin, { varsOn = ':root' } = {}) {
   // 手写那一段仍然盖得住它
   const frame = frameCss(skin);
   if (frame) out.push(frame);
+  // 生成器那一段。排在手写之前：手写的排最后，才盖得住它
+  // （那一段带 !important，所以手写要盖也得写 !important，界面上说明了）
+  const made = emitGen(skin.gen);
+  if (made) out.push(made);
   const css = String(skin.css || '').trim();
   if (css) out.push(css);
   return out.join('\n');
@@ -393,6 +393,8 @@ export function pack(skin) {
     tokens: skin.tokens || {},
     shape: String(skin.shape || ''),
     scope: scopeOf(skin),
+    // 旋钮的值也一起带走。别人导进去能接着调，而不是只拿到一段死 CSS
+    gen: skin.gen || {},
     frame: String(skin.frame || ''),
     frameWho: frameWhoOf(skin).id,
     frameScale: frameScaleOf(skin),
@@ -437,6 +439,7 @@ export function unpack(text) {
     // 老包（v1）没有这一项，一律当「单段会话」—— 那是从前唯一的行为。
     // 默认成全局就等于替作者把影响面扩大了一圈，而他当初没这么写
     scope: scopeOf(raw),
+    gen: raw.gen && typeof raw.gen === 'object' && !Array.isArray(raw.gen) ? raw.gen : {},
     tokens, shape, frame, frameWho, frameScale: frameScaleOf(raw),
     css: String(raw.css || ''),
   };
@@ -451,7 +454,10 @@ export function install(data) {
   const taken = new Set(all().map(x => x.name));
   let name = data.name;
   for (let i = 2; taken.has(name); i++) name = `${data.name}（${i}）`;
-  return create({ ...data, name });
+  const row = create({ ...data, name });
+  // 老包里的头像框当场搬进生成器，不然它会变成一个改不了的框
+  migrateFrames();
+  return get(row.id) || row;
 }
 
 /**
@@ -468,8 +474,36 @@ export function duplicate(id) {
   let name = base;
   for (let i = 2; taken.has(name); i++) name = `${base} ${i}`;
   return create({ name, tokens: { ...(src.tokens || {}) }, shape: src.shape, css: src.css,
-    scope: scopeOf(src),
+    scope: scopeOf(src), gen: src.gen || {},
     frame: src.frame || '', frameWho: src.frameWho || 'both', frameScale: frameScaleOf(src) });
+}
+
+/**
+ * 老的头像框搬进生成器。
+ *
+ * 头像框从前是美化行上的三个字段（`frame` / `frameWho` / `frameScale`），
+ * 编辑入口在「尺寸」那一页。后来生成器的「头像」那一组把这件事做全了
+ * （收发各一张、能偏移），于是同一个开关有了两个入口 —— 违反第 5 条，
+ * 而且两处存的还是两份数据。
+ *
+ * 所以搬过去，老字段清空。**不是删掉，是搬** —— 已经戴上框的那些美化
+ * 一张都不能丢。启动时跑一次，跑过就没得搬了。
+ */
+export function migrateFrames() {
+  let n = 0;
+  for (const row of skins.all()) {
+    const url = String(row.frame || '');
+    if (!frameUrlOk(url)) continue;
+    const who = FRAME_WHO.some(x => x.id === row.frameWho) ? row.frameWho : 'both';
+    const av = { ...(row.gen?.avatar || {}) };
+    if (who === 'both' || who === 'char') av.frameTheirs = av.frameTheirs || url;
+    if (who === 'both' || who === 'mine') av.frameMine = av.frameMine || url;
+    av.frameScale = av.frameScale || frameScaleOf(row);
+    update(row.id, { gen: { ...(row.gen || {}), avatar: av }, frame: '' });
+    n += 1;
+  }
+  if (n) console.warn(`[skin] ${n} 份美化的头像框已搬进生成器`);
+  return n;
 }
 
 /** 这一份挂在哪几段会话上。库那一页要能说清楚「删了会影响谁」。 */

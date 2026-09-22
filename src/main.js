@@ -6,6 +6,7 @@ import { healAndSave } from './screens/home/layout.js';
 import { Root } from './shell/Root.js';
 import { applyLook, applyCustomCSS } from './system/look.js';
 import { migrateLegacy } from './system/ai/services.js';
+import { migrateFrames } from './system/skin.js';
 import { nav } from './system/nav.js';
 import { forceUpdate } from './system/refresh.js';
 import { BUILD } from './version.js';
@@ -18,6 +19,7 @@ render(html`<div class="boot"><span class="spinner"></span></div>`, mount);
 function boot() {
   ready.then(() => {
     migrateLegacy();
+    migrateFrames();
     registerApps();
     healAndSave();
 

@@ -50,7 +50,10 @@ function markdown() {
   L.push('');
   L.push('## 几条规矩');
   L.push('');
-  L.push('1. 不必写 `!important`。美化那段样式挂在最后，同样特异度下它胜出。');
+  L.push('1. 多数属性不必写 `!important`：美化那段挂在最后，同样特异度下它胜出。');
+  L.push('   但应用自己的样式表里有 `.msg.is-mine .bubble` 这类复合选择器，');
+  L.push('   它们的特异度更高，改气泡底色、文字色这几项时仍然要写。');
+  L.push('   拿不准就写上，或者直接用应用里的「生成」页，它一律写。');
   L.push('2. 写死尺寸之前先看变量表。改变量比改选择器稳，界面改版也跟得上。');
   L.push('3. 图片写成 `data:` 或者一个公网地址。本机路径在别人那里是空白。');
   L.push('4. 用 `::before` 与 `::after` 贴装饰时记得 `pointer-events: none`，');
@@ -145,9 +148,9 @@ export function ContractPage() {
 
       ${tab === 'how' ? html`
         <${List} title="几条规矩">
-          <${ListItem} title="不必写 !important" multiline
-            subtitle="美化那段样式挂在最后，同样特异度下它胜出。写了也不会更保险，
-              只会让后面想覆盖它的人无从下手"/>
+          <${ListItem} title="多数属性不必写 !important" multiline
+            subtitle="美化那段样式挂在最后，同样特异度下它胜出。但应用自己的样式表里有
+              复合选择器，改气泡底色、文字色这几项时仍然要写。拿不准就写上"/>
           <${ListItem} title="写死尺寸之前先看变量表" multiline
             subtitle="变量在界面改版时仍然有效，选择器可能失效"/>
           <${ListItem} title="图片写成 data: 或公网地址" multiline

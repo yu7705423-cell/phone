@@ -3,6 +3,7 @@ import { phone, useStore } from '../../../sdk/index.js';
 import { Page, List, ListItem, Field, Textarea, NumberInput, Segmented, Switch,
          Button, Icon, EmptyState, toast, confirm, prompt } from '../../../ui/index.js';
 import { Bubble, ComposerBar } from './Conversation.js';
+import { SkinGen } from './SkinGen.js';
 
 const { db, nav, skin, receipt } = phone;
 
@@ -102,10 +103,9 @@ export function SkinPage({ chatId }) {
   useStore(db.chats.store);
   useStore(db.skins.store);
   useStore(db.characters.store);
-  const [tab, setTab] = useState('size');
+  const [tab, setTab] = useState('gen');
   // 提前 return 在下面，所有 hook 都要在那之前（doctor 的 hook 顺序那一项）
   const fileRef = useRef(null);
-  const frameRef = useRef(null);
   const sampleRef = useRef(null);
 
   const chat = db.chats.get(chatId);
@@ -139,15 +139,6 @@ export function SkinPage({ chatId }) {
     skin.attach(chatId, row.id);
   };
 
-  // 换一张头像框。压到 512 见方、留白透明之后内联进这一份美化
-  const pickFrame = async e => {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file) return;
-    try { await skin.setFrame(cur.id, file); toast('已更换头像框', 'ok'); }
-    catch (err) { toast(String(err.message || err), 'error', 5000); }
-  };
-
   // 导出。CSS 里引用的外部东西先摆出来 —— 不说清楚的话，对方打开是空框，
   // 而分享的人以为自己发出去的和屏幕上长得一样
   const exportOne = async () => {
@@ -158,8 +149,11 @@ export function SkinPage({ chatId }) {
     }
     if (a.remote) lines.push(`其中 ${a.remote} 处引用了网络地址，对方需要能访问该地址。`);
     if (a.data) lines.push(`其中 ${a.data} 处图片已内联在文件中，文件体积相应增大。`);
-    const fb = skin.frameBytes(cur);
-    if (fb) lines.push(`头像框一并带走，约 ${Math.round(fb / 1024)} KB。`);
+    // 生成器里传进去的图（头像框、角落贴图、各种背景）都内嵌在这一份里
+    const pics = skin.gen.weigh(cur.gen);
+    if (pics.n) {
+      lines.push(`其中内嵌 ${pics.n} 张图片，约 ${Math.round(pics.bytes / 1024)} KB，一并带走。`);
+    }
     if (lines.length && !await confirm({
       title: '导出美化包', okText: '继续导出',
       message: `${lines.join('')}美化包仅包含名称、尺寸、头像框与样式，`
@@ -223,7 +217,10 @@ export function SkinPage({ chatId }) {
       <//>`;
   }
 
+  // 「生成」排第一，而且是新建那一份的默认页 —— 绝大多数人要的是拖旋钮，
+  // 不是写 CSS。把写 CSS 排在前面，等于默认所有人都会写
   const TABS = [
+    { value: 'gen', label: '生成' },
     { value: 'size', label: '尺寸' },
     { value: 'css', label: '自定义 CSS' },
     { value: 'names', label: '类名' },
@@ -242,6 +239,8 @@ export function SkinPage({ chatId }) {
         <${Segmented} value=${tab} onChange=${setTab} items=${TABS}/>
       </div>
 
+      ${tab === 'gen' ? html`<${SkinGen} row=${cur} onChange=${set}/>` : null}
+
       ${tab === 'size' ? html`
         <div class="pad-x pad-t">
           <${Field} label="头像形状">
@@ -249,49 +248,9 @@ export function SkinPage({ chatId }) {
               items=${skin.SHAPES.map(x => ({ value: x.id, label: x.label }))}/>
           <//>
 
-          <${Field} label="头像框"
-            desc="画在头像外围的一圈图案，不改变头像本身。图片中间需要是透明的，
-              否则会把头像盖住。图片存入这一份美化，导出时一并带走。
-              移除之后头像恢复为不带外框。">
-            ${cur.frame ? html`
-              <div class="frame-try">
-                <div class="frame-try-face">
-                  <div class="avatar avatar-fallback"
-                    style=${`width:36px;height:36px;border-radius:${
-  skin.SHAPES.find(x => x.id === cur.shape)?.css || '18px'}`}>样</div>
-                  <img class="frame-try-ring" src=${cur.frame} alt=""
-                    style=${`width:${skin.frameScaleOf(cur)}%;height:${skin.frameScaleOf(cur)}%`}/>
-                </div>
-                <div class="frame-try-note">约 ${Math.round(skin.frameBytes(cur) / 1024)} KB</div>
-              </div>` : null}
-            <div class="btn-row">
-              <${Button} size="sm" variant="ghost" icon="image"
-                onClick=${() => frameRef.current?.click()}>
-                ${cur.frame ? '换一张' : '选择图片'}
-              <//>
-              ${cur.frame ? html`
-                <${Button} size="sm" variant="ghost"
-                  onClick=${() => { skin.clearFrame(cur.id); toast('已移除', 'ok'); }}>移除<//>` : null}
-            </div>
-          <//>
-          <input type="file" accept="image/*" ref=${frameRef}
-            onChange=${pickFrame} style="display:none"/>
-
-          ${cur.frame ? html`
-            <${Field} label="谁戴这个框"
-              desc="按消息的发出方决定。选定之后，另一方的头像不带框。">
-              <${Segmented} value=${skin.frameWhoOf(cur).id}
-                onChange=${v => set({ frameWho: v })}
-                items=${skin.FRAME_WHO.map(x => ({ value: x.id, label: x.label }))}/>
-            <//>
-            <${Field} label="框的大小"
-              desc=${`按头像的百分比计算。100 表示与头像同样大小，`
-    + `留空使用默认值 ${skin.FRAME_SCALE_DEF}。`}>
-              <${NumberInput} value=${skin.frameScaleOf(cur)} unit="%"
-                placeholder=${`默认 ${skin.FRAME_SCALE_DEF}`}
-                min=${skin.FRAME_SCALE_MIN} max=${skin.FRAME_SCALE_MAX}
-                onChange=${v => set({ frameScale: v || skin.FRAME_SCALE_DEF })}/>
-            <//>` : null}
+          <div class="settings-foot">
+            头像框在「生成」那一页的「头像」一组，可以为角色与自己各设一张。
+          </div>
           ${skin.TOKENS.map(t => html`
             <${Field} key=${t.id} label=${t.label}
               desc=${`${t.desc ? t.desc + '。' : ''}留空表示不改，使用默认值 ${t.def}${t.unit}。`}>
@@ -303,7 +262,7 @@ export function SkinPage({ chatId }) {
             <${Button} variant="ghost" onClick=${() => set({ tokens: {}, shape: '' })}>
               尺寸全部恢复默认
             <//>
-            <div class="settings-foot">恢复默认不影响头像框。移除头像框请使用上方的按钮。</div>
+
           </div>
         </div>` : null}
 
@@ -311,7 +270,8 @@ export function SkinPage({ chatId }) {
         <div class="pad-x pad-t">
           <${Field} label="自定义 CSS"
             desc="只在这段会话的页面打开时生效，离开立即移除。写坏了不会影响别处，
-              也可以在消息列表长按这段会话清除。上方样板间是实时的。">
+              也可以在消息列表长按这段会话清除。上方样板间是实时的。
+              这一段排在「生成」那一段之后，要覆盖它需要写 !important。">
             <${Textarea} rows=${14} value=${cur.css || ''}
               placeholder=".bubble { box-shadow: none; }"
               onInput=${v => set({ css: v })}/>

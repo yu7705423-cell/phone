@@ -56,6 +56,40 @@ export const NumberInput = ({ value, onChange, unit = '', min = 0, max = null,
 // 开关常常放在一整行可点的 ListItem 里。点击事件必须停在这儿：
 // 不拦住的话，拨一下开关会顺着冒泡触发整行的 onClick，
 // 于是关掉一个世界书条目的同时又进了它的编辑页。
+/**
+ * 滑杆。右边跟一个数字框，两边同步。
+ *
+ * **两个都要。** 只有滑杆时调不到精确值，只有数字框时看不出范围，
+ * 而生成器上这两件事都要 —— 拖着看效果，定下来再对齐数字。
+ */
+export const Slider = ({ value, onChange, min = 0, max = 100, step = 1, unit = '' }) => {
+  const clamp = v => Math.max(min, Math.min(max, Number(v) || 0));
+  return html`
+    <div class="slider-row">
+      <input type="range" min=${min} max=${max} step=${step} value=${Number(value) || 0}
+        onInput=${e => onChange(clamp(e.target.value))}/>
+      <input class="slider-num" type="number" inputmode="numeric"
+        min=${min} max=${max} step=${step} value=${Number(value) || 0}
+        onInput=${e => onChange(clamp(e.target.value))}/>
+      ${unit ? html`<span class="slider-unit">${unit}</span>` : null}
+    </div>`;
+};
+
+/**
+ * 取色。带一个「不改这一项」的按钮。
+ *
+ * 系统的取色器没有「空」这个状态，一点开就必然给回一个颜色。少了那个按钮，
+ * 手滑点开就再也回不到「保持默认」，只能删掉整份重来。
+ */
+export const ColorInput = ({ value, onChange, fallback = '#888888' }) => html`
+  <div class="color-row">
+    <input type="color" class="color-swatch" value=${value || fallback}
+      onInput=${e => onChange(e.target.value)}/>
+    <span class="color-hex mono">${value || '未设置'}</span>
+    ${value ? html`
+      <button type="button" class="color-clear press" onClick=${() => onChange('')}>不改</button>` : null}
+  </div>`;
+
 export const Switch = ({ checked, onChange }) => html`
   <button class=${`switch${checked ? ' is-on' : ''}`} role="switch"
     aria-checked=${!!checked}

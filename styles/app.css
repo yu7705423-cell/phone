@@ -561,6 +561,44 @@ input[type="range"] {
   padding: 1px var(--sp-2);
 }
 .btn-row { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+
+/* 滑杆加数字框。生成器上每一项都是这一对，所以定义在这儿，各处引用 */
+.slider-row { display: flex; align-items: center; gap: var(--sp-3); }
+.slider-row input[type="range"] { flex: 1; min-width: 0; }
+.slider-num {
+  flex: none; width: 58px; text-align: right;
+  background: var(--surface-2); border: 0; border-radius: var(--r-sm);
+  padding: 5px var(--sp-2); font-size: var(--fs-13); color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.slider-unit { flex: none; font-size: var(--fs-12); color: var(--text-3); min-width: 20px; }
+
+/* 取色。色块、色值、以及那个「不改」 */
+.color-row { display: flex; align-items: center; gap: var(--sp-3); }
+.color-swatch {
+  flex: none; width: 40px; height: 28px; padding: 0;
+  border: 1px solid var(--border-2); border-radius: var(--r-sm); background: none;
+}
+.color-hex { flex: 1; min-width: 0; font-size: var(--fs-12); color: var(--text-2); }
+.color-clear {
+  flex: none; border: 1px solid var(--border-2); border-radius: var(--r-sm);
+  background: none; color: var(--text-2); font-size: var(--fs-12); padding: 4px var(--sp-2);
+}
+
+/* 生成器：一组一张卡，顶上是组名 */
+.gen-group { padding: 0 var(--sp-4) var(--sp-4); }
+.gen-out {
+  margin: var(--sp-4); padding: var(--sp-3); border-radius: var(--r-md);
+  background: var(--surface-2); color: var(--text-2);
+  font-family: var(--font-mono); font-size: var(--fs-11); line-height: 1.6;
+  white-space: pre-wrap; word-break: break-all; max-height: 260px; overflow: auto;
+}
+.gen-pic { display: flex; align-items: center; gap: var(--sp-3); }
+.gen-pic-box {
+  flex: none; width: 46px; height: 46px; border-radius: var(--r-sm);
+  border: 1px solid var(--border-2); background-size: contain;
+  background-position: center; background-repeat: no-repeat;
+}
 .btn-row .btn { flex: 1; min-width: 0; }
 
 /* 头像框：编辑页上那一小块试戴。和会话里一样，框挂在头像那个盒子外面，
