@@ -1,6 +1,7 @@
-import { messages, messagesOf, chats, characters, images, files, settings } from '../db/index.js';
+import { messages, messagesOf, chats, characters, files, settings } from '../db/index.js';
 import { uid } from '../store.js';
 import * as imageSvc from './image.js';
+import { isAbort } from './queue.js';
 import * as imgPrompt from './imageprompt.js';
 import { activeImage } from './services.js';
 import { isImageReady } from './image.js';
@@ -1059,20 +1060,28 @@ async function generateImage(msgId, prompt, char) {
 
     // 先试直传参考图那条路。接口不认（多半是没有 images/edits）就退回
     // 把脸读成一段外貌描述拼进提示词 —— 退回去也比画成另一个人强。
+    //
+    // **退回去是第二次调用，所以只在「接口不认」时退。** 两种不退：
+    // 取消（人不要了，再画一张是凭空的一笔账）、以及图已经画回来了只是
+    // 存不进去（那是本机的事，重画一张也一样存不进去，白花一次）。
     if (lock && imgPrompt.wantsRef(char, preset)) {
+      let blob = null;
       try {
         const ref = await imgPrompt.faceBlob(char);
         if (ref) {
-          const blob = await imageSvc.generateWithRef({
+          blob = await imageSvc.generateWithRef({
             prompt: imgPrompt.compose({ prompt, char }), refBlob: ref,
             preset, key: `msg-img:${msgId}`,
           });
-          const id = await images.put(new File([blob], 'gen.png', { type: blob.type || 'image/png' }), 1024);
-          messages.update(msgId, { imageId: id, media: 'done' });
-          return;
         }
       } catch (err) {
+        if (isAbort(err)) throw err;
         console.warn('[image] 参考图那条路没走通，改用外貌描述:', err.message || err);
+      }
+      // 存这一步放在 try 外面：它失败不该把我们送去再画一张
+      if (blob) {
+        messages.update(msgId, { imageId: await imageSvc.toLibrary(blob), media: 'done' });
+        return;
       }
     }
 
@@ -1081,9 +1090,10 @@ async function generateImage(msgId, prompt, char) {
       prompt: imgPrompt.compose({ prompt, char, face }),
       preset, key: `msg-img:${msgId}`,
     });
-    const id = await images.put(new File([blob], 'gen.png', { type: blob.type || 'image/png' }), 1024);
-    messages.update(msgId, { imageId: id, media: 'done' });
+    messages.update(msgId, { imageId: await imageSvc.toLibrary(blob), media: 'done' });
   } catch (err) {
+    // 取消不是错误。留一句红字在气泡上，人会以为是接口坏了
+    if (isAbort(err)) { messages.update(msgId, { media: 'off', mediaError: '' }); return; }
     messages.update(msgId, { media: 'error', mediaError: String(err.message || err) });
   }
 }

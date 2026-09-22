@@ -40,22 +40,66 @@ const bytesToB64 = bytes => {
 };
 
 /**
+ * `FormData` 自己拼成 multipart 的字节。
+ *
+ * **这一条栽过，而且栽得特别安静。** 过桥的只是一串 base64，浏览器那套
+ * 「FormData 交给 fetch，由它生成分界串并配好 content-type」在这里没人做 ——
+ * 从前这个分支不存在，`bodyB64` 就停在空串上，外壳照发，对面收到一个
+ * **没有请求体**的 POST。生图带参考图那条正是这样：relay 报
+ * `{"prompt":null,"referenced_image_ids":null}`，看起来像是本机没填提示词，
+ * 其实是整个 body 在过桥时没了。
+ *
+ * 分界串要跟着 content-type 一起交出去，对面才拆得开。
+ */
+async function formBytes(form) {
+  const boundary = `----phone${Date.now().toString(16)}${Math.random().toString(16).slice(2)}`;
+  const parts = [];
+  const enc = new TextEncoder();
+  for (const [name, value] of form.entries()) {
+    const isFile = value instanceof Blob;
+    const filename = isFile ? (value.name || 'blob') : '';
+    parts.push(enc.encode(`--${boundary}\r\nContent-Disposition: form-data; name="${name}"`
+      + (isFile ? `; filename="${filename}"\r\nContent-Type: ${value.type || 'application/octet-stream'}` : '')
+      + '\r\n\r\n'));
+    parts.push(isFile ? new Uint8Array(await value.arrayBuffer()) : enc.encode(String(value)));
+    parts.push(enc.encode('\r\n'));
+  }
+  parts.push(enc.encode(`--${boundary}--\r\n`));
+  const total = parts.reduce((n, p) => n + p.length, 0);
+  const out = new Uint8Array(total);
+  let at = 0;
+  parts.forEach(p => { out.set(p, at); at += p.length; });
+  return { bytes: out, contentType: `multipart/form-data; boundary=${boundary}` };
+}
+
+/**
  * 交给外壳发。回来的东西**长得像 Response**，但不是真的 Response ——
  * 只做调用方真正用得上的那几样，免得为了像而像。
  */
 async function viaNative(url, init = {}) {
   const body = init.body;
+  const headers = { ...(init.headers || {}) };
   let bodyB64 = '';
   if (typeof body === 'string') bodyB64 = bytesToB64(new TextEncoder().encode(body));
   else if (body instanceof ArrayBuffer) bodyB64 = bytesToB64(new Uint8Array(body));
   else if (body instanceof Uint8Array) bodyB64 = bytesToB64(body);
-  else if (body instanceof Blob) bodyB64 = bytesToB64(new Uint8Array(await body.arrayBuffer()));
+  else if (typeof FormData !== 'undefined' && body instanceof FormData) {
+    const { bytes, contentType } = await formBytes(body);
+    bodyB64 = bytesToB64(bytes);
+    // 分界串是现生成的，只有这里知道。调用方给的那个（如果有）一定是错的
+    headers['content-type'] = contentType;
+  } else if (body instanceof Blob) bodyB64 = bytesToB64(new Uint8Array(await body.arrayBuffer()));
+  else if (body !== undefined && body !== null) {
+    // 认不出来的请求体**不许静静地发一个空的出去**。上面那条就是这么栽的：
+    // 对面报的是「你没填提示词」，而本机看什么都正常
+    throw new TypeError(`这种请求体过不了外壳那座桥：${body.constructor?.name || typeof body}`);
+  }
 
   const got = await BRIDGE().postMessage({
     action: 'fetch',
     url,
     method: init.method || 'GET',
-    headers: init.headers || {},
+    headers,
     body: bodyB64,
   });
   if (got?.error) throw new TypeError(got.error);
@@ -82,19 +126,30 @@ const sameOrigin = url => {
 };
 
 /**
+ * 这个地址根本不必过桥。
+ *
+ * `data:` 与 `blob:` 的内容就在本机，浏览器自己取得到，而外壳那层是
+ * `URLSession`，它对这两种一律取不了。它们的 origin 是 "null"，
+ * 和本页不同源，光看同源会把它们送上桥，送过去就是必然失败。
+ */
+const localUrl = url => /^(data|blob):/i.test(String(url || ''));
+
+/**
  * 发一个请求。装了 app 且是跨域的就交给外壳，否则照常直连。
  *
  * `prefer` 填 'direct' 可以强制走浏览器 —— 测试那一页要能分别试两条路，
  * 好告诉用户「直连不通但外壳通」还是「两条都不通」。
  */
 export function nfetch(url, init = {}, { prefer = 'auto' } = {}) {
-  if (prefer !== 'direct' && canNative() && !sameOrigin(url)) return viaNative(url, init);
+  if (prefer !== 'direct' && canNative() && !sameOrigin(url) && !localUrl(url)) {
+    return viaNative(url, init);
+  }
   return fetch(url, init);
 }
 
 /** 这一次会走哪条路。界面上要说清楚，别让人猜。 */
 export const routeOf = url =>
-  (canNative() && !sameOrigin(url) ? 'native' : 'direct');
+  (canNative() && !sameOrigin(url) && !localUrl(url) ? 'native' : 'direct');
 
 /**
  * 浏览器里发失败之后，再问一句：**到底是连不上，还是连上了不让读？**

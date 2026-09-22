@@ -3,6 +3,7 @@ import { activeImage } from './services.js';
 import { enqueue } from './queue.js';
 import { unzip } from '../zip.js';
 import { nfetch } from '../net.js';
+import { images } from '../db/index.js';
 
 /**
  * 生图。两套接口，一套一个 kind：
@@ -167,24 +168,84 @@ export function generate({ prompt, preset, key }) {
   }, { retries: 0 });
 }
 
+/**
+ * 从回包里把那张图取出来。
+ *
+ * **中转站的回包形状比官方文档多得多。** 下面这几种都真见过，而且它们失败时
+ * 的样子都一样（一句「接口没有返回图片」），所以逐种认，认不出的把原文截一段
+ * 带出来 —— 猜不出形状的时候，原文是唯一能往下查的东西。
+ */
 async function pickImage(j, signal) {
-  const row = j?.data?.[0];
-  if (row?.b64_json) return b64ToBlob(row.b64_json);
-  if (row?.url) {
-    // 中转站常只给 URL。跨域可能取不回来，取不到就把 URL 抛出去让上层提示
-    const img = await fetch(row.url, { signal }).catch(() => null);
+  // 有些中转站 200 也带 error。这时候它自己那句话比我们任何猜测都准
+  const said = j?.error?.message || j?.message;
+  const row = j?.data?.[0] || j?.images?.[0] || (Array.isArray(j) ? j[0] : null);
+  // 只认字符串。有的回包里 `image` 是个对象，`String()` 一转就成了
+  // 「[object Object]」，再往下报的是「不是有效的 base64」，指错了地方
+  const str = v => (typeof v === 'string' && v.trim() ? v : '');
+  const b64 = str(row?.b64_json) || str(row?.b64) || str(row?.image) || str(row);
+  if (b64) return b64ToBlob(b64);
+
+  const url = str(row?.url) || str(row?.image_url) || str(j?.url);
+  if (url) {
+    // 中转站常只给 URL。**用 nfetch**：装成 app 时这一取也要交给外壳，
+    // 否则接口那条过了桥、取图这条还卡在浏览器的跨域上，白忙一趟
+    const img = await nfetch(url, { signal }).catch(() => null);
     if (!img || !img.ok) {
-      throw new Error('接口只返回了图片链接，且跨域取不回来。'
+      throw new Error('接口只返回了图片链接，且取不回来。'
         + '可在该生图接口的「返回格式」中改为 base64');
     }
-    return img.blob();
+    const got = await img.blob();
+    // **200 不等于取到了图。** 链接过期、要登录、被挡在网关后面，回来的常是
+    // 一页 HTML 或一段 JSON，状态码照样 200。不看一眼就存进去，等到
+    // createImageBitmap 那一步才炸，报的是「源图像无法解码」—— 与链接无关，
+    // 查不出是这儿
+    if (!/^image\//.test(got.type || '')) {
+      const peek = (await got.text().catch(() => '')).trim().slice(0, 120);
+      throw new Error(`那个图片链接回来的不是图片${peek ? `：${peek}` : ''}`);
+    }
+    return got;
   }
-  throw new Error('接口没有返回图片');
+  if (said) throw new Error(String(said));
+  throw new Error(`接口没有返回图片。回包是：${JSON.stringify(j).slice(0, 200)}`);
 }
 
-function b64ToBlob(b64) {
-  const bin = atob(b64);
+/**
+ * base64 转成 Blob。
+ *
+ * **两样要先摘掉。** 一是 `data:image/png;base64,` 这个前缀 —— 不少中转站
+ * 直接把整个 data URL 塞进 `b64_json`；二是换行与空白 —— 有些接口按 76 列
+ * 折行。两样都会让 `atob` 抛一句 `InvalidCharacterError`，而那句话既不提图片
+ * 也不提接口，看见的人无从下手。
+ */
+function b64ToBlob(raw) {
+  const s = String(raw || '');
+  const m = /^data:([^;,]*)[^,]*,(.*)$/s.exec(s);
+  const type = (m && m[1]) || 'image/png';
+  const clean = (m ? m[2] : s).replace(/\s+/g, '');
+  let bin;
+  try { bin = atob(clean); }
+  catch { throw new Error('接口回来的图片数据不是有效的 base64'); }
   const bytes = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  return new Blob([bytes], { type: 'image/png' });
+  return new Blob([bytes], { type });
+}
+
+/**
+ * 把生成回来的那张存进图片库。
+ *
+ * **不直接用 `images.put`**，因为它解码失败时抛的是浏览器那句
+ * 「The source image could not be decoded.」—— 既不提图片，也不提接口，
+ * 更不提是哪一步。而走到这里的数据全都来自对面：返回一张截断的图、
+ * 一段 base64 过的 HTML、一种浏览器不认的格式，都会落在这句话上。
+ *
+ * 带上字节数与类型：那两个数字一眼就能分出「对面压根没给图」
+ * 和「给了但传坏了」。
+ */
+export async function toLibrary(blob, maxEdge = 1024) {
+  try {
+    return await images.put(new File([blob], 'gen.png', { type: blob.type || 'image/png' }), maxEdge);
+  } catch {
+    throw new Error(`接口回来的数据存不成图片：${blob.size} 字节，`
+      + `类型 ${blob.type || '不明'}。多半不是一张完整的图片`);
+  }
 }

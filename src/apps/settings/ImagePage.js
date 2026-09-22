@@ -27,7 +27,7 @@ function Editor({ id, onClose }) {
     setBusy(true);
     try {
       const blob = await ai.image.generate({ prompt: 'a single small black circle on white', preset, key: 'img:test' });
-      const imgId = await db.images.put(new File([blob], 'test.png', { type: blob.type }), 512);
+      const imgId = await ai.image.toLibrary(blob, 512);
       toast('生成成功，已存入图片库');
       set({ lastTest: imgId });
     } catch (err) { toast(String(err.message || err), 'error', 5000); }
