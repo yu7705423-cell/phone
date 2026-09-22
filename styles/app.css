@@ -1016,7 +1016,10 @@ input[type="range"] {
   display: inline-block; padding: var(--sp-2) var(--sp-3);
   border-radius: var(--r-md); background: var(--group-fill);
   font-size: var(--fs-12); color: var(--text-3);
+  display: inline-flex; flex-direction: column; align-items: flex-start; gap: 2px;
 }
+/* 认不出时点一下自己指认。不写这一句，人只会以为是坏了 */
+.stk-gone-hint { font-size: var(--fs-11); color: var(--accent); }
 
 /* 译文收在原文气泡里。点一下展开，不单独占一条消息，也不另加按钮 */
 .bubble.has-trans { cursor: pointer; }

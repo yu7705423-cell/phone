@@ -194,20 +194,67 @@ export function inGroup(group) {
     .sort((a, b) => (b.useCount || 0) - (a.useCount || 0) || (b.createdAt || 0) - (a.createdAt || 0));
 }
 
-// 角色写 [表情：名字] 时按名字找。模型偶尔写得不完全一样，
-// 名称对不上就退回关键词，再退回包含匹配。一个字的名字不做包含匹配，
-// 否则「哦」能匹上一半的表情。
+/**
+ * 名字对名字之前先抹平这几样。
+ *
+ * **两边看着一模一样、比起来却不等**，是这一步最常见的死法：
+ *
+ *   全角与半角     `（笑）` 与 `(笑)`、`：` 与 `:`
+ *   零宽字符       从网页或文档里复制过来的名字里常夹着 U+200B、U+FEFF
+ *   扩展名         `开心.png`，从文件名生成的名字带着它
+ *   包裹的符号     模型爱写成 `「开心」`、`"开心"`、`[开心]`
+ *   中间的空白     `开心  1` 与 `开心 1`
+ *
+ * 一个都不抹平，看见的就是「名字明明一样却找不到」。
+ */
+export function normalizeName(text) {
+  return String(text || '')
+    .normalize('NFKC')                       // 全角转半角，兼容字形归一
+    .replace(/[\u200B-\u200D\uFEFF]/g, '')  // 零宽
+    .replace(/\.(png|jpe?g|gif|webp|bmp|apng)$/i, '')
+    .replace(/^[\s"'`「『【\[(（]+|[\s"'`」』】\])）]+$/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
+
+/**
+ * 角色写 [表情：名字] 时按名字找。
+ *
+ * 四级：抹平之后精确对、关键词对、去掉所有空白再对、最后才是包含匹配。
+ * 一个字的名字不做包含匹配，否则「哦」能匹上一半的表情。
+ *
+ * **找不到不是世界末日**：气泡上会写出它想发的是哪个名字，点一下就能自己
+ * 指认（见会话页），指认完那个名字会记成关键词，下次自己就对上了。
+ */
 export function byName(name) {
-  const q = String(name || '').trim().toLowerCase();
+  const q = normalizeName(name);
   if (!q) return null;
   const all = stickers.all();
-  const nameOf = s => String(s.name || '').trim().toLowerCase();
+  const nameOf = s => normalizeName(s.name);
+  const bare = t => t.replace(/\s+/g, '');
   return all.find(s => nameOf(s) === q)
-    || all.find(s => (s.keywords || []).some(k => String(k).trim().toLowerCase() === q))
+    || all.find(s => (s.keywords || []).some(k => normalizeName(k) === q))
+    || all.find(s => bare(nameOf(s)) === bare(q))
     || (q.length >= 2
       ? all.find(s => nameOf(s).length >= 2 && (nameOf(s).includes(q) || q.includes(nameOf(s))))
       : null)
     || null;
+}
+
+/**
+ * 把模型写的这个名字记到某个表情上，当关键词。
+ *
+ * 手动指认之后叫一次：**下一回它再写同一个名字就自己对上了**，
+ * 不必每次都来指认一遍。
+ */
+export function learnName(stickerId, name) {
+  const s = stickers.get(stickerId);
+  const raw = String(name || '').trim();
+  if (!s || !raw) return null;
+  const has = [...(s.keywords || []), s.name].some(k => normalizeName(k) === normalizeName(raw));
+  if (has) return s;
+  return stickers.update(stickerId, { keywords: [...(s.keywords || []), raw].slice(0, 12) });
 }
 
 export function markUsed(id) {

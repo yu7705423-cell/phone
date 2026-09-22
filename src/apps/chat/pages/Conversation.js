@@ -110,7 +110,7 @@ export function ComposerBar({ draft = '', live = false, busy = false, frozen = f
 
 // 记忆化：流式回复时只有最后那条在变，别的几百条没必要跟着重画。
 // 下面传给它的函数属性都是稳定身份的，见 Conversation 里的 stable。
-export const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, onSwipe, onHold,
+export const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, onSwipe, onHold, onBind,
                   selecting, selected, onToggle, transOpen, onSettle, onOpenLog, onUnwrap,
                   onPat, innerStyle, fold, foldCount, onScene,
                   stampAt = 'off', readOn = false, readUpTo = 0 }) {
@@ -225,9 +225,10 @@ export const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, o
           : msg.kind === 'sticker'
           ? html`<div class="bubble-sticker ph-sticker">
               ${sticker ? html`<${StickerImg} sticker=${sticker} size=${112}/>`
-                : html`<span class="stk-gone">
+                : html`<button class="stk-gone press" onClick=${() => onBind?.(msg)}>
                     ${msg.stickerName ? `表情：${msg.stickerName}` : '表情已删除'}
-                  </span>`}
+                    <span class="stk-gone-hint">点击指认</span>
+                  </button>`}
             </div>`
           : (msg.kind === 'image' || msg.kind === 'voice' || msg.kind === 'clip')
           ? html`<${MediaBubble} msg=${msg} char=${char}/>`
@@ -321,6 +322,8 @@ export function Conversation({ chatId, focusId = '' }) {
   const [letter, setLetter] = useState(null);    // 正在读的那封信
   const [pact, setPact] = useState(null);        // 正在标完成的那条约定
   const [dicing, setDicing] = useState(false);
+  // 角色写的那个表情名没认出来时，点气泡自己指认是哪一个
+  const [binding, setBinding] = useState(null);
   const [making, setMaking] = useState(false);
   const [clipText, setClipText] = useState('');   // 骰子面板开着
   const [ordering, setOrdering] = useState(false);  // 点外卖面板开着
@@ -350,6 +353,7 @@ export function Conversation({ chatId, focusId = '' }) {
     onUnwrap: m => latest.current.onUnwrap(m),
     onPat: () => latest.current.onPat(),
     onScene: (kind, id) => latest.current.onScene(kind, id),
+    onBind: m => latest.current.onBind(m),
     noop: () => {},
   }), []);
   const pickedSet = useMemo(() => new Set(picked || []), [picked]);
@@ -935,7 +939,8 @@ export function Conversation({ chatId, focusId = '' }) {
     onScene: (kind, id) => {
       if (kind === 'look') setLook(true);
       else if (id) nav.push(`/scene/${id}/edit`);
-    } };
+    },
+    onBind: m => setBinding(m) };
 
   const deletePicked = async () => {
     if (!picked.length) return;
@@ -1167,6 +1172,7 @@ export function Conversation({ chatId, focusId = '' }) {
           : html`
             <${Bubble} key=${row.id} msg=${row.msg} char=${char} chat=${chat}
               onRetry=${stable.onRetry} onSwipe=${stable.onSwipe} onHold=${setHeld}
+              onBind=${stable.onBind}
               selecting=${selecting} selected=${selecting && pickedSet.has(row.id)}
               onToggle=${stable.onToggle} transOpen=${settings.translateOpen}
               onSettle=${stable.onSettle} onOpenLog=${stable.onOpenLog}
@@ -1272,6 +1278,22 @@ export function Conversation({ chatId, focusId = '' }) {
       <${LetterSheet} msg=${letter} onClose=${() => setLetter(null)}/>
       <${PactSheet} msg=${pact} onClose=${() => setPact(null)}/>
       <${DiceSheet} open=${dicing} chatId=${chatId} onClose=${() => setDicing(false)}/>
+
+      <${Sheet} open=${!!binding} onClose=${() => setBinding(null)} title="指认这个表情" height="76%">
+        <div class="settings-foot">
+          没有找到名为「${binding?.stickerName || ''}」的表情。
+          选择一个之后，这条消息将显示该表情；这个名称会一并记为它的关键词，
+          之后再写同一个名称即可自动匹配。
+        </div>
+        <${StickerPanel} onSend=${s => {
+    const m = binding;
+    setBinding(null);
+    if (!m) return;
+    phone.stickers.learnName(s.id, m.stickerName);
+    db.messages.update(m.id, { stickerId: s.id, content: `[表情：${s.name}]` });
+    toast('已指认', 'ok');
+  }}/>
+      <//>
 
       <${Sheet} open=${making} onClose=${() => setMaking(false)} title="生成视频">
         <${Textarea} rows=${4} value=${clipText} onInput=${setClipText}

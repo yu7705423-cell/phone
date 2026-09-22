@@ -83,7 +83,9 @@ function stickerNames(char, limit) {
     }
     if (!any) break;
   }
-  return out.join('、');
+  // **一行一个**。从前用「、」连起来，而名字里本来就可能有「、」，
+  // 那样模型看到的就是两个名字，写出来哪个都对不上
+  return out.map(n => `- ${n}`).join('\n');
 }
 
 // 这段对话里有没有还没处理完的东西。有的话这个能力必须是热的 ——

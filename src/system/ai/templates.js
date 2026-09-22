@@ -204,7 +204,8 @@ time has passed, without jumping.`,
 `[表情]
 To send a sticker in place of a line of speech, write a line on its own,
 [表情：name].
-The name must be taken from the list below, unaltered, and never invented:
+The name must be taken from the list below, unaltered, and never invented.
+Each line below is one name; the leading "- " is not part of it:
 {{names}}
 
 That line stands alone, with nothing else before or after it on the same line.`,
