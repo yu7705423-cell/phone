@@ -231,7 +231,11 @@ export const STAGE_CSS = `
 .stage-page .conv { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .stage-page .conv-main { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .stage-page .conv-body { flex: 1; min-height: 0; overflow: hidden; }
-.stage-page .composer-bar { padding-bottom: var(--composer-pad); }
+/* **安全区照着真机摆一段，不抹掉。**
+   真机上底栏那一块是「内边距 + 安全区」，iPhone 上那条横杠要占 34 像素。
+   从前这里把它抹成 0，于是预览里看不到那一块，人调完到真机上才发现
+   下面还空一大截 —— 预览的意义就没了。 */
+.stage-page { --safe-bottom: 34px; }
 .stage-page textarea { pointer-events: none; }
 `;
 

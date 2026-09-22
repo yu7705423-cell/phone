@@ -24,7 +24,10 @@ export function listAppLooks() {
 export function applyLook(s) {
   const root = document.documentElement;
   root.style.setProperty('--icon-color', s.iconColor || '#000000');
-  root.style.setProperty('--bottom-lift', Math.max(0, s.bottomLift || 0) + 'px');
+  // **不钳成非负。** 负数是把底部往下放，地址栏不存在时用来收回多余的留白。
+  // 从前这里写着 Math.max(0, …)，于是设置里那条滑杆放开到 -40 也没用 ——
+  // 滑杆动了、值也存了，到这一步被抹平
+  root.style.setProperty('--bottom-lift', (Number(s.bottomLift) || 0) + 'px');
   root.dataset.iconShadow = s.iconShadow === false ? 'off' : 'on';
   root.dataset.iconLabel = s.iconLabels === false ? 'off' : 'on';
   root.dataset.glass = s.glass === true ? 'on' : 'off';

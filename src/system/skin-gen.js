@@ -294,7 +294,11 @@ export const GROUPS = [
       { id: 'img', label: '背景图', type: 'image', def: '' },
       { id: 'imgFill', label: '背景图怎么铺', type: 'pick', options: FILLS, def: 'cover',
         when: v => v.img },
-      { id: 'pad', label: '上下内边距', type: 'num', unit: 'px', def: '', min: 0, max: 48 },
+      { id: 'padTop', label: '上内边距', type: 'num', unit: 'px', def: '', min: 0, max: 60 },
+      { id: 'padBottom', label: '下内边距', type: 'num', unit: 'px', def: '', min: -80, max: 80,
+        desc: '这一块默认等于内边距加上系统安全区（iPhone 底部那条横杠占的位置），'
+          + '所以看着比数字大。填 0 会把安全区一起去掉，填负数继续往下收，'
+          + '内容可能被那条横杠压住' },
       { id: 'line', label: '隐藏顶部的分隔线', type: 'switch', def: false },
       { id: 'btn', label: '圆按钮大小', type: 'num', unit: 'px', def: '', min: 20, max: 80 },
       { id: 'btnFg', label: '圆按钮颜色', type: 'color', def: '' },
@@ -735,7 +739,15 @@ function composerBlocks(gen) {
   if (has(v.bg)) bar.push(`background: ${v.bg}`);
   const bi = img(v.img);
   if (bi) { bar.push(`background-image: url("${bi}")`); fillDecls(v.imgFill).forEach(d => bar.push(d)); }
-  if (set(v.pad)) bar.push(`padding-top: ${num(v.pad)}px`, `padding-bottom: ${num(v.pad)}px`);
+  if (set(v.padTop)) bar.push(`padding-top: ${num(v.padTop)}px`);
+  // 底下这一块原本是 `内边距 + 安全区`，所以一旦写了就要整条盖掉，
+  // 否则安全区仍然加在后面 —— 用户填了 0 却发现下面还空一大片，正是这么来的。
+  // padding 不接受负值，负的那一段走 margin 继续往下收
+  if (set(v.padBottom)) {
+    const n = num(v.padBottom);
+    bar.push(`padding-bottom: ${Math.max(0, n)}px`);
+    if (n < 0) bar.push(`margin-bottom: ${n}px`);
+  }
   if (v.line) bar.push('border-top: none', 'box-shadow: none');
   if (bar.length) out.push(`${note('底栏')}\n${rule('.ph-composer', bar)}`);
 
