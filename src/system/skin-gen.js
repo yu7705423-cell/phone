@@ -133,7 +133,7 @@ const decoItems = (n) => [
  */
 export const GROUPS = [
   {
-    id: 'nav', label: '顶栏', icon: 'maximize', focus: '.ph-navbar',
+    id: 'nav', label: '顶栏', short: '顶栏', icon: 'maximize', focus: '.ph-navbar',
     items: [
       { id: 'bg', label: '底色', type: 'color', def: '' },
       { id: 'img', label: '背景图', type: 'image', def: '' },
@@ -150,7 +150,7 @@ export const GROUPS = [
     ],
   },
   {
-    id: 'navDeco', label: '顶栏挂图', icon: 'image', focus: '.ph-navbar',
+    id: 'navDeco', label: '顶栏挂图', short: '挂图', icon: 'image', focus: '.ph-navbar',
     items: [
       { id: 'img', label: '图片', type: 'image', def: '',
         desc: '挂在顶栏上的一张图。顶栏有两个位置，这是第一个' },
@@ -167,7 +167,7 @@ export const GROUPS = [
     ],
   },
   {
-    id: 'msg', label: '消息区', icon: 'layers', focus: '.ph-chat-body',
+    id: 'msg', label: '消息区', short: '消息', icon: 'layers', focus: '.ph-chat-body',
     items: [
       { id: 'top', label: '第一条与顶部的距离', type: 'num', unit: 'px', def: '', min: -120, max: 240,
         desc: '顶栏加高或挂了图之后，第一条消息容易被压住，用这一项让开' },
@@ -186,7 +186,7 @@ export const GROUPS = [
     ],
   },
   {
-    id: 'avatar', label: '头像', icon: 'user', focus: '.ph-face',
+    id: 'avatar', label: '头像', short: '头像', icon: 'user', focus: '.ph-face',
     items: [
       { id: 'size', label: '大小', type: 'num', unit: 'px', def: '', min: 16, max: 120 },
       { id: 'round', label: '圆角', type: 'num', unit: '%', def: '', min: 0, max: 50,
@@ -212,7 +212,7 @@ export const GROUPS = [
     ],
   },
   {
-    id: 'tail', label: '气泡小尾巴', icon: 'play', focus: '.ph-bubble-theirs',
+    id: 'tail', label: '气泡小尾巴', short: '尾巴', icon: 'play', focus: '.ph-bubble-theirs',
     items: [
       { id: 'on', label: '显示小尾巴', type: 'switch', def: false,
         desc: '气泡朝向头像那一侧的小三角。默认没有' },
@@ -229,7 +229,7 @@ export const GROUPS = [
     ],
   },
   {
-    id: 'meta', label: '时刻与已读', icon: 'clock', focus: '.ph-meta',
+    id: 'meta', label: '时刻与已读', short: '时刻', icon: 'clock', focus: '.ph-meta',
     items: [
       { id: 'pos', label: '摆在哪儿', type: 'pick', options: METAPOS, def: 'side' },
       { id: 'color', label: '颜色', type: 'color', def: '' },
@@ -244,7 +244,7 @@ export const GROUPS = [
     ],
   },
   {
-    id: 'bubble', label: '气泡', icon: 'message', focus: '.ph-bubble-theirs',
+    id: 'bubble', label: '气泡', short: '气泡', icon: 'message', focus: '.ph-bubble-theirs',
     items: [
       { id: 'side', label: '改哪一边', type: 'pick', options: SIDES, def: 'all',
         desc: '选定之后，这一组与「边框与阴影」「贴图」都只作用于这一边' },
@@ -266,7 +266,7 @@ export const GROUPS = [
     ],
   },
   {
-    id: 'border', label: '边框与阴影', icon: 'sparkle', focus: '.ph-bubble-theirs',
+    id: 'border', label: '边框与阴影', short: '边框', icon: 'sparkle', focus: '.ph-bubble-theirs',
     items: [
       { id: 'w', label: '边框粗细', type: 'num', unit: 'px', def: '', min: 0, max: 16 },
       { id: 'c', label: '边框颜色', type: 'color', def: '', when: v => v.w > 0 },
@@ -285,10 +285,10 @@ export const GROUPS = [
         when: v => v.shadow > 0 },
     ],
   },
-  { id: 'deco1', label: '贴图一', icon: 'star', focus: '.ph-bubble-theirs', items: decoItems(1) },
-  { id: 'deco2', label: '贴图二', icon: 'star', focus: '.ph-bubble-theirs', items: decoItems(2) },
+  { id: 'deco1', label: '贴图一', short: '贴图一', icon: 'star', focus: '.ph-bubble-theirs', items: decoItems(1) },
+  { id: 'deco2', label: '贴图二', short: '贴图二', icon: 'star', focus: '.ph-bubble-theirs', items: decoItems(2) },
   {
-    id: 'composer', label: '底栏', icon: 'edit', focus: '.ph-composer',
+    id: 'composer', label: '底栏', short: '底栏', icon: 'edit', focus: '.ph-composer',
     items: [
       { id: 'bg', label: '底色', type: 'color', def: '' },
       { id: 'img', label: '背景图', type: 'image', def: '' },

@@ -589,14 +589,52 @@ input[type="range"] {
   background: none; color: var(--text-2); font-size: var(--fs-12); padding: 4px var(--sp-2);
 }
 
-/* 生成器：顶上钉一块预览，下面是一组一组的旋钮 */
+/* 生成器：左边一条常驻竖栏，右边上半预览、下半旋钮。
+   从上到下每一层都要把高度钉死 —— `.page-body` 自己不是 flex 容器，
+   中间断一层，里面那个 .scroll 就撑成内容那么高，永远滚不动。 */
+.gen { height: 100%; display: flex; min-height: 0; }
+
+.gen-rail {
+  flex: none; width: 62px; min-height: 0;
+  display: flex; flex-direction: column; gap: 2px;
+  padding: var(--sp-2) 4px; border-right: 1px solid var(--border);
+  background: var(--surface-2);
+}
+.gen-rail-btn {
+  position: relative; flex: none;
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  padding: var(--sp-2) 2px; border: 0; border-radius: var(--r-sm);
+  background: none; color: var(--text-2); cursor: pointer;
+}
+.gen-rail-btn.is-on { background: var(--surface); color: var(--text); }
+.gen-rail-label { font-size: var(--fs-11); line-height: 1.1; text-align: center; }
+.gen-rail-dot {
+  position: absolute; top: 5px; right: 6px;
+  width: 6px; height: 6px; border-radius: var(--r-full); background: var(--accent);
+}
+.gen-rail-sep { flex: none; height: 1px; background: var(--border); margin: var(--sp-2) 6px; }
+
+.gen-main { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
 .gen-stage-wrap {
-  flex: none; border-bottom: 1px solid var(--border); background: var(--surface-2);
+  flex: none; height: 46%; min-height: 180px;
+  border-bottom: 1px solid var(--border); background: var(--surface-2);
 }
-.gen-stage {
-  height: 330px; overflow: hidden; position: relative; width: 100%;
+/* 旋钮收起来时预览占满整块 */
+.gen-stage-wrap.is-full { flex: 1; height: auto; border-bottom: 0; }
+.gen-stage { height: 100%; width: 100%; overflow: hidden; position: relative; }
+
+.gen-panel { flex: 1; min-height: 0; padding-bottom: var(--safe-bottom); }
+.gen-panel-head {
+  position: sticky; top: 0; z-index: 2;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--bg); border-bottom: 1px solid var(--border);
 }
-.gen-scroll { flex: 1; min-height: 0; }
+.gen-panel-title { font-size: var(--fs-14); font-weight: var(--fw-semi); color: var(--text); }
+.gen-panel-close {
+  border: 0; background: none; color: var(--text-2); font-size: var(--fs-13);
+  padding: 2px var(--sp-1);
+}
 .gen-group { padding: 0 var(--sp-4) var(--sp-4); }
 .gen-out {
   margin: var(--sp-4); padding: var(--sp-3); border-radius: var(--r-md);
