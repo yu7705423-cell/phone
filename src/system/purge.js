@@ -161,11 +161,15 @@ export function usedImageIds() {
   characters.all().forEach(c => {
     add(c.avatar); add(c.cover); add(c.faceImage); add(c.callImage);
     (c.avatarPool || []).forEach(x => add(x?.imageId));
+    (c.highlights || []).forEach(h => add(h?.imageId));   // 主页上那一排精选
   });
   // 聊天记录里的图：用户发的照片、角色按描述生成的图
   messages.all().forEach(m => add(m.imageId));
   moments.all().forEach(m => (m.images || []).forEach(add));
-  personas.all().forEach(p => { add(p.avatar); add(p.cover); });
+  personas.all().forEach(p => {
+    add(p.avatar); add(p.cover);
+    (p.highlights || []).forEach(h => add(h?.imageId));
+  });
   stickers.all().forEach(st => add(st.imageId));
 
   const s = settings.get();

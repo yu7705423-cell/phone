@@ -78,6 +78,8 @@ export function collect(charId, { history = true } = {}) {
   cast.forEach(c => {
     [c.avatar, c.cover, c.faceImage, c.callImage].forEach(id => id && imgIds.add(id));
     (c.avatarPool || []).forEach(x => x?.imageId && imgIds.add(x.imageId));
+    // 主页上那一排精选
+    (c.highlights || []).forEach(h => h?.imageId && imgIds.add(h.imageId));
     // 角色书架上自己换过的封面
     (c.shelf || []).forEach(it => it?.cover && imgIds.add(it.cover));
   });

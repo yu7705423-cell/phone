@@ -1,88 +1,43 @@
 import { html, useState, useRef } from '../../../lib.js';
-import { phone, useStore, useImage, useThumb } from '../../../sdk/index.js';
-import { Avatar, Button, Icon, EmptyState, Sheet, List, ListItem,
-         Textarea, toast, confirm } from '../../../ui/index.js';
-import { relTime } from '../helpers.js';
+import { phone, useStore, useImage } from '../../../sdk/index.js';
+import { Avatar, Button, Icon, EmptyState, Sheet, Textarea, toast } from '../../../ui/index.js';
+import { Photo, MomentCard, CommentSheet } from './MomentBits.js';
 import { PHOTO_MAX } from '../../../system/db/images.js';
 
 const { db, nav, ai } = phone;
 
-function Photo({ id }) {
-  // 九宫格一格才 120 逻辑像素宽，用缩略图
-  const url = useThumb(id);
-  return html`<div class="mo-photo" style=${url ? `background-image:url(${url})` : ''}></div>`;
-}
-
-// 顶部是我自己的背景、头像和 ID，发布按钮在右上角
+// 顶部是我自己的背景、头像和 ID，发布按钮在右上角。
+// **封面就在这里换。** 它只在这一处显示，主页已经不放封面了（见 ARCHITECTURE 4.149），
+// 换它的入口跟着它走（CLAUDE.md 第 5 条）
 function MomentsHeader({ onPost, onRefresh, busy }) {
   const me = phone.accounts.current() || db.persona.get();
   const cover = useImage(me.cover);
   const avatar = useImage(me.avatar);
+  const coverRef = useRef(null);
+  const pickCover = async e => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      const id = await db.images.put(file, PHOTO_MAX);
+      if (me.cover) db.images.remove(me.cover);
+      db.personas.update(me.id, { cover: id });
+    } catch (err) { toast('图片处理失败：' + err.message, 'error'); }
+  };
   return html`
     <div class="mo-header" style=${cover ? `background-image:url(${cover})` : ''}>
       <div class="mo-header-acts">
+        <button class="mo-header-btn press" onClick=${() => coverRef.current?.click()}
+          aria-label="更换封面"><${Icon} name="image" size=${17}/></button>
         <button class="mo-header-btn press" onClick=${onRefresh} disabled=${busy}
           aria-label="刷新"><${Icon} name="refresh" size=${17}/></button>
         <button class="mo-header-btn press" onClick=${onPost}
           aria-label="发布"><${Icon} name="camera" size=${17}/></button>
       </div>
+      <input type="file" accept="image/*" ref=${coverRef} onChange=${pickCover} style="display:none"/>
       <div class="mo-header-me">
         <div class="mo-header-name">${me.name || '我'}</div>
         <${Avatar} src=${avatar} name=${me.name} size=${62} radius=${14}/>
-      </div>
-    </div>`;
-}
-
-function MomentCard({ mo, onComment }) {
-  const isMe = mo.authorId === 'me';
-  const author = isMe ? (phone.accounts.current() || db.persona.get()) : db.characters.get(mo.authorId);
-  const avatar = useImage(author?.avatar);
-  const liked = (mo.likes || []).includes('me');
-
-  const del = async () => {
-    if (!await confirm({ title: '删除这条动态', danger: true })) return;
-    (mo.images || []).forEach(id => db.images.remove(id));
-    db.moments.remove(mo.id);
-  };
-
-  return html`
-    <div class="mo-card">
-      <${Avatar} src=${avatar} name=${author?.name} size=${40} radius=${8}/>
-      <div class="mo-main">
-        <div class="mo-name">${author?.name || '已删除'}</div>
-        <div class="mo-text">${mo.text}</div>
-        ${mo.imagePending ? html`
-          <div class="mo-genning"><span class="spinner"></span>正在配图</div>` : null}
-        ${mo.imageError ? html`<div class="mo-genfail">配图没生成出来：${mo.imageError}</div>` : null}
-        ${(mo.images || []).length ? html`
-          <div class=${`mo-photos n${Math.min(mo.images.length, 9)}`}>
-            ${mo.images.slice(0, 9).map(id => html`<${Photo} key=${id} id=${id}/>`)}
-          </div>` : null}
-        <div class="mo-foot">
-          <span class="mo-time">${relTime(mo.createdAt)}</span>
-          <div class="mo-actions">
-            <button class=${`mo-act press${liked ? ' is-on' : ''}`}
-              onClick=${() => ai.moments.toggleLike(mo.id)}>
-              <${Icon} name="heart" size=${14} fill=${liked ? 'currentColor' : 'none'}/>
-              ${(mo.likes || []).length || ''}
-            </button>
-            <button class="mo-act press" onClick=${() => onComment(mo)}>
-              <${Icon} name="message" size=${14}/>${(mo.comments || []).length || ''}
-            </button>
-            ${isMe ? html`<button class="mo-act press" onClick=${del}>
-              <${Icon} name="trash" size=${14}/></button>` : null}
-          </div>
-        </div>
-
-        ${(mo.comments || []).length ? html`
-          <div class="mo-comments">
-            ${mo.comments.map(c => {
-              const who = c.authorId === 'me'
-                ? (phone.accounts.current()?.name || '我')
-                : (db.characters.get(c.authorId)?.name || '某人');
-              return html`<div key=${c.id} class="mo-comment"><b>${who}</b>：${c.text}</div>`;
-            })}
-          </div>` : null}
       </div>
     </div>`;
 }
@@ -94,7 +49,6 @@ export function MomentsTab() {
   const [text, setText] = useState('');
   const [imgs, setImgs] = useState([]);
   const [target, setTarget] = useState(null);
-  const [comment, setComment] = useState('');
   const [busy, setBusy] = useState(false);
   const fileRef = useRef(null);
 
@@ -134,25 +88,13 @@ export function MomentsTab() {
     finally { setBusy(false); }
   };
 
-  const sendComment = async () => {
-    const t = comment.trim();
-    if (!t || !target) return;
-    ai.moments.addComment(target.id, 'me', t);
-    setComment('');
-    const mo = db.moments.get(target.id);
-    setTarget(mo);
-    if (mo.authorId !== 'me' && ai.isConfigured()) {
-      try { await ai.moments.replyComment(mo.id, mo.authorId, t); setTarget(db.moments.get(mo.id)); }
-      catch (err) { toast(String(err.message || err), 'error', 4000); }
-    }
-  };
-
   return html`
     <div class="moments">
       <${MomentsHeader} onPost=${() => setComposing(true)} onRefresh=${genMoment} busy=${busy}/>
 
       ${list.length ? list.map(mo => html`
-        <${MomentCard} key=${mo.id} mo=${mo} onComment=${m => { setTarget(m); setComment(''); }}/>`)
+        <${MomentCard} key=${mo.id} mo=${mo} onComment=${setTarget}
+          onOpen=${m => nav.push(`/moment/${m.id}`)}/>`)
       : html`<${EmptyState} icon="moments" title="暂无动态"
           desc="可自行发布，也可由角色依据人设与近期对话自动生成。图片从本地上传，仅保存在本设备。"/>`}
 
@@ -175,22 +117,6 @@ export function MomentsTab() {
         <${Button} full onClick=${post} disabled=${!text.trim() && !imgs.length}>发布<//>
       <//>
 
-      <${Sheet} open=${!!target} onClose=${() => setTarget(null)} title="评论">
-        ${target ? html`
-          <div class="mo-comment-list">
-            ${(db.moments.get(target.id)?.comments || []).map(c => {
-              const who = c.authorId === 'me'
-                ? (phone.accounts.current()?.name || '我')
-                : (db.characters.get(c.authorId)?.name || '某人');
-              return html`<div key=${c.id} class="mo-comment"><b>${who}</b>：${c.text}</div>`;
-            })}
-          </div>
-          <div class="composer composer-inline">
-            <textarea rows="1" value=${comment} placeholder="写下评论"
-              onInput=${e => setComment(e.target.value)}></textarea>
-            <button class="send-btn press" disabled=${!comment.trim()} onClick=${sendComment}>
-              <${Icon} name="send" size=${16}/></button>
-          </div>` : null}
-      <//>
+      <${CommentSheet} target=${target} onClose=${() => setTarget(null)}/>
     </div>`;
 }

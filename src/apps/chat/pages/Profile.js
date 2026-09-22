@@ -1,54 +1,95 @@
-import { html, useRef } from '../../../lib.js';
-import { phone, useStore, useImage } from '../../../sdk/index.js';
-import { Page, Avatar, Button, Icon, List, ListItem, Field, Input, Textarea,
-         EmptyState, toast, confirm } from '../../../ui/index.js';
-import { relTime, chatFor } from '../helpers.js';
+import { html, useRef, useState } from '../../../lib.js';
+import { phone, useStore, useImage, useThumb } from '../../../sdk/index.js';
+import { Page, Avatar, Button, Icon, EmptyState, Sheet, toast, prompt, confirm } from '../../../ui/index.js';
+import { chatFor } from '../helpers.js';
+import { MomentCard, CommentSheet } from './MomentBits.js';
 import { PHOTO_MAX, AVATAR_MAX } from '../../../system/db/images.js';
 
-const { db, nav } = phone;
+const { db, nav, ai } = phone;
 
-// 角色主页与我的主页复用同一个组件，只是 subject 不同。
-// 我的人设也在这里编辑，设置里不再重复一份。
+// 主页。角色主页与我的主页复用同一个组件，只是 subject 不同。见 ARCHITECTURE 4.149
+//
+// 版式照 Instagram 的个人页：头像 + 三个数字一行，名字与签名，两个并排的按钮，
+// 一排圆形精选，然后是「网格 / 列表」两个分栏。网格一格一条动态，
+// 放的是这个人所有动态里的图 —— 从前主页上一张图都不露，动态只有一列文字。
+//
+// 页面上只出 signature，人设一个字不露（CLAUDE.md 第 6 条）。
+// 删除角色不在这里：入口在编辑资料那一页，同一个开关只留一处（第 5 条）。
+
+function Cell({ mo, onOpen }) {
+  const url = useThumb(mo.images[0]);
+  return html`
+    <button class="ig-cell press" onClick=${() => onOpen(mo)}
+      style=${url ? `background-image:url(${url})` : ''} aria-label="打开这条动态">
+      ${mo.images.length > 1 ? html`<span class="ig-cell-multi"><${Icon} name="layers" size=${13}/></span>` : null}
+    </button>`;
+}
+
+function Ring({ item, onOpen }) {
+  const url = useThumb(item.imageId);
+  return html`
+    <button class="ig-hl-item press" onClick=${() => onOpen(item)}>
+      <div class="ig-hl-ring"><div class="ig-hl-img" style=${url ? `background-image:url(${url})` : ''}></div></div>
+      <span>${item.title || ' '}</span>
+    </button>`;
+}
+
+function HighlightSheet({ item, onClose, onRename, onRemove }) {
+  const url = useImage(item?.imageId);
+  return html`
+    <${Sheet} open=${!!item} onClose=${onClose} title=${item?.title || '精选'}>
+      ${item ? html`
+        <div class="ig-hl-view" style=${url ? `background-image:url(${url})` : ''}></div>
+        <div class="btn-row pad-y">
+          <${Button} size="sm" variant="ghost" icon="edit" onClick=${onRename}>改名<//>
+          <${Button} size="sm" variant="ghost" icon="trash" onClick=${onRemove}>删除<//>
+        </div>` : null}
+    <//>`;
+}
+
 export function Profile({ subjectId, embedded }) {
   useStore(db.characters.store);
   useStore(db.moments.store);
   useStore(db.personas.store);
+  const [tab, setTab] = useState('grid');
+  const [target, setTarget] = useState(null);   // 正在评论的那条
+  const [hl, setHl] = useState(null);           // 打开的那个精选
 
   const isMe = subjectId === 'me';
   const me = phone.accounts.current() || db.persona.get();
   const subject = isMe ? me : db.characters.get(subjectId);
   const avatar = useImage(subject?.avatar);
   const baseFace = useImage(subject?.avatarBase);
-  const cover = useImage(subject?.cover);
-  const coverRef = useRef(null);
   const avatarRef = useRef(null);
+  const hlRef = useRef(null);
 
   if (!subject) {
     return html`<${Page} title="主页" onBack=${nav.pop}><${EmptyState} title="该角色已不存在"/><//>`;
   }
 
-  const patch = p => isMe ? db.personas.update(me.id, p) : db.characters.update(subjectId, p);
+  const patch = p => (isMe ? db.personas.update(me.id, p) : db.characters.update(subjectId, p));
 
   const mine = db.moments.all()
     .filter(m => m.authorId === subjectId)
     .sort((a, b) => b.createdAt - a.createdAt);
+  const withPics = mine.filter(m => (m.images || []).length);
+  const photoCount = mine.reduce((n, m) => n + (m.images || []).length, 0);
+  // 第三个数字：角色看关系网里有几个人，我看联系人有几个（小号不算）
+  const relCount = isMe
+    ? db.characters.all().filter(c => !c.parentId).length
+    : ai.card.relationsOf(subjectId).length;
+  const openRel = () => phone.intent.open('contact', { route: isMe ? '/' : `/net/${subjectId}` });
 
-  const pickImage = (ref, key, max) => async e => {
+  const pickAvatar = async e => {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
     try {
-      const id = await db.images.put(file, max);
+      const id = await db.images.put(file, AVATAR_MAX);
       // 头像那一张**留着**：原本长什么样是找得回来的（见 system/avatar.js）。
-      // 从前换一张就把旧的删了，于是「换回去」这件事根本无从做起。
-      // 封面不是脸，照旧换掉就删。
-      if (key === 'avatar') {
-        const keepBase = subject.avatarBase || subject.avatar || '';
-        patch({ avatar: id, ...(keepBase ? { avatarBase: keepBase } : {}) });
-      } else {
-        if (subject[key]) db.images.remove(subject[key]);
-        patch({ [key]: id });
-      }
+      // 从前换一张就把旧的删了，于是「换回去」这件事根本无从做起
+      const keepBase = subject.avatarBase || subject.avatar || '';
+      patch({ avatar: id, ...(keepBase ? { avatarBase: keepBase } : {}) });
     } catch (err) { toast('图片处理失败：' + err.message, 'error'); }
   };
 
@@ -62,74 +103,107 @@ export function Profile({ subjectId, embedded }) {
     toast('已换回原本的头像', 'ok');
   };
 
-  const del = async () => {
-    const n = phone.purge.counts(subjectId);
-    if (!await confirm({
-      title: '删除这个角色', danger: true, okText: '删除',
-      message: `将删除「${subject.name}」，以及与它相关的全部内容：`
-        + `${n.chats} 段会话、${n.messages} 条消息、${n.memories} 条记忆，`
-        + '还有线下、出行、动态、它的每一天与那台手机。此操作无法撤销。',
-    })) return;
-    // 挂在它名下的每一域都在 purge 里列着，这里不再各删各的
-    phone.purge.dropCharacter(subjectId);
-    nav.popToRoot();
+  // ---- 精选：一张图配一个名字，挂在这个人身上 ----
+  const hls = subject.highlights || [];
+  const addHl = async e => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    let id = '';
+    try { id = await db.images.put(file, PHOTO_MAX); }
+    catch (err) { toast('图片处理失败：' + err.message, 'error'); return; }
+    const title = await prompt({ title: '精选名称', placeholder: '显示在圆圈下方', okText: '保存' });
+    if (title === null) { db.images.remove(id); return; }
+    patch({ highlights: [...hls, { id: `hl${Date.now().toString(36)}`, imageId: id, title: String(title).trim() }] });
+  };
+  const renameHl = async () => {
+    const title = await prompt({ title: '精选名称', value: hl.title || '', okText: '保存' });
+    if (title === null) return;
+    const next = hls.map(x => (x.id === hl.id ? { ...x, title: String(title).trim() } : x));
+    patch({ highlights: next });
+    setHl(next.find(x => x.id === hl.id) || null);
+  };
+  const removeHl = async () => {
+    if (!await confirm({ title: '删除这个精选', danger: true })) return;
+    db.images.remove(hl.imageId);
+    patch({ highlights: hls.filter(x => x.id !== hl.id) });
+    setHl(null);
   };
 
-  const body = html`
-    <div>
-      <div class="profile-cover" style=${cover ? `background-image:url(${cover})` : ''}
-        onClick=${() => coverRef.current?.click()}>
-        <button class="cover-edit press"><${Icon} name="image" size=${15}/></button>
-      </div>
-      <input type="file" accept="image/*" ref=${coverRef}
-        onChange=${pickImage(coverRef, 'cover', PHOTO_MAX)} style="display:none"/>
+  const openMoment = m => nav.push(`/moment/${m.id}`);
 
-      <div class="profile-head">
-        <button class="press" onClick=${() => isMe && avatarRef.current?.click()}>
-          <${Avatar} src=${avatar} name=${subject.name} size=${72} radius=${36}/>
+  const body = html`
+    <div class="ig">
+      <div class="ig-head">
+        <button class="press" onClick=${() => isMe && avatarRef.current?.click()}
+          aria-label=${isMe ? '更换头像' : '头像'}>
+          <${Avatar} src=${avatar} name=${subject.name} size=${84} radius=${42}/>
         </button>
-        ${faces.changed ? html`
-          <button class="press face-base" onClick=${restore} aria-label="换回原本的头像">
-            <${Avatar} src=${baseFace} name=${subject.name} size=${34} radius=${17}/>
-            <span>原本的</span>
-          </button>` : null}
-        <input type="file" accept="image/*" ref=${avatarRef}
-          onChange=${pickImage(avatarRef, 'avatar', AVATAR_MAX)} style="display:none"/>
-        <div class="profile-meta">
-          <div class="profile-name">${subject.name}</div>
-          ${subject.signature ? html`<div class="profile-sign">${subject.signature}</div>` : null}
+        <input type="file" accept="image/*" ref=${avatarRef} onChange=${pickAvatar} style="display:none"/>
+        <div class="ig-stats">
+          <button class="ig-stat press" onClick=${() => setTab('list')}>
+            <b>${mine.length}</b><span>动态</span></button>
+          <button class="ig-stat press" onClick=${() => setTab('grid')}>
+            <b>${photoCount}</b><span>照片</span></button>
+          <button class="ig-stat press" onClick=${openRel}>
+            <b>${relCount}</b><span>${isMe ? '联系人' : '关系'}</span></button>
         </div>
       </div>
 
-      <div class="pad-x">
-        ${isMe
-          ? html`<${Button} full variant="ghost" icon="edit"
-              onClick=${() => phone.intent.open('contact', { route: `/me/${me.id}` })}>编辑本人人设<//>`
-          : html`<${Button} full icon="message"
-              onClick=${() => { const c = chatFor(subjectId); nav.push(`/chat/${c.id}`); }}>发消息<//>`}
+      <div class="ig-bio">
+        <div class="ig-name">${subject.name}</div>
+        ${subject.signature ? html`<div class="ig-sign">${subject.signature}</div>` : null}
       </div>
 
-      <${List} title=${`动态 ${mine.length}`}>
-        ${mine.length ? mine.map(m => html`
-          <${ListItem} key=${m.id} multiline title=${m.text}
-            subtitle=${relTime(m.createdAt)}/>`)
-        : html`<${ListItem} title="暂无动态"/>`}
-      <//>
+      <div class="ig-acts">
+        ${isMe
+          ? html`<${Button} size="sm" variant="ghost" icon="edit"
+              onClick=${() => phone.intent.open('contact', { route: `/me/${me.id}` })}>编辑本人人设<//>`
+          : html`
+            <${Button} size="sm" icon="message"
+              onClick=${() => { const c = chatFor(subjectId); nav.push(`/chat/${c.id}`); }}>发消息<//>
+            <${Button} size="sm" variant="ghost" icon="edit"
+              onClick=${() => phone.intent.open('contact', { route: `/edit/${subjectId}` })}>编辑资料<//>`}
+        ${faces.changed ? html`
+          <button class="press face-base" onClick=${restore} aria-label="换回原本的头像">
+            <${Avatar} src=${baseFace} name=${subject.name} size=${30} radius=${15}/>
+            <span>原本的</span>
+          </button>` : null}
+      </div>
 
-      ${!isMe ? html`
-        <div class="pad">
-          <${Button} full variant="danger" onClick=${del}>删除该角色<//>
-        </div>` : html`<div class="pad-b"></div>`}
+      <div class="ig-hl">
+        ${hls.map(item => html`<${Ring} key=${item.id} item=${item} onOpen=${setHl}/>`)}
+        <button class="ig-hl-item press" onClick=${() => hlRef.current?.click()} aria-label="新建精选">
+          <div class="ig-hl-ring is-add"><div class="ig-hl-img"><${Icon} name="plus" size=${20}/></div></div>
+          <span>新建</span>
+        </button>
+        <input type="file" accept="image/*" ref=${hlRef} onChange=${addHl} style="display:none"/>
+      </div>
 
+      <div class="ig-tabs">
+        <button class=${`ig-tab press${tab === 'grid' ? ' is-on' : ''}`}
+          onClick=${() => setTab('grid')} aria-label="网格"><${Icon} name="grid" size=${20}/></button>
+        <button class=${`ig-tab press${tab === 'list' ? ' is-on' : ''}`}
+          onClick=${() => setTab('list')} aria-label="列表"><${Icon} name="notes" size=${20}/></button>
+      </div>
+
+      ${tab === 'grid'
+        ? (withPics.length
+          ? html`<div class="ig-grid">
+              ${withPics.map(m => html`<${Cell} key=${m.id} mo=${m} onOpen=${openMoment}/>`)}
+            </div>`
+          : html`<${EmptyState} icon="image" title="暂无照片" desc="带图片的动态会显示在这里。"/>`)
+        : (mine.length
+          ? mine.map(m => html`
+              <${MomentCard} key=${m.id} mo=${m} onComment=${setTarget} onOpen=${openMoment}/>`)
+          : html`<${EmptyState} icon="moments" title="暂无动态"/>`)}
+      <div class="pad-b"></div>
+
+      <${CommentSheet} target=${target} onClose=${() => setTarget(null)}/>
+      <${HighlightSheet} item=${hl} onClose=${() => setHl(null)} onRename=${renameHl} onRemove=${removeHl}/>
     </div>`;
 
   // 作为聊天 app 的一个分区嵌入时不再套一层导航栏，避免出现两条标题栏
   if (embedded) return body;
-
-  return html`
-    <${Page} title=${subject.name} onBack=${nav.pop}
-      right=${html`<button class="nav-text press"
-        onClick=${() => phone.intent.open('contact', { route: `/char/${subjectId}` })}>编辑</button>`}>
-      ${body}
-    <//>`;
+  return html`<${Page} title=${subject.name} onBack=${nav.pop}>${body}<//>`;
 }

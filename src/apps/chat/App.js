@@ -6,6 +6,7 @@ import { MessagesTab } from './pages/MessagesTab.js';
 import { ContactsTab } from './pages/ContactsTab.js';
 import { MomentsTab } from './pages/MomentsTab.js';
 import { Profile } from './pages/Profile.js';
+import { MomentPage } from './pages/MomentPage.js';
 import { CharacterEdit } from './pages/CharacterEdit.js';
 import { Conversation } from './pages/Conversation.js';
 import { ContextPage } from './pages/ContextPage.js';
@@ -90,6 +91,9 @@ export default function ChatApp({ route }) {
 
   const prof = route?.match(/^\/profile\/(.+)$/);
   if (prof) return html`<${Profile} subjectId=${prof[1]}/>`;
+
+  const mom = route?.match(/^\/moment\/(.+)$/);
+  if (mom) return html`<${MomentPage} id=${mom[1]}/>`;
 
   // 别的 app 说「去和这个角色聊天」时走这里：找到（或建出）会话再换成它的路由。
   // 从前落在消息列表首页上，新建的角色还没有会话，那一页是空的，人就卡在那儿
