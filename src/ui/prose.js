@@ -113,10 +113,13 @@ export const Card = ({ page, sign, marks, drop, showSign, Face, grow, vers, onPi
     </div>
   </article>`;
 
-// ---- 气泡那一档：顶上一张方形封面，下面一段一个长气泡 ----
+// ---- 气泡那一档：一段一个长气泡，气泡里按句断行 ----
 //
 // 阅读那两档（翻页、明信片）是刊物的排法；这一档是另一种读法 ——
-// 竖着滚，一段一个气泡，气泡里按句断行。见 ARCHITECTURE 4.118
+// 竖着滚，一段一个气泡。见 ARCHITECTURE 4.118
+//
+// 封面不在这儿：**读的时候上面不该压着一张封面**，那是扉页的事。
+// 扉页在「我们」的作品页上（apps/us/pages/Bits.js 的 Hero）。
 
 // 按句断行。歌词页之所以是歌词页，靠的就是「一句一行 + 行距拉开」，
 // 不是靠字号。断在句末，收口的引号算在前一句里。
@@ -157,26 +160,6 @@ export const Bub = ({ who, mine, text, marks, vers, onPick, onHold, onEnd }) => 
     <${Lyric} text=${text} marks=${marks}/>
     ${vers ? html`<${Versions} ...${vers} onPick=${onPick}/>` : null}
   </article>`;
-
-/**
- * 顶上那张方形封面与旁边的署名。
- *
- * 没有图时不留一个空框，用标题的头一个字排一张 —— 唱片没有封面时
- * 也不会摆一个灰方块在那儿。
- */
-export const CoverCard = ({ art, letter, title, names, meta }) => html`
-  <header class="sg-cover">
-    <div class="sg-cover-art">
-      ${art
-    ? html`<img src=${art} alt=""/>`
-    : html`<span class="sg-cover-glyph">${String(letter || '').slice(0, 1)}</span>`}
-    </div>
-    <div class="sg-cover-text">
-      <div class="sg-cover-title">${title}</div>
-      ${names ? html`<div class="sg-cover-names">${names}</div>` : null}
-      ${meta ? html`<div class="sg-cover-meta">${meta}</div>` : null}
-    </div>
-  </header>`;
 
 // 一段的第几版。重写不删旧的，往后添一版，在这里翻。
 // 只有一版时整条不出现。

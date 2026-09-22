@@ -1,14 +1,47 @@
 import { html } from '../../../lib.js';
-import { phone, useStore } from '../../../sdk/index.js';
+import { phone, useStore, useImage } from '../../../sdk/index.js';
 import { Field, Input, Textarea, Segmented, List, ListItem, Switch } from '../../../ui/index.js';
 
-const { db, work, tone } = phone;
+const { db, work, tone, stage } = phone;
 
 export const dateOf = ts => {
   if (!ts) return '';
   const d = new Date(ts);
   return `${d.getMonth() + 1}月${d.getDate()}日`;
 };
+
+/**
+ * 扉页。点进一部作品先看到的就是它：一张方形封面、标题、参与的人、体裁与进度。
+ *
+ * **封面只在这儿出现，不压在正文上面**（见 ARCHITECTURE 4.118）——
+ * 读的时候上面顶着一张图，每翻一段都要从它下面绕过去。
+ *
+ * 这一块用这部作品自己的纸色，不是 app 的底色：它是作品的一部分，
+ * 不是列表的表头。
+ */
+export function Hero({ w }) {
+  useStore(db.settings.store);
+  const url = useImage(w.cover);
+  const c = work.charOf(w);
+  const m = work.meOf(w);
+  const st = work.statsOf(w.id);
+  const unit = w.kind === work.SAGA ? '章' : '则';
+  const cfg = stage.get();
+  const meta = [work.kindLabel(w.kind),
+    st.chapters ? `${st.chapters} ${unit}` : '还没有正文',
+    st.chars ? `${st.chars} 字` : ''].filter(Boolean).join(' · ');
+  return html`
+    <div class="wk-hero" style=${stage.varsOf(cfg)}>
+      <div class="wk-hero-art">
+        ${url
+    ? html`<img src=${url} alt=""/>`
+    : html`<span class="wk-hero-glyph">${String(w.title || c.name || '作').slice(0, 1)}</span>`}
+      </div>
+      <div class="wk-hero-title">${w.title || '未命名'}</div>
+      <div class="wk-hero-names">${[c.name, m.name].filter(Boolean).join('　')}</div>
+      <div class="wk-hero-meta">${meta}</div>
+    </div>`;
+}
 
 /** 一篇在列表上写几个字。长篇按章编号，番外按题目。 */
 export const chapterTitle = (w, c) => (w.kind === work.SAGA

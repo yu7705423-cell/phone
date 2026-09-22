@@ -3,7 +3,7 @@ import { phone, useStore, useImage } from '../../../sdk/index.js';
 import { Page, IconButton, Icon, Button, Textarea, Switch, Field,
          Sheet, FullSheet, List, ListItem, Spinner, EmptyState,
          toast, confirm } from '../../../ui/index.js';
-import { Prose, Sign, Byline, Card, Versions, Bub, CoverCard } from '../../../ui/prose.js';
+import { Prose, Sign, Byline, Card, Versions, Bub } from '../../../ui/prose.js';
 import { Face } from './Face.js';
 import { chapterTitle } from './Bits.js';
 
@@ -47,9 +47,6 @@ export function ReadPage({ chapterId }) {
   // 不 memo：全局那份改了之后要跟着变（和线下同一个理由）
   const cfg = stage.forScene(row);
   const bgUrl = useImage(cfg.bgImage);
-  // 封面。作品自己传的那张；没有就退回角色的头像；再没有就用标题排一张
-  const coverUrl = useImage(work.workOfChapter(chapterId)?.cover
-    || work.charOf(work.workOfChapter(chapterId)).avatar);
   const chrome = stage.bgOf(cfg);
 
   const pages = useMemo(
@@ -262,12 +259,6 @@ export function ReadPage({ chapterId }) {
 
         ${bubbles ? html`
           <div class="sg-bubs" ref=${bodyRef} onClick=${onFeedTap}>
-            ${cfg.cover !== false ? html`
-              <${CoverCard} art=${coverUrl} letter=${(w.title || charName)}
-                title=${w.title || '未命名'}
-                names=${[charName, work.meOf(w).name].filter(Boolean).join('　')}
-                meta=${[work.kindLabel(w.kind), chapterTitle(w, row), row.place]
-    .filter(Boolean).join('　')}/>` : null}
             ${pages.filter(p => p.first && p.beat).map(p => {
     const b = p.beat;
     const sg = work.signOf(b, row, w);

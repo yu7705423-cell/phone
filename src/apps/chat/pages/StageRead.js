@@ -2,7 +2,7 @@ import { html, useState, useRef, useEffect, useMemo } from '../../../lib.js';
 import { phone, useStore, useImage } from '../../../sdk/index.js';
 import { Page, IconButton, Icon, Button, Textarea, Switch, Field,
          Sheet, FullSheet, List, ListItem, Spinner, toast, confirm } from '../../../ui/index.js';
-import { Prose, Sign, Byline, Card, Versions, Bub, CoverCard } from '../../../ui/prose.js';
+import { Prose, Sign, Byline, Card, Versions, Bub } from '../../../ui/prose.js';
 import { Face } from './StageFace.js';
 
 const { db, nav, ai, scene: sceneApi, stage } = phone;
@@ -47,8 +47,6 @@ export function StageRead({ sceneId }) {
   // 换主题没反应就是这么来的。两个小对象展开一次，比漏更新便宜
   const cfg = stage.forScene(row);
   const bgUrl = useImage(cfg.bgImage);
-  // 气泡那一档顶上那张封面。场次没有自己的封面图，用头一个角色的头像
-  const coverUrl = useImage(sceneApi.castOf(sceneApi.get(sceneId))[0]?.avatar);
   const chrome = stage.bgOf(cfg);
 
   const pages = useMemo(
@@ -292,11 +290,6 @@ export function StageRead({ sceneId }) {
 
         ${bubbles ? html`
           <div class="sg-bubs" ref=${bodyRef} onClick=${onFeedTap}>
-            ${cfg.cover !== false ? html`
-              <${CoverCard} art=${coverUrl} letter=${row.title || row.place || '场'}
-                title=${row.title || row.place || '这一场'}
-                names=${cast.map(c => c.name).join('　')}
-                meta=${[row.place, sceneApi.timeOf(sceneId)].filter(Boolean).join('　')}/>` : null}
             ${pages.filter(p => p.first && p.beat).map(p => {
     const b = p.beat;
     const sg = sceneApi.signOf(b, row);

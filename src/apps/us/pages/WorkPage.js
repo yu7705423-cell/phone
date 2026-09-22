@@ -2,7 +2,7 @@ import { html } from '../../../lib.js';
 import { phone, useStore } from '../../../sdk/index.js';
 import { Page, List, ListItem, EmptyState, Button, IconButton, Icon,
          toast, confirm } from '../../../ui/index.js';
-import { chapterTitle, dateOf } from './Bits.js';
+import { Hero, chapterTitle, dateOf } from './Bits.js';
 
 const { db, nav, work, scene } = phone;
 
@@ -21,8 +21,6 @@ export function WorkPage({ workId }) {
   }
 
   const list = work.chaptersOf(workId);
-  const c = work.charOf(w);
-  const m = work.meOf(w);
   const saga = w.kind === work.SAGA;
   const unit = saga ? '章' : '则';
 
@@ -56,11 +54,8 @@ export function WorkPage({ workId }) {
     <${Page} title=${w.title || '未命名'} onBack=${nav.pop}
       right=${html`<${IconButton} name="plus" onClick=${add} label=${`新的一${unit}`}/>`}>
 
-      <div class="settings-foot">
-        ${[work.kindLabel(w.kind), c.name, m.name].join(' · ')}
-        ${w.carry ? '' : '　不带原来的记忆'}
-        ${w.solo ? '　整篇由它写' : ''}
-      </div>
+      <${Hero} w=${w}/>
+
 
       ${w.premise ? html`
         <${List} title=${saga ? '主线' : '设定'}>
@@ -98,8 +93,11 @@ export function WorkPage({ workId }) {
         action=${html`<${Button} onClick=${add}>新的一${unit}<//>`}/>`}
 
       <${List}>
-        <${ListItem} title="这一部的设定" subtitle="标题、主线、身份、文风与两个开关"
-          arrow multiline onClick=${() => nav.push(`/work/${workId}/edit`)}/>
+        <${ListItem} title="这一部的设定" arrow multiline
+          subtitle=${['标题、封面、主线、身份、文风',
+    w.carry ? '' : '当前不带原来的记忆',
+    w.solo ? '当前整篇由它写' : ''].filter(Boolean).join('。')}
+          onClick=${() => nav.push(`/work/${workId}/edit`)}/>
         <${ListItem} title="删除这一部" danger
           subtitle=${`连同它的 ${list.length} ${unit}正文一并删除`} multiline
           onClick=${removeWork}/>

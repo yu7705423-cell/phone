@@ -61,7 +61,6 @@ export const DEFAULTS = {
   marks: true,          // 对白与动作分样式（只是展示层）
   drop: true,           // 首字下沉。一段的第一张才有
   cardGrow: true,       // 明信片跟着内容长；关了每片一样大，文字在片内滚
-  cover: true,          // 气泡那一档顶上那张方形封面与署名
   serif: true,
   bgColor: '', ink: '', dim: '', line: '', mark: '',   // theme 为 custom 时用
   bgImage: null,
