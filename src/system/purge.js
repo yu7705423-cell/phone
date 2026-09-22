@@ -37,7 +37,9 @@ export function clearHistory(charId) {
   for (const chat of list) {
     for (const m of messagesOf(chat.id)) {
       if (m.imageId) imgs.push(m.imageId);
+      if (m.posterId) imgs.push(m.posterId);     // 视频消息的海报
       if (m.audioId) files.remove(m.audioId);
+      if (m.clipId) files.remove(m.clipId);
     }
     n += messages.removeWhere(m => m.chatId === chat.id);
     chats.update(chat.id, { memoryUpTo: null, memoryTriedId: null, summary: '', unread: 0 });
@@ -73,7 +75,9 @@ export function dropChat(chatId) {
   const imgs = [];
   for (const m of messagesOf(chatId)) {
     if (m.imageId) imgs.push(m.imageId);
+    if (m.posterId) imgs.push(m.posterId);       // 视频消息的海报
     if (m.audioId) files.remove(m.audioId);
+    if (m.clipId) files.remove(m.clipId);
   }
   messages.removeWhere(m => m.chatId === chatId);
   spaceItems.byIndex(chatId).slice().forEach(x => spaceItems.remove(x.id));
@@ -163,8 +167,8 @@ export function usedImageIds() {
     (c.avatarPool || []).forEach(x => add(x?.imageId));
     (c.highlights || []).forEach(h => add(h?.imageId));   // 主页上那一排精选
   });
-  // 聊天记录里的图：用户发的照片、角色按描述生成的图
-  messages.all().forEach(m => add(m.imageId));
+  // 聊天记录里的图：用户发的照片、角色按描述生成的图、视频消息的海报
+  messages.all().forEach(m => { add(m.imageId); add(m.posterId); });
   moments.all().forEach(m => (m.images || []).forEach(add));
   personas.all().forEach(p => {
     add(p.avatar); add(p.cover);
@@ -237,13 +241,14 @@ export function fileUsers() {
   songs.all().forEach(g => put(g.audioId, 'song', g.title || '未命名歌曲'));
   ebooks.all().forEach(b => put(b.fileId, 'book', b.title || '未命名书籍'));
 
-  // 语音消息。标上是哪个会话的，删之前看得出要紧不要紧
+  // 语音与视频消息。标上是哪个会话的，删之前看得出要紧不要紧
   messages.all().forEach(m => {
-    if (!m.audioId) return;
+    if (!m.audioId && !m.clipId) return;
     const chat = chats.get(m.chatId);
     const who = (chat?.characterIds || [])
       .map(id => characters.get(id)?.name).filter(Boolean).join('、');
     put(m.audioId, 'voice', who ? `与${who}的语音` : '会话中的语音');
+    put(m.clipId, 'clip', who ? `与${who}的视频` : '会话中的视频');
   });
 
   const s = settings.get();

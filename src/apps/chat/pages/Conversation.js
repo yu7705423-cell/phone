@@ -229,7 +229,7 @@ export const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, o
                     ${msg.stickerName ? `表情：${msg.stickerName}` : '表情已删除'}
                   </span>`}
             </div>`
-          : (msg.kind === 'image' || msg.kind === 'voice')
+          : (msg.kind === 'image' || msg.kind === 'voice' || msg.kind === 'clip')
           ? html`<${MediaBubble} msg=${msg} char=${char}/>`
           : parts.length ? parts.map((p, i) => html`
               <div key=${i}
@@ -334,6 +334,7 @@ export function Conversation({ chatId, focusId = '' }) {
   const recRef = useRef(null);
   const localRef = useRef(null);
   const imgRef = useRef(null);
+  const clipRef = useRef(null);
 
   // 气泡是记忆化的，传给它的函数属性身份必须稳定，否则每来一段流式内容
   // 整屏气泡都要重画。外面这一层永远不变，里面读 ref 拿当前这次渲染的闭包。
@@ -687,6 +688,36 @@ export function Conversation({ chatId, focusId = '' }) {
     setPanel(null);
     setDraft('');
     setQuoting(null);
+  };
+
+  /**
+   * 发一段短视频。
+   *
+   * 存两份：视频本身进 files，**开头那一帧另存成图进 images** 当海报 ——
+   * 气泡上先摆海报，点一下才播（长按是消息菜单，见第 12 条）。
+   *
+   * **角色看不到这段视频。** 聊天接口收的是文字与图片，没有视频这一档；
+   * 把海报送去识图也只是在说第一帧，不是在说这段视频。所以照实写
+   * 「角色看不到」，不去假装它看见了。
+   */
+  const sendClip = async e => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setPanel(null);
+    const q = draftQuote();
+    try {
+      const { poster, duration } = await phone.clip.probe(file);
+      const clipId = await db.files.put(file, { name: file.name || 'clip.mp4', type: file.type });
+      const posterId = poster ? await db.images.put(new File([poster], 'poster.jpg', { type: 'image/jpeg' })) : null;
+      setQuoting(null);
+      db.messages.create({
+        chatId, role: 'user', authorId: 'me', kind: 'clip',
+        clipId, posterId, clipDur: duration,
+        content: '[视频]', status: 'done', media: 'done', ...q,
+      });
+      db.chats.update(chatId, { lastMessageAt: Date.now() });
+    } catch (err) { toast('这段视频处理失败：' + (err.message || err), 'error', 5000); }
   };
 
   // 发图片。聊天接口只收文字，所以图片存下来之后另外送去识图，
@@ -1222,6 +1253,8 @@ export function Conversation({ chatId, focusId = '' }) {
 
       <input type="file" accept="image/*" ref=${imgRef}
         onChange=${sendImage} style="display:none"/>
+      <input type="file" accept="video/*" ref=${clipRef}
+        onChange=${sendClip} style="display:none"/>
 
       <${CallLogSheet} msg=${callLog} onClose=${() => setCallLog(null)}/>
       <${ListenLogSheet} msg=${listenLog} onClose=${() => setListenLog(null)}/>
@@ -1237,6 +1270,7 @@ export function Conversation({ chatId, focusId = '' }) {
       <${MoreSheet} open=${more} onClose=${() => setMore(false)} onTap=${runTap}/>
       <${PhotoSource} open=${picking === 'photo'} onClose=${() => setPicking(null)}
         onFile=${() => { setPicking(null); imgRef.current?.click(); }}
+        onClip=${() => { setPicking(null); clipRef.current?.click(); }}
         onPick=${async id => {
           setPicking(null);
           const q = draftQuote();

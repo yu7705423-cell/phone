@@ -106,7 +106,7 @@ import * as cardshotApi from '../system/cardshot.js';
 import * as reviewApi from '../system/review.js';
 import * as booksearchApi from '../system/booksearch.js';
 import * as playerApi from '../system/player.js';
-import * as videoApi from '../system/video.js';
+import * as clipApi from '../system/clip.js';
 import * as watchApi from '../system/watch.js';
 import * as subtitleApi from '../system/subtitle.js';
 import * as ffmpegApi from '../system/ffmpeg.js';
@@ -114,6 +114,7 @@ import * as backupApi from '../system/backup.js';
 import * as watchOutline from '../system/ai/tasks/watch-outline.js';
 import * as callApi from '../system/call.js';
 import * as cameraApi from '../system/camera.js';
+import * as videoApi from '../system/video.js';
 import * as keepAliveApi from '../system/keepalive.js';
 import { forceUpdate } from '../system/refresh.js';
 import * as stickerApi from '../system/stickers.js';
@@ -298,13 +299,14 @@ export const phone = {
   review: reviewApi,
   booksearch: booksearchApi,
   player: playerApi,
-  video: videoApi,
+  clip: clipApi,
   watch: watchApi,
   subtitle: subtitleApi,
   ffmpeg: ffmpegApi,
   backup: backupApi,
   call: callApi,
   camera: cameraApi,
+  video: videoApi,
   keepAlive: keepAliveApi,
 
   // 把缓存里的旧代码换掉再重开，见 system/refresh.js

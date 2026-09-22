@@ -974,6 +974,28 @@ input[type="range"] {
 
 /* 用户发的图片与语音 */
 .media-wrap { display: flex; flex-direction: column; gap: 4px; align-items: inherit; }
+
+/* 视频消息。海报 + 一个播放标记，点一下才播（长按是消息菜单，见第 12 条） */
+.bubble-clip {
+  position: relative; padding: 0; background: none; max-width: 200px;
+  border-radius: var(--r-md); overflow: hidden; display: block;
+}
+.bubble-clip img, .bubble-clip video { display: block; width: 100%; height: auto; }
+.clip-blank {
+  width: 160px; height: 110px; background: var(--surface-3);
+  display: flex; align-items: center; justify-content: center; color: var(--text-3);
+}
+.clip-play {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: 40px; height: 40px; border-radius: var(--r-full);
+  background: var(--scrim-strong); color: var(--on-scrim);
+  display: flex; align-items: center; justify-content: center;
+}
+.clip-time {
+  position: absolute; right: var(--sp-2); bottom: var(--sp-2);
+  padding: 1px var(--sp-2); border-radius: var(--r-xs);
+  background: var(--scrim-strong); color: var(--on-scrim); font-size: var(--fs-11);
+}
 .voice-tone { margin-top: 4px; color: var(--text-3); }
 
 /* 录音条。和多选栏共用 .select-bar 的位置与留白 */

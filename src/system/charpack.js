@@ -85,7 +85,9 @@ export function collect(charId, { history = true } = {}) {
   });
   msgRows.forEach(m => {
     if (m.imageId) imgIds.add(m.imageId);
+    if (m.posterId) imgIds.add(m.posterId);      // 视频消息的海报
     if (m.audioId) fileIds.add(m.audioId);
+    if (m.clipId) fileIds.add(m.clipId);
   });
   momentRows.forEach(m => (m.images || []).forEach(id => id && imgIds.add(id)));
   // 那台手机上的三处图：相册、壁纸、换过的应用图标

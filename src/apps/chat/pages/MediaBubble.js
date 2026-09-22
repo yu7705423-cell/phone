@@ -2,7 +2,7 @@ import { html, useState, useRef, useEffect } from '../../../lib.js';
 import { phone, useThumb, useFile } from '../../../sdk/index.js';
 import { Icon, Spinner, toast } from '../../../ui/index.js';
 
-const { db } = phone;
+const { db, clip } = phone;
 
 // 图片消息。角色发的是模型按描述生成的，用户发的是从相册选的 —— 后者已经在
 // 本地了，要等的是「识图」把它读成文字，角色才看得见。
@@ -110,8 +110,57 @@ function VoiceBubble({ msg, char }) {
     </div>`;
 }
 
+/**
+ * 视频消息。气泡上先摆海报，**点一下才播**。
+ *
+ * 不做「按住播放」：长按在这个项目里是消息菜单（第 12 条），
+ * 两边抢同一个手势谁都不好用。所以点一下播，长按照旧弹菜单。
+ */
+function VideoBubble({ msg }) {
+  const poster = useThumb(msg.posterId);
+  const url = useFile(msg.clipId);
+  const [playing, setPlaying] = useState(false);
+  const mine = msg.role === 'user';
+
+  if (!mine && msg.media === 'pending') {
+    return html`
+      <div class="bubble media-pending">
+        <${Spinner} size=${16}/><span>正在生成视频</span>
+      </div>`;
+  }
+  if (!mine && (msg.media === 'error' || msg.media === 'off')) {
+    return html`
+      <div class="bubble media-failed">
+        <div class="media-prompt">[视频] ${msg.prompt}</div>
+        <div class="media-note">${msg.mediaError || '生成失败'}</div>
+      </div>`;
+  }
+  if (!url) return html`<div class="bubble media-pending"><${Spinner} size=${16}/></div>`;
+
+  if (playing) {
+    return html`
+      <div class="media-wrap">
+        <div class="bubble-clip">
+          <video src=${url} poster=${poster || ''} controls autoplay playsinline
+            onEnded=${() => setPlaying(false)}></video>
+        </div>
+      </div>`;
+  }
+
+  return html`
+    <div class="media-wrap">
+      <button class="bubble-clip press" onClick=${() => setPlaying(true)} aria-label="播放视频">
+        ${poster
+    ? html`<img src=${poster} alt=${msg.prompt || ''} loading="lazy"/>`
+    : html`<div class="clip-blank"><${Icon} name="film" size=${22}/></div>`}
+        <span class="clip-play"><${Icon} name="play" size=${18}/></span>
+        ${msg.clipDur ? html`<span class="clip-time">${clip.clock(msg.clipDur)}</span>` : null}
+      </button>
+    </div>`;
+}
+
 export function MediaBubble({ msg, char }) {
-  return msg.kind === 'image'
-    ? html`<${ImageBubble} msg=${msg}/>`
-    : html`<${VoiceBubble} msg=${msg} char=${char}/>`;
+  if (msg.kind === 'image') return html`<${ImageBubble} msg=${msg}/>`;
+  if (msg.kind === 'clip') return html`<${VideoBubble} msg=${msg}/>`;
+  return html`<${VoiceBubble} msg=${msg} char=${char}/>`;
 }
