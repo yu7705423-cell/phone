@@ -68,9 +68,16 @@ final class ShellViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = .systemBackground
+        // 网页那层是透明的。它画不出东西的那几秒（重载、进程刚被拉起来）
+        // 露出来的就是这个颜色 —— 跟着页面自己的底色走（index.html 的
+        // theme-color），不要是一张白纸
+        view.backgroundColor = UIColor { $0.userInterfaceStyle == .dark
+            ? UIColor(red: 0x0D / 255, green: 0x0E / 255, blue: 0x10 / 255, alpha: 1)
+            : UIColor(red: 0xF2 / 255, green: 0xF3 / 255, blue: 0xF5 / 255, alpha: 1) }
         configureAudioSession()
         buildWebView()
+        // 点通知那一下交不出去（页面没了）时由这里重载
+        notifyBridge.reload = { [weak self] in self?.load() }
         load()
         NotificationCenter.default.addObserver(
             self, selector: #selector(didBecomeActive),
@@ -94,9 +101,20 @@ final class ShellViewController: UIViewController {
 
     @objc private func didBecomeActive() {
         // 上次没载进来（断网、地址写错）时回到前台再试一次，不然要一直看着失败页
-        if web.url == nil { load() }
-        // 点通知进来的那一下多半比页面早到，回到前台时补交一次
-        notifyBridge.flush()
+        if web.url == nil { load(); return }
+        // 正在载：载完那一下（didFinish）会交点通知那一下，这里不插手
+        guard !web.isLoading else { return }
+        // 网页进程在后台被系统回收，回到前台看到的就是一张白纸。
+        // webViewWebContentProcessDidTerminate **不保证会来**：进程是在后台没的，
+        // 那一下常常不补发；url 还在、isLoading 也是 false，从外面什么都看不出来。
+        // 而点通知进来正好就是从后台回来。所以先问一句「你还在吗」：
+        // 抛错是进程没了，回 false 是被换上来一张空文档。两种都重载。
+        // 问得到，再把点通知那一下补交一次
+        web.evaluateJavaScript("!!(document.body && document.body.children.length)") { [weak self] got, err in
+            guard let self = self else { return }
+            if err != nil || (got as? Bool) != true { self.load(); return }
+            self.notifyBridge.flush()
+        }
     }
 
     // MARK: - WebView

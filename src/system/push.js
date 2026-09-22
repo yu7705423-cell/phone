@@ -188,6 +188,17 @@ const PENDING = 'notify-open';
 const jump = d => { if (d && d.appId) openIntent(d.appId, d.route ? { route: d.route } : null); };
 
 /**
+ * 外壳喊的那个。**回 true 是回执**，外壳只认这个值：回别的它当作「这张页面上
+ * 没有这个函数」—— 网页进程在后台被回收、再拉起来的是一张空文档，正是这样 ——
+ * 于是重载一遍再交。所以跳转本身出了错也要回 true：那是本机的 bug，
+ * 重载救不回来，只会让它再炸一遍。
+ */
+const take = d => {
+  try { jump(d); } catch (err) { console.warn('[push] 点通知跳转失败:', err.message || err); }
+  return true;
+};
+
+/**
  * 补上在 js 起来之前点的那一下。
  *
  * **点通知这件事常常跑在网页前面**：外壳（或系统）先把网页重新载入，
@@ -224,7 +235,7 @@ function fromHash() {
 export function installClickBridge() {
   // 原生那边点开通知之后喊这个。和下面 SW 那条走同一个出口
   if (native()) {
-    window.phoneNotifyOpen = d => jump(d);
+    window.phoneNotifyOpen = take;
     drainPending();
     return;
   }

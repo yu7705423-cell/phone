@@ -36,6 +36,17 @@ final class NotifyBridge: NSObject {
     /// phoneNotifyOpen，起来之后自己去兑现（见 system/push.js）。
     private var pending: String?
 
+    /// 页面不在了的时候叫外壳重载。ShellViewController 建好之后塞进来。
+    ///
+    /// 两种「不在了」：进程被系统回收（evaluateJavaScript 抛错）；进程回收之后
+    /// 被重新拉起来、但拉起来的是一张空文档（url 还在，isLoading 也是 false，
+    /// 只是上面什么都没有 —— 网页那头的 phoneNotifyOpen 不存在，问下去回的是
+    /// undefined 而不是 true）。第二种从外面什么都看不出来，只有这一问问得出来。
+    var reload: (() -> Void)?
+    /// 同一下点击最多因为「交不出去」重载几次。站点真坏了不能没完没了地转
+    private var reloads = 0
+    private static let maxReloads = 2
+
     override init() {
         super.init()
         center.delegate = self
@@ -118,16 +129,26 @@ extension NotifyBridge: UNUserNotificationCenterDelegate {
     /// 交给网页。页面还在载就先记着，载完再交。
     @MainActor private func deliver(_ json: String) {
         pending = json
+        reloads = 0
         flush()
     }
 
     /// 把记着的那一下交出去。页面载完、以及回到前台时各叫一次。
+    ///
+    /// **只有回 true 才算交到了。** 网页那头两份 phoneNotifyOpen（index.html 的
+    /// 占位、push.js 的正式那份）都回 true。回别的说明这张页面上根本没有它，
+    /// 也就是上面说的那张空文档；抛错则是进程本身没了。两种都放回去、叫外壳
+    /// 重载，载完（didFinish）再交一次。
     func flush() {
         guard let json = pending, let w = web, !w.isLoading, w.url != nil else { return }
         pending = nil
-        w.evaluateJavaScript("window.phoneNotifyOpen && window.phoneNotifyOpen(\(json))") { [weak self] _, err in
-            // 这一下没打出去（文档正好在换）就放回去，等下一次载完再试
-            if err != nil { self?.pending = json }
+        w.evaluateJavaScript("window.phoneNotifyOpen && window.phoneNotifyOpen(\(json))") { [weak self] got, err in
+            guard let self = self else { return }
+            if err == nil, (got as? Bool) == true { return }
+            self.pending = json
+            guard self.reloads < Self.maxReloads else { return }
+            self.reloads += 1
+            self.reload?()
         }
     }
 }
