@@ -1,16 +1,17 @@
-import { html } from '../../../lib.js';
+import { html, useState } from '../../../lib.js';
 import { phone, useStore } from '../../../sdk/index.js';
-import { Page, List, ListItem, Field, Input, Segmented, Icon,
-         EmptyState } from '../../../ui/index.js';
+import { Page, List, ListItem, Field, Input, Segmented, Icon, Button, Spinner,
+         EmptyState, toast, confirm } from '../../../ui/index.js';
 import { PoopField } from '../parts.js';
 
-const { db, nav, health } = phone;
+const { db, nav, health, ai } = phone;
 
 // 角色的身体状态。和「角色的一天」一样是**设定出来的**，不是测出来的 ——
 // 你替它定今天累不累、哪儿不舒服，它在对话里就按这个来。
 export function CharPage({ charId }) {
   useStore(db.characters.store);
   useStore(db.health.store);
+  const [busy, setBusy] = useState(false);
   const char = db.characters.get(charId);
   if (!char) {
     return html`<${Page} title="身体状态" onBack=${nav.pop}>
@@ -21,13 +22,43 @@ export function CharPage({ charId }) {
   const d = health.dayOf(charId, date);
   const set = patch => health.set(charId, date, patch);
 
+  // 这一天已经有内容了没有。有的话生成之前要问一句 —— 手填的那份
+  // 是用户自己一格一格点出来的，不能默默盖掉
+  const filled = !!(d.energy || d.mood || (d.symptoms || []).length
+    || d.sleepMin || (d.poops || []).length || d.note);
+
+  const gen = async () => {
+    if (busy) return;
+    if (filled && !await confirm({
+      title: '重新生成今天', okText: '生成', danger: true,
+      message: '当前已填写的内容将被覆盖，包括手动填写的部分。',
+    })) return;
+    setBusy(true);
+    try {
+      await ai.healthTask.generateDay(charId, date);
+      toast('已生成', 'ok');
+    } catch (err) { toast(String(err.message || err), 'error', 5000); }
+    finally { setBusy(false); }
+  };
+
   return html`
     <${Page} title=${`${char.name} 今天`} onBack=${nav.pop}>
       <div class="pad-x pad-t">
         <div class="hint-box">
-          这一份是你替角色定的设定，不是测量值。开启注入后，它会作为事实写进
-          这个角色的对话上下文。
+          这一份是角色的设定，不是测量值。开启注入后，它会作为事实写进
+          这个角色的对话上下文。可以逐项填写，也可以按人设一键生成。
         </div>
+        <div class="pad-b">
+          <${Button} full variant=${filled ? 'ghost' : 'primary'}
+            disabled=${busy || !ai.isConfigured()}
+            icon=${busy ? null : 'refresh'} onClick=${gen}>
+            ${busy ? html`<${Spinner} size=${16}/>` : (filled ? '重新生成今天' : '按人设生成今天')}
+          <//>
+        </div>
+        ${!ai.isConfigured() ? html`
+          <div class="settings-foot">尚未配置聊天接口，无法生成。</div>` : null}
+        ${d.source === 'ai' ? html`
+          <div class="settings-foot">当前这一份由模型按人设生成，可以逐项修改。</div>` : null}
         <${Field} label="精力">
           <${Segmented} value=${d.energy} onChange=${v => set({ energy: v })}
             items=${health.ENERGY.map(m => ({ value: m.id, label: m.label }))}/>

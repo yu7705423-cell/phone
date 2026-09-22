@@ -1501,6 +1501,31 @@ and you are the one opening this conversation.
 Output the message text directly, in the same language as the character card,
 separating messages with blank lines. Write no explanation.`,
 
+  'task.health-day':
+`Decide what {{charName}}'s body is like on {{date}} ({{weekday}}), from their
+character card. This is a setting, not a measurement: it is what their body is
+like today, and the conversation will treat it as fact.
+
+## Pick only from these ids
+Energy:
+{{energyList}}
+Mood:
+{{moodList}}
+Symptoms (zero or more, only when something is actually wrong):
+{{symptomList}}
+Stool form:
+{{poopList}}
+
+## Output JSON
+{"energy": "id", "mood": "id", "symptoms": ["id"], "sleepMin": 0,
+ "poops": [{"at": "HH:MM", "form": "id"}], "note": ""}
+
+- sleepMin is minutes slept last night
+- poops may be an empty list
+- note is one short line, in the same language as the character card, or ""
+
+Use the ids above exactly. Write no explanation.`,
+
   'task.snap':
 `It is now {{time}}. Decide whether {{charName}} would save a photo right now,
 and if so, what is in it.

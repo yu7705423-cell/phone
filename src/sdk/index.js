@@ -60,6 +60,7 @@ import * as autoReplyApi from '../system/autoreply.js';
 import * as innerTask from '../system/ai/tasks/inner.js';
 import * as foodApi from '../system/food.js';
 import * as dayTask from '../system/ai/tasks/day.js';
+import * as healthTask from '../system/ai/tasks/health.js';
 import * as recipeBatch from '../system/ai/tasks/recipe-batch.js';
 import * as shelfBatch from '../system/ai/tasks/shelf-batch.js';
 import * as impression from '../system/ai/tasks/shelf-impression.js';
@@ -218,6 +219,7 @@ export const phone = {
     work: workTask,
     eventBatch,
     dayTask,
+    healthTask,
     inner: innerTask,
     recipeBatch,
     shelfBatch,
