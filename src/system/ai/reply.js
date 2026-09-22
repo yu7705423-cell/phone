@@ -40,8 +40,10 @@ import { cropKept } from './tasks/phone.js';
 const MARK = /[[【]\s*(图片|照片|image|pic|视频|video|语音|voice|audio|表情|sticker|emoji|转账|transfer|位置|定位|location|礼物|gift|点歌|建歌单|约定完成|约定|pact|信|letter|事项完成|事项取消|心声|换头像|外卖|请客|代付|申请|亲属卡|旅行|攻略|待办|todo)\s*[:：]\s*([^\]】]+)[\]】]/gi;
 
 const IMAGE_KINDS = new Set(['图片', '照片', 'image', 'pic']);
-// 「视频通话」那一格叫 video，这里是会话里那一段片子，两回事
-const CLIP_KINDS = new Set(['视频']);
+// 「视频通话」那一格叫 video，这里是会话里那一段片子，两回事。
+// **MARK 里认了几个词，这里就要收几个**：少收一个，那一条会顺着 if 链
+// 一路掉到最后的 voice 分支，变成一段语音
+const CLIP_KINDS = new Set(['视频', 'video']);
 const STICKER_KINDS = new Set(['表情', 'sticker', 'emoji']);
 const TRANSFER_KINDS = new Set(['转账', 'transfer']);
 const PLACE_KINDS = new Set(['位置', '定位', 'location']);

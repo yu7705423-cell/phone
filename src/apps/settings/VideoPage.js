@@ -117,6 +117,16 @@ export function VideoPage() {
 
   return html`
     <${Page} title="生成视频" onBack=${nav.pop}>
+      ${vid.isVideoReady() && !db.settings.get().videoOn ? html`
+        <div class="pad-x">
+          <div class="warn-box">
+            接口已配置，但「角色自己发视频」处于关闭状态，角色不会主动发送视频；
+            被要求发送视频时，它通常改为发送图片。
+            该开关在「设置 - 用量与上限」中，默认关闭，因为每段视频都会产生一次额外计费。
+            会话面板中的「生成视频」不受此开关影响。
+          </div>
+        </div>` : null}
+
       <div class="settings-foot">
         生成一段视频是一个异步任务，提交之后通常需要一到五分钟。
         任务编号会记在那条消息上，切换页面或重新打开应用都能接着等。

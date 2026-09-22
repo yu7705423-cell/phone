@@ -76,9 +76,19 @@ export const everyOf = p => {
   return Number.isFinite(n) && n >= 2 ? n : 6;
 };
 
+/**
+ * 拼端点。
+ *
+ * **这里的路径自带版本号**（`/v2/video_generation`），所以 base 上如果也带着
+ * 一个（`https://…/v1`，照着生图那套配置抄过来很自然），要先把它摘掉 ——
+ * 不摘的话打出去的是 `/v1/video_generation`，那不是 V2 的端点。
+ *
+ * 生图那边的路径不带版本号（`/images/generations`），所以它的拼法是反过来的：
+ * base 没有版本号时补一个。两处形状不同，不能照抄。
+ */
 const api = (p, path) => {
-  const base = baseOf(p.baseUrl, kindOf(p.kind).base);
-  return `${base}${/\/v\d+$/.test(base) ? path.replace(/^\/v\d+/, '') : path}`;
+  const base = baseOf(p.baseUrl, kindOf(p.kind).base).replace(/\/v\d+$/, '');
+  return `${base}${path}`;
 };
 
 /** 对面那句话。它是 OpenAI 那种形状，错误码在 message 结尾的括号里。 */
