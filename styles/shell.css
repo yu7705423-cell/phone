@@ -585,3 +585,22 @@
 
 /* 还没填内容的小组件上那一句提示 */
 .wg-hint { font-size: var(--fs-12); color: var(--text-3); line-height: 1.5; }
+
+/* ---- 主屏拖动（见 screens/home/drag.js） ---- */
+/* 主屏本来就不滚动，格子上把浏览器自己的手势让出来，拖动时 pointermove 才不会被接管 */
+.home-grid .cell, .dock-slot { touch-action: none; }
+/* 跟手的影子。挂在 body 上，不归网格管，所以尺寸、位置全由 drag.js 写死 */
+.drag-ghost {
+  position: fixed; z-index: var(--z-toast); margin: 0;
+  pointer-events: none; will-change: transform; transition: none;
+}
+.drag-ghost, .drag-ghost * { animation: none !important; }
+.drag-ghost .app-tile, .drag-ghost.cell-widget { box-shadow: var(--shadow-3); }
+/* 拿起来的那一格留个淡影在原处，看得出它从哪儿来 */
+.cell.is-lifted, .dock-slot.is-lifted { opacity: .25; }
+/* 松手会落在哪几格 */
+.cell-drop {
+  pointer-events: none; border-radius: var(--r-md);
+  border: 2px dashed var(--text-3); background: var(--surface-2); opacity: .7;
+}
+.dock-slot.is-over .app-tile, .dock-empty.is-over { outline: 2px solid var(--text); outline-offset: 3px; }

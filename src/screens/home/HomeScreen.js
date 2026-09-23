@@ -10,7 +10,8 @@ import { WidgetEditor } from './WidgetEditor.js';
 import { CellEditor } from './CellEditor.js';
 import { openApp } from '../../system/nav.js';
 import { GRID_COLS } from '../../system/db/defaults.js';
-import { rowsOf, setPage, movePicked, healAndSave, addPage, removePage, freeSlots } from './layout.js';
+import { rowsOf, setPage, movePicked, moveTo, healAndSave, addPage, removePage, freeSlots } from './layout.js';
+import { dragState, bindGrid, pressStart, justDragged, dragging } from './drag.js';
 import { editState, setEdit, setPicked, clearPicked } from './editState.js';
 import { AppTile } from './AppTile.js';
 import { FolderView, FolderTile } from './FolderView.js';
@@ -24,10 +25,13 @@ function unreadFor(appId) {
     .reduce((n, c) => n + (c.unread || 0), 0);
 }
 
-function Cell({ cell, edit, onPick, picked, onEditWidget, onOpenFolder, onEditFolder }) {
+function Cell({ cell, edit, onPick, picked, lifted, onEditWidget, onOpenFolder, onEditFolder }) {
   const hold = useRef(null);
   const fired = useRef(false);
   const style = `grid-column:${cell.x + 1}/span ${cell.w};grid-row:${cell.y + 1}/span ${cell.h}`;
+  // 按住就可能是要拖。真拖没拖由 drag.js 看手指挪了多远、是不是在整理模式里
+  const down = e => pressStart(e, { type: 'cell', id: cell.id, w: cell.w, h: cell.h }, e.currentTarget);
+  const cls = `${edit ? ' is-edit' : ''}${picked ? ' is-picked' : ''}${lifted ? ' is-lifted' : ''}`;
 
   if (cell.kind === 'folder') {
     // 长按直接改名与增减内容。外层那个长按是「进整理模式」，这里先截下来
@@ -39,11 +43,12 @@ function Cell({ cell, edit, onPick, picked, onEditWidget, onOpenFolder, onEditFo
     const end = () => clearTimeout(hold.current);
     const tap = () => {
       if (fired.current) { fired.current = false; return; }
+      if (justDragged()) return;
       if (edit) onPick(cell); else onOpenFolder(cell);
     };
     return html`
-      <div class=${`cell cell-app no-callout${edit ? ' is-edit' : ''}${picked ? ' is-picked' : ''}`}
-        style=${style} onClick=${tap}
+      <div class=${`cell cell-app no-callout${cls}`} data-cell=${cell.id}
+        style=${style} onClick=${tap} onPointerDown=${down}
         onContextMenu=${e => { e.preventDefault(); onEditFolder(cell); }}
         onMouseDown=${start} onMouseUp=${end} onMouseLeave=${end}
         onTouchStart=${start} onTouchEnd=${end} onTouchMove=${end} onTouchCancel=${end}>
@@ -55,13 +60,13 @@ function Cell({ cell, edit, onPick, picked, onEditWidget, onOpenFolder, onEditFo
   if (cell.kind === 'widget') {
     const wg = getWidget(cell.ref);
     const tap = () => {
+      if (justDragged()) return;
       if (edit) { onPick(cell); return; }
       if (wg?.editable) onEditWidget(cell);
     };
     return html`
-      <div class=${`cell cell-widget${cell.config?.bare ? ' is-bare' : ''}`
-        + `${edit ? ' is-edit' : ''}${picked ? ' is-picked' : ''}`} style=${style}
-        onClick=${tap}>
+      <div class=${`cell cell-widget${cell.config?.bare ? ' is-bare' : ''}${cls}`} style=${style}
+        data-cell=${cell.id} onClick=${tap} onPointerDown=${down}>
         ${wg ? wg.render(cell) : html`<div class="wg wg-empty">挂件缺失</div>`}
       </div>`;
   }
@@ -69,8 +74,8 @@ function Cell({ cell, edit, onPick, picked, onEditWidget, onOpenFolder, onEditFo
   const app = appLook(cell.ref);
   if (!app) return null;
   return html`
-    <div class=${`cell cell-app${edit ? ' is-edit' : ''}${picked ? ' is-picked' : ''}`} style=${style}
-      onClick=${() => edit ? onPick(cell) : openApp(cell.ref)}>
+    <div class=${`cell cell-app${cls}`} style=${style} data-cell=${cell.id} onPointerDown=${down}
+      onClick=${() => { if (justDragged()) return; if (edit) onPick(cell); else openApp(cell.ref); }}>
       <${AppTile} app=${app} badge=${unreadFor(cell.ref)}/>
       <span class="app-name ph-tile-name ellipsis">${app.name}</span>
     </div>`;
@@ -83,6 +88,7 @@ export function HomeScreen() {
   useStore(settings.store);
 
   const { edit, picked } = useStore(editState);
+  const drag = useStore(dragState);
   const [editingWidget, setEditingWidget] = useState(null);
   const [editingCell, setEditingCell] = useState(null);
   const [openFolder, setOpenFolder] = useState(null);
@@ -106,6 +112,62 @@ export function HomeScreen() {
   const needRows = rowsOf(page, edit);
   const rows = Math.max(needRows, autoRows);
   const slots = edit ? freeSlots(page, rows) : [];
+
+  // ---- 拖动（见 drag.js） ----
+  // 落下之后格子从哪儿飞过来。拖的那一格从影子最后的位置飞进新格子，
+  // 被挤走、被对调的那几格从各自的老位置滑过去 —— 看得见谁去了哪儿
+  const flipFrom = useRef(new Map());
+  const [, bump] = useState(0);
+  const onDrop = (src, over, at) => {
+    if (src.type === 'cell' && at) flipFrom.current.set(src.id, at);
+    if (!over) { bump(n => n + 1); return; }
+    let r;
+    if (over.type === 'dock') {
+      r = movePicked(idx, src.type === 'cell' ? { type: 'cell', id: src.id } : src, { type: 'dock', i: over.i });
+    } else if (src.type === 'cell') {
+      r = moveTo(idx, src.id, over.x, over.y);
+    } else {
+      // 从 dock 拖下来：落在别的应用上就和它对调，落在空处就放在那儿
+      const hit = page.cells.find(c => over.x >= c.x && over.x < c.x + c.w && over.y >= c.y && over.y < c.y + c.h);
+      r = movePicked(idx, src, hit ? { type: 'cell', id: hit.id } : { type: 'slot', x: over.x, y: over.y });
+    }
+    if (!r.ok) toast(r.reason, 'error');
+    bump(n => n + 1);
+  };
+  const onPage = dir => {
+    const next = idx + dir;
+    if (next < 0) return;
+    // 拖到最后一页的右边：这一页有东西就新开一页，空页就不再开
+    if (next >= pages.length) { if (page.cells.length) addPage(); return; }
+    setPage(next);
+  };
+  const gap = gridRef.current ? parseFloat(getComputedStyle(gridRef.current).gap) || 12 : 12;
+  bindGrid({ el: gridRef.current, cell, gap, cols: GRID_COLS, rows, onDrop, onPage });
+
+  const rects = useRef({ page: -1, cell: 0, map: new Map() });
+  useLayoutEffect(() => {
+    const el = gridRef.current;
+    if (!el) return;
+    const prev = rects.current;
+    // 换了一页、格子边长变了（转屏、改尺寸）不算挪动，不飞
+    const same = prev.page === idx && prev.cell === cell;
+    const still = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const next = new Map();
+    el.querySelectorAll('[data-cell]').forEach(node => {
+      const id = node.dataset.cell;
+      const r = node.getBoundingClientRect();
+      next.set(id, r);
+      const from = flipFrom.current.get(id) || (same ? prev.map.get(id) : null);
+      if (!from || still || !node.animate) return;
+      const dx = from.left - r.left;
+      const dy = from.top - r.top;
+      if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
+      node.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }],
+        { duration: 280, easing: 'cubic-bezier(.2, .9, .3, 1)' });
+    });
+    flipFrom.current.clear();
+    rects.current = { page: idx, cell, map: next };
+  });
 
   // 格子边长取「按宽度均分」与「按高度均分」中较小的那个:
   // 前者保证 1x1 是方的,后者保证整页不溢出。
@@ -164,6 +226,8 @@ export function HomeScreen() {
     }, 550);
   };
   const endPress = () => clearTimeout(pressTimer.current);
+  // 拖起来了就不再算长按：拖得久了，主屏那个「长按进整理」的计时会再触发一次
+  if (drag.src) clearTimeout(pressTimer.current);
 
   const onTouchStart = e => {
     touch.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now() };
@@ -171,6 +235,7 @@ export function HomeScreen() {
   };
   const onTouchMove = e => {
     if (!touch.current) return;
+    if (dragging()) { endPress(); return; }
     if (Math.abs(e.touches[0].clientX - touch.current.x) > 8
       || Math.abs(e.touches[0].clientY - touch.current.y) > 8) endPress();
   };
@@ -178,7 +243,7 @@ export function HomeScreen() {
     endPress();
     const t = touch.current;
     touch.current = null;
-    if (!t) return;
+    if (!t || dragging() || justDragged()) return;
     const dx = e.changedTouches[0].clientX - t.x;
     const dy = e.changedTouches[0].clientY - t.y;
     if (Math.abs(dx) > 55 && Math.abs(dx) > Math.abs(dy) * 1.6) {
@@ -198,9 +263,13 @@ export function HomeScreen() {
         ${page.cells.map(c => html`
           <${Cell} key=${c.id} cell=${c} edit=${edit}
             picked=${picked?.type === 'cell' && picked.id === c.id}
+            lifted=${drag.src?.type === 'cell' && drag.src.id === c.id}
             onPick=${onPick} onEditWidget=${setEditingWidget}
             onOpenFolder=${setOpenFolder} onEditFolder=${f => { endPress(); setEditFolder(f); }}/>`)}
-        ${edit ? slots.map(sl => html`
+        ${drag.over?.type === 'slot' ? html`
+          <div class="cell cell-drop" aria-hidden="true"
+            style=${`grid-column:${drag.over.x + 1}/span ${drag.over.w};grid-row:${drag.over.y + 1}/span ${drag.over.h}`}></div>` : null}
+        ${edit && !drag.src ? slots.map(sl => html`
           <div key=${`${sl.x},${sl.y}`} class="cell cell-slot"
             style=${`grid-column:${sl.x + 1};grid-row:${sl.y + 1}`}
             onClick=${() => onPickSlot(sl.x, sl.y)}>
@@ -217,7 +286,8 @@ export function HomeScreen() {
       ${edit ? html`
         <div class="edit-bar">
           <span class="edit-hint">${picked
-            ? '点目标位置完成移动，翻页后再点也可以' : '点两个位置交换，或长按图标进入此模式'}</span>
+            ? '点目标位置完成移动，翻页后再点也可以'
+            : '按住拖到想放的位置，拖到屏幕边缘可翻页。点一下换图标、改大小或移除'}</span>
           <div class="edit-acts">
             <button class="icon-btn press" onClick=${addPage} aria-label="新建一页">
               <${Icon} name="plus" size=${17}/>

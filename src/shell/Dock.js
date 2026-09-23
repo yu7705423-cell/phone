@@ -9,6 +9,7 @@ import { openApp } from '../system/nav.js';
 import { DOCK_SIZE } from '../system/db/defaults.js';
 import { AppTile } from '../screens/home/AppTile.js';
 import { editState, setPicked, clearPicked } from '../screens/home/editState.js';
+import { dragState, pressStart, justDragged } from '../screens/home/drag.js';
 import { movePicked, clearDockSlot, newFolderAuto, putInFolder } from '../screens/home/layout.js';
 import { IconSheet } from '../screens/home/IconSheet.js';
 import { Sheet, List, ListItem, toast } from '../ui/index.js';
@@ -25,6 +26,7 @@ function unreadFor(appId) {
 export function Dock() {
   const lay = useStore(layout.store);
   const { edit, picked } = useStore(editState);
+  const drag = useStore(dragState);
   useStore(registryStore);
   useStore(chats.store);
   useStore(settings.store);
@@ -38,6 +40,7 @@ export function Dock() {
   const pageIdx = Math.min(lay.currentPage || 0, Math.max(0, (lay.pages || []).length - 1));
 
   const tap = i => {
+    if (justDragged()) return;
     if (!edit) {
       if (slots[i]) openApp(slots[i]);
       return;
@@ -59,14 +62,18 @@ export function Dock() {
         ${slots.map((appId, i) => {
           const app = appId ? appLook(appId) : null;
           const isPicked = picked?.type === 'dock' && picked.i === i;
+          // 拖着东西经过这一格：亮出来，告诉人松手会落在这儿
+          const over = drag.over?.type === 'dock' && drag.over.i === i ? ' is-over' : '';
           if (!app) {
             return html`
-              <button key=${i} class=${`dock-slot dock-empty${edit ? ' is-edit' : ''}`}
-                onClick=${() => tap(i)} aria-label="空位"></button>`;
+              <button key=${i} class=${`dock-slot dock-empty${edit ? ' is-edit' : ''}${over}`}
+                data-dock-slot=${i} onClick=${() => tap(i)} aria-label="空位"></button>`;
           }
+          const lifted = drag.src?.type === 'dock' && drag.src.i === i ? ' is-lifted' : '';
           return html`
-            <button key=${i} class=${`dock-slot press${isPicked ? ' is-picked' : ''}`}
-              onClick=${() => tap(i)} aria-label=${app.name}>
+            <button key=${i} class=${`dock-slot press${isPicked ? ' is-picked' : ''}${over}${lifted}`}
+              data-dock-slot=${i} onClick=${() => tap(i)} aria-label=${app.name}
+              onPointerDown=${e => pressStart(e, { type: 'dock', i, w: 1, h: 1 }, e.currentTarget)}>
               <${AppTile} app=${app} badge=${unreadFor(appId)}/>
             </button>`;
         })}

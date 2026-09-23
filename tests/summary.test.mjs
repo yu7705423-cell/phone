@@ -115,7 +115,7 @@ await page.waitForTimeout(800);
 await page.locator('[aria-label="更多"]').click();
 await page.waitForTimeout(600);
 const menu = await page.locator('.fullsheet').innerText();
-ok('菜单里写出了自动总结的设定', /立即总结记忆[\s\S]{0,60}自动总结每 45 轮一次/.test(menu),
+ok('菜单里写出了自动总结的设定', /立即总结记忆[\s\S]{0,60}每 45 轮自动总结/.test(menu),
   menu.match(/立即总结记忆[\s\S]{0,60}/)?.[0]);
 await page.screenshot({path:`${OUT}/q2-menu.png`});
 

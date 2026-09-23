@@ -1414,6 +1414,7 @@ export function Conversation({ chatId, focusId = '' }) {
         <//>` : html`
         <${List} title="这个角色">
           <${ListItem} title="角色卡" arrow
+            subtitle="人设、当日日程与各项能力的开关"
             left=${html`<${Icon} name="user" size=${18}/>`}
             onClick=${() => { setMenu(false); nav.push(`/edit/${char.id}`); }}/>
           <${ListItem} title="角色主页" arrow

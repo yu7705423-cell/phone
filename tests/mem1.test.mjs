@@ -97,10 +97,14 @@ const capped = await page.evaluate(async i => {
   const all = mem.recall({ settings: { ...db.settings.get(), memoryTopK: 0 }, char: c,
     scanText: q, budgets: { memory: 9000 }, queryVec: null,
     persona: db.personas.get(i.me) }).length;
-  return { topK: db.settings.get().memoryTopK, one, all };
+  // 完整跑时偶尔只召回两条、单独跑复现不出来。失败时把召回明细带出来，下次直接看得到原因
+  const L = mem.lastRecall();
+  const why = (L?.rows || []).map(r => `${String(r.content || '').slice(0, 6)}${r.dropped ? ':' + r.dropped : ''}`).join(',');
+  return { topK: db.settings.get().memoryTopK, one, all, why,
+    n: db.memories.all().length, open: db.memories.all().filter(m => mem.isOpen(m)).length };
 }, ids);
 check(capped.topK === 6, `默认一轮六条（${capped.topK}）`);
-check(capped.one === 6, `候选一大堆，也只召回六条（${capped.one}）`);
+check(capped.one === 6, `候选一大堆，也只召回六条（${capped.one}）` + (capped.one === 6 ? '' : ` 共 ${capped.n} 条、未了结 ${capped.open} 条；池子：${capped.why}`));
 check(capped.all > 15, `填 0 就是不限，照旧全给（${capped.all}）`);
 
 // ---- 3 Anthropic：深度注入那一条不能是 system 角色 ----
