@@ -54,9 +54,29 @@ function findSpot(page, w, h, skipId) {
   return null;
 }
 
-// 把被挤走的格子安置到别处：本页空位优先，其次下一页，都没有就新建一页
+// 离原来那一格最近的空位。被挤走的格子就近让开，而不是一下跳到页面最上面的空处 ——
+// 拖动时这些格子是当场滑过去的，跳得远了看不出它去了哪儿。
+// 只在这一页已经用到的行数（至少 MIN_ROWS）里找，不往屏幕外面放
+function nearestSpot(page, w, h, ox, oy) {
+  const taken = occupied(page.cells || []);
+  const maxY = Math.max(MIN_ROWS, ...(page.cells || []).map(c => c.y + c.h)) - h;
+  let best = null;
+  let bestD = Infinity;
+  for (let y = 0; y <= maxY; y++) {
+    for (let x = 0; x <= GRID_COLS - w; x++) {
+      if (!fits(taken, x, y, w, h)) continue;
+      // 竖着挪比横着挪更打眼，稍微加一点分量
+      const d = (x - ox) ** 2 + 1.3 * (y - oy) ** 2;
+      if (d < bestD) { bestD = d; best = { x, y }; }
+    }
+  }
+  return best;
+}
+
+// 把被挤走的格子安置到别处：本页就近的空位优先，其次下一页，都没有就新建一页
 function relocate(lay, pageIdx, cell) {
-  const spot = findSpot(lay.pages[pageIdx], cell.w, cell.h);
+  const spot = nearestSpot(lay.pages[pageIdx], cell.w, cell.h, cell.x, cell.y)
+    || findSpot(lay.pages[pageIdx], cell.w, cell.h);
   if (spot) { lay.pages[pageIdx].cells.push({ ...cell, ...spot }); return; }
   for (let i = pageIdx + 1; i < lay.pages.length; i++) {
     const s = findSpot(lay.pages[i], cell.w, cell.h);
@@ -111,6 +131,17 @@ export function locate(lay, cellId) {
 // toPageIdx 是**目标页**，源头在哪一页由 locate 自己找。
 export function moveTo(toPageIdx, cellId, x, y) {
   const lay = structuredClone(layout.get());
+  const r = planMove(lay, toPageIdx, cellId, x, y);
+  if (r.ok) layout.replace(lay);
+  return r;
+}
+
+/**
+ * 只算不存：在传进来的这份布局上把格子挪过去，挤走的、对调的都安置好。
+ * 拖动时拿它算「松手会变成什么样」提前画出来（其他图标先让开），
+ * 松手时 moveTo 走的是同一段 —— 预览和结果不会对不上。
+ */
+export function planMove(lay, toPageIdx, cellId, x, y) {
   const dest = lay.pages[toPageIdx];
   if (!dest) return { ok: false, reason: '页面不存在' };
   const found = locate(lay, cellId);
@@ -137,7 +168,6 @@ export function moveTo(toPageIdx, cellId, x, y) {
       dest.cells.push(cell);
       from.cells.push(other);
     }
-    layout.replace(lay);
     return { ok: true };
   }
 
@@ -146,7 +176,6 @@ export function moveTo(toPageIdx, cellId, x, y) {
   cell.x = px; cell.y = y;
   dest.cells.push(cell);
   hit.forEach(c => relocate(lay, toPageIdx, c));
-  layout.replace(lay);
   return { ok: true };
 }
 

@@ -1,4 +1,4 @@
-import { html, useState, useRef, useEffect, useLayoutEffect } from '../../lib.js';
+import { html, useState, useRef, useEffect, useLayoutEffect, useMemo } from '../../lib.js';
 import { Icon } from '../../icons/Icon.js';
 import { useStore } from '../../system/store.js';
 import { settings } from '../../system/db/index.js';
@@ -10,7 +10,7 @@ import { WidgetEditor } from './WidgetEditor.js';
 import { CellEditor } from './CellEditor.js';
 import { openApp } from '../../system/nav.js';
 import { GRID_COLS } from '../../system/db/defaults.js';
-import { rowsOf, setPage, movePicked, moveTo, healAndSave, addPage, removePage, freeSlots } from './layout.js';
+import { rowsOf, setPage, movePicked, moveTo, planMove, healAndSave, addPage, removePage, freeSlots } from './layout.js';
 import { dragState, bindGrid, pressStart, justDragged, dragging } from './drag.js';
 import { editState, setEdit, setPicked, clearPicked } from './editState.js';
 import { AppTile } from './AppTile.js';
@@ -25,13 +25,13 @@ function unreadFor(appId) {
     .reduce((n, c) => n + (c.unread || 0), 0);
 }
 
-function Cell({ cell, edit, onPick, picked, lifted, onEditWidget, onOpenFolder, onEditFolder }) {
+function Cell({ cell, edit, onPick, picked, lifted, away, onEditWidget, onOpenFolder, onEditFolder }) {
   const hold = useRef(null);
   const fired = useRef(false);
   const style = `grid-column:${cell.x + 1}/span ${cell.w};grid-row:${cell.y + 1}/span ${cell.h}`;
   // 按住就可能是要拖。真拖没拖由 drag.js 看手指挪了多远、是不是在整理模式里
   const down = e => pressStart(e, { type: 'cell', id: cell.id, w: cell.w, h: cell.h }, e.currentTarget);
-  const cls = `${edit ? ' is-edit' : ''}${picked ? ' is-picked' : ''}${lifted ? ' is-lifted' : ''}`;
+  const cls = `${edit ? ' is-edit' : ''}${picked ? ' is-picked' : ''}${lifted ? ' is-lifted' : ''}${away ? ' is-away' : ''}`;
 
   if (cell.kind === 'folder') {
     // 长按直接改名与增减内容。外层那个长按是「进整理模式」，这里先截下来
@@ -144,21 +144,56 @@ export function HomeScreen() {
   const gap = gridRef.current ? parseFloat(getComputedStyle(gridRef.current).gap) || 12 : 12;
   bindGrid({ el: gridRef.current, cell, gap, cols: GRID_COLS, rows, onDrop, onPage });
 
-  const rects = useRef({ page: -1, cell: 0, map: new Map() });
+  // ---- 让位：拖着停在一处，其他格子先按「松手会变成什么样」挪好 ----
+  // 手指路过一个位置不算，停下来 150 毫秒才算 —— 不然拖过去的一路上
+  // 每经过一个图标，整页都要翻腾一次
+  const [settled, setSettled] = useState(null);
+  const overKey = drag.over ? JSON.stringify(drag.over) : '';
+  useEffect(() => {
+    const o = drag.over;
+    if (!drag.src || drag.src.type !== 'cell' || !o || o.type !== 'slot') { setSettled(null); return undefined; }
+    const t = setTimeout(() => setSettled(o), 150);
+    return () => clearTimeout(t);
+  }, [drag.src, overKey]);
+  // 预览和松手走的是同一段 planMove，看到的就是落下之后的样子
+  const preview = useMemo(() => {
+    if (!settled || drag.src?.type !== 'cell') return null;
+    const draft = structuredClone(lay);
+    return planMove(draft, idx, drag.src.id, settled.x, settled.y).ok ? draft.pages[idx].cells : null;
+  }, [settled, drag.src, lay, idx]);
+  const shown = preview || page.cells;
+
+  // ---- 过渡（FLIP）----
+  // 每一格挪了位置都滑过去，不跳。「从哪儿滑」取这一次改动**之前**屏幕上的样子：
+  // 在渲染时量（这时 DOM 还是上一版），正在滑的格子量到的就是它半路的位置，
+  // 目标又变了也是从半路接着滑，不会先闪回原处
+  const before = new Map();
+  if (gridRef.current) {
+    gridRef.current.querySelectorAll('[data-cell]').forEach(n => before.set(n.dataset.cell, n.getBoundingClientRect()));
+  }
+  const beforeRef = useRef(before);
+  beforeRef.current = before;
+  const rects = useRef({ page: -1, cell: 0, pos: new Map() });
   useLayoutEffect(() => {
     const el = gridRef.current;
     if (!el) return;
-    const prev = rects.current;
     // 换了一页、格子边长变了（转屏、改尺寸）不算挪动，不飞
-    const same = prev.page === idx && prev.cell === cell;
+    const same = rects.current.page === idx && rects.current.cell === cell;
     const still = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const next = new Map();
+    const prev = beforeRef.current;
+    const lastPos = rects.current.pos;
+    const pos = new Map();
     el.querySelectorAll('[data-cell]').forEach(node => {
       const id = node.dataset.cell;
-      const r = node.getBoundingClientRect();
-      next.set(id, r);
-      const from = flipFrom.current.get(id) || (same ? prev.map.get(id) : null);
+      // offsetLeft/Top 不含 transform，是格子真正排在哪。没换格子就不碰它 ——
+      // 拖动时每挪一下手指这里都要跑一遍，正在滑的格子被一遍遍重新起步，就滑不动了
+      const at = `${node.offsetLeft},${node.offsetTop}`;
+      pos.set(id, at);
+      if (!flipFrom.current.has(id) && lastPos.get(id) === at) return;
+      const from = flipFrom.current.get(id) || (same ? prev.get(id) : null);
       if (!from || still || !node.animate) return;
+      node.getAnimations?.().forEach(an => an.cancel());
+      const r = node.getBoundingClientRect();
       const dx = from.left - r.left;
       const dy = from.top - r.top;
       if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
@@ -166,7 +201,7 @@ export function HomeScreen() {
         { duration: 280, easing: 'cubic-bezier(.2, .9, .3, 1)' });
     });
     flipFrom.current.clear();
-    rects.current = { page: idx, cell, map: next };
+    rects.current = { page: idx, cell, pos };
   });
 
   // 格子边长取「按宽度均分」与「按高度均分」中较小的那个:
@@ -260,10 +295,11 @@ export function HomeScreen() {
         style=${cell
           ? `grid-template-columns:repeat(${GRID_COLS},${cell}px);grid-auto-rows:${cell}px`
           : `grid-template-columns:repeat(${GRID_COLS},1fr);grid-auto-rows:1fr`}>
-        ${page.cells.map(c => html`
+        ${shown.map(c => html`
           <${Cell} key=${c.id} cell=${c} edit=${edit}
             picked=${picked?.type === 'cell' && picked.id === c.id}
             lifted=${drag.src?.type === 'cell' && drag.src.id === c.id}
+            away=${!!preview && drag.src?.id === c.id}
             onPick=${onPick} onEditWidget=${setEditingWidget}
             onOpenFolder=${setOpenFolder} onEditFolder=${f => { endPress(); setEditFolder(f); }}/>`)}
         ${drag.over?.type === 'slot' ? html`

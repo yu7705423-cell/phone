@@ -135,6 +135,52 @@ await drag(await dockAt(0), await slot(0, 1));
   ok('贴边翻到新的一页，落在那一页上', l.cur === 1 && (l.pages[1] || []).includes('a3@1,1') && !l.pages[0].some(s => s.startsWith('a3@')), JSON.stringify(l));
 }
 
+// ---- 六·二、拖着停下来，其他图标先让开；挪走就回去；松手的结果就是看到的样子 ----
+await reset();
+await edit(true);
+await page.waitForTimeout(500);
+{
+  const areaOf = id => page.evaluate(i => document.querySelector(`[data-cell="${i}"]`)?.style.gridArea
+    || document.querySelector(`[data-cell="${i}"]`)?.getAttribute('style'), id);
+  const move = async (from, to, n = 10) => { for (let i = 1; i <= n; i++) { await page.mouse.move(from.x + (to.x - from.x) * i / n, from.y + (to.y - from.y) * i / n); await page.waitForTimeout(12); } };
+  const a1 = await at('a1');
+  const a2 = await at('a2');
+  const far = await slot(3, 3);
+  await page.mouse.move(a1.x, a1.y); await page.mouse.down();
+  await move(a1, a2);
+  await page.waitForTimeout(350);
+  const over = { a2: await areaOf('a2'), away: await page.evaluate(() => document.querySelector('[data-cell="a1"]').classList.contains('is-away')) };
+  await page.screenshot({ path: `${OUT}/homedrag-yield.png` });
+  ok('停在另一个应用上：它先滑到空出来的那一格，还没松手', /^1 \/ 1\b/.test(over.a2) && over.away, JSON.stringify(over));
+  await move(a2, far);
+  await page.waitForTimeout(350);
+  ok('挪到别处：它回到原位', /^1 \/ 2\b/.test(await areaOf('a2')), await areaOf('a2'));
+  await move(far, a2);
+  await page.waitForTimeout(350);
+  await page.mouse.up(); await page.waitForTimeout(450);
+  const l = await lay();
+  ok('松手的结果和预览一致', l.pages[0].includes('a1@1,0') && l.pages[0].includes('a2@0,0'), JSON.stringify(l.pages[0]));
+
+  // 挂件压在两个应用上：两个应用就近让开，不叠在挂件底下
+  const w = await at('w1');
+  const grabW = { x: w.b.x + 20, y: w.b.y + 20 };
+  // 把挂件左上角对准 (0,0)：手指按在左上角往里 20 像素处，挪到 (0,0) 那一格左上角往里 20 像素处
+  const g = await page.evaluate(() => {
+    const r = document.querySelector('.home-grid').getBoundingClientRect(); return { x: r.left, y: r.top };
+  });
+  const dest = { x: g.x + 20, y: g.y + 20 };
+  await page.mouse.move(grabW.x, grabW.y); await page.mouse.down();
+  await move(grabW, dest, 12);
+  await page.waitForTimeout(400);
+  const cells = await page.evaluate(() => [...document.querySelectorAll('.home-grid [data-cell]')].map(e => [e.dataset.cell, getComputedStyle(e).gridRowStart, getComputedStyle(e).gridColumnStart]));
+  await page.mouse.up(); await page.waitForTimeout(450);
+  const l2 = await lay();
+  const inWidget = s2 => { const [, xy] = s2.split('@'); const [x, y] = xy.split(',').map(Number); return x < 2 && y < 2; };
+  ok('挂件压上来：底下的应用先就近让开', l2.pages[0].includes('w1@0,0') && !l2.pages[0].filter(x => !x.startsWith('w1')).some(inWidget), JSON.stringify(l2.pages[0]));
+  const pre = Object.fromEntries(cells.map(([id, r, c]) => [id, `${Number(c) - 1},${Number(r) - 1}`]));
+  ok('让开的位置就是松手后的位置', l2.pages[0].every(x => { const [id, xy] = x.split('@'); return pre[id] === xy; }), JSON.stringify(pre) + ' / ' + JSON.stringify(l2.pages[0]));
+}
+
 // ---- 七、点一下仍然是菜单 ----
 await page.evaluate(async () => (await import('/src/screens/home/layout.js')).setPage(0));
 await page.waitForTimeout(300);

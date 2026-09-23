@@ -598,6 +598,8 @@
 .drag-ghost .app-tile, .drag-ghost.cell-widget { box-shadow: var(--shadow-3); }
 /* 拿起来的那一格留个淡影在原处，看得出它从哪儿来 */
 .cell.is-lifted, .dock-slot.is-lifted { opacity: .25; }
+/* 让位预览里，拖着的那一格已经排进了落点：那里空着，其他格子围着它让开 */
+.cell.is-away { visibility: hidden; }
 /* 松手会落在哪几格 */
 .cell-drop {
   pointer-events: none; border-radius: var(--r-md);

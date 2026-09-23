@@ -54,6 +54,9 @@ function begin(e) {
   ghost.classList.add('drag-ghost');
   ghost.classList.remove('is-edit', 'is-picked', 'is-lifted');
   ghost.removeAttribute('id');
+  // 影子不是格子：带着这两个记号的话，按记号找格子、找 dock 槽位的地方会把它也算进去
+  ghost.removeAttribute('data-cell');
+  ghost.removeAttribute('data-dock-slot');
   Object.assign(ghost.style, {
     left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px`,
   });
