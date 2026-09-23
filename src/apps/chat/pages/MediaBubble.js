@@ -105,6 +105,7 @@ function VoiceBubble({ msg, char }) {
       ${showText ? html`
         <div class="voice-text">
           ${msg.voiceText || '（没有文字）'}
+          ${msg.translation ? html`<div class="voice-trans">${msg.translation}</div>` : null}
           ${msg.tone ? html`<div class="voice-tone">听起来${msg.tone}</div>` : null}
         </div>` : null}
     </div>`;

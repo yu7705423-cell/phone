@@ -336,16 +336,31 @@ async function connect() {
 }
 
 // ---- 我说了一句 ----
+//
+// 我一开口就把它正在说的掐掉。**但它已经说出口的那半句留下来。**
+// 从前被打断的那一轮整轮作废：字幕上那半句当场消失，通话记录里也没有，
+// 下一轮模型看到的历史里同样没有 —— 看起来就是「我一说话，它刚才的话就没了」。
+// 现在把字幕上已经出现的那一截落成一句，排在我这一句前面；
+// 被掐掉的那一轮就算随后也收了尾，也不再补一条（见 turn 里的 seq）。
 export function say(text) {
   const t = String(text || '').trim();
   if (!t || call.get().phase !== 'active') return;
-  hush();                                  // 我一开口就把它正在说的掐掉
-  call.set({ lines: [...call.get().lines, { role: 'user', text: t }], heard: '' });
+  hush();
+  seq += 1;
+  const { lines, draft, chatId } = call.get();
+  const cut = String(draft || '').trim();
+  const next = cut ? [...lines, { role: 'char', text: cut, cut: true }] : lines;
+  call.set({ lines: [...next, { role: 'user', text: t }], heard: '', draft: '', thinking: false });
+  if (cut) transLine(chats.get(chatId), lines.length, cut);
   turn('');
 }
 
+// 第几轮。被打断的那一轮收尾时拿它比一下，已经不是最新的就不落字幕
+let seq = 0;
+
 // ---- 一个回合 ----
 async function turn(opening) {
+  const mine = seq;
   const { chatId, charId } = call.get();
   const chat = chats.get(chatId);
   const char = characters.get(charId);
@@ -379,7 +394,7 @@ async function turn(opening) {
     const full = await streamCall({
       chat: plain(chat), char, system: systemPrompt, lines: call.get().lines, opening, image: frame,
       onDelta: (_, all) => {
-        if (call.get().phase !== 'active') return;
+        if (call.get().phase !== 'active' || mine !== seq) return;
         buf = all;
         // 字幕上不露台本标记，半个标记也不露
         call.set({ thinking: false, draft: vs.plain(all) });
@@ -398,7 +413,7 @@ async function turn(opening) {
     // 字幕、历史、翻译、通话记录用的都是去掉标记的那句；带标记的另存一份，
     // 下一轮原样还给模型（见 engine.streamCall）
     const text = vs.plain(raw);
-    if (call.get().phase !== 'active') return;
+    if (call.get().phase !== 'active' || mine !== seq) return;
     if (!text) { call.set({ thinking: false, error: '对方那边没有声音' }); return; }
 
     const idx = call.get().lines.length;
@@ -416,7 +431,7 @@ async function turn(opening) {
     }
     transLine(chat, idx, text);
   } catch (err) {
-    if (isAbort(err)) return;
+    if (isAbort(err) || mine !== seq) return;
     call.set({ thinking: false, error: String(err.message || err) });
   }
 }

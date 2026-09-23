@@ -230,8 +230,8 @@ The shape of a reply with two messages:
 
 Translate only the content of that message: no explanation, no phonetic
 annotation, no restatement of the original.
-Marker lines such as [图片：…], [语音：…], and [表情：…] stand alone, with no
-translation line.`,
+[图片：…] and [表情：…] lines take no translation line. A [语音：…] line keeps
+only the spoken words in its brackets and takes a [译文：…] line like any message.`,
 
   // 贴着输出放的一句提醒。设定区里那一段离输出隔着整段历史，长对话里会被
   // 忘掉；各家的长上下文指引都是同一句话：关键的格式要求在开头说一遍，

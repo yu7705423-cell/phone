@@ -997,6 +997,7 @@ input[type="range"] {
   background: var(--scrim-strong); color: var(--on-scrim); font-size: var(--fs-11);
 }
 .voice-tone { margin-top: 4px; color: var(--text-3); }
+.voice-trans { margin-top: var(--sp-1); padding-top: var(--sp-1); border-top: 1px solid var(--border); color: var(--text-2); }
 
 /* 录音条。和多选栏共用 .select-bar 的位置与留白 */
 .rec-live {

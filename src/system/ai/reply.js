@@ -181,6 +181,42 @@ function transOf(line) {
   return { body, close, closed };
 }
 
+/**
+ * 一条语音里夹着的译文。
+ *
+ * 规则里写的是「语音那一行下面另起一行写译文」，但模型很常把译文塞进语音的括号里：
+ *
+ *   [语音：元気だよ（译文：我很好）]
+ *   [语音：元気だよ [译文：我很好]]
+ *   [语音：元気だよ          （括号没收口，下一行的 [译文：…] 被当成语音的后半截）
+ *   [译文：我很好]
+ *
+ * 不拆开的话，送去语音接口的是整段 —— **译文被一起念出来**。
+ * 所以带「译文：」标签的那一截一律切出去，收进这条语音的 translation；
+ * 用户自己配的行内形状（原文（译文）之类）同样认。都不像就原样念。
+ *
+ * 旧消息里已经混进去的，重新生成语音时也过一遍（见 generateVoice）。
+ */
+const VOICE_TRANS = /\s*[[【(（]?\s*(?:译文|翻译|译|translation)\s*[:：]/i;
+export function splitVoiceText(body, forms = translate.compiled()) {
+  let text = String(body || '').trim();
+  let translation = '';
+  const at = text.search(VOICE_TRANS);
+  if (at > 0) {
+    translation = text.slice(at).replace(VOICE_TRANS, '').replace(/[\]】)）]+\s*$/, '').trim();
+    text = text.slice(0, at).trim();
+  } else {
+    const inline = translate.splitInline(text, forms);
+    if (inline) { text = inline.text; translation = inline.translation; }
+  }
+  return { text, translation };
+}
+
+function voicePart(body, forms) {
+  const v = splitVoiceText(body, forms);
+  return { type: 'voice', text: v.text, ...(v.translation ? { translation: v.translation } : {}) };
+}
+
 // 时间行同理。让模型自己写一遍当地时间，是目前最靠谱的时间感知 ——
 // 写过一遍才算真看见。但它是给模型自己定位用的，不该显示给用户，
 // 所以这里剥掉，只把内容记在消息上，回头再塞回上下文（见 engine.buildHistory）。
@@ -360,7 +396,7 @@ export function splitReply(raw) {
 
   const push = part => {
     if (pendingQuote) { part.quote = pendingQuote; pendingQuote = null; }
-    if (pendingTrans && part.type === 'text' && !part.translation) {
+    if (pendingTrans && (part.type === 'text' || part.type === 'voice') && !part.translation) {
       part.translation = pendingTrans; pendingTrans = null;
     }
     parts.push(part);
@@ -393,7 +429,11 @@ export function splitReply(raw) {
   const attachTrans = body => {
     const text = String(body || '').trim();
     if (!text) return;
-    const at = parts.find(p => p.type === 'text' && !p.translation && !bareMark(p.text));
+    // 语音也有话可翻，但只认**紧跟在它下面**的那一句：规则里语音不必带译文，
+    // 没带的时候，后面那条正文的译文不该被它截走
+    const tail = parts[parts.length - 1];
+    const at = parts.find(p => p.type === 'text' && !p.translation && !bareMark(p.text))
+      || (tail?.type === 'voice' && !tail.translation ? tail : null);
     if (at) { at.translation = text; return; }
     // 一条正文都还没有：译文写在了原文上面，记着，下一条正文落下来时补上。
     // 已经有别的东西（图片、表情那种标记）却没有正文可配，就丢掉 ——
@@ -574,10 +614,13 @@ export function splitReply(raw) {
         push(IMAGE_KINDS.has(kind) ? { type: 'image', prompt: body }
           : CLIP_KINDS.has(kind) ? { type: 'clip', prompt: body }
           : STICKER_KINDS.has(kind) ? { type: 'sticker', name: body }
-          : { type: 'voice', text: body });
+          : voicePart(body, inlineForms));
       }
     }
     last = m.index + m[0].length;
+    // [语音：原话 [译文：…]] 这种套了一层的：正则在里面那个右括号就收了口，
+    // 外面那个落单，会自己成一个只有「]」的气泡
+    if (/[[【][^\]】]*$/.test(m[2]) && /^[\]】]/.test(text.slice(last))) last += 1;
   }
   pushText(text.slice(last));
   // 括号一直没收口就按已经读到的那半句算。少半个括号也好过把半句译文
@@ -1026,7 +1069,7 @@ function startTranslate(chat, parts) {
   const idx = [];
   const texts = [];
   parts.forEach((p, i) => {
-    if (p.type !== 'text' || p.translation) return;
+    if ((p.type !== 'text' && p.type !== 'voice') || p.translation) return;
     const t = String(p.text || '').trim();
     if (t) { idx.push(i); texts.push(t); }
   });
@@ -1266,7 +1309,13 @@ export function regenMedia(id) {
     generateImage(id, m.prompt, char);
   } else if (m.kind === 'voice') {
     if (m.audioId) files.remove(m.audioId);
-    messages.update(id, { audioId: null, media: 'pending', mediaError: '' });
+    // 角色那边的旧语音里混着译文的，顺手把记录也拆干净
+    const v = m.role === 'char' ? splitVoiceText(m.voiceText) : { text: m.voiceText, translation: '' };
+    messages.update(id, {
+      audioId: null, media: 'pending', mediaError: '',
+      ...(v.translation ? { voiceText: v.text, content: `[语音：${v.text}]`,
+        translation: m.translation || v.translation } : {}),
+    });
     generateVoice(id, m.voiceText, char || {});
   }
 }
@@ -1340,6 +1389,8 @@ async function generateVoice(msgId, text, char) {
     });
     return;
   }
+  // 旧消息里可能已经混着译文（见 splitVoiceText）。念的只有原话
+  text = splitVoiceText(text).text;
   try {
     // 先写成台本：原话不动，插上哪里停顿、哪里换情绪（依据是用户的语音世界书）。
     // 默认关着，开了才多这一次调用；写不出来或改了台词就照原话念
