@@ -16,6 +16,8 @@ export const DEFAULT_SETTINGS = {
   writeImagePrompt: false,
   writeVideoPrompt: false,
   writeVoicePrompt: false,
+  // 群聊每个开口的成员各调一次。默认一次调用写整轮（第 15 条）
+  groupPerChar: false,
   appIcons: {},                   // appId -> { icon }  单独换某个 app 的图标
   iconColor: '#000000',           // SVG 颜色
   iconShadow: true,               // 图标阴影

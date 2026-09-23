@@ -3,6 +3,7 @@ import { phone, useStore, useImage } from '../../../sdk/index.js';
 import { Avatar, EmptyState, Button, Icon, Sheet, List, ListItem,
          toast, confirm } from '../../../ui/index.js';
 import { relTime, splitBubbles, myChats } from '../helpers.js';
+import { GroupFace } from './GroupBits.js';
 
 const { db, nav } = phone;
 
@@ -25,10 +26,10 @@ const Row = memo(function Row({ chat, onHold }) {
     : last.kind === 'call' ? `[${phone.call.label(last.direction, last.outcome, last.seconds, last.callKind === 'video')}]`
     : last.kind === 'notice' ? String(last.content || '').replace(/^\[|\]$/g, '')
     : (splitBubbles(last.content).slice(-1)[0] || last.content);
-  const isGroup = ids.length > 1;
-  const title = isGroup
-    ? (chat.title || ids.map(id => db.characters.get(id)?.name).filter(Boolean).join('、'))
-    : (char?.name || '已删除的角色');
+  const isGroup = phone.group.isGroup(chat);
+  const title = isGroup ? phone.group.titleOf(chat) : (char?.name || '已删除的角色');
+  // 群里的最后一条带上是谁说的
+  const who = isGroup && last?.role === 'char' ? `${db.characters.get(last.authorId)?.name || ''}：` : '';
 
   let holdTimer = null;
   const start = () => { holdTimer = setTimeout(() => { holdTimer = null; onHold(chat); }, 500); };
@@ -40,16 +41,18 @@ const Row = memo(function Row({ chat, onHold }) {
       onMouseDown=${start} onMouseUp=${end} onMouseLeave=${end}
       onTouchStart=${start} onTouchEnd=${end} onTouchMove=${end}
       onContextMenu=${e => { e.preventDefault(); onHold(chat); }}>
-      <${Avatar} src=${avatar} name=${title} size=${46} radius=${23}/>
+      ${isGroup
+        ? html`<${GroupFace} chat=${chat} size=${46}/>`
+        : html`<${Avatar} src=${avatar} name=${title} size=${46} radius=${23}/>`}
       <div class="msg-main">
         <div class="msg-line">
-          ${phone.extras.isStarred(char) ? html`
+          ${!isGroup && phone.extras.isStarred(char) ? html`
             <${Icon} name="star" size=${13} class="msg-star"/>` : null}
           <span class="msg-name ellipsis">${title}</span>
           <span class="msg-time">${relTime(chat.lastMessageAt)}</span>
         </div>
         <div class="msg-line">
-          <span class="msg-preview ellipsis">${chat.muted ? '[免打扰] ' : ''}${preview}</span>
+          <span class="msg-preview ellipsis">${chat.muted ? '[免打扰] ' : ''}${who}${preview}</span>
           ${chat.unread ? html`<span class="badge">${chat.unread > 99 ? '99+' : chat.unread}</span>` : null}
         </div>
       </div>
@@ -105,7 +108,8 @@ export function MessagesTab() {
       <${Capsule} title=${pinned.length ? '全部' : null} chats=${rest} onHold=${setHeld}/>
 
       <${Sheet} open=${!!held} onClose=${close}
-        title=${held ? (db.characters.get((held.characterIds || [])[0])?.name || '会话') : ''}>
+        title=${held ? (phone.group.isGroup(held) ? phone.group.titleOf(held)
+          : (db.characters.get((held.characterIds || [])[0])?.name || '会话')) : ''}>
         ${held ? html`
           <${List} inset=${false}>
             <${ListItem} title=${held.pinned ? '取消置顶' : '置顶这个会话'} arrow

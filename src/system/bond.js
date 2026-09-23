@@ -54,6 +54,8 @@ export function sourceOf(charId, personaId) {
   return memories.where(m => {
     if (m.rank !== 'S') return false;
     if (m.charId && m.charId !== charId) return false;
+    // 只留在某个群里的不进底色：底色是这个角色和你之间，到哪儿都带着的那一层
+    if (m.scopeChat) return false;
     if (!root || !m.personaId) return true;
     return accounts.rootIdOf(m.personaId) === root;
   }).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));

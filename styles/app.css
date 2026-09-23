@@ -2639,3 +2639,20 @@ button.search-bar { width: 100%; border: none; }
   margin-top: 5px; font-family: var(--sg-font);
   font-size: var(--fs-11); letter-spacing: .1em; color: var(--sg-dim);
 }
+
+/* ---- 群聊（ARCHITECTURE 4.162） ---- */
+/* 群头像：最多四个成员拼一格。尺寸由 GroupFace 以自定义属性传入 */
+.group-face {
+  flex: none; width: var(--gf-size); height: var(--gf-size);
+  border-radius: var(--r-full); overflow: hidden; background: var(--surface-2);
+  display: grid; grid-template-columns: 1fr; place-items: center;
+}
+.group-face.n-2, .group-face.n-3, .group-face.n-4 {
+  grid-template-columns: 1fr 1fr; gap: 2px; padding: 2px;
+}
+.group-face.n-3 > :first-child { grid-column: 1 / 3; }
+.group-head { display: flex; justify-content: center; padding: var(--sp-5) 0 var(--sp-2); }
+.group-add-foot { padding: var(--sp-4); }
+/* 群里别人说的话，气泡上方写着是谁 */
+.msg-who { font-size: var(--fs-11); color: var(--text-3); padding: 0 var(--sp-1); }
+.mention-bar { padding: 0 var(--sp-3) var(--sp-2); margin-top: 0; }

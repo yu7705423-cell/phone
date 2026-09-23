@@ -88,6 +88,26 @@ export const VOLATILE = new Set([
   'recent',   // 一提取就换一批，而且「多久以前」每天都在变
 ]);
 
+/**
+ * 只拼指定的那几块，不补齐缺的。群聊用：设定区里有的块全群共用一份（世界书、
+ * 你是谁、时间），有的块每个成员各一份（人设、记忆）—— 两边各拼各的，
+ * 走 assemble 的话 resolveOrder 会把没点名的块全补回来。
+ */
+export function assembleOnly(ids, ctx) {
+  let out = '';
+  let hot = '';
+  for (const id of ids) {
+    const block = BLOCKS[id];
+    if (!block) continue;
+    let text = '';
+    try { text = block.build(ctx) || ''; }
+    catch (err) { console.error(`[prompt] 区块 ${id} 构建失败`, err); }
+    if (!text) continue;
+    if (VOLATILE.has(id)) hot += text; else out += text;
+  }
+  return { text: out, volatile: hot };
+}
+
 // 每个区块单独 try/catch,一个区块出错不拖垮整个 prompt。
 // 回来的是两段：留在设定区的，和要下沉到对话末尾的。
 export function assemble(order, ctx) {

@@ -153,7 +153,22 @@ export async function runDue(now = Date.now()) {
   if (!engine.isConfigured()) return 0;
 
   let done = 0;
+  const grp = await import('./ai/group.js');
+  const { isGroup } = await import('./group.js');
   for (const chat of list) {
+    // 群聊走群聊那一路：一次调用写整轮，或者按开关每人一次
+    if (isGroup(chat)) {
+      if (grp.isBusy(chat)) continue;
+      clear(chat.id);
+      try {
+        const made = await grp.run(chat, { notify: true });
+        chats.update(chat.id, { unread: (chats.get(chat.id)?.unread || 0) + made.length });
+        done += 1;
+      } catch (err) {
+        console.warn('[pace] 这个群没回成:', err.message || err);
+      }
+      continue;
+    }
     const char = characters.get((chat.characterIds || [])[0]);
     // 正在生成就别插一脚 —— 会话页那个定时器可能已经动手了
     if (!char || engine.isReplying(chat.id, char.id)) continue;

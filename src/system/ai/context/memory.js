@@ -20,10 +20,17 @@ export const belongsTo = (m, charId) => !m.charId || m.charId === charId;
 //  - 不同根账号之间完全隔离，一条都不给
 //  - 同一个根下面，大号的记忆对小号也可见（角色还是同一个角色，它记得那些事），
 //    但会被标成「关于某某」，而不是「关于你现在在聊的这个人」
-export function listFor(charId, personaId) {
+//
+// chatId：只在某个群里生效的记忆（`scopeChat`，群自己的开关关着时记下的）
+// 只在那个群里拿得到。不给 chatId 就一律不给 —— 私聊、朋友圈、日程这些
+// 地方都不该知道「只留在群里」的事（见 ARCHITECTURE 4.162）。
+export const inScope = (m, chatId) => !m.scopeChat || m.scopeChat === chatId;
+
+export function listFor(charId, personaId, chatId = '') {
   const root = personaId ? rootIdOf(personaId) : null;
   return memories.where(m => {
     if (!belongsTo(m, charId)) return false;
+    if (!inScope(m, chatId)) return false;
     if (!root) return true;                       // 没给身份就不过滤，给调用方兜底
     if (!m.personaId) return true;                // 迁移前的老记忆，当作大号的
     return rootIdOf(m.personaId) === root;
@@ -216,7 +223,7 @@ function poolFor(charId, personaId, ctx) {
   // 钉住的、忌讳的、近期那一档都已经常驻了，不再来挤这几个名额。
   // 不排除的话它们占两份位置，而召回本来就只有几个名额
   const skip = ctx.skip instanceof Set ? ctx.skip : null;
-  const all = listFor(charId, personaId)
+  const all = listFor(charId, personaId, ctx.chat?.id)
     .filter(m => m.rank !== 'S' && !m.supersededBy && !m.pinned && !m.taboo
       && !(skip && skip.has(m.id)));
   // 这段关系最早的那几条，给一点永久加成
@@ -265,8 +272,9 @@ export function candidates(ctx) {
   const { settings, char, scanText, queryVec, persona, skip } = ctx;
   const personaId = persona?.id || null;
   const useVec = settings.memoryVector === true && embedReady() && queryVec?.length;
-  const all = listFor(char?.id, personaId);
+  const all = listFor(char?.id, personaId, ctx.chat?.id);
   const sctx = {
+    chat: ctx.chat || null,
     now: Date.now(),
     text: String(scanText || '').toLowerCase(),
     queryVec: useVec ? queryVec : null,
@@ -491,8 +499,8 @@ export function buildBond(ctx) {
 // 替角色作判断（第 16 条管的是后者）。
 
 /** 钉住的与忌讳的。上限是默认值不是封顶，填 0 就是全都要（第 13 条）。 */
-export function pinnedOf(charId, personaId, cap = 8) {
-  const all = listFor(charId, personaId)
+export function pinnedOf(charId, personaId, cap = 8, chatId = '') {
+  const all = listFor(charId, personaId, chatId)
     .filter(m => !m.supersededBy && (m.pinned || m.taboo))
     .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
   const n = Math.max(0, Math.round(Number(cap) || 0));
@@ -507,7 +515,7 @@ export function pinnedOf(charId, personaId, cap = 8) {
 export function buildPinned(ctx) {
   const cap = ctx.settings?.pinnedMax;
   const { keep, taboo } = pinnedOf(ctx.char?.id, ctx.persona?.id,
-    cap === undefined ? 8 : cap);
+    cap === undefined ? 8 : cap, ctx.chat?.id);
   if (!keep.length && !taboo.length) return '';
   const out = [];
   if (keep.length) out.push(keep.map(m => `- ${m.content}`).join('\n'));
@@ -536,10 +544,10 @@ export function buildPinned(ctx) {
 //   相关记忆  按这一轮的话去检索，命中才来
 
 /** 最近记下的几条。上限是默认值不是封顶，填 0 就是不带（第 13 条）。 */
-export function recentOf(charId, personaId, cap = 5) {
+export function recentOf(charId, personaId, cap = 5, chatId = '') {
   const n = Math.max(0, Math.round(Number(cap) || 0));
   if (!n) return [];
-  return listFor(charId, personaId)
+  return listFor(charId, personaId, chatId)
     // S 级在关系底色里，钉住与忌讳在「一直记着」里，都不必再来一遍
     .filter(m => m.rank !== 'S' && !m.supersededBy && !m.pinned && !m.taboo)
     .sort((a, b) => (Number(b.createdAt) || 0) - (Number(a.createdAt) || 0))
@@ -549,7 +557,7 @@ export function recentOf(charId, personaId, cap = 5) {
 export function buildRecent(ctx) {
   if (!ctx.settings?.memoryEnabled) return '';
   const cap = ctx.settings?.memoryRecent;
-  const rows = recentOf(ctx.char?.id, ctx.persona?.id, cap === undefined ? 5 : cap);
+  const rows = recentOf(ctx.char?.id, ctx.persona?.id, cap === undefined ? 5 : cap, ctx.chat?.id);
   if (!rows.length) return '';
   const now = ctx.now || Date.now();
   const lines = rows.map(m => `- ${agoText(m, now)}　${m.content}`);

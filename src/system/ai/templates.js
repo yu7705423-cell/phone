@@ -973,6 +973,24 @@ conversation, so write the place alone.
 Booking, tickets and the money for them are handled outside this conversation.
 Do not write that a ticket has been bought or that a price has been paid.`,
 
+  // 群聊一次调用写整轮（见 engine.buildGroupSystem）。名字格式是协议：
+  // reply.js 按「名字：」把一整段拆回各个成员
+  'skeleton.group-opening':
+`This is a group chat on a phone. The members are {{names}}; {{userName}} is also
+in the chat. You write the lines of every member. {{userName}} writes their own.
+Each member's settings follow under [成员：name]. Inside a member's section,
+"you" refers to that member.`,
+
+  'skeleton.group-rules':
+`[群聊规则]
+Start each line with the speaker's name and a colon, e.g. {{example}}：…
+A line without a name continues the previous speaker.
+Only the members named above speak. Do not write lines for {{userName}}.`,
+
+  'skeleton.group-mention':
+`[本轮点名]
+{{names}} is addressed with @ in the latest message and replies in this turn.`,
+
   'skeleton.group':
 `This is a group chat. The other members are: {{members}}.
 Recent messages are prefixed with the speaker. Say only your own lines; do not

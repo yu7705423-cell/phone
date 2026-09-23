@@ -13,12 +13,15 @@ import { forget as forgetSnap } from './ai/tasks/snap.js';
 const chatsOf = charId =>
   chats.all().filter(c => (c.characterIds || []).includes(charId));
 
+// 「清空这个角色的聊天记录」只清它自己的会话。群里还有别人说的话，不归它
+const ownChatsOf = charId => chatsOf(charId).filter(c => c.group !== true);
+
 const memsOf = charId =>
   memories.all().filter(m => m.charId === charId);
 
 /** 清之前先数一遍。界面要把数目写在确认框里，不能让用户蒙着点。 */
 export function counts(charId) {
-  const list = chatsOf(charId);
+  const list = ownChatsOf(charId);
   return {
     chats: list.length,
     messages: list.reduce((n, c) => n + messagesOf(c.id).length, 0),
@@ -31,7 +34,7 @@ export function counts(charId) {
  * 那几个游标记的是「提取到哪条了」，消息没了不归零，下次提取会找不到位置。
  */
 export function clearHistory(charId) {
-  const list = chatsOf(charId);
+  const list = ownChatsOf(charId);
   let n = 0;
   const imgs = [];
   for (const chat of list) {
@@ -96,6 +99,8 @@ export function dropChat(chatId) {
     });
     works.remove(w.id);
   });
+  // 只在这个群里生效的记忆，群没了就再也用不上（别处一律拿不到它），跟着删
+  memories.removeWhere(m => m.scopeChat === chatId);
   chats.remove(chatId);
   releaseImages(imgs);
   return true;
@@ -112,7 +117,17 @@ export function dropChat(chatId) {
 export function dropCharacter(charId) {
   const c = characters.get(charId);
   if (!c) return false;
-  chatsOf(charId).forEach(chat => dropChat(chat.id));
+  // 群聊不跟着删：把这个人移出去就行，别人的话还在。
+  // 移完不够两人的群整个删掉 —— 只剩一人的群会被全库那十几处
+  // 「length === 1 就是私聊」认成那个人的私聊（见 system/group.js）
+  chatsOf(charId).forEach(chat => {
+    const rest = (chat.characterIds || []).filter(id => id !== charId);
+    if (chat.group === true && rest.length >= 2) {
+      chats.update(chat.id, { characterIds: rest });
+      return;
+    }
+    dropChat(chat.id);
+  });
   // 「上次自己存照片是什么时候」记在 localStorage 里，不在数据域中，
   // 所以那几张登记表管不到它，只能在这儿一并抹掉
   forgetSnap(charId);

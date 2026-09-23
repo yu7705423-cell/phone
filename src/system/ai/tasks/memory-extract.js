@@ -7,6 +7,7 @@ import { uid } from '../../store.js';
 import * as memcheck from '../../memcheck.js';
 import * as accounts from '../../accounts.js';
 import * as sceneStore from '../../scene.js';
+import * as group from '../../group.js';
 
 // 线下那些段落，摆成消息的样子。
 //
@@ -92,8 +93,24 @@ export async function extract(chatId) {
   const cap = batchSize();
   const pending = cap ? all.slice(0, cap) : all;
 
-  const charId = (chat.characterIds || [])[0];
-  const existing = listFor(charId, chat.personaId);
+  // 群聊：记下来的事每个成员各存一份（他们都在场），同一件事的几份共用一个
+  // twin，改一份就一起改。群自己的开关关着时，这几份只在这个群里生效
+  //（scopeChat，见 context/memory.js 的 listFor 与 ARCHITECTURE 4.162）
+  const inGroup = group.isGroup(chat);
+  const owners = inGroup
+    ? group.members(chat).map(c => c.id)
+    : [(chat.characterIds || [])[0]];
+  const scopeChat = inGroup && !group.memShared(chat) ? chat.id : '';
+  const seenTwin = new Set();
+  const existing = [];
+  for (const id of owners) {
+    for (const m of listFor(id, chat.personaId, chat.id)) {
+      const k = m.twin || m.id;
+      if (seenTwin.has(k)) continue;
+      seenTwin.add(k);
+      existing.push(m);
+    }
+  }
 
   const dialogue = pending.map(m => {
     const who = m.role === 'user' ? 'User' : (characters.get(m.authorId)?.name || 'Character');
@@ -148,14 +165,22 @@ export async function extract(chatId) {
     const keywords = Array.isArray(r.keywords) ? r.keywords.filter(Boolean).map(String) : [];
 
     if (r.updateId && memories.has(r.updateId)) {
-      // 内容变了旧向量就作废，清掉再排队重算
-      memories.update(r.updateId, { content: r.content, category, rank, keywords, vec: null, vecModel: '' });
-      touchVec(r.updateId);
+      // 内容变了旧向量就作废，清掉再排队重算。群里记的那几份一起改
+      const twin = memories.get(r.updateId).twin;
+      const ids = twin ? memories.where(m => m.twin === twin).map(m => m.id) : [r.updateId];
+      for (const id of ids) {
+        memories.update(id, { content: r.content, category, rank, keywords, vec: null, vecModel: '' });
+        touchVec(id);
+      }
       updated++;
       continue;
     }
+    const twin = owners.length > 1 ? uid('twin') : '';
+    for (const charId of owners) {
     const row = memories.create({
       id: uid('mem'), charId, content: r.content, category, rank, keywords,
+      ...(twin ? { twin } : {}),
+      ...(scopeChat ? { scopeChat } : {}),
       // 天生只该有一个值的那几样（职业、常住地……）。同一个槽位来了新的，
       // 旧的自动让位 —— 把矛盾在结构上消灭掉，比事后打捞省事
       slot: memcheck.SLOTS[r.slot] ? r.slot : '',
@@ -180,6 +205,7 @@ export async function extract(chatId) {
     // 模型没认出「这条取代那条」时，本地再兜一道。取代不是删除：
     // 旧那条留在库里，只是不再参与召回（见 system/memcheck.js）
     gone += memcheck.settleNew(row).length;
+    }
     added++;
   }
 

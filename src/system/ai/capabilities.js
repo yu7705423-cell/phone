@@ -374,9 +374,18 @@ export const CAPS = [
  * 拼出能力那一段。
  * lean 关掉就退回老样子：每个开着的能力都给整段细则。
  */
+// 群聊里说得通的那几样。转账、礼物、一起听、约定、出行这些都是「你和我」
+// 之间的事，群里没有一个对象可以接；心声、换头像按一个角色设计，群里一次写几个人。
+const GROUP_CAPS = new Set(['image', 'video', 'voice', 'sticker', 'quote', 'dice', 'time', 'translate']);
+
 export function capabilityBlock(raw) {
   // 注入块那边把消息列表叫 messages，这里一路叫 msgs，入口处对齐一次
   const ctx = { ...raw, msgs: raw.messages || raw.msgs || [] };
+  // 群聊：只给群里说得通的几样；某一样只要有一个成员开着就给
+  const members = Array.isArray(raw.members) ? raw.members : null;
+  const onFor = cap => (members
+    ? GROUP_CAPS.has(cap.id) && members.some(c => cap.on({ ...ctx, char: c }))
+    : cap.on(ctx));
   const lean = ctx.settings.promptLean !== false;
   const lines = [];
   const details = [];
@@ -387,7 +396,7 @@ export function capabilityBlock(raw) {
 
   for (const cap of CAPS) {
     if (off.has(cap.id) && !PROTOCOL.has(cap.id)) continue;
-    if (!cap.on(ctx)) continue;
+    if (!onFor(cap)) continue;
     const hot = !lean || cap.always || (cap.hot ? cap.hot(ctx) : false);
     if (hot || !cap.line) details.push(cap.detail({ ...ctx, hot }));
     else lines.push(cap.line(ctx));

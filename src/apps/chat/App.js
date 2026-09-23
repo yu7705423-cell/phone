@@ -1,6 +1,6 @@
 import { html, useState, useEffect } from '../../lib.js';
 import { phone, useStore } from '../../sdk/index.js';
-import { Page, EmptyState } from '../../ui/index.js';
+import { Page, EmptyState, IconButton } from '../../ui/index.js';
 import { myChats, chatFor } from './helpers.js';
 import { MessagesTab } from './pages/MessagesTab.js';
 import { ContactsTab } from './pages/ContactsTab.js';
@@ -25,6 +25,7 @@ import { StageList, SceneEdit } from './pages/StageList.js';
 import { StageRead } from './pages/StageRead.js';
 import { StageSettings } from './pages/StageSettings.js';
 import { SkinPage } from './pages/SkinPage.js';
+import { NewGroupPage, GroupPage } from './pages/GroupBits.js';
 
 const { db, nav } = phone;
 
@@ -50,7 +51,9 @@ function Tabs({ initial }) {
   const titles = { messages: '消息', contacts: '联系人', moments: '朋友圈', me: '主页' };
 
   return html`
-    <${Page} title=${titles[tab]} tabs=${{ items, value: tab, onChange: setTab }}>
+    <${Page} title=${titles[tab]} tabs=${{ items, value: tab, onChange: setTab }}
+      right=${tab === 'messages' ? html`<${IconButton} name="users" label="发起群聊"
+        onClick=${() => phone.nav.push('/group/new')}/>` : null}>
       ${tab === 'messages' ? html`<${MessagesTab}/>` : null}
       ${tab === 'contacts' ? html`<${ContactsTab}/>` : null}
       ${tab === 'moments' ? html`<${MomentsTab}/>` : null}
@@ -72,6 +75,11 @@ export default function ChatApp({ route }) {
   // 进去之后滚到那一条。会话 id 里不会有 @，所以拿它当分隔符是安全的。
   const conv = route?.match(/^\/chat\/([^@]+)(?:@(.+))?$/);
   if (conv) return html`<${Conversation} chatId=${conv[1]} focusId=${conv[2] || ''}/>`;
+
+  // 群聊。/group/new 建群，/group/<chatId> 群资料
+  if (route === '/group/new') return html`<${NewGroupPage}/>`;
+  const grp = route?.match(/^\/group\/(.+)$/);
+  if (grp) return html`<${GroupPage} chatId=${grp[1]}/>`;
 
   const lis = route?.match(/^\/listen\/(.+)$/);
   if (lis) return html`<${ListenPage} chatId=${lis[1]}/>`;

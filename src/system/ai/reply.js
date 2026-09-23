@@ -1,4 +1,5 @@
 import { messages, messagesOf, chats, characters, files, images, settings } from '../db/index.js';
+import * as group from '../group.js';
 import { uid } from '../store.js';
 import * as imageSvc from './image.js';
 import { isAbort } from './queue.js';
@@ -986,9 +987,11 @@ const bodyOf = m => (m.kind === 'text' ? m.content : BODY_OF[m.kind]) || '发来
 // 和气泡的节奏一致，而不是整轮说完之后一口气补三条。
 export function notifyMessage(chat, char, msg) {
   if (!msg || !shouldNotify(chat.id)) return;
+  // 群聊：标题是群名，谁说的写在正文前面
+  const inGroup = group.isGroup(chat);
   notify({
-    title: extras.starTitle(char, char.name || '新消息'),
-    body: bodyOf(msg),
+    title: inGroup ? group.titleOf(chat) : extras.starTitle(char, char.name || '新消息'),
+    body: inGroup ? `${char.name || ''}：${bodyOf(msg)}` : bodyOf(msg),
     icon: 'message', appId: 'chat', avatar: char.avatar,
     payload: { route: `/chat/${chat.id}` },
   });
@@ -1034,14 +1037,23 @@ async function applyTranslate(job, byPart) {
 export async function renderTurn({ chat, char, raw, turnId, swipes, swipeIndex, onEach, signal, instant, notify: wantNotify = false }) {
   const parts = splitReply(raw);
   if (!parts.length) throw new Error('模型返回了空内容');
-  const { think } = stripThink(raw);
+  return renderPlan({ chat, plan: parts.map(part => ({ part, char })), raw,
+    turnId, swipes, swipeIndex, onEach, signal, instant, wantNotify });
+}
 
+/**
+ * 一条条落下来。plan 里每一项是「这一条是谁说的、说了什么」——
+ * 一对一时全是同一个人，群聊时按名字拆开的各段各是各的人。
+ */
+async function renderPlan({ chat, plan, raw, turnId, swipes, swipeIndex, onEach, signal, instant, wantNotify }) {
+  const { think } = stripThink(raw);
+  const parts = plan.map(x => x.part);
   const job = startTranslate(chat, parts);
   const byPart = new Map();
   const created = [];
-  for (let i = 0; i < parts.length; i++) {
+  for (let i = 0; i < plan.length; i++) {
     if (signal?.aborted) break;
-    const part = parts[i];
+    const { part, char } = plan[i];
     const msg = materialize(part, {
       chatId: chat.id, role: 'char', authorId: char.id,
       turnId, status: 'done',
@@ -1052,15 +1064,76 @@ export async function renderTurn({ chat, char, raw, turnId, swipes, swipeIndex, 
     if (!msg) continue;
     byPart.set(i, msg.id);
     created.push(msg);
-    onEach && onEach(msg, i, parts.length);
+    onEach && onEach(msg, i, plan.length);
     if (wantNotify) notifyMessage(chat, char, msg);
-    if (!instant && i < parts.length - 1) await new Promise(r => setTimeout(r, pause(part)));
+    if (!instant && i < plan.length - 1) await new Promise(r => setTimeout(r, pause(part)));
   }
   // 一轮写一次。messages.create 已经通知过界面，每条再 update 一次 chats
   // 就是白多一轮重渲染。中途取消也照写，已经落下的那几条是真落了。
   if (created.length) chats.update(chat.id, { lastMessageAt: Date.now() });
   await applyTranslate(job, byPart);
   return created;
+}
+
+// ---- 群聊：按名字拆回各人 ----
+//
+// 模型一次写整轮，每行开头是「名字：」（skeleton.group-rules）。没带名字的行
+// 接在上一个说话的人后面 —— 译文行、图片标记、一句话分两行，都是这么写的。
+//
+// 认名字要宽一点：模型常把名字加粗（**小林**：）、套括号（【小林】：）。
+// 写成用户名字的那几行整段丢掉，那是替用户说话（规则里禁了，但会犯）。
+// 一个名字都没认出来就整段算第一个被点名的、或者第一个成员 ——
+// 全丢掉比认错一个人更糟。
+
+const escRe = t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+export function splitSpeakers(raw, members, { userName = '', fallback = '' } = {}) {
+  const { text: spoken } = stripThink(raw);
+  const { text, stamp } = stripStamps(spoken.trim());
+  const names = members.map(c => ({ id: c.id, name: String(c.name || '').trim() }))
+    .filter(x => x.name);
+  if (userName) names.push({ id: '__user', name: String(userName).trim() });
+  names.sort((a, b) => b.name.length - a.name.length);
+  const alt = names.map(x => escRe(x.name)).join('|');
+  const head = alt
+    ? new RegExp(`^\\s*(?:[*_]{1,2})?[【\\[(（]?\\s*(${alt})\\s*[】\\])）]?(?:[*_]{1,2})?\\s*[:：]\\s*(.*)$`)
+    : null;
+  const idOf = n => names.find(x => x.name === n)?.id || '';
+
+  const segs = [];
+  let cur = null;
+  for (const line of String(text).split('\n')) {
+    const m = head && line.match(head);
+    if (m) {
+      cur = { id: idOf(m[1]), lines: [] };
+      segs.push(cur);
+      if (m[2].trim()) cur.lines.push(m[2]);
+      continue;
+    }
+    if (!cur) { cur = { id: '', lines: [] }; segs.push(cur); }
+    cur.lines.push(line);
+  }
+  const first = fallback || members[0]?.id || '';
+  const out = segs
+    .filter(sg => sg.id !== '__user')
+    .map(sg => ({ charId: sg.id || first, text: sg.lines.join('\n').trim() }))
+    .filter(sg => sg.text);
+  // 时间只写一次，在最前面，挂回第一段上
+  if (stamp && out.length) out[0].text = `[时间：${stamp}]\n${out[0].text}`;
+  return out;
+}
+
+export async function renderGroupTurn({ chat, members, raw, turnId, swipes, swipeIndex, onEach, signal, instant,
+  notify: wantNotify = false, userName = '', fallback = '' }) {
+  const byId = new Map(members.map(c => [c.id, c]));
+  const plan = [];
+  for (const sg of splitSpeakers(raw, members, { userName, fallback })) {
+    const char = byId.get(sg.charId);
+    if (!char) continue;
+    for (const part of splitReply(sg.text)) plan.push({ part, char });
+  }
+  if (!plan.length) throw new Error('模型返回了空内容');
+  return renderPlan({ chat, plan, raw, turnId, swipes, swipeIndex, onEach, signal, instant, wantNotify });
 }
 
 // 删一条消息。图片和语音是另存的，跟着一起清掉，不然删完还占着空间。

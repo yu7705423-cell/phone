@@ -74,6 +74,8 @@ import * as musicApi from '../system/music.js';
 import * as listenApi from '../system/listen.js';
 import * as neteaseApi from '../system/netease.js';
 import * as purgeApi from '../system/purge.js';
+import * as groupApi from '../system/group.js';
+import * as aiGroup from '../system/ai/group.js';
 import * as charpackApi from '../system/charpack.js';
 import * as bookApi from '../system/book.js';
 import * as readApi from '../system/read.js';
@@ -213,6 +215,7 @@ export const phone = {
     caps: capsApi,
     cost: costApi,
     reply: replyApi,
+    group: aiGroup,
     repair: repairApi,
     proactive: proactiveApi,
     charAlt: charAltApi,
@@ -273,6 +276,7 @@ export const phone = {
   listen: listenApi,
   netease: neteaseApi,
   purge: purgeApi,
+  group: groupApi,
   charpack: charpackApi,
   book: bookApi,
   read: readApi,

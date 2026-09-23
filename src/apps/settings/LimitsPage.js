@@ -124,6 +124,14 @@ export function LimitsPage() {
               + '标注规则写在用途为「语音」的世界书中。'}
           right=${html`<${Switch} checked=${s.writeVoicePrompt === true}
             onChange=${v => set({ writeVoicePrompt: v })}/>`}/>
+        <${ListItem} title="群聊中每个角色单独调用" multiline
+          subtitle=${s.groupPerChar !== true
+            ? '已关闭。群聊每轮调用一次接口，由模型一次写出所有开口成员的台词。'
+              + '所有成员的角色卡在同一份提示词中，说话方式可能趋同。'
+            : '群聊每轮按开口的成员各调用一次：有 @ 时为被 @ 的成员，没有时为全体成员。'
+              + '每个成员只看自己的角色卡。群里有几人，每轮就最多多几次调用。'}
+          right=${html`<${Switch} checked=${s.groupPerChar === true}
+            onChange=${v => set({ groupPerChar: v })}/>`}/>
         <${ListItem} title="角色自己发视频" multiline
           subtitle=${s.videoOn !== true
             ? '已关闭。角色不会发视频，你仍可在会话面板中自己生成。'

@@ -18,11 +18,14 @@ const HitRow = memo(function Hit({ id, q, scoped, onOpen }) {
   const msg = db.messages.get(id);
   const me = phone.accounts.current();
   const chat = msg ? db.chats.get(msg.chatId) : null;
-  const char = chat ? db.characters.get((chat.characterIds || [])[0]) : null;
+  const inGroup = phone.group.isGroup(chat);
+  // 群里的那条，头像与名字按说话的人取；会话名按群名
+  const char = chat ? db.characters.get(inGroup && msg?.role === 'char'
+    ? msg.authorId : (chat.characterIds || [])[0]) : null;
   const mine = msg?.role === 'user';
   const charName = char?.name || '已删除的角色';
   const speaker = mine ? (me?.name || '我') : charName;
-  const title = scoped ? speaker : charName;
+  const title = scoped ? speaker : inGroup ? phone.group.titleOf(chat) : charName;
   const face = scoped && mine ? me?.avatar : char?.avatar;
   const avatar = useImage(face);
   if (!msg) return null;

@@ -1,9 +1,9 @@
 import { settings, persona, characters, chats, messages, messagesOf } from '../db/index.js';
 import * as accounts from '../accounts.js';
 import * as clock from '../time.js';
-import { assemble } from './context/index.js';
+import { assemble, assembleOnly } from './context/index.js';
 import { activate as activateLore, split as splitLore, textOf as loreText, voiceBookText } from './context/lorebook.js';
-import { recallAsync as recallMemory, recallText, depthOf as memoryDepth,
+import { recallAsync as recallMemory, recall as recallSync, recallText, depthOf as memoryDepth,
   markRecalled, recentOf as recentMemories } from './context/memory.js';
 import { fillTemplate, template } from './templates.js';
 import { capabilityBlock } from './capabilities.js';
@@ -23,6 +23,7 @@ import { beatsOf, timeOf, DIRECTOR, ME } from '../scene.js';
 import * as work from '../work.js';
 import * as tone from '../tone.js';
 import { markRead } from '../receipt.js';
+import * as group from '../group.js';
 
 // 接口协议要求带 max_tokens，取一个足够大的值，等同于不限制
 export const MAX_OUTPUT = 32000;
@@ -924,9 +925,9 @@ export function streamReply({ chat, char, onDelta }) {
     // 开了重排的话这一步要等一次请求。没开就是同步返回，不多花时间
     // 近期那一档已经常驻了，召回不该再挑同样几条 —— 占两份位置，
     // 而召回本来就只有几个名额
-    const skip = new Set(recentMemories(char.id, me?.id, s0.memoryRecent).map(m => m.id));
+    const skip = new Set(recentMemories(char.id, me?.id, s0.memoryRecent, chat.id).map(m => m.id));
     const recall = await recallMemory({
-      settings: s0, char, scanText: scanTextOf(msgs, s0.scanWindow),
+      settings: s0, char, chat, scanText: scanTextOf(msgs, s0.scanWindow),
       budgets: budgets(s0.contextBudget), queryVec, persona: me, skip,
     });
     // 先拼 system：每轮都变的那几块由它挑出来，交给 buildHistory 插到对话末尾
@@ -945,6 +946,168 @@ export function streamReply({ chat, char, onDelta }) {
     if (recall?.length) markRecalled(recall);
     // 不 await：描述是给以后几轮用的，这一轮模型已经看过原图了，
     // 让它拖住回复的返回没有意义。
+    if (pics) describeCarried(pics);
+    return text;
+  }, { replace: true, retries: 1 });
+}
+
+// ---- 群聊：一次调用写整轮 ----
+//
+// 见 ARCHITECTURE 4.162。一次请求，模型按「名字：台词」写出这一轮里开口的
+// 那几个成员，reply.js 按名字拆回各自的气泡。第 15 条：发一条消息只调一次。
+//
+// 代价是所有成员的角色卡在同一份 prompt 里，说话容易趋同。要各看各的，
+// 用「用量与上限」里的「群聊中每个角色单独调用」（每个开口的成员一次）。
+//
+// 设定区分两层：
+//   全群一份  世界书（成员各自激活后取并集）、你是谁、时间
+//   每人一份  人设、情境、说话示例、核心设定、关系底色、钉住的、最近记下的、本轮召回
+// 线上一对一才有意义的那几块（你们之间的空间、距离、一起听、账本、出行……）不进群。
+
+const GROUP_SHARED = ['lorebook', 'loreAfter', 'user', 'time'];
+const GROUP_MEMBER = ['bond', 'pinned', 'recent'];
+
+/** 成员各自激活世界书，取并集。同一本书的同一条只算一次 */
+function groupLore(members, scanText, budget) {
+  const seen = new Set();
+  const out = [];
+  for (const c of members) {
+    for (const e of activateLore(c, scanText, budget).items) {
+      const k = `${e.bookId}:${e.id}`;
+      if (seen.has(k)) continue;
+      seen.add(k);
+      out.push(e);
+    }
+  }
+  return out;
+}
+
+function memberBlock(c, ctx) {
+  const lines = [`[成员：${c.name}]`];
+  if (c.persona) lines.push(c.persona.trim());
+  if (c.scenario) lines.push(`[当前情境]\n${c.scenario.trim()}`);
+  if (c.exampleDialogue) lines.push(`[说话方式示例]\n${c.exampleDialogue.trim()}`);
+  const core = String(c.core || '').trim();
+  if (core) lines.push(`[核心设定]\n${core}`);
+  const mem = assembleOnly(GROUP_MEMBER, ctx);
+  const body = (mem.text + mem.volatile).trim();
+  if (body) lines.push(body);
+  if (ctx.recall?.length) lines.push(recallText(ctx.recall));
+  return lines.join('\n\n');
+}
+
+export function buildGroupSystem(chat, members, msgs, opts = {}) {
+  const s = settings.get();
+  const me = accounts.get(chat?.personaId) || accounts.current() || persona.get();
+  const userName = me.name || '对方';
+  const scanText = scanTextOf(msgs, s.scanWindow);
+  const base = {
+    side: 'chat', chat, messages: msgs, persona: me, settings: s, scanText,
+    budgets: budgets(s.contextBudget), queryVec: opts.queryVec || null,
+  };
+  const lore = opts.lore || groupLore(members, scanText, base.budgets.lorebook);
+
+  let out = fillTemplate(template('skeleton.group-opening'), {
+    userName, names: members.map(c => c.name).join('、'),
+  });
+
+  const shared = assembleOnly(GROUP_SHARED, { ...base, char: members[0], lore });
+  out += shared.text;
+
+  for (const c of members) {
+    out += '\n\n' + memberBlock(c, { ...base, char: c, recall: opts.recalls?.get(c.id) || null });
+  }
+
+  if (chat.summary) out += `\n\n[更早之前发生过什么]\n${chat.summary}`;
+
+  out += '\n\n' + fillTemplate(template('skeleton.group-rules'), {
+    userName, example: members[0]?.name || '',
+  });
+  out += '\n\n' + template('skeleton.rules');
+  out += capabilityBlock({ ...base, char: members[0], members });
+
+  if (ban.on()) out += '\n\n' + fillTemplate(template('skeleton.ban'), { list: ban.promptLines() });
+
+  // 性别锚点：一对一那里首尾各放一次，这里人多，放在贴着输出的末尾
+  const gl = members.filter(c => String(c.gender || '').trim()).map(c => `${c.name}：${c.gender.trim()}`);
+  if (String(me?.gender || '').trim()) gl.push(`${userName}：${me.gender.trim()}`);
+  if (gl.length) out += '\n\n' + fillTemplate(template('skeleton.gender'), { lines: gl.join('\n') });
+
+  return { system: out, volatile: shared.volatile, lore, tokens: estimate(out) };
+}
+
+/**
+ * 群聊的历史。模型写的是全体成员的台词，所以成员说的话都算 assistant，
+ * 前面带着名字 —— 和它要写出来的格式一模一样，历史就是示范。
+ */
+export function buildGroupHistory(chat, members, msgs, opts = {}) {
+  const s = settings.get();
+  const byTurn = s.historyMode === 'turn';
+  const capped = s.historyLimit > 0;
+  const scope = byTurn
+    ? takeTurns(msgs, s.historyTurns)
+    : capped ? msgs.slice(-Math.max(2, s.historyLimit * 2)) : msgs.slice();
+  const kept = takeLatestWithin(scope, s.contextBudget, m => m.content || '');
+  const view = (byTurn || !capped) ? kept : kept.slice(-s.historyLimit);
+  const pics = opts.images || null;
+  const inlineTrans = !!chat.translateTo && translateMode() === 'inline';
+  const nameOf = id => members.find(c => c.id === id)?.name || characters.get(id)?.name || '某人';
+
+  const list = view.map((m, i) => {
+    const text = timeLine(m, view[i - 1]) + withQuote(m);
+    if (m.role === 'user') {
+      const pic = pics && pics.get(m.id);
+      return pic ? { role: 'user', content: text, image: pic } : { role: 'user', content: text };
+    }
+    const tr = inlineTrans ? String(m.translation || '').trim() : '';
+    return { role: 'assistant', content: `${nameOf(m.authorId)}：${text}${tr ? `\n[译文：${tr}]` : ''}` };
+  });
+
+  const depths = splitLore(opts.lore || []).depths;
+  const called = (opts.mentions || []).map(nameOf).filter(Boolean);
+  const tail = [
+    String(opts.volatile || '').trim(),
+    called.length ? fillTemplate(template('skeleton.group-mention'), { names: called.join('、') }) : '',
+    inlineTrans ? fillTemplate(template('skeleton.translate-tail'), { lang: chat.translateTo }) : '',
+  ].filter(Boolean).join('\n\n');
+  if (tail) depths.set(1, [...(depths.get(1) || []), { content: tail, raw: true }]);
+  return insertLore(mergeAdjacent(list), depths);
+}
+
+export const groupKey = chatId => `reply:${chatId}:group`;
+
+export function streamGroupReply({ chat, onDelta }) {
+  const msgs = messagesOf(chat.id).filter(m => m.status !== 'error');
+  const members = group.members(chat);
+  if (!members.length) throw new Error('群里没有成员');
+
+  return enqueue(groupKey(chat.id), async signal => {
+    markRead(chat.id);
+    const s0 = settings.get();
+    const me = accounts.get(chat?.personaId) || accounts.current();
+    const pics = await imagesFor(msgs);
+    const queryVec = await queryVecFor(msgs);
+    const scanText = scanTextOf(msgs, s0.scanWindow);
+    // 召回每个成员各算一份。只走本地那一档，不走重排：重排是一次接口调用，
+    // 按成员算就是每轮 N 次，而「用量与上限」登记的是 1 次
+    const recalls = new Map();
+    for (const c of members) {
+      const skip = new Set(recentMemories(c.id, me?.id, s0.memoryRecent, chat.id).map(m => m.id));
+      recalls.set(c.id, recallSync({
+        settings: s0, char: c, chat, scanText, budgets: budgets(s0.contextBudget),
+        queryVec, persona: me, skip,
+      }));
+    }
+    const { system, volatile: hot, lore } = buildGroupSystem(chat, members, msgs, { queryVec, recalls });
+    const history = buildGroupHistory(chat, members, msgs, {
+      images: pics, lore, volatile: hot, mentions: group.pendingMentions(msgs),
+    });
+    const oneShot = s0.streamMode === 'once';
+    const text = await runWith('chat.reply', c => send('chat.reply', c,
+      { system, messages: history, maxTokens: c.maxTokens, signal, onDelta: oneShot ? undefined : onDelta },
+      oneShot ? 'complete' : 'stream'));
+    const used = [...recalls.values()].flat();
+    if (used.length) markRecalled(used);
     if (pics) describeCarried(pics);
     return text;
   }, { replace: true, retries: 1 });

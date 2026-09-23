@@ -19,6 +19,7 @@ import { TransferBubble, NoticeLine, TransferSheet, SettleSheet,
          ListenBubble, ListenLogSheet, ListenBar, WatchBubble, ReadBubble, ExcerptBubble,
          WatchBar, RequestBubble, RequestSheet, VoteSheet } from './TransferBits.js';
 import { SceneBlock, LookFloat } from './SceneInline.js';
+import { MentionBar } from './GroupBits.js';
 
 // panel 这个名字在本文件里已经被「当前开着哪个面板」占了（见下面的 useState），
 // 所以模块换个名字进来 —— 同名会被局部变量盖掉，读出来是 null。
@@ -112,7 +113,7 @@ export function ComposerBar({ draft = '', live = false, busy = false, frozen = f
 // 下面传给它的函数属性都是稳定身份的，见 Conversation 里的 stable。
 export const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, onSwipe, onHold, onBind,
                   selecting, selected, onToggle, transOpen, onSettle, onOpenLog, onUnwrap,
-                  onPat, innerStyle, fold, foldCount, onScene,
+                  onPat, innerStyle, fold, foldCount, onScene, who = '',
                   stampAt = 'off', readOn = false, readUpTo = 0 }) {
   const mine = msg.role === 'user';
   // 落点是几个标量属性算出来的，不在这里读设置 —— 这个组件是 memo 过的，
@@ -192,6 +193,7 @@ export const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, o
         <${Avatar} src=${avatar} name=${mine ? phone.accounts.current()?.name : char?.name} size=${36} radius=${18}/>
       </div>
       <div class="msg-col ph-col">
+        ${who ? html`<div class="msg-who">${who}</div>` : null}
         <${QuoteRef} quote=${quote} onClick=${() => jumpTo(quote.id)}/>
 
         ${msg.kind === 'transfer'
@@ -382,6 +384,12 @@ export function Conversation({ chatId, focusId = '' }) {
 
   const chat = db.chats.get(chatId);
   const char = db.characters.get((chat?.characterIds || [])[0]);
+  // 群聊：每条消息是谁说的看 authorId，头像与名字按它取。char 仍是第一个成员 ——
+  // 只给那几处「这段会话属于谁」的兜底用（见 ARCHITECTURE 4.162）
+  const isGroup = phone.group.isGroup(chat);
+  const members = isGroup ? phone.group.members(chat) : [];
+  const authorOf = id => (isGroup ? (members.find(c => c.id === id) || char) : char);
+  const whoOf = m => (isGroup && m.role === 'char' ? authorOf(m.authorId)?.name || '' : '');
   // 开场白那条不入库，每次渲染现造。现造的对象身份每次都不一样，
   // 记忆化就永远判不出相等，所以这里也钉住。
   const greeting = useMemo(
@@ -568,10 +576,32 @@ export function Conversation({ chatId, focusId = '' }) {
     }
   }
 
+  // 群聊一轮。一次调用写整轮，或者按开关每人一次（见 system/ai/group.js）
+  async function generateGroup({ turnId, swipes } = {}) {
+    setBusy(true);
+    try {
+      await ai.group.run(chat, { turnId, swipes, notify: true });
+      if (ai.memory.shouldAutoExtract(chatId, settings.autoSummarizeInterval)) {
+        ai.memory.extract(chatId)
+          .then(r => { if (r.added || r.updated) toast(`记忆更新 ${r.added + r.updated} 条`); })
+          .catch(err => console.warn('[memory] 自动提取失败', err));
+      }
+    } catch (err) {
+      if (!ai.queue.isAbort(err)) {
+        db.messages.create({
+          chatId, role: 'char', authorId: members[0]?.id || char.id, kind: 'text',
+          content: '', status: 'error', error: String(err.message || err),
+        });
+        toast(String(err.message || err), 'error', 4500);
+      }
+    } finally { setBusy(false); }
+  }
+
   async function generate({ turnId: reuseTurn, swipes: prevSwipes } = {}) {
     const open = sceneApi.openInline(chatId);
     if (open) { await generateScene({ row: open }); return; }
     if (!ai.isConfigured()) { toast('尚未配置模型接口', 'error'); return; }
+    if (isGroup) { await generateGroup({ turnId: reuseTurn, swipes: prevSwipes }); return; }
     setBusy(true);
 
     // 生成期间**不放占位气泡**。要说的是「对方在输入」，那句话属于标题栏，
@@ -650,8 +680,10 @@ export function Conversation({ chatId, focusId = '' }) {
     const q = draftQuote();
     setDraft('');
     setQuoting(null);
+    // 群里 @ 了谁。存 id，改名之后照样认得（见 system/group.js）
+    const called = isGroup ? phone.group.mentionsIn(text, chat) : [];
     const msg = db.messages.create({ chatId, role: 'user', authorId: 'me', kind: 'text',
-      content: text, status: 'done', ...q });
+      content: text, status: 'done', ...q, ...(called.length ? { mentions: called } : {}) });
     db.chats.update(chatId, { lastMessageAt: Date.now() });
     // 本地那一道监督：刚发出去的这句里有没有「我想 / 打算 / 记得」一类的线索。
     // 不花钱也不延迟，落成待确认，下面那条栏问一句（见 system/todo.js）
@@ -677,7 +709,8 @@ export function Conversation({ chatId, focusId = '' }) {
   //   节奏是「发完就回」立刻生成
   //   节奏是「过一会儿」 记一个到点时刻，下面那个 effect 负责等
   function afterSend(text) {
-    if (autoReply.shouldReply(chatId, 'hers')) { autoReply.fire(chatId, 'hers'); return; }
+    // 自动回复是替一个角色回一句固定的话，群里没有「她」
+    if (!isGroup && autoReply.shouldReply(chatId, 'hers')) { autoReply.fire(chatId, 'hers'); return; }
     const mode = pace.modeOf(db.chats.get(chatId));
     if (mode === pace.NOW) generate();
     else if (mode === pace.PACED) pace.schedule(chatId, text);
@@ -869,6 +902,10 @@ export function Conversation({ chatId, focusId = '' }) {
     const i = ((msg.swipeIndex || 0) + dir + swipes.length) % swipes.length;
     const turnId = msg.turnId;
     ai.reply.clearTurn(chatId, turnId);
+    if (isGroup) {
+      await ai.group.replay(chat, swipes[i], { turnId, swipes, swipeIndex: i, instant: true });
+      return;
+    }
     await ai.reply.renderTurn({
       chat, char, raw: swipes[i], turnId, swipes, swipeIndex: i,
       instant: true,                 // 重放不需要逐条停顿
@@ -935,7 +972,8 @@ export function Conversation({ chatId, focusId = '' }) {
     : m.kind === 'request' ? setVoting(m) : setSettling(m));
   latest.current = { onRetry, onSwipe, togglePick, onSettle: settleAny,
     onOpenLog: openLog, onUnwrap: setUnwrap,
-    onPat: () => extras.pat({ chatId, role: 'user' }),
+    // 拍一拍是对着一个人的，群里点头像只看心声
+    onPat: () => { if (!isGroup) extras.pat({ chatId, role: 'user' }); },
     onScene: (kind, id) => {
       if (kind === 'look') setLook(true);
       else if (id) nav.push(`/scene/${id}/edit`);
@@ -1114,9 +1152,15 @@ export function Conversation({ chatId, focusId = '' }) {
       if (row.opening === sceneApi.CHAR) generateScene({ row });
     },
   };
-  const runTap = id => (TAP[id] || (() => toast('这一项尚未实现')))();
+  // 群里说得通的那几格。转账、礼物、通话、一起听这些都是对着一个人的
+  const GROUP_TAPS = new Set(['photo', 'voice', 'dice', 'makeclip']);
+  const runTap = id => {
+    if (isGroup && !GROUP_TAPS.has(id)) { toast('群聊中不可用'); return; }
+    (TAP[id] || (() => toast('这一项尚未实现')))();
+  };
   const PANEL_ITEMS = [
-    ...panelCfg.onPanel().map(id => ({ ...panelCfg.itemOf(id), onTap: () => runTap(id) })),
+    ...panelCfg.onPanel().filter(id => !isGroup || GROUP_TAPS.has(id))
+      .map(id => ({ ...panelCfg.itemOf(id), onTap: () => runTap(id) })),
     { id: '_more', icon: 'more', label: '更多', onTap: () => setMore(true) },
   ];
 
@@ -1139,7 +1183,8 @@ export function Conversation({ chatId, focusId = '' }) {
 
   return html`
     <${Page} title=${selecting ? `已选 ${picked.length} 条`
-      : busy ? html`<span class="conv-typing">正在输入</span>` : char.name}
+      : busy ? html`<span class="conv-typing">正在输入</span>`
+      : isGroup ? `${phone.group.titleOf(chat)}（${members.length}）` : char.name}
       onBack=${selecting ? () => setPicked(null) : nav.pop} noScroll
       right=${selecting
         ? html`<button class="nav-text press" onClick=${() => setPicked(view.map(m => m.id))}>全选</button>`
@@ -1159,7 +1204,7 @@ export function Conversation({ chatId, focusId = '' }) {
         })()}
         <div class="conv-main">
         <div class="conv-body ph-chat-body scroll" ref=${bodyRef} onScroll=${onScroll}>
-          ${char.firstMessage && !msgs.length ? html`
+          ${!isGroup && char.firstMessage && !msgs.length ? html`
             <${Bubble} msg=${greeting} char=${char} chat=${chat} frozen
               onRetry=${stable.onRetry} onSwipe=${stable.onSwipe}
               onHold=${stable.noop} onToggle=${stable.noop}/>` : null}
@@ -1167,10 +1212,11 @@ export function Conversation({ chatId, focusId = '' }) {
             <button class="conv-earlier press" onClick=${loadEarlier}>
               查看更早的消息（还有 ${earlier} 条）</button>` : null}
           ${rows.map(row => (row.stack ? html`
-            <${StackRow} key=${row.id} msgs=${row.msgs} char=${char}
+            <${StackRow} key=${row.id} msgs=${row.msgs} char=${authorOf(row.msgs[0].authorId)}
               onExpand=${() => setOpenStack(s => new Set(s).add(row.id))}/>`
           : html`
-            <${Bubble} key=${row.id} msg=${row.msg} char=${char} chat=${chat}
+            <${Bubble} key=${row.id} msg=${row.msg} char=${authorOf(row.msg.authorId)} chat=${chat}
+              who=${whoOf(row.msg)}
               onRetry=${stable.onRetry} onSwipe=${stable.onSwipe} onHold=${setHeld}
               onBind=${stable.onBind}
               selecting=${selecting} selected=${selecting && pickedSet.has(row.id)}
@@ -1187,8 +1233,10 @@ export function Conversation({ chatId, focusId = '' }) {
             <div class="sc-block sc-live" style=${stage.varsOf(stage.forScene(live))}>
               <div class="sg-text">${sceneDraft}</div>
             </div>` : null}
-          ${!msgs.length && !char.firstMessage ? html`
-            <div class="conv-hint">发送第一条消息开始对话</div>` : null}
+          ${!msgs.length && (isGroup || !char.firstMessage) ? html`
+            <div class="conv-hint">${isGroup
+              ? '发送第一条消息开始群聊。输入 @ 可指定成员回复'
+              : '发送第一条消息开始对话'}</div>` : null}
         </div>
 
         ${!atBottom && !selecting ? html`
@@ -1242,13 +1290,16 @@ export function Conversation({ chatId, focusId = '' }) {
                 <${Icon} name="close" size=${15}/></button>
             </div>` : null}
 
+          ${isGroup ? html`<${MentionBar} chat=${chat} draft=${draft} onPick=${setDraft}/>` : null}
+
           <${ComposerBar} draft=${draft} live=${!!live} busy=${busy}
             onDraft=${setDraft} onSend=${send}
             onMenu=${() => setPanel(panel === 'menu' ? null : 'menu')}
             onSticker=${() => setPanel(panel === 'sticker' ? null : 'sticker')}
             onMore=${() => generateScene({ more: true })}
             onLook=${() => setLook(true)}
-            onStop=${() => (live ? ai.cancelScene(live.id) : ai.cancelReply(chatId, char.id))}
+            onStop=${() => (live ? ai.cancelScene(live.id)
+              : isGroup ? ai.group.stop(chat) : ai.cancelReply(chatId, char.id))}
             onGenerate=${() => generate()}/>
 
           ${panel && !live ? html`
@@ -1338,13 +1389,26 @@ export function Conversation({ chatId, focusId = '' }) {
       <${RequestSheet} open=${asking} chatId=${chatId} onClose=${() => setAsking(false)}/>
       <${VoteSheet} msg=${voting} onClose=${() => setVoting(null)}/>
 
-      <${MsgMenu} msg=${held} char=${char} onClose=${() => setHeld(null)}
+      <${MsgMenu} msg=${held} char=${held ? authorOf(held.authorId) : char} onClose=${() => setHeld(null)}
         onRegenerate=${canRegen ? () => regenerate(held.turnId) : null}
         onQuote=${m => { setQuoting(m); setPanel(null); }}
         onMultiSelect=${m => { setPicked([m.id]); setPanel(null); }}
         onDelete=${id => dropMessages([id])}/>
 
-      <${FullSheet} open=${menu} onClose=${() => setMenu(false)} title=${char.name}>
+      <${FullSheet} open=${menu} onClose=${() => setMenu(false)}
+        title=${isGroup ? phone.group.titleOf(chat) : char.name}>
+        ${isGroup ? html`
+        <${List} title="这个群">
+          <${ListItem} title="群资料" arrow multiline
+            subtitle=${`${members.map(c => c.name).join('、')} · `
+              + (phone.group.memShared(chat) ? '群里的事带进私聊' : '群里的事只留在群里')}
+            left=${html`<${Icon} name="users" size=${18}/>`}
+            onClick=${() => { setMenu(false); nav.push(`/group/${chatId}`); }}/>
+          ${members.map(c => html`
+            <${ListItem} key=${c.id} title=${`${c.name} 的角色卡`} arrow
+              left=${html`<${Icon} name="user" size=${18}/>`}
+              onClick=${() => { setMenu(false); nav.push(`/edit/${c.id}`); }}/>`)}
+        <//>` : html`
         <${List} title="这个角色">
           <${ListItem} title="角色卡" arrow multiline
             subtitle="人设、核心设定、开场白、对话示例、关联世界书，以及当日日程与各项能力的开关"
@@ -1368,7 +1432,7 @@ export function Conversation({ chatId, focusId = '' }) {
               })()}
               left=${html`<${Icon} name="music" size=${18}/>`}
               onClick=${pullMusic}/>` : null}
-        <//>
+        <//>`}
 
         <${List} title="这段对话">
           <${ListItem} title="搜索聊天记录" subtitle=${`在这段对话中查找，共 ${msgs.length} 条消息`}
@@ -1399,7 +1463,7 @@ export function Conversation({ chatId, focusId = '' }) {
               : '关着。开启后角色每说一条会同时给出译文'}
             left=${html`<${Icon} name="translate" size=${18}/>`}
             onClick=${() => { setMenu(false); nav.push(`/translate/${chatId}`); }}/>
-          <${ListItem} title="互动" arrow multiline
+          ${isGroup ? null : html`<${ListItem} title="互动" arrow multiline
             subtitle=${`心声${extras.innerMode(chat) === extras.INNER_OFF ? '关着'
               : extras.innerMode(chat) === extras.INNER_INLINE ? '随回复一起生成' : '每轮单独生成'}`
               + ` · 拍一拍 · ${extras.facesOf(chat)} 面骰子`}
@@ -1413,7 +1477,7 @@ export function Conversation({ chatId, focusId = '' }) {
                 : '关着。开启后角色知道你们相距多远，距离由本地计算';
             })()}
             left=${html`<${Icon} name="compass" size=${18}/>`}
-            onClick=${() => { setMenu(false); setSharing(true); }}/>
+            onClick=${() => { setMenu(false); setSharing(true); }}/>`}
         <//>
 
         <${List} title="记忆与上下文">
@@ -1437,7 +1501,7 @@ export function Conversation({ chatId, focusId = '' }) {
                 + '从别处迁入大量历史、又不打算为它们生成记忆时用'}
               left=${html`<${Icon} name="check" size=${18}/>`}
               onClick=${skipSummary}/>` : null}
-          <${ListItem} title="关系底色" arrow multiline
+          ${isGroup ? null : html`<${ListItem} title="关系底色" arrow multiline
             subtitle=${(() => {
               const t = ai.bond.textOf(char, chat.personaId);
               const n = ai.bond.sourceOf(char.id, chat.personaId).length;
@@ -1452,7 +1516,7 @@ export function Conversation({ chatId, focusId = '' }) {
               return n ? `这段关系下有 ${n} 部长篇或番外` : '长篇与番外。以成段的文字写，与聊天分开保存';
             })()}
             left=${html`<${Icon} name="book" size=${18}/>`}
-            onClick=${() => { setMenu(false); phone.intent.open('us', { route: `/chat/${chatId}`, back: true }); }}/>
+            onClick=${() => { setMenu(false); phone.intent.open('us', { route: `/chat/${chatId}`, back: true }); }}/>`}
           <${ListItem} title="每轮的接口调用" arrow multiline
             subtitle=${(() => {
               const n = ai.cost.perTurn(chatId);
@@ -1487,7 +1551,7 @@ export function Conversation({ chatId, focusId = '' }) {
             onClick=${() => { setMenu(false); nav.push('/templates'); }}/>
         <//>
 
-        <${List} title="数据">
+        ${isGroup ? null : html`<${List} title="数据">
           <${ListItem} title=${packing ? '正在打包' : '导出这个角色'} arrow multiline
             subtitle=${packN ? [
     `${packN.chats} 段会话、${packN.messages} 条消息、${packN.memories} 条记忆`,
@@ -1523,7 +1587,7 @@ export function Conversation({ chatId, focusId = '' }) {
         <div class="settings-foot">
           清除操作针对该角色名下的全部内容。同一角色与多个身份分别聊过的，
           各段会话与各身份下的记忆都会被清除。角色卡、世界书关联与各项设置不受影响。
-        </div>
+        </div>`}
       <//>
     ${look ? html`<${LookFloat} sceneId=${live?.id || ''} onClose=${() => setLook(false)}/>` : null}
     <//>`;

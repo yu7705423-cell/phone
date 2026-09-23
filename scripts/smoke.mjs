@@ -16,6 +16,7 @@ const ROUTES = {
     '/chat/:chat', '/translate/:chat', '/search', '/search/:chat', '/listen/:chat',
      '/profile/:char', '/edit/:char', '/proactive/:char', '/extras/:chat', '/pace/:chat',
      '/bond/:chat',
+    '/group/new', '/group/:group', '/group/nope', '/chat/:group',
     '/skin/:chat', '/skin/nope',
     '/stage/:chat', '/stage/nope', '/stage/settings', '/stage/settings/:scene',
     '/scene/:scene', '/scene/:scene/edit', '/scene/nope', '/scene/nope/edit'],
@@ -232,11 +233,20 @@ const ids = await page.evaluate(async () => {
     at: '19:40', text: '雨还没停。' + '很长的一段'.repeat(60) });
   sceneMod.addBeat({ sceneId: cpRow.id, role: 'me', text: '我把行李放下。' });
 
+  // 群聊：两个成员、各说过一句、有一条 @
+  const grpRow = (await import('/src/system/group.js')).create({ ids: [a.id, b.id], title: '样例群' });
+  db.messages.create({ chatId: grpRow.id, role: 'user', authorId: 'me', kind: 'text',
+    content: '@甲 在吗', mentions: [a.id], status: 'done' });
+  db.messages.create({ chatId: grpRow.id, role: 'char', authorId: a.id, kind: 'text',
+    content: '在。', status: 'done' });
+  db.messages.create({ chatId: grpRow.id, role: 'char', authorId: b.id, kind: 'text',
+    content: '我也在。', status: 'done' });
+
   const skinRow = (await import('/src/system/skin.js')).create({ name: '样例美化',
     tokens: { bubbleR: 18 }, shape: 'round', css: '.bubble{opacity:.95}' });
   return { char: a.id, chat: chat.id, mem: mem.id, work: wkRow.id, chapter: cpRow.id, persona: me.id, book: bk.id, ebook: ebk.id, video: vid.id, lore: lore.id,
     alb: book1.id, pho: pho.id, card: cardPhoto.id, trip: trRow.id, scene: scRow.id,
-    skin: skinRow.id };
+    skin: skinRow.id, group: grpRow.id };
 });
 await page.waitForTimeout(400);
 

@@ -90,6 +90,13 @@ export const EXTRA_CALLS = [
     when: '角色每发一条语音，先多一次接口在原句中标出停顿、情绪与声音（走副用接口；通话中随台词一并标出，不另计）',
   },
   {
+    id: 'groupPerChar',
+    label: '群聊中每个角色单独调用',
+    setting: 'groupPerChar', off: false,
+    on: s => s.groupPerChar === true,
+    when: '群聊每轮按开口的成员各调用一次：被 @ 的成员，或未 @ 时的全体成员',
+  },
+  {
     id: 'callSummary',
     label: '打完电话自动总结',
     setting: 'callSummary', off: false,
@@ -254,6 +261,9 @@ export function perTurn(chatId) {
   if (chat?.translateTo && svc.translateMode() === 'api') n += 1;
   // 心声「单独生成」那一档是整轮说完之后另起的一次调用
   if (chat?.innerMode === 'apart') n += 1;
+  // 群聊按人头算的那一档：回复本身从 1 次变成成员数那么多次（没 @ 人时全体都说）
+  const size = (chat?.characterIds || []).filter(id => characters.get(id)).length;
+  if (size > 1 && s.groupPerChar === true) n += size - 1;
   return n;
 }
 

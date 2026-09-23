@@ -44,10 +44,12 @@ export function collect(charId, { history = true } = {}) {
   const books = [...bookIds].map(b => lorebooks.get(b)).filter(b => b && !b.global);
 
   const none = [];
+  // 群不带走：群里的其他成员不一定在这个包里，装到别处就是一个缺了人的群。
+  // 只在群里生效的记忆同理（它挂着的那个群不在包里）
   const chatRows = history
-    ? chats.all().filter(c => (c.characterIds || []).some(x => castIds.has(x))) : none;
+    ? chats.all().filter(c => c.group !== true && (c.characterIds || []).some(x => castIds.has(x))) : none;
   const msgRows = history ? chatRows.flatMap(c => messagesOf(c.id)) : none;
-  const memRows = history ? memories.where(m => castIds.has(m.charId)) : none;
+  const memRows = history ? memories.where(m => castIds.has(m.charId) && !m.scopeChat) : none;
 
   // 挂在这几段会话上的
   const sceneRows = chatRows.flatMap(c => scenes.byIndex(c.id));

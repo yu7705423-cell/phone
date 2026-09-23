@@ -135,6 +135,7 @@ function MemoryList() {
               subtitle=${[ownerName(m), CATEGORIES[m.category] || m.category,
                 m.pinned ? '一直记着' : '', m.taboo ? '不主动提起' : '',
                 m.supersededBy ? '已让位' : '',
+                m.scopeChat ? `仅限群「${phone.group.titleOf(db.chats.get(m.scopeChat))}」` : '',
                 m.keywords?.length ? m.keywords.join('、') : '',
                 m.source === 'auto' ? '自动提取' : ''].filter(Boolean).join(' · ')}
               left=${html`<span class=${`rank rank-${m.rank}`}>${m.rank}</span>`}

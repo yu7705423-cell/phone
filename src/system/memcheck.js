@@ -72,7 +72,10 @@ export function supersede(oldId, newId) {
  */
 export function settleNew(row) {
   if (!row || !row.content) return [];
-  const pool = poolOf(row.charId, row.personaId, row.id);
+  // 生效范围不同的两条不互相顶：只留在某个群里的一条顶掉了私聊里那条，
+  // 私聊时那件事就凭空没了（见 ARCHITECTURE 4.162）
+  const pool = poolOf(row.charId, row.personaId, row.id)
+    .filter(m => (m.scopeChat || '') === (row.scopeChat || ''));
   const out = [];
 
   if (row.slot && SLOTS[row.slot]) {
