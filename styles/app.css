@@ -684,6 +684,8 @@ input[type="range"] {
   background-position: center; background-repeat: no-repeat;
 }
 .btn-row .btn { flex: 1; min-width: 0; }
+/* 一排可选的小标签（类型、型号、尺寸）：按内容定宽，放不下就换行，不挤成半截字 */
+.btn-row.is-chips .btn { flex: none; }
 
 /* 头像框：编辑页上那一小块试戴。和会话里一样，框挂在头像那个盒子外面，
    所以这里的结构也是「一个 36 见方的盒子 + 一张绝对定位的图」。 */

@@ -166,7 +166,7 @@ export function newVideoPreset(init = {}) {
     name: init.name || '未命名',
     kind: init.kind || 'minimax',
     baseUrl: '', apiKey: '', model: '',
-    resolution: '768P', duration: 5, ratio: '16:9',
+    resolution: '768P', duration: 5, ratio: '16:9', size: '1280x720',
     // 隔多久问一次、最多等多久，秒。生成一段要一到五分钟，
     // 所以等待给得宽；填 0 就是一直等（第 13 条）
     pollEvery: 6, maxWait: 600,

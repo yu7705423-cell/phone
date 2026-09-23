@@ -7489,6 +7489,27 @@ fluent 与 whisper 只有 speech-2.6 认。**从前的词表里有一个 neutral
 按作息才走原来那套（`call.answerOf`、`willAnswer`），说明里写出当前的免打扰时段。
 角色打给你的那一路不受影响。
 
+### 4.171 生成视频接上 OpenAI 兼容的中转站（`ai/video.js`）
+
+从前只有海螺那一套（`/v2/video_generation`）。现在「类型」有四种，对外仍是 submit / look / wait 三个：
+
+| 类型 | 提交 | 查询 | 取回 |
+|---|---|---|---|
+| MiniMax（海螺） | `POST /v2/video_generation` | `GET /v2/query/video_generation/{id}` | 结果里的链接 |
+| OpenAI 视频格式 | `POST /v1/videos`（model、prompt、seconds 字符串、size「宽x高」，首帧放 `input_reference.image_url`） | `GET /v1/videos/{id}` | `GET /v1/videos/{id}/content`，**要带密钥**；查询结果里直接给了链接就用链接 |
+| 中转站统一格式 | `POST /v1/video/generations`（model、prompt、duration、width、height，首帧放 image） | `GET /v1/video/generations/{task_id}` | 结果里的 url |
+| 聊天接口出视频 | `POST /v1/chat/completions`，描述当成一句话，不流式 | —— | 回复里挑出的链接（优先 .mp4/.webm/.mov） |
+
+- 各家状态词翻成三个：queued / running / succeeded，失败另算；气泡上那一行只认这三个
+- 后两种没有默认地址，必须填中转站地址，没填不算配好（`isVideoReady`）
+- **聊天接口那一种是一次长请求，不进 AIQueue**（会占着并发位几分钟，聊天排在后面动不了），
+  编号是本地造的、请求挂在内存里，所以关掉应用就接不回来 —— 类型说明与设置页底下都写明了；
+  超时就是「最长等待」。自检不提交生成（那要花一段视频的钱），只问 `/v1/models`，看密钥与模型名
+- 设置页按类型只显示用得上的字段：海螺是分辨率、时长、宽高比；OpenAI 与统一格式是尺寸与时长；
+  聊天那一种只有最长等待
+
+格式按 OpenAI Videos API 与 new-api 文档核对过（2026-09）。
+
 ### 13.2 接下来
 
 按「用户能不能感觉到」排序，不按实现难度。

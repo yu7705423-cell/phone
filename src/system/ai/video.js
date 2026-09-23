@@ -32,6 +32,15 @@ import { note } from './usage.js';
 export const KINDS = [
   { id: 'minimax', label: 'MiniMax（海螺）', base: 'https://api.minimax.cn',
     note: '走 /v2/video_generation。填自己的地址即可换成别的中转站，只要它转的是同一套接口。' },
+  { id: 'openai', label: 'OpenAI 视频格式', base: 'https://api.openai.com',
+    note: '走 /v1/videos（Sora 2 的官方格式）。许多中转站把别家视频模型也挂在这一套下面，'
+      + '填中转站地址与它列出的模型名即可。时长与尺寸按对方支持的填，Sora 2 是 4、8、12 秒。' },
+  { id: 'unified', label: '中转站统一格式', base: '',
+    note: '走 /v1/video/generations，new-api、one-api 一系的中转站常用这一套，'
+      + '可灵、即梦、Vidu 等都从这里转。必须填中转站地址。' },
+  { id: 'chat', label: '聊天接口出视频', base: '',
+    note: '走 /v1/chat/completions：把描述当成一句话发过去，对方等视频生成完，在回复里给一个链接。'
+      + '一次请求要等到出结果，中途关掉应用这一段就接不回来。必须填中转站地址。' },
 ];
 export const kindOf = id => KINDS.find(k => k.id === id) || KINDS[0];
 
@@ -43,11 +52,17 @@ export const kindOf = id => KINDS.find(k => k.id === id) || KINDS[0];
  * 而不是等接口回一个 400 再让人自己猜是哪一项不对。
  */
 export const MODELS = [
-  { id: 'MiniMax-H3', label: 'MiniMax-H3', res: ['768P', '2K'], minDur: 4,
+  { id: 'MiniMax-H3', label: 'MiniMax-H3', kind: 'minimax', res: ['768P', '2K'], minDur: 4,
     note: '分辨率 768P 或 2K，时长 4 到 15 秒。' },
-  { id: 'MiniMax-H3-Max', label: 'MiniMax-H3-Max', res: ['480P', '768P'], minDur: 5,
+  { id: 'MiniMax-H3-Max', label: 'MiniMax-H3-Max', kind: 'minimax', res: ['480P', '768P'], minDur: 5,
     note: '极速档。分辨率 480P 或 768P，不支持 2K；时长 5 到 15 秒。' },
+  { id: 'sora-2', label: 'sora-2', kind: 'openai',
+    note: '时长 4、8 或 12 秒；尺寸 1280x720 或 720x1280。' },
+  { id: 'sora-2-pro', label: 'sora-2-pro', kind: 'openai',
+    note: '时长 4、8 或 12 秒；尺寸另支持 1792x1024 与 1024x1792。' },
 ];
+/** 这一类接口的常用型号。中转站格式与聊天格式各家叫法不同，不列，照对方列表填 */
+export const modelsFor = kind => MODELS.filter(m => m.kind === (kind || 'minimax'));
 export const modelOf = id => MODELS.find(m => m.id === id) || null;
 
 export const RATIOS = ['21:9', '16:9', '4:3', '1:1', '3:4', '9:16'];
@@ -56,12 +71,19 @@ export const MAX_DURATION = 15;
 /** 这一档认不认这个分辨率。认不出的模型（自己填的）一律放行。 */
 export const resOk = (model, res) => {
   const m = modelOf(model);
-  return !m || m.res.includes(res);
+  return !m || !m.res || m.res.includes(res);
+};
+
+/** 尺寸（宽x高）。OpenAI 与中转站统一格式用它，海螺那一套用分辨率加宽高比 */
+export const SIZES = ['1280x720', '720x1280', '1792x1024', '1024x1792', '1920x1080', '1080x1920'];
+const sizeOf = p => {
+  const m = String(p?.size || '1280x720').match(/^(\d+)\s*[x×*]\s*(\d+)$/i);
+  return m ? { w: Number(m[1]), h: Number(m[2]), text: `${m[1]}x${m[2]}` } : { w: 1280, h: 720, text: '1280x720' };
 };
 
 export const isVideoReady = () => {
   const p = activeVideo();
-  return !!(p && p.apiKey && p.model);
+  return !!(p && p.apiKey && p.model && (p.baseUrl || kindOf(p.kind).base));
 };
 
 /** 这套接口等多久（秒）。填 0 表示一直等（第 13 条）。 */
@@ -128,52 +150,190 @@ export const needPrompt = text => {
   return t;
 };
 
+// ---- 四种接口各自怎么提交、怎么问 ----
+//
+// 对外只有 submit / look / wait 三个，不管是哪一种：提交拿到一个编号、拿编号问状态、
+// 问到有结果就把视频取回来。编号落在消息上，重开应用接着问（见 reply.resumeClips）。
+//
+// 状态统一成三个词：queued（排队）、running（生成中）、succeeded（好了），
+// 失败另有 dead。各家原话五花八门（in_progress、processing、completed、success……），
+// 在这里翻一次，气泡上那一行（system/clip.js）只认这三个。
+const RUNNING = /^(in_progress|processing|running|generating|pending_generation)$/i;
+const DONE = /^(succeeded|success|completed|complete|done|finished)$/i;
+const DEAD = /^(failed|failure|error|cancelled|canceled|expired|rejected)$/i;
+function norm(raw) {
+  const state = String(raw || '');
+  if (DONE.test(state)) return { state: 'succeeded', done: true, dead: false };
+  if (DEAD.test(state)) return { state: /cancel/i.test(state) ? 'cancelled' : 'failed', done: false, dead: true };
+  return { state: RUNNING.test(state) ? 'running' : 'queued', done: false, dead: false };
+}
+const errOf = e => (e ? `${e.message || (typeof e === 'string' ? e : '生成失败')}${e.code ? `（${e.code}）` : ''}` : '');
+
+const auth = p => ({ authorization: `Bearer ${p.apiKey}` });
+const json = p => ({ 'content-type': 'application/json', ...auth(p) });
+
+const DRIVERS = {
+  // 海螺。宽高比 ratio 只在文生视频时发，带首帧时由图决定（adaptive）
+  minimax: {
+    path: '/v2/video_generation',
+    body(p, text, first) {
+      const content = [{ type: 'text', text }];
+      if (first) content.push({ type: 'image_url', image_url: { url: first }, role: 'first_frame' });
+      return {
+        model: p.model, content,
+        resolution: p.resolution || '768P',
+        duration: Math.max(1, Math.round(Number(p.duration) || 5)),
+        ...(first ? {} : { ratio: p.ratio || '16:9' }),
+      };
+    },
+    idOf: j => j?.task_id || j?.task?.id,
+    async look(p, id, signal) {
+      const j = await getJson(p, `/v2/query/video_generation/${encodeURIComponent(id)}`, signal);
+      const t = j?.task || {};
+      return { ...norm(t.status), url: t?.content?.url || '', error: errOf(t.error) };
+    },
+  },
+
+  // OpenAI /v1/videos。seconds 是字符串；成品从 /content 取，要带密钥
+  openai: {
+    path: '/v1/videos',
+    body(p, text, first) {
+      return {
+        model: p.model, prompt: text,
+        seconds: String(Math.max(1, Math.round(Number(p.duration) || 4))),
+        size: sizeOf(p).text,
+        ...(first ? { input_reference: { image_url: first } } : {}),
+      };
+    },
+    idOf: j => j?.id || j?.video_id || j?.task_id,
+    async look(p, id, signal) {
+      const j = await getJson(p, `/v1/videos/${encodeURIComponent(id)}`, signal);
+      const r = norm(j?.status);
+      // 有的中转站在查询结果里直接给链接；没给就走官方那个取文件的端点
+      const direct = j?.url || j?.video_url || j?.output?.url || '';
+      return { ...r, url: direct || api(p, `/v1/videos/${encodeURIComponent(id)}/content`),
+        headers: direct ? null : auth(p), error: errOf(j?.error) };
+    },
+  },
+
+  // new-api 一系的统一格式
+  unified: {
+    path: '/v1/video/generations',
+    body(p, text, first) {
+      const { w, h } = sizeOf(p);
+      return {
+        model: p.model, prompt: text,
+        duration: Math.max(1, Math.round(Number(p.duration) || 5)),
+        width: w, height: h,
+        ...(first ? { image: first } : {}),
+      };
+    },
+    idOf: j => j?.task_id || j?.id || j?.data?.task_id,
+    async look(p, id, signal) {
+      const j = await getJson(p, `/v1/video/generations/${encodeURIComponent(id)}`, signal);
+      const d = j?.data && !j.status ? j.data : j;
+      return { ...norm(d?.status), url: d?.url || d?.video_url || d?.output?.url || '', error: errOf(d?.error) };
+    },
+  },
+};
+
+async function getJson(p, path, signal) {
+  const res = await ask(api(p, path), { method: 'GET', signal, headers: auth(p) }, p, 30000);
+  if (!res.ok) await asError(res);
+  return res.json();
+}
+
+// ---- 聊天接口出视频 ----
+//
+// 它不是任务，是一次长请求：发过去一句描述，对方把视频生成完才回话，回话里带一个链接。
+// 这一下要等几分钟，**不进 AIQueue** —— 队列一共两个位，被它占着几分钟，
+// 聊天就排在后面动不了（和海螺那边「只有提交走队列」是同一个理由）。
+// 花钱照样记账（usage.note），也照样能取消。
+//
+// 编号是本地造的，请求挂在内存里。所以**关掉应用就接不回来** —— 类型说明里写明了。
+const live = new Map();   // 编号 -> { promise, abort, done, url, error }
+const URL_RE = /https?:\/\/[^\s)"'<>\]]+/g;
+
+function pickUrl(text) {
+  const all = String(text || '').match(URL_RE) || [];
+  return all.find(u => /\.(mp4|webm|mov|m4v)(\?|$)/i.test(u)) || all[0] || '';
+}
+
+function chatSubmit(p, text, first, key) {
+  const id = `chat-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+  const ctl = new AbortController();
+  const wait = waitOf(p);
+  const tr = trace.begin({ taskId: '生成视频 · 聊天接口', preset: p.name || '视频接口', model: p.model,
+    system: api(p, '/v1/chat/completions'), messages: [{ role: '描述', content: text }] });
+  note('video');
+  const content = first ? [{ type: 'text', text }, { type: 'image_url', image_url: { url: first } }] : text;
+  const job = { done: false, url: '', error: '', abort: () => ctl.abort() };
+  job.promise = ask(api(p, '/v1/chat/completions'), {
+    method: 'POST', signal: ctl.signal, headers: json(p),
+    body: JSON.stringify({ model: p.model, stream: false, messages: [{ role: 'user', content }] }),
+  }, p, wait > 0 ? wait * 1000 : 0).then(async res => {
+    if (!res.ok) await asError(res);
+    const j = await res.json();
+    const said = j?.choices?.[0]?.message?.content || '';
+    const url = pickUrl(typeof said === 'string' ? said : JSON.stringify(said));
+    if (!url) throw new Error(`回复里没有视频链接：${String(said).slice(0, 120) || '空的'}`);
+    job.url = url;
+    tr.done(url);
+  }).catch(err => { job.error = String(err.message || err); tr.fail(err); })
+    .finally(() => { job.done = true; });
+  live.set(id, job);
+  void key;
+  return id;
+}
+
+function chatLook(id) {
+  const job = live.get(id);
+  if (!job) {
+    return { state: 'failed', done: false, dead: true, url: '',
+      error: '应用重新打开过。聊天接口出视频是一次长请求，中途离开就断了，这一段接不回来' };
+  }
+  if (!job.done) return { state: 'running', done: false, dead: false, url: '' };
+  if (job.error) return { state: 'failed', done: false, dead: true, url: '', error: job.error };
+  return { state: 'succeeded', done: true, dead: false, url: job.url };
+}
+
 /**
- * 提交一个任务，拿 task_id。**这一下走队列**，它是一次真的接口调用。
+ * 提交一个任务，拿编号。**这一下走队列**，它是一次真的接口调用（聊天那一种例外，见上）。
  *
- * `first` 是首帧图的 data URL，给了就是图生视频。文档里那一条：图生视频的
- * 宽高比由那张图决定，`ratio` 恒为 adaptive —— 所以有首帧时不发 ratio，
- * 发过去也只会被忽略。文生视频反过来，ratio 必填且不能是 adaptive。
+ * `first` 是首帧图的 data URL，给了就是图生视频。
  */
 export function submit({ prompt, preset, first = '', key, parts = '' }) {
   const p = preset || activeVideo();
   if (!p || !p.apiKey) throw new Error('还没有配置视频接口');
   if (!p.model) throw new Error('这套视频接口还没有填模型名称');
+  if (!p.baseUrl && !kindOf(p.kind).base) throw new Error('这一类视频接口必须填中转站地址');
   const text = needPrompt(prompt);
-  const url = api(p, '/v2/video_generation');
+  const kind = kindOf(p.kind).id;
+  if (kind === 'chat') return Promise.resolve(chatSubmit(p, text, first, key));
 
+  const d = DRIVERS[kind];
+  const url = api(p, d.path);
   return enqueue(key || `video:${Date.now()}`, async signal => {
     note('video');
-    const content = [{ type: 'text', text }];
-    if (first) content.push({ type: 'image_url', image_url: { url: first }, role: 'first_frame' });
-    const body = {
-      model: p.model,
-      content,
-      resolution: p.resolution || '768P',
-      duration: Math.max(1, Math.round(Number(p.duration) || 5)),
-      ...(first ? {} : { ratio: p.ratio || '16:9' }),
-    };
+    const body = d.body(p, text, first);
     const tr = trace.begin({
       taskId: first ? '生成视频 · 带首帧' : '生成视频',
       preset: p.name || '视频接口',
       model: p.model,
-      system: `${url}\n${body.resolution} · ${body.duration} 秒`
-        + (first ? '\n这一次带了首帧图' : `\n宽高比 ${body.ratio}`),
+      // 首帧图是一整串 data URL，记账那一页只留个头
+      system: `${url}\n${JSON.stringify({ ...body, prompt: undefined, content: undefined },
+        (k, v) => (typeof v === 'string' && v.length > 120 ? `${v.slice(0, 40)}…` : v))}`,
       messages: [
         { role: '最终发出去的描述', content: text },
         ...(parts ? [{ role: '它由哪几段拼成', content: parts }] : []),
       ],
     });
     try {
-      const res = await ask(url, {
-        method: 'POST', signal,
-        headers: { 'content-type': 'application/json', authorization: `Bearer ${p.apiKey}` },
-        body: JSON.stringify(body),
-      }, p);
+      const res = await ask(url, { method: 'POST', signal, headers: json(p), body: JSON.stringify(body) }, p);
       if (!res.ok) await asError(res);
       const j = await res.json();
-      const taskId = j?.task_id || j?.task?.id;
-      if (!taskId) throw new Error(`接口没有返回 task_id。回包是：${JSON.stringify(j).slice(0, 200)}`);
+      const taskId = d.idOf(j);
+      if (!taskId) throw new Error(`接口没有返回任务编号。回包是：${JSON.stringify(j).slice(0, 200)}`);
       tr.done(`任务已提交：${taskId}`);
       return String(taskId);
     } catch (err) { tr.fail(err); throw err; }
@@ -186,20 +346,8 @@ export function submit({ prompt, preset, first = '', key, parts = '' }) {
  */
 export async function look(taskId, preset, signal) {
   const p = preset || activeVideo();
-  const res = await ask(api(p, `/v2/query/video_generation/${encodeURIComponent(taskId)}`), {
-    method: 'GET', signal, headers: { authorization: `Bearer ${p.apiKey}` },
-  }, p, 30000);
-  if (!res.ok) await asError(res);
-  const t = (await res.json())?.task || {};
-  const state = String(t.status || '');
-  return {
-    state,
-    done: state === 'succeeded',
-    dead: state === 'failed' || state === 'cancelled',
-    url: t?.content?.url || '',
-    duration: Number(t.duration) || 0,
-    error: t?.error ? `${t.error.message || '生成失败'}${t.error.code ? `（${t.error.code}）` : ''}` : '',
-  };
+  if (kindOf(p?.kind).id === 'chat') return chatLook(taskId);
+  return DRIVERS[kindOf(p?.kind).id].look(p, taskId, signal);
 }
 
 // 报错里写「任务失败了」不如写「任务已取消」。气泡上那一行在 system/clip.js
@@ -215,19 +363,26 @@ const stateText = s => STATE_TEXT[s] || '未能完成';
  */
 export async function wait({ taskId, preset, onTick, signal }) {
   const p = preset || activeVideo();
-  const every = everyOf(p) * 1000;
+  const chat = kindOf(p?.kind).id === 'chat';
+  // 聊天那一种是在等本地那一个请求，问得勤一点不花钱
+  const every = (chat ? 2 : everyOf(p)) * 1000;
   const limit = waitOf(p) * 1000;
   const at = Date.now();
   for (;;) {
-    if (signal?.aborted) throw Object.assign(new Error('已取消'), { name: 'AbortError' });
+    if (signal?.aborted) {
+      if (chat) live.get(taskId)?.abort();
+      throw Object.assign(new Error('已取消'), { name: 'AbortError' });
+    }
     const r = await look(taskId, p, signal);
     onTick?.(r);
     if (r.done) {
       if (!r.url) throw new Error('任务完成了，但接口没有给出视频链接');
-      return await fetchVideo(r.url, signal);
+      if (chat) live.delete(taskId);
+      return await fetchVideo(r.url, signal, r.headers);
     }
-    if (r.dead) throw new Error(r.error || `任务${stateText(r.state)}`);
-    if (limit > 0 && Date.now() - at > limit) {
+    if (r.dead) { if (chat) live.delete(taskId); throw new Error(r.error || `任务${stateText(r.state)}`); }
+    // 聊天那一种的超时由请求自己管，这里不另外截断
+    if (!chat && limit > 0 && Date.now() - at > limit) {
       throw new Error(`等了 ${Math.round((Date.now() - at) / 1000)} 秒还没有生成完。`
         + `任务仍在对方那边运行，没有被取消，编号 ${taskId}，可稍后重新查询。`
         + '可在该接口的「最长等待」里调大，或填 0 表示一直等。');
@@ -242,19 +397,21 @@ export async function wait({ taskId, preset, onTick, signal }) {
  * **链接是限时的**，所以拿到就立刻取，不把它当结果记下来。
  * 取回来的东西要看一眼是不是视频：链接过期、被网关挡住时回的常是一页 HTML，
  * 状态码照样 200 —— 不看就存，等到播放那一步才炸，而那时候看不出是这儿。
+ *
+ * OpenAI 那一种的成品端点要带密钥（headers），别家给的是公开链接。
  */
-async function fetchVideo(url, signal) {
-  const res = await nfetch(url, { signal, timeout: 180000 }).catch(err => {
+async function fetchVideo(url, signal, headers) {
+  const res = await nfetch(url, { signal, timeout: 180000, ...(headers ? { headers } : {}) }).catch(err => {
     throw new Error(`视频生成好了，但取不回来：${err.message || err}`);
   });
   if (!res.ok) throw new Error(`视频生成好了，但取回来时接口回了 ${res.status}`);
   const blob = await res.blob();
   const type = blob.type || '';
-  if (type && !/^video\//.test(type)) {
+  if (type && !/^video\//.test(type) && !/octet-stream/.test(type)) {
     const peek = (await blob.text().catch(() => '')).trim().slice(0, 120);
     throw new Error(`那个链接回来的不是视频${peek ? `：${peek}` : ''}`);
   }
-  return new Blob([blob], { type: type || 'video/mp4' });
+  return new Blob([blob], { type: /^video\//.test(type) ? type : 'video/mp4' });
 }
 
 /**
@@ -279,7 +436,24 @@ export async function testVideo(preset) {
   if (!p) return { ...out, ok: false, step: '没有接口', hint: '先新建一套视频接口。' };
   if (!p.apiKey) return { ...out, ok: false, step: '没填密钥', hint: '先填 API Key。' };
   if (!p.model) return { ...out, ok: false, step: '没填模型', hint: '先填模型名称。' };
-  if (!resOk(p.model, p.resolution)) {
+  if (!base) return { ...out, ok: false, step: '没填地址', hint: '这一类接口必须填中转站地址。' };
+  // 聊天那一种一提交就是一整段视频的钱，自检不提交：只问一下模型列表，
+  // 看密钥对不对、这个模型在不在
+  if (k.id === 'chat') {
+    try {
+      const j = await getJson(p, '/v1/models');
+      const ids = (j?.data || []).map(m => m.id);
+      const has = !ids.length || ids.includes(p.model);
+      return { ...out, ok: has, step: has ? '已连上' : '模型不在列表里',
+        hint: has
+          ? '密钥可用。聊天接口出视频的自检不真的生成（那要花一段视频的钱），第一次在会话里生成时才知道对方给不给链接。'
+          : `对方的模型列表里没有 ${p.model}。列表里有：${ids.slice(0, 12).join('、')}${ids.length > 12 ? '……' : ''}` };
+    } catch (err) {
+      return { ...out, ok: false, step: '接口报错', detail: String(err.message || err),
+        hint: '多半是地址或密钥不对。' };
+    }
+  }
+  if (k.id === 'minimax' && !resOk(p.model, p.resolution)) {
     return { ...out, ok: false, step: '分辨率这一档不支持',
       hint: `${p.model} 支持的是 ${modelOf(p.model).res.join(' 与 ')}。请先改分辨率。` };
   }
