@@ -4,7 +4,7 @@ import * as theirs from '../theirs.js';
 import * as clock from '../time.js';
 import * as currency from '../currency.js';
 import { template, fillTemplate } from './templates.js';
-import { translateMode } from './services.js';
+import { translateMode, neteaseReady } from './services.js';
 import { isImageReady } from './image.js';
 import { isVideoReady } from './video.js';
 import { styleAsk } from './imageprompt.js';
@@ -195,14 +195,15 @@ export const CAPS = [
   },
   {
     id: 'listen',
-    label: '一起听与点歌',
-    // 曲库是空的就没什么可听的，提了反而让它点一首不存在的歌
-    on: ({ char }) => char.canListen !== false && allSongs().length > 0,
+    label: '一起听、点歌、分享歌曲与歌单',
+    // 曲库是空的、又没配网易云，就没有歌可放，提了反而让它点一首不存在的歌。
+    // 配了网易云，曲库空着也能从那边搜回来
+    on: ({ char }) => char.canListen !== false && (allSongs().length > 0 || neteaseReady()),
     // 正在一起听就必须是热的：点歌、建歌单这几个标记怎么写，这一段说了算
     hot: ({ chat, msgs }) => (listen.get().active && listen.get().chatId === chat.id)
-      || usedRecently(msgs, /^listen$|[[【](一起听|点歌|建歌单)/),
-    line: () => 'Listen together: write a line on its own, [一起听];'
-      + ' to change the track, write [点歌：song title]',
+      || usedRecently(msgs, /^(listen|song)$|[[【](一起听|点歌|建歌单|加入歌单|分享歌曲)/),
+    line: () => 'Music: [一起听] to listen together, [点歌：song title] to change the track,'
+      + ' [分享歌曲：song title - artist] to send a song, [加入歌单：playlist | song - artist] to keep songs',
     detail: () => template('skeleton.listen'),
   },
   {

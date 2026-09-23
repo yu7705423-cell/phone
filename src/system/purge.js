@@ -1,7 +1,7 @@
 import { chats, characters, memories, messages, messagesOf, moments, personas, stickers,
          settings, layout, images, files, videos, songs, ebooks, phones, photos,
          spaceItems, scenes, beats, readnotes, trips, days, meals, health, reviews, todos,
-         phoneChats, works, chapters } from './db/index.js';
+         phoneChats, works, chapters, playlists } from './db/index.js';
 import { allImageIds } from './looks.js';
 import { forget as forgetSnap } from './ai/tasks/snap.js';
 
@@ -140,6 +140,8 @@ export function dropCharacter(charId) {
   reviews.removeWhere(r => r.charId === charId);
   todos.removeWhere(t => t.charId === charId);
   readnotes.removeWhere(r => r.authorId === charId);
+  // 角色自己建的歌单。歌本身留在曲库里 —— 那是曲库的东西，别人的歌单也可能放着它
+  playlists.removeWhere(p => p.owner === charId);
   const imgs = [c.avatar, c.cover, c.faceImage, c.callImage,
     ...(c.avatarPool || []).map(x => x?.imageId),
     ...(c.shelf || []).map(it => it?.cover)];

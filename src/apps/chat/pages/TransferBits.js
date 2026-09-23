@@ -1,5 +1,5 @@
 import { html, useState, useRef, useEffect } from '../../../lib.js';
-import { phone, useStore } from '../../../sdk/index.js';
+import { phone, useStore, useImage } from '../../../sdk/index.js';
 import { Sheet, Field, Input, Button, Icon, List, ListItem, Switch, Segmented, toast } from '../../../ui/index.js';
 
 const { db, transfer, currency, place, call, gift, listen, music, watch, subtitle,
@@ -28,7 +28,12 @@ export function TransferBubble({ msg, onSettle }) {
 
 // 提示行。不占气泡，居中一行灰字，两边都看得见刚才发生了什么。
 export function NoticeLine({ msg }) {
-  return html`<div class="conv-notice">${String(msg.content || '').replace(/^\[|\]$/g, '')}</div>`;
+  const text = String(msg.content || '').replace(/^\[|\]$/g, '');
+  // 角色往歌单里放了歌：点这一行去一起听那一页，角色的歌单列在那儿
+  if (msg.playlistId) {
+    return html`<button class="conv-notice press" onClick=${() => phone.nav.push(`/listen/${msg.chatId}`)}>${text}</button>`;
+  }
+  return html`<div class="conv-notice">${text}</div>`;
 }
 
 // 发起转账
@@ -233,6 +238,41 @@ export function ListenBubble({ msg, onOpen }) {
       <${Icon} name="music" size=${18}/>
       <span>${`一起听了 ${listen.fmt(msg.seconds)} · ${n} 首`}</span>
     </div>`;
+}
+
+// 分享的一首歌。卡片上是封面、歌名、歌手，点一下就放，并进「正在播放」看歌词。
+// 歌是落卡片之后才去找的（曲库，再网易云），找的那一两秒写「正在找」，
+// 两处都没有就照实写，不假装能放
+export function SongBubble({ msg }) {
+  useStore(db.songs.store);
+  const song = msg.songId ? db.songs.get(msg.songId) : null;
+  const local = useImage(song?.coverId);
+  const [bad, setBad] = useState(false);
+  const pic = !bad && (song?.cover || local);
+  const q = music.splitQuery(msg.songQuery || '');
+  const title = song?.title || q.title || '一首歌';
+  const sub = song ? (song.artist || '分享歌曲')
+    : msg.songState === 'pending' ? '正在找这首歌'
+    : phone.netease.ready() ? '曲库与网易云里都没有找到这首歌'
+    : '曲库里没有这首歌。配置音乐服务后可从网易云找到';
+  const play = () => {
+    if (!song) return;
+    phone.player.play([song], 0);
+    phone.intent.open('music', { route: '/now', back: true });
+  };
+  return html`
+    <button class=${`bubble bubble-song press${song ? '' : ' is-off'}`} onClick=${play}
+      aria-label=${song ? `播放 ${title}` : title}>
+      <span class="song-cover">
+        ${pic ? html`<img src=${pic} alt="" referrerpolicy="no-referrer" onError=${() => setBad(true)}/>`
+          : html`<${Icon} name="music" size=${20}/>`}
+      </span>
+      <span class="song-main">
+        <span class="song-title ellipsis">${title}</span>
+        <span class="song-sub ellipsis">${sub}</span>
+      </span>
+      ${song ? html`<${Icon} name="play" size=${18} class="song-play"/>` : null}
+    </button>`;
 }
 
 // 一起看的记录。和一起听同构，只是这一条不列曲目，列的是看到哪儿。

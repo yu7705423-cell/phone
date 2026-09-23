@@ -2835,3 +2835,21 @@ button.search-bar { width: 100%; border: none; }
 @media (prefers-reduced-motion: reduce) {
   .bd-g svg, .lv-orbit, .bd-toast, .bd-toast-glyph { animation: none !important; }
 }
+
+/* 分享的一首歌（chat/pages/TransferBits.js 的 SongBubble） */
+.bubble-song {
+  display: flex; align-items: center; gap: var(--sp-3); width: 240px; max-width: 100%;
+  text-align: left; border: 0; font: inherit; color: inherit; cursor: pointer;
+}
+.bubble-song.is-off { cursor: default; }
+.song-cover {
+  flex: none; width: 44px; height: 44px; border-radius: var(--r-sm); overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--surface-3); color: var(--text-3);
+}
+.song-cover img { width: 100%; height: 100%; object-fit: cover; }
+.song-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.song-title { font-size: var(--fs-14); font-weight: var(--fw-semi); }
+.song-sub { font-size: var(--fs-12); color: var(--text-3); }
+.song-play { flex: none; color: var(--text-2); }
+button.conv-notice { background: none; border: 0; font: inherit; cursor: pointer; }

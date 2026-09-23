@@ -16,7 +16,7 @@ import { PhotoSource } from './PhotoSource.js';
 import { TransferBubble, NoticeLine, TransferSheet, SettleSheet,
          LocationBubble, LocationSheet, CallBubble, CallLogSheet,
          GiftBubble, GiftSheet, UnwrapSheet,
-         ListenBubble, ListenLogSheet, ListenBar, WatchBubble, ReadBubble, ExcerptBubble,
+         ListenBubble, ListenLogSheet, ListenBar, SongBubble, WatchBubble, ReadBubble, ExcerptBubble,
          WatchBar, RequestBubble, RequestSheet, VoteSheet } from './TransferBits.js';
 import { SceneBlock, LookFloat } from './SceneInline.js';
 import { MentionBar } from './GroupBits.js';
@@ -221,6 +221,8 @@ export const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, o
           ? html`<${CallBubble} msg=${msg} onOpen=${selecting ? null : onOpenLog}/>`
           : msg.kind === 'listen'
           ? html`<${ListenBubble} msg=${msg} onOpen=${selecting ? null : onOpenLog}/>`
+          : msg.kind === 'song'
+          ? html`<${SongBubble} msg=${msg}/>`
           : msg.kind === 'watch'
           ? html`<${WatchBubble} msg=${msg}/>`
           : msg.kind === 'read'

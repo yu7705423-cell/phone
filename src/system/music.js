@@ -78,6 +78,8 @@ export function fromNetease(track) {
     url: '', audioId: null, lyric: '', coverId: null,
     seconds: Math.max(0, Math.round(track.seconds) || 0),
     source: 'netease', neteaseId: String(track.id),
+    // 网易云那边的封面网址。不下载存本地：封面只是认歌用的，过期了也就少一张图
+    cover: String(track.cover || ''),
   });
 }
 
@@ -108,6 +110,43 @@ export function findSong(name) {
     || all.find(s => q.includes(s.title.toLowerCase()) && s.title.length >= 2)
     || all.find(s => tight(flat(s)).includes(tight(q)))
     || null;
+}
+
+// ---- 角色找歌 ----
+//
+// 角色写歌名的样子五花八门：「晴天 - 周杰伦」「晴天 — 周杰伦」「晴天（周杰伦）」
+// 「周杰伦《晴天》」「晴天」。拆成歌名与歌手两半，先在曲库里找，找不到而且配了网易云，
+// 就去那边搜第一首收进曲库。两处都没有回 null —— 凭空造一首放不出来的歌，
+// 界面上只是个哑巴卡片。
+export function splitQuery(q) {
+  const t = String(q || '').trim();
+  let m = t.match(/^(.+?)\s*《(.+?)》\s*$/);
+  if (m) return { title: m[2].trim(), artist: m[1].trim() };
+  m = t.match(/^《?(.+?)》?\s*[(（](.+?)[)）]\s*$/);
+  if (m) return { title: m[1].trim(), artist: m[2].trim() };
+  m = t.match(/^《?(.+?)》?\s+[-—–－|｜/]\s*(.+)$/) || t.match(/^《?(.+?)》?\s*[—–－|｜]\s*(.+)$/);
+  if (m) return { title: m[1].trim(), artist: m[2].trim() };
+  return { title: t.replace(/^《|》$/g, '').trim(), artist: '' };
+}
+
+export async function resolveSong(query) {
+  const { title, artist } = splitQuery(query);
+  if (!title) return null;
+  const hit = allSongs().find(s => s.title === title && (!artist || !s.artist || s.artist.includes(artist) || artist.includes(s.artist)))
+    || (artist ? null : findSong(title));
+  if (hit) return hit;
+  // 动态 import：netease 那边走一大串设置，这个文件只管曲库，不背着它
+  const ne = await import('./netease.js');
+  if (!ne.ready()) return null;
+  const rows = await ne.search(artist ? `${title} ${artist}` : title, 5).catch(() => []);
+  const pick = rows.find(r => r.title === title) || rows[0];
+  return pick ? fromNetease(pick) : null;
+}
+
+/** 某人名下叫这个名字的歌单。没有就建一个 */
+export function listNamed(owner, name) {
+  const n = String(name || '').trim().slice(0, 40);
+  return allLists(owner).find(p => p.name === n) || createList({ name: n, owner });
 }
 
 // ---- 歌单 ----

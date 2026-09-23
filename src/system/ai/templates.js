@@ -331,8 +331,12 @@ To invite the other party to listen to music together, write a line on its own,
 [一起听].
 To change the track while listening, write a line on its own, [点歌：song
 title], taking the title from the tracks known to you.
-To collect songs you like in one place, write a line on its own,
-[建歌单：playlist name].
+To send the other party a song, write a line on its own, [分享歌曲：song title -
+artist]; it arrives as a song card they can play.
+To keep songs in a playlist of your own, write a line on its own, [加入歌单：
+playlist name | song title - artist]; separate several songs with ；. A playlist
+that does not exist yet is created. [建歌单：playlist name] creates an empty one.
+Each of these lines stands alone, with nothing else on the same line.
 `,
 
   // 一起看。这三行会真的作用到播放器上，所以写清楚「整行只写这一个标记」。

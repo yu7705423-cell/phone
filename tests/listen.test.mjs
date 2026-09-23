@@ -151,7 +151,7 @@ const out = await page.evaluate(async () => {
   db.settings.set({promptLean:true});
   const cold=engine.buildChatSystem(db.chats.get(chat.id),db.characters.get(c.id),[],{}).system;
   ok('没在听的时候只给一行目录',
-    cold.includes('Listen together: write a line on its own, [一起听]')
+    cold.includes('[一起听] to listen together') && cold.includes('[分享歌曲：')
     && !cold.includes('[一起听歌]'), '');
 
   db.characters.update(c.id,{canListen:false});

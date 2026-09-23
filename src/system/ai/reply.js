@@ -39,7 +39,7 @@ import { cropKept } from './tasks/phone.js';
 // 中英文冒号都认，方括号也认全角。
 // 「约定完成」必须排在「约定」前面 —— 交替是从左往右试的，反过来写
 // 「约定完成：早点睡」会先被「约定」吃掉，剩下「完成：早点睡」当成内容。
-const MARK = /[[【]\s*(图片|照片|image|pic|视频|video|语音|voice|audio|表情|sticker|emoji|转账|transfer|位置|定位|location|礼物|gift|点歌|建歌单|约定完成|约定|pact|信|letter|事项完成|事项取消|心声|换头像|外卖|请客|代付|申请|亲属卡|旅行|攻略|待办|todo|授予|award)\s*[:：]\s*([^\]】]+)[\]】]/gi;
+const MARK = /[[【]\s*(图片|照片|image|pic|视频|video|语音|voice|audio|表情|sticker|emoji|转账|transfer|位置|定位|location|礼物|gift|点歌|建歌单|加入歌单|分享歌曲|分享音乐|约定完成|约定|pact|信|letter|事项完成|事项取消|心声|换头像|外卖|请客|代付|申请|亲属卡|旅行|攻略|待办|todo|授予|award)\s*[:：]\s*([^\]】]+)[\]】]/gi;
 
 const IMAGE_KINDS = new Set(['图片', '照片', 'image', 'pic']);
 // 「视频通话」那一格叫 video，这里是会话里那一段片子，两回事。
@@ -63,6 +63,8 @@ const WEAR_KINDS = new Set(['换头像']);
 // 三种点法各一个词。谁吃、谁付都写在词里，正文只剩「吃什么 多少钱」
 const TAKEOUT_KINDS = new Map([['外卖', takeout.SELF], ['请客', takeout.TREAT], ['代付', takeout.ASK]]);
 const LIST_KINDS = new Set(['建歌单']);
+const ADDLIST_KINDS = new Set(['加入歌单']);
+const SHARE_SONG_KINDS = new Set(['分享歌曲', '分享音乐']);
 const TRIP_KINDS = new Set(['旅行']);
 const PLAN_KINDS = new Set(['攻略']);
 const ASK_KINDS = new Set(['申请']);
@@ -552,8 +554,15 @@ export function splitReply(raw) {
     if (body) {
       if (PICK_KINDS.has(kind)) {
         push({ type: 'pick', name: body });
-      } else if (LIST_KINDS.has(kind)) {
-        push({ type: 'newlist', name: body });
+      } else if (LIST_KINDS.has(kind) || ADDLIST_KINDS.has(kind)) {
+        // 竖线前是歌单名，后面是要放进去的歌，几首之间用；或、隔开。
+        // 建歌单可以不带歌；加入歌单不带歌就没有意义，丢掉
+        const i = body.search(/[|｜]/);
+        const name = (i < 0 ? body : body.slice(0, i)).trim();
+        const songs = i < 0 ? [] : body.slice(i + 1).split(/[；;\n]+/).map(x => x.trim()).filter(Boolean);
+        if (name && (LIST_KINDS.has(kind) || songs.length)) push({ type: 'newlist', name, songs });
+      } else if (SHARE_SONG_KINDS.has(kind)) {
+        push({ type: 'song', query: body });
       } else if (TRIP_KINDS.has(kind)) {
         // 去哪儿读不出来就整条丢掉。一次没有目的地的出行比少发一条更怪
         const o = trip.parse(body);
@@ -740,6 +749,40 @@ function justSent(chatId, turnId) {
   return hit;
 }
 
+/**
+ * 角色往自己的歌单里放歌（建歌单、加入歌单）。
+ *
+ * 歌单挂在角色名下（owner 是角色 id），不存在就建一个。每首歌照分享那一套找：
+ * 曲库里没有、配了网易云就去搜一首收进来。做完落一行提示，告诉人它放了什么、
+ * 哪几首没找到 —— 不然角色嘴上说「我建了个歌单」，人去看是空的，不知道为什么。
+ */
+async function collect(base, name, queries) {
+  try {
+    const list = music.listNamed(base.authorId, name);
+    const added = [];
+    const had = [];
+    const missed = [];
+    const books = xs => xs.map(t => `《${t}》`).join('');
+    for (const q of queries) {
+      const song = await music.resolveSong(q).catch(() => null);
+      if (!song) { missed.push(q); continue; }
+      if (music.addTrack(list.id, song.id)) added.push(song.title);
+      else had.push(song.title);
+    }
+    const who = characters.get(base.authorId)?.name || '对方';
+    const bits = [];
+    if (added.length) bits.push(`${who}把${books(added)}加入了歌单「${list.name}」`);
+    else if (!queries.length) bits.push(`${who}新建了歌单「${list.name}」`);
+    if (had.length) bits.push(`${books(had)}已在歌单「${list.name}」中`);
+    if (missed.length) bits.push(`${books(missed)}没有找到`);
+    messages.create({
+      chatId: base.chatId, role: 'char', authorId: base.authorId, turnId: base.turnId,
+      kind: 'notice', status: 'done', playlistId: list.id,
+      content: `[${bits.join('，')}]`,
+    });
+  } catch (err) { console.warn('[listen] 歌单没放成:', err.message || err); }
+}
+
 export function materialize(part, base, char) {
   // 待办不是一条消息，是一个等你点头的提议，所以不占气泡也不进聊天记录。
   // 落成待确认，由会话页问一句（见 system/todo.js）
@@ -810,9 +853,20 @@ export function materialize(part, base, char) {
     return null;
   }
   if (part.type === 'newlist') {
-    try { music.createList({ name: part.name, owner: base.authorId }); }
-    catch (err) { console.warn('[listen] 建歌单失败:', err.message || err); }
+    collect(base, part.name, part.songs || []);
     return null;
+  }
+  // 分享一首歌。先落一张卡片（写着它要分享的那句），再去曲库、网易云找这首，
+  // 找到了把歌补到卡片上 —— 网易云那一搜要一两秒，不该拦着这一轮后面的话
+  if (part.type === 'song') {
+    const msg = messages.create({ ...row, kind: 'song', content: `[分享歌曲：${part.query}]`,
+      songQuery: part.query, songState: 'pending' });
+    music.resolveSong(part.query)
+      .then(song => messages.update(msg.id, song
+        ? { songId: song.id, songState: 'done' }
+        : { songState: 'missing' }))
+      .catch(() => messages.update(msg.id, { songState: 'missing' }));
+    return msg;
   }
   if (part.type === 'ring') {
     // 动态 import：call.js 要用 engine，engine 又要用本文件，静态引会成环。
@@ -1037,7 +1091,7 @@ function shouldNotify(chatId) {
 const BODY_OF = {
   image: '[图片]', clip: '[视频]', voice: '[语音]', sticker: '[表情]', transfer: '[转账]', gift: '[礼物]',
   location: '[位置]', call: '[通话]', listen: '[一起听]', watch: '[一起看]',
-  takeout: '[外卖]', request: '[申请]', share: '[分享]', dice: '[骰子]',
+  takeout: '[外卖]', request: '[申请]', share: '[分享]', dice: '[骰子]', song: '[分享歌曲]',
   trip: '[旅行]',
   pact: '[约定]', letter: '[信]', vote: '[投票]',
 };
