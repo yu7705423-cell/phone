@@ -101,3 +101,34 @@ export function pendingMentions(msgs) {
   }
   return ids;
 }
+
+// ---- 群里主动开口 ----
+//
+// 这个群自己的开关，存在群上（第 5 条：开关放在它起作用的地方）。
+// 和一对一那套各管各的：一对一的在角色卡上，管的是那个角色找你；
+// 这里管的是这个群冷了一段时间之后，有人先说话。默认关。
+//
+// 一次触发一次调用，模型一次写出开口的那几个人（和平常一轮同一条路）。
+
+export const PROACTIVE_DEFAULTS = { on: false, minutes: 120, quietFrom: 0, quietTo: 8 };
+
+const hour = (v, d) => {
+  const n = Number(v);
+  return Number.isFinite(n) ? Math.min(23, Math.max(0, Math.round(n))) : d;
+};
+
+export function proactiveOf(chat) {
+  const p = chat?.groupProactive || {};
+  return {
+    on: p.on === true,
+    minutes: Math.max(1, Number(p.minutes) || PROACTIVE_DEFAULTS.minutes),
+    quietFrom: hour(p.quietFrom, PROACTIVE_DEFAULTS.quietFrom),
+    quietTo: hour(p.quietTo, PROACTIVE_DEFAULTS.quietTo),
+  };
+}
+
+export function setProactive(chatId, patch) {
+  const chat = chats.get(chatId);
+  if (!chat) return;
+  chats.update(chatId, { groupProactive: { ...proactiveOf(chat), ...patch } });
+}

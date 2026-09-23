@@ -1076,7 +1076,12 @@ export function buildGroupHistory(chat, members, msgs, opts = {}) {
 
 export const groupKey = chatId => `reply:${chatId}:group`;
 
-export function streamGroupReply({ chat, onDelta }) {
+/**
+ * opening：没人说话、由成员先开口的那一轮（群里主动开口）。
+ * 那时没有新消息可回，末尾补一条说明这一轮的情况，再补一条 user ——
+ * 历史以成员的话收尾时，有的接口会把它当成要续写的半句（Anthropic 的预填）。
+ */
+export function streamGroupReply({ chat, onDelta, opening = '' }) {
   const msgs = messagesOf(chat.id).filter(m => m.status !== 'error');
   const members = group.members(chat);
   if (!members.length) throw new Error('群里没有成员');
@@ -1100,8 +1105,10 @@ export function streamGroupReply({ chat, onDelta }) {
     }
     const { system, volatile: hot, lore } = buildGroupSystem(chat, members, msgs, { queryVec, recalls });
     const history = buildGroupHistory(chat, members, msgs, {
-      images: pics, lore, volatile: hot, mentions: group.pendingMentions(msgs),
+      images: pics, lore, volatile: [hot, opening].filter(Boolean).join('\n\n'),
+      mentions: opening ? [] : group.pendingMentions(msgs),
     });
+    if (opening) history.push({ role: 'user', content: '(No new messages. The members are the ones opening this time.)' });
     const oneShot = s0.streamMode === 'once';
     const text = await runWith('chat.reply', c => send('chat.reply', c,
       { system, messages: history, maxTokens: c.maxTokens, signal, onDelta: oneShot ? undefined : onDelta },

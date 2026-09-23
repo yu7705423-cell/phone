@@ -1643,6 +1643,13 @@ conversation.
 Output the message text directly, in the same language as the character card,
 separating messages with blank lines. Write no explanation.`,
 
+  // 群里冷了一段时间，由成员先开口（见 system/ai/group.js 的 speakUp）
+  'task.group-proactive':
+`[群里主动开口]
+It is now {{time}}. {{gap}} has passed since anyone last spoke in this group.
+No one has addressed the members. One or more of them open a new conversation
+now; they are not replying to anything. Follow [群聊规则].`,
+
   'task.emo':
 `It is now {{time}}, during the night. No one has contacted you; you are awake
 and you are the one opening this conversation.

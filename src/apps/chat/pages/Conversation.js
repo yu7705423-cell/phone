@@ -1401,7 +1401,8 @@ export function Conversation({ chatId, focusId = '' }) {
         <${List} title="这个群">
           <${ListItem} title="群资料" arrow multiline
             subtitle=${`${members.map(c => c.name).join('、')} · `
-              + (phone.group.memShared(chat) ? '群里的事带进私聊' : '群里的事只留在群里')}
+              + (phone.group.memShared(chat) ? '群里的事带进私聊' : '群里的事只留在群里')
+              + (phone.group.proactiveOf(chat).on ? ' · 主动开口已开启' : '')}
             left=${html`<${Icon} name="users" size=${18}/>`}
             onClick=${() => { setMenu(false); nav.push(`/group/${chatId}`); }}/>
           ${members.map(c => html`

@@ -99,6 +99,7 @@ export function dropChat(chatId) {
     });
     works.remove(w.id);
   });
+  if (chats.get(chatId)?.avatar) imgs.push(chats.get(chatId).avatar);
   // 只在这个群里生效的记忆，群没了就再也用不上（别处一律拿不到它），跟着删
   memories.removeWhere(m => m.scopeChat === chatId);
   chats.remove(chatId);
@@ -195,6 +196,8 @@ export function usedImageIds() {
     (p.highlights || []).forEach(h => add(h?.imageId));
   });
   stickers.all().forEach(st => add(st.imageId));
+  // 群头像（自己上传的那张）
+  chats.all().forEach(c => add(c.avatar));
 
   const s = settings.get();
   Object.values(s.appIcons || {}).forEach(v => add(v?.imageId));

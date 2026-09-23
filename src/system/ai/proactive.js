@@ -1,7 +1,10 @@
 import { chats, characters, messages as messagesDb, settings } from '../db/index.js';
 import * as accounts from '../accounts.js';
 
-import { template, buildChatSystem, isConfigured, isReplying, runTextTask, queryVecFor } from './engine.js';
+import { template, buildChatSystem, isConfigured, isReplying, runTextTask, queryVecFor,
+  streamGroupReply } from './engine.js';
+import * as group from '../group.js';
+import * as groupTurn from './group.js';
 import { fillTemplate } from './templates.js';
 import { renderTurn } from './reply.js';
 
@@ -208,6 +211,70 @@ export async function sendProactive(chatId, charId, { mood = false } = {}) {
   return created;
 }
 
+// ---- 群里主动开口 ----
+//
+// 群自己的设置（system/group.js 的 proactiveOf），落点和角色的存在同一张表里，
+// 键是 `g:群 id`。一次触发一次调用：模型一次写出开口的那几个人。
+
+const gKey = chatId => `g:${chatId}`;
+
+export async function sendGroupProactive(chatId) {
+  const chat = chats.get(chatId);
+  if (!chat || !group.isGroup(chat)) throw new Error('群不存在');
+  const msgs = messagesDb.all().filter(m => m.chatId === chatId && m.status !== 'error')
+    .sort((a, b) => a.createdAt - b.createdAt);
+  const last = msgs[msgs.length - 1];
+  const opening = fillTemplate(template('task.group-proactive'), {
+    time: new Date().toLocaleString('zh-CN', { hour12: false }),
+    gap: gapText(last ? Date.now() - last.createdAt : 0),
+  });
+  const raw = String(await streamGroupReply({ chat, opening }) || '').trim();
+  if (!raw) throw new Error('模型返回了空内容');
+  const created = await groupTurn.replay(chat, raw, {
+    turnId: `gp-${Date.now()}`, swipes: [raw], swipeIndex: 0, notify: true,
+  });
+  chats.update(chatId, { unread: (chats.get(chatId)?.unread || 0) + created.length });
+  return created;
+}
+
+/** 这个群现在能不能开口：当前账号的、没在生成、未读没堆满 */
+function groupReady(chat) {
+  const me = accounts.currentId();
+  if ((chat.personaId || me) !== me) return false;
+  const cap = maxUnread();
+  if (cap && (chat.unread || 0) >= cap) return false;
+  return !groupTurn.isBusy(chat);
+}
+
+/** 群里那一档的落点。重新设定之后调一次，不用等旧的 */
+export function rescheduleGroup(chatId) {
+  const cfg = group.proactiveOf(chats.get(chatId));
+  setNext(gKey(chatId), cfg.on ? Date.now() + rollDelay(cfg.minutes) : 0);
+}
+export const groupNextAt = chatId => nextAt(gKey(chatId));
+
+function tickGroups(m, live, now) {
+  for (const chat of chats.all()) {
+    if (!group.isGroup(chat)) continue;
+    const k = gKey(chat.id);
+    live.add(k);
+    const cfg = group.proactiveOf(chat);
+    if (!cfg.on) { m.set(k, 0); continue; }
+    if (running.has(k)) continue;
+    const next = m.get(k);
+    if (!next) { m.set(k, now + rollDelay(cfg.minutes)); continue; }
+    if (now < next) continue;
+    const quiet = { proactiveQuietFrom: cfg.quietFrom, proactiveQuietTo: cfg.quietTo };
+    if (inQuiet(quiet)) { m.set(k, quietEndsAt(quiet)); continue; }
+    m.set(k, now + rollDelay(cfg.minutes));
+    if (!groupReady(chat)) continue;
+    running.add(k);
+    sendGroupProactive(chat.id)
+      .catch(err => console.warn('[proactive] 群里没开成口:', err.message || err))
+      .finally(() => running.delete(k));
+  }
+}
+
 // ---- 调度 ----
 let timer = null;
 const running = new Set();
@@ -296,7 +363,9 @@ export async function tick() {
       .finally(() => running.delete(char.id));
   }
 
-  // 角色删了，落点也跟着清掉
+  tickGroups(m, live, now);
+
+  // 角色删了、群删了，落点也跟着清掉
   m.ids().forEach(id => { if (!live.has(id)) m.set(id, 0); });
   m.flush();
 

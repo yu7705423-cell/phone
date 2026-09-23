@@ -1,14 +1,15 @@
-import { html, useState } from '../../../lib.js';
+import { html, useState, useRef } from '../../../lib.js';
 import { phone, useStore, useImage } from '../../../sdk/index.js';
 import { Page, Field, Input, Avatar, List, ListItem, Switch, Button, Icon, Sheet,
-         EmptyState, toast, confirm } from '../../../ui/index.js';
+         Segmented, NumberInput, EmptyState, toast, confirm } from '../../../ui/index.js';
+import { AVATAR_MAX } from '../../../system/db/images.js';
 
 // 群聊的几块界面。见 ARCHITECTURE 4.162
 //
 // 群是一段会话，所以会话页本身照用；这里只放群才有的：建群、群资料、
 // 群头像、@ 成员。
 
-const { db, nav } = phone;
+const { db, nav, ai } = phone;
 
 function Face({ char, size }) {
   const src = useImage(char?.avatar);
@@ -20,6 +21,11 @@ function Face({ char, size }) {
  * 成员数会变，在一个组件里按成员数调 useImage，钩子个数就对不上。
  */
 export function GroupFace({ chat, size = 46 }) {
+  // 自己上传过群头像就用它；没有才拼成员的
+  const own = useImage(chat?.avatar);
+  if (chat?.avatar) {
+    return html`<${Avatar} src=${own} name=${phone.group.titleOf(chat)} size=${size} radius=${Math.round(size / 2)}/>`;
+  }
   const list = phone.group.members(chat).slice(0, 4);
   const cell = list.length > 1 ? Math.floor(size / 2) - 1 : size;
   return html`
@@ -77,9 +83,44 @@ export function GroupPage({ chatId }) {
   useStore(db.characters.store);
   const [adding, setAdding] = useState(false);
   const [more, setMore] = useState([]);
+  const [trying, setTrying] = useState(false);
+  const faceRef = useRef(null);
   const chat = db.chats.get(chatId);
   if (!chat) return html`<${Page} title="群资料" onBack=${nav.pop}><${EmptyState} title="该群已不存在"/><//>`;
   const members = phone.group.members(chat);
+  const pro = phone.group.proactiveOf(chat);
+  const setPro = patch => {
+    phone.group.setProactive(chatId, patch);
+    ai.proactive.rescheduleGroup(chatId);
+  };
+
+  const pickFace = async e => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      const id = await db.images.put(file, AVATAR_MAX);
+      const old = chat.avatar;
+      db.chats.update(chatId, { avatar: id });
+      // 换下来的那张没人再用就删掉（相册里存过同一张的不删，见 purge.releaseImages）
+      if (old) phone.purge.releaseImages([old]);
+    } catch (err) { toast('图片处理失败：' + err.message, 'error'); }
+  };
+  const clearFace = () => {
+    const old = chat.avatar;
+    db.chats.update(chatId, { avatar: '' });
+    if (old) phone.purge.releaseImages([old]);
+  };
+  const tryNow = async () => {
+    setTrying(true);
+    try {
+      await ai.proactive.sendGroupProactive(chatId);
+      toast('已发送，返回群聊查看', 'ok');
+    } catch (err) {
+      toast('发送失败：' + (err.message || err), 'error', 5000);
+    } finally { setTrying(false); }
+  };
+  const next = ai.proactive.groupNextAt(chatId);
 
   const drop = async c => {
     if (members.length <= phone.group.MIN) {
@@ -102,7 +143,16 @@ export function GroupPage({ chatId }) {
   return html`
     <${Page} title="群资料" onBack=${nav.pop}>
       <div class="group-head">
-        <${GroupFace} chat=${chat} size=${64}/>
+        <button class="press" onClick=${() => faceRef.current?.click()} aria-label="更换群头像">
+          <${GroupFace} chat=${chat} size=${64}/>
+        </button>
+        <div class="group-head-acts">
+          <button class="nav-text press" onClick=${() => faceRef.current?.click()}>
+            ${chat.avatar ? '更换群头像' : '上传群头像'}</button>
+          ${chat.avatar ? html`
+            <button class="nav-text press" onClick=${clearFace}>改用成员头像</button>` : null}
+        </div>
+        <input type="file" accept="image/*" ref=${faceRef} onChange=${pickFace} style="display:none"/>
       </div>
       <div class="pad">
         <${Field} label="群名称" desc="留空时以成员名字显示。">
@@ -121,6 +171,44 @@ export function GroupPage({ chatId }) {
           left=${html`<${Icon} name="plus" size=${18}/>`}
           onClick=${() => { setMore([]); setAdding(true); }}/>
       <//>
+
+      <${List} title="主动开口">
+        <${ListItem} title="群里有人主动开口" multiline
+          subtitle=${pro.on
+            ? '已开启。群里一段时间没有消息时，成员会主动发起话题。每次调用一次接口，由模型写出开口的成员。页面关闭期间不发送'
+            : '已关闭。开启后，群里一段时间没有消息时，成员会主动发起话题。每次调用一次接口'}
+          right=${html`<${Switch} checked=${pro.on} onChange=${v => setPro({ on: v })}/>`}/>
+      <//>
+      ${pro.on ? html`
+        <div class="pad">
+          <${Field} label="平均间隔" desc="实际间隔在设定值的一半到一倍半之间随机。">
+            <${Segmented} value=${[30, 120, 480, 1440].includes(pro.minutes) ? pro.minutes : 0}
+              items=${[{ value: 30, label: '30 分钟' }, { value: 120, label: '2 小时' },
+                { value: 480, label: '8 小时' }, { value: 1440, label: '1 天' }]}
+              onChange=${v => setPro({ minutes: v })}/>
+            <div class="pad-t">
+              <${NumberInput} value=${pro.minutes} min=${1} unit="分钟"
+                onChange=${v => setPro({ minutes: Math.max(1, Number(v) || 1) })}/>
+            </div>
+          <//>
+          <div class="field-desc">${pro.quietFrom === pro.quietTo
+            ? '免打扰：未设。两个数填成相同即全天均可开口'
+            : `免打扰：${pro.quietFrom}:00 到 ${pro.quietTo}:00 之间不主动开口，落在其中的推到结束之后`}</div>
+          <div class="quiet-row">
+            <${Field} label="从（点）">
+              <${Input} type="number" value=${pro.quietFrom}
+                onInput=${v => setPro({ quietFrom: Math.min(23, Math.max(0, parseInt(v, 10) || 0)) })}/>
+            <//>
+            <${Field} label="到（点）">
+              <${Input} type="number" value=${pro.quietTo}
+                onInput=${v => setPro({ quietTo: Math.min(23, Math.max(0, parseInt(v, 10) || 0)) })}/>
+            <//>
+          </div>
+          <div class="field-desc">${next
+            ? `下一次约在 ${new Date(next).toLocaleString('zh-CN', { hour12: false })}`
+            : '下一次的时间将在稍后排定'}</div>
+          <${Button} full disabled=${trying} onClick=${tryNow}>${trying ? '正在发送' : '立即试一次'}<//>
+        </div>` : null}
 
       <${List} title="记忆">
         <${ListItem} title="群里的事带进私聊" multiline
