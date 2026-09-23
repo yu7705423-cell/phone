@@ -116,7 +116,7 @@ await page.waitForTimeout(1200);
 const cards = await page.locator('.bubble-song').allInnerTexts();
 await page.screenshot({ path: `${OUT}/charmusic-chat.png` });
 ok('会话里是歌曲卡片：歌名、歌手；没找到的写明原因', cards.length === 2 && /晴天/.test(cards[0]) && /周杰伦/.test(cards[0])
-  && /都没有找到/.test(cards[1]), JSON.stringify(cards));
+  && /均未找到/.test(cards[1]), JSON.stringify(cards));
 ok('卡片里不露出方括号标记', !/分享歌曲：/.test(await page.locator('.page').last().innerText()));
 await page.locator('.bubble-song').first().tap();
 await page.waitForTimeout(900);

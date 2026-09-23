@@ -52,6 +52,51 @@ const route = await page.evaluate(async () => (await import('/src/system/nav.js'
 ok('点自己分享的卡片：同样放这首、进「正在播放」', /^\/now/.test(route), route);
 await page.evaluate(async () => (await import('/src/system/player.js')).stop());
 
+// ---- 卡片的样子：封面主色做底色；播放键就地放、就地停，放着时外面一圈进度 ----
+const wav = (() => {
+  const n = 8000 * 6;
+  const b = Buffer.alloc(44 + n, 0x80);
+  b.write('RIFF', 0); b.writeUInt32LE(36 + n, 4); b.write('WAVE', 8); b.write('fmt ', 12);
+  b.writeUInt32LE(16, 16); b.writeUInt16LE(1, 20); b.writeUInt16LE(1, 22);
+  b.writeUInt32LE(8000, 24); b.writeUInt32LE(8000, 28); b.writeUInt16LE(1, 32); b.writeUInt16LE(8, 34);
+  b.write('data', 36); b.writeUInt32LE(n, 40);
+  return `data:audio/wav;base64,${b.toString('base64')}`;
+})();
+await page.evaluate(async ([o, w]) => {
+  const db = await import('/src/system/db/index.js');
+  const music = await import('/src/system/music.js');
+  // 一张偏红的封面
+  const c = document.createElement('canvas'); c.width = 64; c.height = 64;
+  const g = c.getContext('2d'); g.fillStyle = 'rgb(200 40 60)'; g.fillRect(0, 0, 64, 64);
+  g.fillStyle = 'rgb(250 250 250)'; g.fillRect(0, 0, 64, 6);
+  const blob = await new Promise(r => c.toBlob(r, 'image/png'));
+  const coverId = await db.images.put(new File([blob], 'c.png', { type: 'image/png' }), 256);
+  const s = music.addSong({ title: '红', artist: '某人', url: w, seconds: 6, coverId });
+  music.share({ chatId: o.chat, song: s });
+  const n = await import('/src/system/nav.js'); n.goHome(); n.openApp('chat', `/chat/${o.chat}`);
+}, [ids, wav]);
+await page.waitForTimeout(1500);
+const red = page.locator('.song-card', { hasText: '红' });
+const look = await red.evaluate(el => ({ tinted: el.classList.contains('is-tinted'), tint: el.style.getPropertyValue('--song-tint'),
+  bg: getComputedStyle(el).backgroundColor, img: !!el.querySelector('.song-art img'), w: el.getBoundingClientRect().width }));
+ok('封面主色取出来做底色（偏红，白边不算进去）', look.tinted && /rgb\((19\d|20\d) (3\d|4\d) (5\d|6\d)\)/.test(look.tint) && look.img, JSON.stringify(look));
+await page.screenshot({ path: `${OUT}/sharesong-card.png` });
+await red.locator('.song-key').tap();
+await page.waitForTimeout(1200);
+let st = await page.evaluate(async () => {
+  const p = await import('/src/system/player.js');
+  const n = await import('/src/system/nav.js');
+  return { playing: p.player.get().playing, title: p.current()?.title, route: n.currentRoute(), pos: p.position() };
+});
+ok('点播放键：就地放，不跳页', st.playing && st.title === '红' && /^\/chat\//.test(st.route), JSON.stringify(st));
+ok('放着时播放键变成暂停，外面有一圈进度', await red.locator('.song-key[aria-label="暂停"] .song-ring').count() === 1);
+await page.screenshot({ path: `${OUT}/sharesong-playing.png` });
+await red.locator('.song-key').tap();
+await page.waitForTimeout(300);
+st = await page.evaluate(async () => (await import('/src/system/player.js')).player.get().playing);
+ok('再点一下：停下', st === false);
+await page.evaluate(async () => (await import('/src/system/player.js')).stop());
+
 await page.evaluate(async o => { const n = await import('/src/system/nav.js'); n.goHome(); n.openApp('chat', `/chat/${o.group}`); }, ids);
 await page.waitForTimeout(1000);
 await share();

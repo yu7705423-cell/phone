@@ -2836,29 +2836,65 @@ button.search-bar { width: 100%; border: none; }
   .bd-g svg, .lv-orbit, .bd-toast, .bd-toast-glyph { animation: none !important; }
 }
 
-/* 分享的一首歌（chat/pages/SongCard.js）。会话气泡与朋友圈共用 */
+/* 分享的一首歌（chat/pages/SongCard.js）。会话气泡与朋友圈共用，照 Apple Music 的分享卡片。
+   底色是封面主色按两成多混进面板底色（--song-tint 由脚本从封面取），取不到就是面板底色 */
 .song-card {
-  display: flex; align-items: center; gap: var(--sp-3); width: 240px; max-width: 100%;
-  text-align: left; border: 0; font: inherit; color: inherit; cursor: pointer;
+  --song-bg: var(--surface-2);
+  display: flex; text-align: left; color: var(--text); cursor: pointer;
+  background: var(--song-bg); border-radius: var(--r-lg); overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
 }
+.song-card.is-tinted { --song-bg: color-mix(in srgb, var(--song-tint) 26%, var(--surface-2)); }
+.song-card:active { filter: brightness(.97); }
 .song-card.is-off { cursor: default; }
-.mo-song { margin-top: var(--sp-2); width: 100%; padding: var(--sp-2); border-radius: var(--r-sm); background: var(--surface-2); }
+.song-card.is-off:active { filter: none; }
+.song-art {
+  flex: none; display: flex; align-items: center; justify-content: center; overflow: hidden;
+  background: var(--surface-3); color: var(--text-3);
+}
+.song-art img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.song-art.is-pending { animation: song-wait 1.4s var(--ease-out) infinite alternate; }
+@keyframes song-wait { from { opacity: 1; } to { opacity: .55; } }
+.song-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.song-title { font-size: var(--fs-15); font-weight: var(--fw-semi); line-height: 1.35; }
+.song-artist { font-size: var(--fs-13); color: var(--text-2); line-height: 1.35; }
+.song-note { font-size: var(--fs-11); color: var(--text-3); line-height: 1.4; margin-top: 3px; }
+
+/* 会话里：上封面、下文字 */
+.song-card.is-tile { flex-direction: column; width: 216px; max-width: 100%; box-shadow: var(--shadow-1); }
+.song-top { position: relative; display: block; }
+.song-card.is-tile .song-art { width: 100%; aspect-ratio: 1 / 1; }
+.song-card.is-tile .song-key { position: absolute; right: var(--sp-2); bottom: var(--sp-2); }
+.song-foot { display: flex; padding: var(--sp-2) var(--sp-3) var(--sp-3); }
+
+/* 朋友圈：一行 */
+.song-card.is-row { align-items: center; gap: var(--sp-3); padding: var(--sp-2); width: 100%; }
+.song-card.is-row .song-art { width: 52px; height: 52px; border-radius: var(--r-sm); }
+.song-card.is-row .song-title { font-size: var(--fs-14); }
+.song-card.is-row .song-key { margin-right: var(--sp-1); }
+
+/* 圆形播放键。放着的时候外面一圈是进度 */
+.song-key {
+  position: relative; flex: none; width: var(--key); height: var(--key); border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; border: 0; padding: 0;
+  background: var(--surface); color: var(--text); box-shadow: var(--shadow-2); cursor: pointer;
+}
+.song-key:disabled { opacity: .4; }
+.song-key svg:not(.song-ring) { margin-left: 2px; }
+.song-key.is-playing svg:not(.song-ring) { margin-left: 0; }
+.song-ring { position: absolute; inset: -3px; width: calc(100% + 6px); height: calc(100% + 6px); transform: rotate(-90deg); pointer-events: none; }
+.song-ring circle { fill: none; stroke: var(--surface); stroke-width: 2.4; }
+.song-ring .song-ring-on { stroke: var(--text); transition: stroke-dashoffset .5s linear; }
+
+/* 会话里这张不挂 .bubble：卡片自己就是那一块，两边一样，不跟着强调色变黑 */
+.mo-song { margin-top: var(--sp-2); }
 .mo-song-pick { display: flex; align-items: center; gap: var(--sp-2); margin: var(--sp-3) 0; }
 .mo-song-pick .song-card { flex: 1; width: auto; }
 .song-search { display: flex; gap: var(--sp-2); align-items: center; padding: 0 0 var(--sp-3); }
 .song-search input { flex: 1; min-width: 0; }
-.song-cover {
-  flex: none; width: 44px; height: 44px; border-radius: var(--r-sm); overflow: hidden;
-  display: flex; align-items: center; justify-content: center;
-  background: var(--surface-3); color: var(--text-3);
+
+@media (prefers-reduced-motion: reduce) {
+  .song-art.is-pending { animation: none; }
+  .song-ring .song-ring-on { transition: none; }
 }
-.song-cover img { width: 100%; height: 100%; object-fit: cover; }
-.song-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.song-title { font-size: var(--fs-14); font-weight: var(--fw-semi); }
-.song-sub { font-size: var(--fs-12); color: var(--text-3); }
-.song-play { flex: none; color: var(--text-2); }
-/* 自己发的那张在强调色底上：副标题、播放键跟着前景色走，封面底子与位置卡片同一个做法 */
-.msg.is-mine .bubble-song .song-sub,
-.msg.is-mine .bubble-song .song-play { color: inherit; opacity: .72; }
-.msg.is-mine .bubble-song .song-cover { background: rgba(255, 255, 255, .16); color: inherit; }
 button.conv-notice { background: none; border: 0; font: inherit; cursor: pointer; }

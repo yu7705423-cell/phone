@@ -32,7 +32,7 @@ export async function removeMoment(mo) {
 export function MomentSong({ mo, cls = '' }) {
   if (!mo.songId && mo.songState !== 'pending') return null;
   return html`<${SongCard} songId=${mo.songId} query=${mo.songQuery} state=${mo.songState}
-    cls=${`mo-song ${cls}`}/>`;
+    layout="row" cls=${`mo-song ${cls}`}/>`;
 }
 
 export function CommentList({ comments }) {

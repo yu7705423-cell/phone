@@ -246,7 +246,7 @@ export function ListenBubble({ msg, onOpen }) {
 // 两处都没有就照实写，不假装能放
 export function SongBubble({ msg }) {
   return html`<${SongCard} songId=${msg.songId} query=${msg.songQuery} state=${msg.songState}
-    cls="bubble bubble-song"/>`;
+    cls="bubble-song"/>`;
 }
 
 // 一起看的记录。和一起听同构，只是这一条不列曲目，列的是看到哪儿。

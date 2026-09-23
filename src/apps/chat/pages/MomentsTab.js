@@ -120,7 +120,7 @@ export function MomentsTab() {
           onChange=${addPhotos} style="display:none"/>
         ${song ? html`
           <div class="mo-song-pick">
-            <${SongCard} songId=${song.id} cls="mo-song"/>
+            <${SongCard} songId=${song.id} layout="row"/>
             <button class="icon-btn press" aria-label="移除歌曲" onClick=${() => setSong(null)}>
               <${Icon} name="close" size=${16}/></button>
           </div>` : html`
