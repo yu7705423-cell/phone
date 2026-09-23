@@ -82,8 +82,7 @@ function MsgGroup() {
     </div>
     <div class="pad-x">
       <${Field} label="消息时刻"
-        desc="显示这条消息在本机出现的时刻，与角色写在正文里的时间无关。
-          当天只显示时分，隔天带上日期。">
+        desc="显示消息在本机出现的时刻，与角色写在正文里的时间无关。按间隔：相邻两条相隔五分钟以上时，在中间居中显示一行时间。每条：在每条消息旁或下方显示时分，隔天带上日期。">
         <${Segmented} value=${receipt.stampMode()}
           onChange=${v => db.settings.set({ msgStamp: v })}
           items=${receipt.STAMPS.map(x => ({ value: x.id, label: x.label }))}/>

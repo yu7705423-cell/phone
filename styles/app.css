@@ -46,15 +46,16 @@
   padding: var(--sp-5) var(--sp-4) var(--sp-2);
   font-size: var(--fs-12); color: var(--text-3);
 }
+/* 一行三张。两张一行时一屏只看得到四个角色，角色一多要翻很久才找得到人 */
 .ct-grid {
-  display: grid; grid-template-columns: 1fr 1fr;
-  gap: var(--sp-3); padding: 0 var(--sp-4);
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--sp-3) var(--sp-2); padding: 0 var(--sp-4);
 }
 .ct-card { text-align: left; min-width: 0; }
 .ct-card:active { opacity: .72; }
 .ct-cover {
   position: relative; width: 100%; aspect-ratio: 1;
-  border-radius: var(--r-lg); overflow: hidden;
+  border-radius: var(--r-md); overflow: hidden;
   background: var(--group-fill); color: var(--text-3);
   display: flex; align-items: center; justify-content: center;
 }
@@ -198,6 +199,11 @@ input[type="range"] {
 
 .msg { display: flex; gap: var(--sp-2); align-items: flex-start; }
 .msg.is-mine { flex-direction: row-reverse; }
+/* 同一个人接着说的那一条，和上一条之间收紧。收紧到的距离跟着「同一轮里两个气泡之间」走，
+   美化里改了那个间距，这里跟着变 */
+.msg.is-cont { margin-top: calc(var(--bubble-gap-in) * 2 - var(--bubble-gap)); }
+/* 两条消息中间居中的那一行时间（相隔五分钟以上才有） */
+.time-sep { align-self: center; padding: var(--sp-1) 0; font-size: var(--fs-12); color: var(--text-3); }
 .msg-col { display: flex; flex-direction: column; gap: var(--bubble-gap-in); max-width: 74%; min-width: 0; }
 .msg.is-mine .msg-col { align-items: flex-end; }
 /* 气泡上的时刻与已读回执。两样默认都关着，开了才有这个节点。
@@ -2645,11 +2651,12 @@ button.search-bar { width: 100%; border: none; }
 /* 群头像：最多四个成员拼一格。尺寸由 GroupFace 以自定义属性传入 */
 .group-face {
   flex: none; width: var(--gf-size); height: var(--gf-size);
-  border-radius: var(--r-full); overflow: hidden; background: var(--surface-2);
+  border-radius: var(--r-sm); overflow: hidden;
+  background: var(--surface); border: 1px solid var(--border);
   display: grid; grid-template-columns: 1fr; place-items: center;
 }
 .group-face.n-2, .group-face.n-3, .group-face.n-4 {
-  grid-template-columns: 1fr 1fr; gap: 2px; padding: 2px;
+  grid-template-columns: 1fr 1fr; gap: 2px; padding: 2px; align-content: center;
 }
 .group-face.n-3 > :first-child { grid-column: 1 / 3; }
 .group-head {

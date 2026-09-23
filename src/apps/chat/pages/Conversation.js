@@ -110,18 +110,30 @@ export function ComposerBar({ draft = '', live = false, busy = false, frozen = f
     </div>`;
 }
 
+// 两条消息中间居中的那一行时间。相隔五分钟以上才有（见 receipt.needSep）
+const TimeSep = ({ at }) => html`<div class="time-sep ph-time-sep">${receipt.sepOf(at)}</div>`;
+
+// 同一个人接着说的那一条：和上一条之间收紧一点，读起来是一段话，不是几件事。
+// 提示行、线下那一整场不是「说的话」，不算
+const TALK = m => m && m.kind !== 'notice' && m.kind !== 'scene';
+const CONT_GAP = 3 * 60000;
+const contOf = (prev, cur) => TALK(prev) && TALK(cur)
+  && prev.role === cur.role && prev.authorId === cur.authorId
+  && cur.createdAt - prev.createdAt < CONT_GAP;
+
 // 记忆化：流式回复时只有最后那条在变，别的几百条没必要跟着重画。
 // 下面传给它的函数属性都是稳定身份的，见 Conversation 里的 stable。
 export const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, onSwipe, onHold, onBind,
                   selecting, selected, onToggle, transOpen, onSettle, onOpenLog, onUnwrap,
-                  onPat, innerStyle, fold, foldCount, onScene, who = '',
+                  onPat, innerStyle, fold, foldCount, onScene, who = '', cont = false,
                   stampAt = 'off', readOn = false, readUpTo = 0 }) {
   const mine = msg.role === 'user';
   // 落点是几个标量属性算出来的，不在这里读设置 —— 这个组件是 memo 过的，
   // 读了设置它也不会因为设置变了而重画（见外面传下来的那三个）
   // 回执自己没有位置设置，跟着时刻走；时刻关着就靠着气泡画
   const slot = stampAt === 'below' ? 'below' : 'side';
-  const metaStamp = stampAt === 'off' ? '' : receipt.stampOf(msg.createdAt);
+  // 「按间隔」那一档不画在气泡上，由列表在两条之间插一行（见 TimeSep）
+  const metaStamp = stampAt === 'side' || stampAt === 'below' ? receipt.stampOf(msg.createdAt) : '';
   const metaRead = readOn ? receipt.textOf(msg, readUpTo) : '';
   const hasMeta = !!(metaStamp || metaRead);
   const avatar = useImage(mine ? phone.accounts.current()?.avatar : char?.avatar);
@@ -176,7 +188,7 @@ export const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, o
 
   return html`
     <div id=${`msg-${msg.id}`}
-      class=${`msg no-callout ph-msg ${mine ? 'ph-msg-mine is-mine' : 'ph-msg-theirs'}${selecting && !frozen ? ' is-picking' : ''}${selected ? ' is-picked' : ''}${hasMeta && slot === 'side' ? ' has-aside' : ''}`}
+      class=${`msg no-callout ph-msg ${mine ? 'ph-msg-mine is-mine' : 'ph-msg-theirs'}${selecting && !frozen ? ' is-picking' : ''}${selected ? ' is-picked' : ''}${hasMeta && slot === 'side' ? ' has-aside' : ''}${cont ? ' is-cont' : ''}`}
       onClickCapture=${capture}
       onTouchStart=${start} onTouchEnd=${end} onTouchMove=${end} onTouchCancel=${end}
       onContextMenu=${e => { e.preventDefault(); if (!selecting && !frozen) onHold(msg); }}>
@@ -512,6 +524,24 @@ export function Conversation({ chatId, focusId = '' }) {
     const el = bodyRef.current;
     if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
   };
+
+  // 底下的面板、引用条、输入框一变高，消息区就变矮。本来贴着底部看的，
+  // 要跟着贴住 —— 不然点开加号，最新那几条就被压到面板后面，得自己往下划。
+  // 变矮时视口没有滚动，onScroll 不会来，所以「贴没贴着」另记一份在 ref 里
+  const bottomRef = useRef(true);
+  bottomRef.current = atBottom;
+  useEffect(() => {
+    const el = bodyRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return undefined;
+    let h = el.clientHeight;
+    const ro = new ResizeObserver(() => {
+      const nh = el.clientHeight;
+      if (nh < h && bottomRef.current) el.scrollTop = el.scrollHeight;
+      h = nh;
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [chatId, !!chat]);
 
   const last = msgs[msgs.length - 1];
   useEffect(() => {
@@ -1077,10 +1107,10 @@ export function Conversation({ chatId, focusId = '' }) {
 
   const pro = ai.proactive.configOf(char);
   const proDesc = pro.proactive
-    ? `已开启 · 平均间隔 ${pro.proactiveMinutes < 60
+    ? `平均每 ${pro.proactiveMinutes < 60
         ? pro.proactiveMinutes + ' 分钟'
-        : Math.round(pro.proactiveMinutes / 60) + ' 小时'}`
-    : '已关闭。开启后角色会主动发起对话';
+        : Math.round(pro.proactiveMinutes / 60) + ' 小时'}一次`
+    : '';
 
   // 每一格干什么。哪些留在面板上、什么顺序，由 system/panel.js 里用户
   // 自己排的那一份决定，这里只负责「按下之后发生什么」。
@@ -1177,12 +1207,19 @@ export function Conversation({ chatId, focusId = '' }) {
           ${earlier ? html`
             <button class="conv-earlier press" onClick=${loadEarlier}>
               查看更早的消息（还有 ${earlier} 条）</button>` : null}
-          ${rows.map(row => (row.stack ? html`
+          ${rows.map((row, i) => {
+            const head = row.stack ? row.msgs[0] : row.msg;
+            const prevRow = rows[i - 1];
+            const prev = prevRow ? (prevRow.stack ? prevRow.msgs[prevRow.msgs.length - 1] : prevRow.msg) : null;
+            const sep = stampAt === 'gap' && receipt.needSep(prev, head);
+            return [
+              sep ? html`<${TimeSep} key=${`sep-${row.id}`} at=${head.createdAt}/>` : null,
+              row.stack ? html`
             <${StackRow} key=${row.id} msgs=${row.msgs} char=${authorOf(row.msgs[0].authorId)}
               onExpand=${() => setOpenStack(s => new Set(s).add(row.id))}/>`
           : html`
             <${Bubble} key=${row.id} msg=${row.msg} char=${authorOf(row.msg.authorId)} chat=${chat}
-              who=${whoOf(row.msg)}
+              who=${whoOf(row.msg)} cont=${!sep && contOf(prev, row.msg)}
               onRetry=${stable.onRetry} onSwipe=${stable.onSwipe} onHold=${setHeld}
               onBind=${stable.onBind}
               selecting=${selecting} selected=${selecting && pickedSet.has(row.id)}
@@ -1194,7 +1231,8 @@ export function Conversation({ chatId, focusId = '' }) {
               fold=${row.foldOf ? () => setOpenStack(s => {
                 const n = new Set(s); n.delete(row.foldOf); return n;
               }) : null}
-              foldCount=${row.foldCount}/>`))}
+              foldCount=${row.foldCount}/>`];
+          })}
           ${live && sceneDraft ? html`
             <div class="sc-block sc-live" style=${stage.varsOf(stage.forScene(live))}>
               <div class="sg-text">${sceneDraft}</div>
@@ -1365,10 +1403,8 @@ export function Conversation({ chatId, focusId = '' }) {
         title=${isGroup ? phone.group.titleOf(chat) : char.name}>
         ${isGroup ? html`
         <${List} title="这个群">
-          <${ListItem} title="群资料" arrow multiline
-            subtitle=${`${members.map(c => c.name).join('、')} · `
-              + (phone.group.memShared(chat) ? '群里的事带进私聊' : '群里的事只留在群里')
-              + (phone.group.proactiveOf(chat).on ? ' · 主动开口已开启' : '')}
+          <${ListItem} title="群资料" arrow
+            subtitle=${members.map(c => c.name).join('、')}
             left=${html`<${Icon} name="users" size=${18}/>`}
             onClick=${() => { setMenu(false); nav.push(`/group/${chatId}`); }}/>
           ${members.map(c => html`
@@ -1377,22 +1413,22 @@ export function Conversation({ chatId, focusId = '' }) {
               onClick=${() => { setMenu(false); nav.push(`/edit/${c.id}`); }}/>`)}
         <//>` : html`
         <${List} title="这个角色">
-          <${ListItem} title="角色卡" arrow multiline
-            subtitle="人设、核心设定、开场白、对话示例、关联世界书，以及当日日程与各项能力的开关"
+          <${ListItem} title="角色卡" arrow
             left=${html`<${Icon} name="user" size=${18}/>`}
             onClick=${() => { setMenu(false); nav.push(`/edit/${char.id}`); }}/>
-          <${ListItem} title="角色主页" subtitle="头像、封面与该角色发布的动态" arrow multiline
+          <${ListItem} title="角色主页" arrow
             left=${html`<${Icon} name="camera" size=${18}/>`}
             onClick=${() => { setMenu(false); nav.push(`/profile/${char.id}`); }}/>
-          <${ListItem} title="主动发起对话" arrow multiline
+          <${ListItem} title="主动发起对话" arrow
             subtitle=${proDesc}
+            right=${pro.proactive ? '已开启' : '关闭'}
             left=${html`<${Icon} name="bell" size=${18}/>`}
             onClick=${() => { setMenu(false); nav.push(`/proactive/${char.id}`); }}/>
           ${phone.netease.cookieOf(char.id) ? html`
-            <${ListItem} title="查看角色在听什么" arrow multiline
+            <${ListItem} title="查看角色在听什么" arrow
               subtitle=${(() => {
                 const np = char.nowPlaying;
-                if (!np?.songs?.length) return '读取该角色音乐账号的播放记录，写入本轮上下文';
+                if (!np?.songs?.length) return '读取播放记录，写入本轮上下文';
                 const first = np.songs[0];
                 return `${np.kind === 'recent' ? '刚刚在听' : '最近常听'}：`
                   + `${first.title}${first.artist ? ' — ' + first.artist : ''}`;
@@ -1402,11 +1438,11 @@ export function Conversation({ chatId, focusId = '' }) {
         <//>`}
 
         <${List} title="这段对话">
-          <${ListItem} title="搜索聊天记录" subtitle=${`在这段对话中查找，共 ${msgs.length} 条消息`}
-            arrow multiline
+          <${ListItem} title="搜索聊天记录" arrow
+            right=${`${msgs.length} 条`}
             left=${html`<${Icon} name="search" size=${18}/>`}
             onClick=${() => { setMenu(false); nav.push(`/search/${chatId}`); }}/>
-          <${ListItem} title="互动标识" arrow multiline
+          <${ListItem} title="互动标识" arrow
             subtitle=${(() => {
               const s = phone.badges.streakOf(chat);
               const lv = chat.stats ? phone.badges.levelOf(chat).name : '';
@@ -1416,48 +1452,42 @@ export function Conversation({ chatId, focusId = '' }) {
             })()}
             left=${html`<${Icon} name="medal" size=${18}/>`}
             onClick=${() => { setMenu(false); nav.push(`/badges/${chatId}`); }}/>
-          ${otdYears.length ? html`<${ListItem} title="那年今天" arrow multiline
-            subtitle=${`${otdYears[0].ago} 年前的今天，共 ${otdYears[0].msgs.length} 条`
-              + (otdYears.length > 1 ? `。往年共 ${otdYears.length} 年的今天有记录` : '')}
+          ${otdYears.length ? html`<${ListItem} title="那年今天" arrow
+            subtitle=${`${otdYears[0].ago} 年前的今天，共 ${otdYears[0].msgs.length} 条`}
             left=${html`<${Icon} name="clock" size=${18}/>`}
             onClick=${() => { setMenu(false); nav.push(`/onthisday/${chatId}`); }}/>` : null}
-          <${ListItem} title="多选消息" subtitle="选择多条消息后一并删除。长按任意消息亦可进入" arrow multiline
+          <${ListItem} title="多选消息"
             left=${html`<${Icon} name="check" size=${18}/>`}
             onClick=${() => { setMenu(false); setPicked([]); setPanel(null); }}/>
-          <${ListItem} title="节奏与自动回复" arrow multiline
-            subtitle=${(() => {
+          <${ListItem} title="节奏与自动回复" arrow
+            subtitle=${autoReply.bannerOf(chat) || ''}
+            right=${(() => {
               const mode = pace.modeOf(chat);
-              const m = mode === pace.NOW ? '发完就回'
-                : mode === pace.PACED ? '延迟回复' : '按按钮才回';
-              return `${m}${autoReply.bannerOf(chat) ? ' · ' + autoReply.bannerOf(chat) : ''}`;
+              return mode === pace.NOW ? '发完就回' : mode === pace.PACED ? '延迟回复' : '按按钮才回';
             })()}
             left=${html`<${Icon} name="clock" size=${18}/>`}
             onClick=${() => { setMenu(false); nav.push(`/pace/${chatId}`); }}/>
-          <${ListItem} title="美化" arrow multiline
+          <${ListItem} title="美化" arrow
+            right=${mySkin ? mySkin.name : '未设置'}
             left=${html`<${Icon} name="sparkle" size=${18}/>`}
-            subtitle=${mySkin
-    ? `已挂「${mySkin.name}」。只在这段会话里生效`
-    : '为这段会话单独设定气泡、头像、顶栏底栏的尺寸，也可以写自定义 CSS'}
             onClick=${() => { setMenu(false); nav.push(`/skin/${chatId}`); }}/>
-          <${ListItem} title="翻译" arrow multiline
-            subtitle=${chat.translateTo
-              ? `每条同时给出${chat.translateTo}译文，${settings.translateOpen === 'always' ? '默认展开' : '点气泡展开'}`
-              : '关着。开启后角色每说一条会同时给出译文'}
+          <${ListItem} title="翻译" arrow
+            right=${chat.translateTo || '关闭'}
             left=${html`<${Icon} name="translate" size=${18}/>`}
             onClick=${() => { setMenu(false); nav.push(`/translate/${chatId}`); }}/>
-          ${isGroup ? null : html`<${ListItem} title="互动" arrow multiline
-            subtitle=${`心声${extras.innerMode(chat) === extras.INNER_OFF ? '关着'
-              : extras.innerMode(chat) === extras.INNER_INLINE ? '随回复一起生成' : '每轮单独生成'}`
+          ${isGroup ? null : html`<${ListItem} title="互动" arrow
+            subtitle=${`心声${extras.innerMode(chat) === extras.INNER_OFF ? '关闭'
+              : extras.innerMode(chat) === extras.INNER_INLINE ? '随回复生成' : '单独生成'}`
               + ` · 拍一拍 · ${extras.facesOf(chat)} 面骰子`}
             left=${html`<${Icon} name="heart" size=${18}/>`}
             onClick=${() => { setMenu(false); nav.push(`/extras/${chatId}`); }}/>
-          <${ListItem} title="共享位置" arrow multiline
+          <${ListItem} title="共享位置" arrow
             subtitle=${(() => {
               const sum = phone.geo.summary(chatId);
               return sum ? `${sum.me.place || '未命名'} 到 ${sum.char.place || '未命名'}`
-                + (sum.text ? ` · ${sum.text}` : ' · 缺少坐标，算不出距离')
-                : '关着。开启后角色知道你们相距多远，距离由本地计算';
+                + (sum.text ? ` · ${sum.text}` : ' · 缺少坐标') : '';
             })()}
+            right=${phone.geo.summary(chatId) ? '' : '关闭'}
             left=${html`<${Icon} name="compass" size=${18}/>`}
             onClick=${() => { setMenu(false); setSharing(true); }}/>`}
         <//>
@@ -1466,43 +1496,37 @@ export function Conversation({ chatId, focusId = '' }) {
           <${ListItem} title=${summing ? '正在总结记忆' : '立即总结记忆'} arrow multiline
             subtitle=${summing
               ? '正在调用接口，完成后会给出结果。这段时间请不要离开本页。'
-              : `尚有 ${pending} 条未总结 · ${settings.autoSummarizeInterval > 0
-                ? `自动总结每 ${settings.autoSummarizeInterval} 轮一次`
+              : `${pending} 条未总结 · ${settings.autoSummarizeInterval > 0
+                ? `每 ${settings.autoSummarizeInterval} 轮自动总结`
                 : '自动总结已关闭'}`
-                + (runs > 1 ? `。一次总结最早的一批，追平需要 ${runs} 次` : '')}
+                + (runs > 1 ? ` · 追平需要 ${runs} 次` : '')}
             left=${summing
               ? html`<${Spinner} size=${16}/>`
               : html`<${Icon} name="brain" size=${18}/>`}
             onClick=${() => !summing && summarize()}/>
           ${runs > 1 ? html`
             <${ListItem} title="标记为已总结" danger arrow multiline
-              subtitle=${`把这 ${pending} 条记为已总结，不调用接口。`
-                + '从别处迁入大量历史、又不打算为它们生成记忆时用'}
+              subtitle=${`把这 ${pending} 条记为已总结，不调用接口，也不生成记忆`}
               left=${html`<${Icon} name="check" size=${18}/>`}
               onClick=${skipSummary}/>` : null}
-          ${isGroup ? null : html`<${ListItem} title="关系底色" arrow multiline
+          ${isGroup ? null : html`<${ListItem} title="关系底色" arrow
             subtitle=${(() => {
               const t = ai.bond.textOf(char, chat.personaId);
-              const n = ai.bond.sourceOf(char.id, chat.personaId).length;
-              return t ? `${t.split('\n')[0].slice(0, 20)}… · 由 ${n} 条关系转折级记忆压成`
-                : `尚未生成 · 当前有 ${n} 条关系转折级记忆`;
+              return t ? t.split('\n')[0] : '';
             })()}
+            right=${ai.bond.textOf(char, chat.personaId) ? '' : '尚未生成'}
             left=${html`<${Icon} name="users" size=${18}/>`}
             onClick=${() => { setMenu(false); nav.push(`/bond/${chatId}`); }}/>
-          <${ListItem} title="我们" arrow multiline
-            subtitle=${(() => {
-              const n = phone.work.ofChat(chatId).length;
-              return n ? `这段关系下有 ${n} 部长篇或番外` : '长篇与番外。以成段的文字写，与聊天分开保存';
-            })()}
+          <${ListItem} title="我们" arrow
+            subtitle="长篇与番外"
+            right=${(() => { const n = phone.work.ofChat(chatId).length; return n ? `${n} 部` : ''; })()}
             left=${html`<${Icon} name="book" size=${18}/>`}
             onClick=${() => { setMenu(false); phone.intent.open('us', { route: `/chat/${chatId}`, back: true }); }}/>`}
         <//>
 
         <${List}>
-          <${ListItem} title="更多" arrow multiline
-            subtitle=${isGroup
-              ? '上下文设定、表情包、能力开关、Prompt 模板、每轮的接口调用'
-              : '上下文设定、表情包、能力开关、Prompt 模板、每轮的接口调用、导出与清空数据'}
+          <${ListItem} title="更多" arrow
+            subtitle=${isGroup ? '上下文、表情包、模板、接口调用' : '上下文、表情包、模板、导出与清空数据'}
             left=${html`<${Icon} name="more" size=${18}/>`}
             onClick=${() => { setMenu(false); nav.push(`/more/${chatId}`); }}/>
         <//>

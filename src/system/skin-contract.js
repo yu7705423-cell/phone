@@ -86,6 +86,8 @@ export const HOOKS = [
     needs: '开启消息时刻或已读回执' },
   { hook: 'stamp', label: '消息时刻', on: ['chat'], since: 1, needs: '开启消息时刻' },
   { hook: 'read', label: '已读回执', on: ['chat'], since: 1, needs: '开启已读回执' },
+  { hook: 'time-sep', label: '消息之间居中的那行时间', on: ['chat'], since: 2,
+    needs: '消息时刻为「按间隔」，且两条消息相隔五分钟以上' },
 
   // ---- 会话：底栏 ----
   { hook: 'composer', label: '底栏', on: ['chat'], since: 1 },

@@ -278,6 +278,8 @@
 .dock-capsule.is-edit .app-tile { animation: jiggle .5s ease-in-out infinite; }
 .dock-slot.is-picked .app-tile { outline: 2px solid var(--text); outline-offset: 3px; }
 .dock-empty.is-edit { border-style: solid; opacity: .7; }
+/* 空位只在编辑时画出来。平时画一圈虚线框，看着像少装了什么 */
+.dock-empty:not(.is-edit) { visibility: hidden; }
 
 .dock-capsule {
   height: 100%; display: grid; grid-template-columns: repeat(4, 1fr);
@@ -580,3 +582,6 @@
   background: var(--surface-2); background-size: cover; background-position: center;
 }
 .wg-album.is-flat .wg-shots { grid-template-columns: repeat(3, 1fr); }
+
+/* 还没填内容的小组件上那一句提示 */
+.wg-hint { font-size: var(--fs-12); color: var(--text-3); line-height: 1.5; }

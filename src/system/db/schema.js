@@ -31,7 +31,7 @@ export const KV = {
 
 // 业务层数据迁移。与 IndexedDB 的版本升级分开:
 // 这里处理的是记录内部结构的变化,而不是仓库的增删。
-export const DATA_VERSION = 8;
+export const DATA_VERSION = 9;
 
 export const MIGRATIONS = {
   // 1: 初始结构,无需迁移
@@ -148,6 +148,13 @@ export const MIGRATIONS = {
   //    仍然是 200 的按新默认走；自己改成别的数的不动。
   8({ settings }) {
     if (settings.get().chatPage === 200) settings.set({ chatPage: 60 });
+  },
+
+  // 9: 消息时刻的默认值从「不显示」改成「间隔较久时居中显示」。
+  //    和 8 同一个道理：老默认值 off 已经落在库里，改默认值到不了老库。
+  //    off 的一律挪到新默认；逐条显示的两种是用户自己选的，不动。
+  9({ settings }) {
+    if (settings.get().msgStamp === 'off') settings.set({ msgStamp: 'gap' });
   },
 };
 

@@ -90,7 +90,7 @@ function Card({ char, onClick, onHold }) {
         ${alts ? html`<span class="ct-badge">${alts} 个小号</span>` : null}
       </div>
       <div class="ct-name ellipsis">${char.name || '未命名'}</div>
-      <div class="ct-sign ellipsis">${char.signature || bits || '还没写签名'}</div>
+      <div class="ct-sign ellipsis">${char.signature || bits || '\u00a0'}</div>
     </button>`;
 }
 

@@ -176,6 +176,10 @@
 .li-multiline .li-title { white-space: normal; line-height: 1.55; }
 .li-sub   { font-size: var(--fs-12); color: var(--text-3); margin-top: 2px; line-height: 1.5; }
 .li-right { flex: none; display: flex; align-items: center; gap: var(--sp-2); color: var(--text-3); font-size: var(--fs-13); }
+/* 没标 multiline 的那一行，副标题只占一行，多出来的省略 —— 列表是用来扫一眼的，
+   要看全文就点进去。右边的状态字同理，太长时省略，不把标题挤走 */
+.li-body:not(.li-multiline) .li-sub { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.li-value { max-width: 10em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .li-arrow { color: var(--text-3); flex: none; }
 
 /* ---- 空态 ---- */

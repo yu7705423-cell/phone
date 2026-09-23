@@ -43,7 +43,7 @@ const unit = await page.evaluate(async (ids) => {
   const R=[]; const ok=(n,c,e)=>R.push({name:n,pass:!!c,extra:String(e??'')});
   const at=id=>db.messages.get(id);
 
-  ok('默认不显示时刻', rc.stampMode()==='off', rc.stampMode());
+  ok('默认按间隔显示时刻', rc.stampMode()==='gap', rc.stampMode());
   ok('默认不显示回执', rc.on()===false, rc.on());
 
   const t=new Date(); t.setHours(14,5,0,0);

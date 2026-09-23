@@ -4,6 +4,8 @@ import { registerWidget } from '../../system/registry.js';
 import { chats, moments, memories, characters, lastMessageOf, persona } from '../../system/db/index.js';
 import * as health from '../../system/health.js';
 import * as album from '../../system/album.js';
+import * as accounts from '../../system/accounts.js';
+import * as group from '../../system/group.js';
 import { openApp } from '../../system/nav.js';
 import { useImage, useThumb } from '../../system/db/useImage.js';
 import { useFile } from '../../system/db/useFile.js';
@@ -16,6 +18,9 @@ function relTime(ts) {
   if (min < 1440) return `${Math.floor(min / 60)}小时前`;
   return `${Math.floor(min / 1440)}天前`;
 }
+
+// 还没填过内容的那几块。空着一块白板，看不出它是什么、怎么填，所以写一句怎么改
+const EMPTY_HINT = html`<div class="wg-hint">长按主屏进入编辑，点击这一块填写内容</div>`;
 
 // ---- 播放器版式横条 ----
 export const LINE_SIZES = [
@@ -56,6 +61,7 @@ registerWidget({
           ${[1, 2, 3].map(n => c[`line${n}`]
             ? html`<div key=${n} class=${`pl-line pl-${c[`size${n}`]}`}>${c[`line${n}`]}</div>`
             : null)}
+          ${!c.cover && ![1, 2, 3].some(n => c[`line${n}`]) ? EMPTY_HINT : null}
         </div>
         <${Icon} name="music" size=${18} class="pl-mark"/>
       </div>`;
@@ -74,6 +80,7 @@ registerWidget({
     const c = { ...NOTE_DEFAULT, ...(cell?.config || {}) };
     return html`
       <div class=${`wg wg-note${c.serif ? ' is-serif' : ''}`}>
+        ${c.line1 || c.line2 ? null : EMPTY_HINT}
         <div class=${`pl-line pl-${c.size1}`}>${c.line1}</div>
         ${c.line2 ? html`<div class=${`pl-line pl-${c.size2}`}>${c.line2}</div>` : null}
       </div>`;
@@ -108,19 +115,25 @@ registerWidget({
   label: '最近会话',
   sizes: [[2, 2], [4, 2]],
   render() {
-    const list = chats.all()
+    // 只列当前身份的会话，和消息列表同一个口径。群显示群名，不显示第一个成员的名字
+    const me = accounts.currentId();
+    const list = chats.where(c => (c.personaId || me) === me)
       .sort((a, b) => (b.lastMessageAt || 0) - (a.lastMessageAt || 0))
-      .slice(0, 3);
+      // 两格高只放得下两段，第三段会被切掉半截
+      .slice(0, 2);
     return html`
       <div class="wg wg-list" onClick=${() => openApp('chat')}>
         <div class="wg-head"><${Icon} name="message" size=${15}/><span>最近会话</span></div>
         ${list.length ? html`<div class="wg-rows">
           ${list.map(c => {
-            const char = characters.get((c.characterIds || [])[0]);
+            const name = group.isGroup(c) ? group.titleOf(c)
+              : characters.get((c.characterIds || [])[0])?.name || c.title || '会话';
             const last = lastMessageOf(c.id);
+            // 点哪一行就进哪一段，不是先进消息列表再找一遍
             return html`
-              <div key=${c.id} class="wg-row">
-                <div class="wg-row-title ellipsis">${char?.name || c.title || '会话'}</div>
+              <div key=${c.id} class="wg-row"
+                onClick=${e => { e.stopPropagation(); openApp('chat', `/chat/${c.id}`); }}>
+                <div class="wg-row-title ellipsis">${name}</div>
                 <div class="wg-row-sub ellipsis">${last?.content || '还没有消息'}</div>
               </div>`;
           })}

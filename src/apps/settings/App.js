@@ -36,68 +36,57 @@ function Home() {
   // 手机上装的是哪个 ipa —— 而闹钟、通知这几样只有重装才会变
   const shell = typeof window !== 'undefined' ? (window.phoneAppVersion || '') : '';
   const ai = phone.ai;
-  const chat = svc.services().chat;
+  // 列表里只写状态，不写说明 —— 说明在点进去的那一页。
+  // 没配的在右边写「未配置」；配好了在标题下写一行它用的是什么
+  const OFF = '未配置';
   const active = svc.activeChat();
   const spare = svc.fallbackChat();
-  const chatDesc = active
-    ? `${active.name} · ${active.model || '未选模型'}${spare ? `，副用 ${spare.name}` : ''}`
-    : '未配置，聊天不可用';
+  const chatDesc = active ? `${active.name} · ${active.model || '未选模型'}${spare ? `，副用 ${spare.name}` : ''}` : '';
   const voice = svc.voiceConfig();
-  const voiceDesc = voice.enabled && voice.apiKey ? `已配置 · ${voice.model || '未选择模型'}` : '未配置';
+  const voiceDesc = voice.enabled && voice.apiKey ? (voice.model || '未选择模型') : '';
   const vision = svc.visionConfig();
   const visionMode = svc.visionMode();
-  const visionDesc = visionMode === 'chat'
-    ? '交给聊天模型 · 只传当轮的图，看过即存为描述'
-    : visionMode === 'api'
-      ? (svc.visionReady() ? `单独的接口 · ${vision.model}` : '选了单独的接口，但还没填全')
-      : '关闭。角色看不到你发的图片，只知道你发了一张图';
+  const visionVal = visionMode === 'chat' ? '交给聊天模型'
+    : visionMode === 'api' ? (svc.visionReady() ? '单独接口' : '未填全') : '关闭';
+  const visionDesc = visionMode === 'api' && svc.visionReady() ? vision.model : '';
   const asr = svc.asrConfig();
-  const asrDesc = svc.asrReady()
-    ? `${asr.model} · ${asr.mode === 'tone' ? '同时识别语气' : '仅转写文字'}`
-    : ai.asr.canSendVoice()
-      ? '未配置，当前使用浏览器自带的识别。只有文字，没有语气'
-      : '未配置，且这个浏览器不支持本机识别，暂时发不了语音';
+  const asrVal = svc.asrReady() ? '' : ai.asr.canSendVoice() ? '浏览器自带' : '不可用';
+  const asrDesc = svc.asrReady() ? `${asr.model} · ${asr.mode === 'tone' ? '同时识别语气' : '仅转写文字'}` : '';
   const imgActive = svc.activeImage();
-  const imageDesc = imgActive ? `${imgActive.name} · ${imgActive.model || '未选择模型'}` : '未配置';
+  const imageDesc = imgActive ? `${imgActive.name} · ${imgActive.model || '未选择模型'}` : '';
   const vidActive = ai.video.isVideoReady() ? svc.activeVideo() : null;
-  const videoDesc = vidActive
-    ? `${vidActive.name} · ${vidActive.model}`
-    : (svc.videoPresets().length ? '已新建但未填全' : '未配置');
+  const videoDesc = vidActive ? `${vidActive.name} · ${vidActive.model}` : '';
+  const videoVal = vidActive ? '' : svc.videoPresets().length ? '未填全' : OFF;
 
   const ne = svc.neteaseConfig();
-  const musicDesc = !ne.baseUrl
-    ? '未配置。配置后可在一起听中搜索并播放网易云曲库'
-    : svc.neteaseLoggedIn() ? `已登录 ${ne.nickname}${ne.sync ? ' · 同步歌单' : ''}` : '已填写地址，尚未登录';
+  const musicVal = !ne.baseUrl ? OFF : svc.neteaseLoggedIn() ? '' : '未登录';
+  const musicDesc = ne.baseUrl && svc.neteaseLoggedIn() ? `${ne.nickname}${ne.sync ? ' · 同步歌单' : ''}` : '';
 
   const emb = svc.embedConfig();
   const rrk = svc.rerankConfig();
-  const embDone = phone.ai.memvec.indexedCount();
-  const embDesc = emb.apiKey && emb.model
-    ? `${emb.model} · 已索引 ${embDone} / ${db.memories.count()} 条记忆`
-    : '未配置。配置后记忆按语义检索，不再依赖关键词匹配';
-
-  const rerankDesc = !svc.rerankReady()
-    ? '未配置。配置后可在语义召回之后再按相关度重排一遍'
-    : db.settings.get().rerankOn === true
-      ? `${rrk.model} · 已开启，每轮额外调用一次`
-      : `${rrk.model} · 已配置但未开启`;
+  const embOk = !!(emb.apiKey && emb.model);
+  const embDesc = embOk ? `${emb.model} · 已索引 ${phone.ai.memvec.indexedCount()} / ${db.memories.count()}` : '';
+  const rerankVal = !svc.rerankReady() ? OFF : db.settings.get().rerankOn === true ? '已开启' : '未开启';
+  const rerankDesc = svc.rerankReady() ? rrk.model : '';
 
   const tr = svc.translateConfig();
-  const trDesc = svc.translateMode() === 'api'
-    ? `单独的接口 · ${tr.model}`
-    : tr.mode === 'api'
-      ? '选了单独的接口，但还没填全'
-      : '跟着回复一起给出。译文由聊天模型在生成回复时一并写出';
+  const trVal = svc.translateMode() === 'api' ? '单独接口' : tr.mode === 'api' ? '未填全' : '随回复写出';
+  const trDesc = svc.translateMode() === 'api' ? tr.model : '';
 
   const sc = svc.searchConfig();
-  const searchDesc = svc.searchReady()
-    ? `${sc.model} · 可按地区搜索真实的吃处`
-    : '未配置。配置后可在「日常 - 吃什么」中搜索真实存在的店';
+  const searchDesc = svc.searchReady() ? sc.model : '';
 
   const nc = phone.sound.config();
   const soundName = nc.soundFileId ? '自定义音频'
     : (phone.sound.PRESETS.find(p => p.id === nc.sound) || {}).label || '清脆';
   const notifyDesc = `${nc.banner ? '横幅开着' : '横幅关着'} · 提示音 ${soundName}`;
+
+  // 一行服务。状态写在右边，配好了才有副标题
+  const svcRow = ({ title, icon, route, desc = '', value = '' }) => html`
+    <${ListItem} title=${title} subtitle=${desc} arrow
+      right=${value || null}
+      left=${html`<${Icon} name=${icon} size=${19}/>`}
+      onClick=${() => nav.push(route)}/>`;
 
   const update = async () => {
     toast('正在获取最新代码', 'plain');
@@ -110,84 +99,57 @@ function Home() {
   return html`
     <${Page} title="设置">
       <${List} title="服务">
-        <${ListItem} title="接口" subtitle=${chatDesc} arrow multiline
-          left=${html`<${Icon} name="key" size=${19}/>`}
-          onClick=${() => nav.push('/api')}/>
-        <${ListItem} title="语音合成" subtitle=${voiceDesc} arrow
-          left=${html`<${Icon} name="headphone" size=${19}/>`}
-          onClick=${() => nav.push('/voice')}/>
-        <${ListItem} title="生图" subtitle=${imageDesc} arrow
-          left=${html`<${Icon} name="camera" size=${19}/>`}
-          onClick=${() => nav.push('/image')}/>
-        <${ListItem} title="生成视频" subtitle=${videoDesc} arrow multiline
-          left=${html`<${Icon} name="film" size=${19}/>`}
-          onClick=${() => nav.push('/video')}/>
-        <${ListItem} title="音乐服务" subtitle=${musicDesc} arrow multiline
-          left=${html`<${Icon} name="music" size=${19}/>`}
-          onClick=${() => nav.push('/music')}/>
-        <${ListItem} title="向量" subtitle=${embDesc} arrow multiline
-          left=${html`<${Icon} name="brain" size=${19}/>`}
-          onClick=${() => nav.push('/embed')}/>
-        <${ListItem} title="重排" subtitle=${rerankDesc} arrow multiline
-          left=${html`<${Icon} name="filter" size=${19}/>`}
-          onClick=${() => nav.push('/rerank')}/>
-        <${ListItem} title="联网搜索" subtitle=${searchDesc} arrow multiline
-          left=${html`<${Icon} name="compass" size=${19}/>`}
-          onClick=${() => nav.push('/search')}/>
+        ${svcRow({ title: '接口', icon: 'key', route: '/api', desc: chatDesc, value: active ? '' : OFF })}
+        ${svcRow({ title: '语音合成', icon: 'headphone', route: '/voice', desc: voiceDesc, value: voiceDesc ? '' : OFF })}
+        ${svcRow({ title: '生图', icon: 'camera', route: '/image', desc: imageDesc, value: imageDesc ? '' : OFF })}
+        ${svcRow({ title: '生成视频', icon: 'film', route: '/video', desc: videoDesc, value: videoVal })}
+        ${svcRow({ title: '音乐服务', icon: 'music', route: '/music', desc: musicDesc, value: musicVal })}
+        ${svcRow({ title: '向量', icon: 'brain', route: '/embed', desc: embDesc, value: embOk ? '' : OFF })}
+        ${svcRow({ title: '重排', icon: 'filter', route: '/rerank', desc: rerankDesc, value: rerankVal })}
+        ${svcRow({ title: '联网搜索', icon: 'compass', route: '/search', desc: searchDesc, value: searchDesc ? '' : OFF })}
       <//>
 
       <${List} title="识别你发送的内容">
-        <${ListItem} title="识图" subtitle=${visionDesc} arrow multiline
-          left=${html`<${Icon} name="eye" size=${19}/>`}
-          onClick=${() => nav.push('/vision')}/>
-        <${ListItem} title="语音识别" subtitle=${asrDesc} arrow multiline
-          left=${html`<${Icon} name="signal" size=${19}/>`}
-          onClick=${() => nav.push('/asr')}/>
+        ${svcRow({ title: '识图', icon: 'eye', route: '/vision', desc: visionDesc, value: visionVal })}
+        ${svcRow({ title: '语音识别', icon: 'signal', route: '/asr', desc: asrDesc, value: asrVal })}
       <//>
 
       <${List} title="翻译">
-        <${ListItem} title="翻译" subtitle=${trDesc} arrow multiline
-          left=${html`<${Icon} name="translate" size=${19}/>`}
-          onClick=${() => nav.push('/translate')}/>
+        ${svcRow({ title: '翻译', icon: 'translate', route: '/translate', desc: trDesc, value: trVal })}
       <//>
 
       <${List} title="外观">
-        <${ListItem} title="通知" subtitle=${notifyDesc} arrow multiline
+        <${ListItem} title="通知" subtitle=${notifyDesc} arrow
           left=${html`<${Icon} name="bell" size=${18}/>`}
           onClick=${() => nav.push('/notify')}/>
         <${ListItem} title="主题"
-          subtitle="深色模式、壁纸、图标颜色与阴影、自定义 CSS" arrow multiline
+          subtitle="深色模式、壁纸、图标、自定义 CSS" arrow
           left=${html`<${Icon} name="grid" size=${18}/>`}
           onClick=${() => nav.push('/appearance')}/>
-        <${ListItem} title="线下外观" arrow multiline
-          subtitle="线下正文的主题、字体、字号、栏宽、壁纸与自定义样式。与全局主题、阅读器各自独立"
+        <${ListItem} title="线下外观" arrow
+          subtitle="线下正文的主题、字体与排版"
           left=${html`<${Icon} name="book" size=${18}/>`}
           onClick=${() => phone.intent.open('chat', { route: '/stage/settings', back: true })}/>
       <//>
 
       <${List} title="文字">
-        <${ListItem} title="不要写这些" arrow multiline
+        <${ListItem} title="不要写这些" arrow
           left=${html`<${Icon} name="filter" size=${18}/>`}
-          subtitle=${banN
-            ? `已列出 ${banN} 条，对所有角色生效。`
-              + (Number(s.banReroll) > 0
-                ? `命中时最多重新生成 ${Math.max(0, Math.round(Number(s.banReroll) || 0))} 次`
-                : '命中时在该条消息下方标注')
-            : '列出不希望角色使用的词句。列出后写入每一轮的提示词，并在回复落地时本地比对'}
+          subtitle=${banN ? (Number(s.banReroll) > 0 ? '命中时重新生成' : '命中时在消息下方标注') : ''}
+          right=${banN ? `${banN} 条` : '未设置'}
           onClick=${() => nav.push('/ban')}/>
       <//>
 
       <${List} title="用量">
-        <${ListItem} title="用量与上限" arrow multiline
+        <${ListItem} title="用量与上限" arrow
           left=${html`<${Icon} name="filter" size=${18}/>`}
-          subtitle=${`通话回复长度、视频通话画面间隔、表情名单长度、主动消息的未读阈值、`
-            + `会话渲染条数、搜索结果条数、一起听的上报门槛。均可填 0 表示不限。`}
+          subtitle="一次处理多少、哪些功能会额外调用接口"
           onClick=${() => nav.push('/limits')}/>
       <//>
 
       <${List} title="后台">
-        <${ListItem} title="后台任务" arrow multiline
-          subtitle="定时执行的任务、每条消息顺带的调用，以及最近实际调用接口的次数"
+        <${ListItem} title="后台任务" arrow
+          subtitle="定时执行的任务与实际调用次数"
           left=${html`<${Icon} name="pulse" size=${18}/>`}
           onClick=${() => nav.push('/background')}/>
         <${ListItem} title="保活" multiline
@@ -217,11 +179,8 @@ function Home() {
         <${ListItem} title="存储与备份" subtitle="占用统计、导入导出、清空数据" arrow
           left=${html`<${Icon} name="database" size=${18}/>`}
           onClick=${() => nav.push('/storage')}/>
-        <${ListItem} title="强制更新" multiline arrow
-          subtitle=${`网页版本 ${BUILD}`
-            + (shell ? `，外壳版本 ${shell}` : '')
-            + '。若界面仍为旧版，点击此处清除缓存的旧代码并重新加载。'
-            + (shell ? '外壳版本只能通过重新安装更新。' : '')}
+        <${ListItem} title="强制更新" arrow
+          subtitle="界面仍是旧版时，清除缓存的代码并重新加载"
           left=${html`<${Icon} name="refresh" size=${18}/>`} onClick=${update}/>
       <//>
 

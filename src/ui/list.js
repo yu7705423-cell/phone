@@ -19,6 +19,7 @@ export const ListItem = ({ title, subtitle, left, right, onClick, arrow, danger,
       <div class="li-title">${title}</div>
       ${subtitle ? html`<div class="li-sub">${subtitle}</div>` : null}
     </div>
-    ${right ? html`<div class="li-right">${right}</div>` : null}
+    ${right ? html`<div class="li-right">${typeof right === 'string'
+      ? html`<span class="li-value">${right}</span>` : right}</div>` : null}
     ${arrow ? html`<${Icon} name="chevronRight" size=${16} class="li-arrow"/>` : null}
   </div>`;

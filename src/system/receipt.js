@@ -15,16 +15,47 @@ import { messages, messagesOf, settings } from './db/index.js';
 
 export const on = () => settings.get().msgRead === true;
 
+// gap 是聊天软件通行的那种：相隔一段时间才在两条消息中间居中写一行时间，
+// 连着说的几句不重复写。它是默认值 —— 一条时间都没有的话，隔了三天的两句话
+// 看起来像是紧挨着说的。逐条写时刻的那两种仍然可选。
 export const STAMPS = [
+  { id: 'gap', label: '按间隔' },
+  { id: 'side', label: '每条旁边' },
+  { id: 'below', label: '每条下方' },
   { id: 'off', label: '不显示' },
-  { id: 'side', label: '气泡旁边' },
-  { id: 'below', label: '气泡下方' },
 ];
 
 export const stampMode = () => {
   const v = settings.get().msgStamp;
-  return STAMPS.some(x => x.id === v) ? v : 'off';
+  return STAMPS.some(x => x.id === v) ? v : 'gap';
 };
+
+/** 相隔多久才写一行时间 */
+export const SEP_GAP = 5 * 60000;
+
+/** 两条消息中间要不要写一行时间。第一条总是写 */
+export const needSep = (prev, cur) => !!cur?.createdAt
+  && (!prev?.createdAt || cur.createdAt - prev.createdAt >= SEP_GAP);
+
+const WEEK = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+
+/**
+ * 分隔行上的时间。今天只写时分，昨天写「昨天」，一周内写星期，
+ * 今年写月日，更早的带年份 —— 和人翻聊天记录时找时间的顺序一样。
+ */
+export function sepOf(ts, now = Date.now()) {
+  const t = Number(ts) || 0;
+  if (!t) return '';
+  const d = new Date(t);
+  const hm = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  const day0 = new Date(now); day0.setHours(0, 0, 0, 0);
+  const days = Math.floor((day0.getTime() - new Date(d).setHours(0, 0, 0, 0)) / 86400000);
+  if (days <= 0) return hm;
+  if (days === 1) return `昨天 ${hm}`;
+  if (days < 7) return `${WEEK[d.getDay()]} ${hm}`;
+  if (d.getFullYear() === new Date(now).getFullYear()) return `${d.getMonth() + 1}月${d.getDate()}日 ${hm}`;
+  return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日 ${hm}`;
+}
 
 /** 时刻怎么写。当天只写时分，隔天带上日期 —— 隔天还只写时分会看错。 */
 export function stampOf(ts, now = Date.now()) {

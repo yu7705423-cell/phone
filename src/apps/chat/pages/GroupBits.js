@@ -11,9 +11,10 @@ import { AVATAR_MAX } from '../../../system/db/images.js';
 
 const { db, nav, ai } = phone;
 
-function Face({ char, size }) {
+function Face({ char, size, radius }) {
   const src = useImage(char?.avatar);
-  return html`<${Avatar} src=${src} name=${char?.name || ''} size=${size} radius=${Math.round(size / 2)}/>`;
+  return html`<${Avatar} src=${src} name=${char?.name || ''} size=${size}
+    radius=${radius ?? Math.round(size / 2)}/>`;
 }
 
 /**
@@ -26,11 +27,13 @@ export function GroupFace({ chat, size = 46 }) {
   if (chat?.avatar) {
     return html`<${Avatar} src=${own} name=${phone.group.titleOf(chat)} size=${size} radius=${Math.round(size / 2)}/>`;
   }
+  // 拼的时候每一格是小方块，外框是圆角方形 —— 聊天软件里群头像通行的样子，
+  // 一眼和单人的圆头像分得开。几个小圆塞进一个圆里，边上那几个会被切掉一块
   const list = phone.group.members(chat).slice(0, 4);
-  const cell = list.length > 1 ? Math.floor(size / 2) - 1 : size;
+  const cell = list.length > 1 ? Math.floor((size - 6) / 2) : size;
   return html`
     <div class=${`group-face n-${list.length}`} style=${`--gf-size:${size}px`}>
-      ${list.map(c => html`<${Face} key=${c.id} char=${c} size=${cell}/>`)}
+      ${list.map(c => html`<${Face} key=${c.id} char=${c} size=${cell} radius=${Math.round(cell / 5)}/>`)}
     </div>`;
 }
 
