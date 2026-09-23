@@ -325,6 +325,17 @@ Handle each transfer once. Do not handle ones already marked as accepted or
 returned.
 Whether to accept or return is yours to decide from the situation.`,
 
+  // 角色能用的 MCP 工具。{{tools}} 是工具清单（mcptools.toolList），不是指令
+  'skeleton.mcp':
+`## Tools
+The tools below are connected to this conversation. To call one, write a line on its own:
+[调用：tool name {"argument": "value"}]
+The arguments are one JSON object that follows the tool's input schema; write {} when there are none.
+The call runs after this reply is sent. Its result appears later in the conversation as a
+message starting with [工具结果：tool name]. Before that message appears, the result is unknown.
+
+{{tools}}`,
+
   'skeleton.listen':
 `[一起听歌]
 To invite the other party to listen to music together, write a line on its own,

@@ -72,6 +72,7 @@ import * as paraComment from '../system/ai/tasks/para-comment.js';
 import * as drawApi from '../system/draw.js';
 import * as eventBatch from '../system/ai/tasks/event-batch.js';
 import * as musicApi from '../system/music.js';
+import * as mcpApi from '../system/mcptools.js';
 import * as listenApi from '../system/listen.js';
 import * as neteaseApi from '../system/netease.js';
 import * as purgeApi from '../system/purge.js';
@@ -281,6 +282,7 @@ export const phone = {
   food: foodApi,
   draw: drawApi,
   music: musicApi,
+  mcp: mcpApi,
   listen: listenApi,
   netease: neteaseApi,
   purge: purgeApi,

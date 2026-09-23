@@ -43,6 +43,7 @@ const LABELS = {
   'skeleton.voice': '骨架 · 发语音',
   'skeleton.gift': '骨架 · 送礼物',
   'skeleton.listen': '骨架 · 一起听歌',
+  'skeleton.mcp': '骨架 · 调用工具（MCP）',
   'skeleton.joint': '骨架 · 共同账户与亲属卡',
   'skeleton.pact': '骨架 · 约定',
   'skeleton.inner': '骨架 · 心声（随回复一起）',

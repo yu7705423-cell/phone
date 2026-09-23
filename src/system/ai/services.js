@@ -42,6 +42,11 @@ export const EMPTY_SERVICES = {
   // 同一个中转站要在五六个页面各填一遍。存在这儿，各服务用 endpointId 指过来。
   // 也可以直接指一个聊天预设的 id —— 两边共用一个 id 空间，见 sourceOf。
   endpoints: [],
+  // MCP 工具服务器。每个角色在角色卡上选自己能用哪几个（char.mcpServers）。
+  // headers 是「Key: value」一行一个的文本，里面多半是密钥，和别的密钥一样
+  // 只在「连同密钥一起备份」时才进备份。tools 是上次连接时取回来的工具清单，
+  // 拼 prompt 要同步读到它，所以存下来，不每轮现取。
+  mcp: { servers: [] },
 };
 
 export function services() {
@@ -61,6 +66,7 @@ export function services() {
     netease: { ...EMPTY_SERVICES.netease, ...(s?.netease || {}) },
     books: { ...EMPTY_SERVICES.books, ...(s?.books || {}) },
     endpoints: Array.isArray(s?.endpoints) ? s.endpoints : [],
+    mcp: { servers: Array.isArray(s?.mcp?.servers) ? s.mcp.servers : [] },
   };
 }
 
@@ -345,3 +351,36 @@ export function migrateLegacy() {
 }
 
 export function setBooks(patch) { write({ books: { ...services().books, ...patch } }); }
+
+// ---- MCP 服务器 ----
+//
+// approve：角色要调用这台服务器上的工具时，要不要先问你
+//   ask   每一次都先问（默认）
+//   read  标了只读的工具直接调，其余先问
+//   auto  都直接调
+export const MCP_APPROVE = [
+  { value: 'ask', label: '每次确认' },
+  { value: 'read', label: '只读免确认' },
+  { value: 'auto', label: '直接调用' },
+];
+
+export function mcpServers() { return services().mcp.servers; }
+export function mcpServer(id) { return mcpServers().find(x => x.id === id) || null; }
+
+export function addMcpServer(init = {}) {
+  const row = {
+    id: uid('mcp'), name: '', url: '', headers: '', timeout: 60, approve: 'ask',
+    tools: [], toolsOff: [], info: null, gen: '', checkedAt: 0, error: '',
+    ...init,
+  };
+  write({ mcp: { servers: [...mcpServers(), row] } });
+  return row;
+}
+
+export function updateMcpServer(id, patch) {
+  write({ mcp: { servers: mcpServers().map(x => (x.id === id ? { ...x, ...patch } : x)) } });
+}
+
+export function removeMcpServer(id) {
+  write({ mcp: { servers: mcpServers().filter(x => x.id !== id) } });
+}

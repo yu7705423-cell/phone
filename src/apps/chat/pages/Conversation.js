@@ -14,6 +14,7 @@ import { TakeoutBubble, TakeoutSheet, MealSettleSheet, ShareSheet, MoreSheet } f
 import { TripBubble, TripSettleSheet } from './TripBits.js';
 import { PhotoSource } from './PhotoSource.js';
 import { SongPicker } from './SongCard.js';
+import { ToolBubble } from './ToolBits.js';
 import { TransferBubble, NoticeLine, TransferSheet, SettleSheet,
          LocationBubble, LocationSheet, CallBubble, CallLogSheet,
          GiftBubble, GiftSheet, UnwrapSheet,
@@ -224,6 +225,8 @@ export const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, o
           ? html`<${ListenBubble} msg=${msg} onOpen=${selecting ? null : onOpenLog}/>`
           : msg.kind === 'song'
           ? html`<${SongBubble} msg=${msg}/>`
+          : msg.kind === 'tool'
+          ? html`<${ToolBubble} msg=${msg}/>`
           : msg.kind === 'watch'
           ? html`<${WatchBubble} msg=${msg}/>`
           : msg.kind === 'read'

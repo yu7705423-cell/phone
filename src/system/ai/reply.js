@@ -34,12 +34,13 @@ import * as ledger from '../ledger.js';
 import * as request from '../request.js';
 import * as theirs from '../theirs.js';
 import { cropKept } from './tasks/phone.js';
+import * as mcpTools from '../mcptools.js';
 
 // 角色回复里可以带这几种标记，由模型自己决定什么时候用。
 // 中英文冒号都认，方括号也认全角。
 // 「约定完成」必须排在「约定」前面 —— 交替是从左往右试的，反过来写
 // 「约定完成：早点睡」会先被「约定」吃掉，剩下「完成：早点睡」当成内容。
-const MARK = /[[【]\s*(图片|照片|image|pic|视频|video|语音|voice|audio|表情|sticker|emoji|转账|transfer|位置|定位|location|礼物|gift|点歌|建歌单|加入歌单|分享歌曲|分享音乐|约定完成|约定|pact|信|letter|事项完成|事项取消|心声|换头像|外卖|请客|代付|申请|亲属卡|旅行|攻略|待办|todo|授予|award)\s*[:：]\s*([^\]】]+)[\]】]/gi;
+const MARK = /[[【]\s*(图片|照片|image|pic|视频|video|语音|voice|audio|表情|sticker|emoji|转账|transfer|位置|定位|location|礼物|gift|点歌|建歌单|加入歌单|分享歌曲|分享音乐|调用|tool|约定完成|约定|pact|信|letter|事项完成|事项取消|心声|换头像|外卖|请客|代付|申请|亲属卡|旅行|攻略|待办|todo|授予|award)\s*[:：]\s*([^\]】]+)[\]】]/gi;
 
 const IMAGE_KINDS = new Set(['图片', '照片', 'image', 'pic']);
 // 「视频通话」那一格叫 video，这里是会话里那一段片子，两回事。
@@ -65,6 +66,67 @@ const TAKEOUT_KINDS = new Map([['外卖', takeout.SELF], ['请客', takeout.TREA
 const LIST_KINDS = new Set(['建歌单']);
 const ADDLIST_KINDS = new Set(['加入歌单']);
 const SHARE_SONG_KINDS = new Set(['分享歌曲', '分享音乐']);
+const CALL_KINDS = new Set(['调用', 'tool']);
+
+// [调用：名字 {JSON 参数}]。参数是一段 JSON，里面常有方括号（数组）与换行，
+// MARK 那条正则在第一个 ] 就收口了。所以先单独扫一遍：按花括号配对（认得字符串里的
+// 括号与转义）把整段取出来，原位换成 [调用：#序号]，再交给下面那一套。
+const CALL_HEAD = /[[【]\s*(?:调用|tool)\s*[:：]\s*/gi;
+
+// 从 at 那个 { 开始，找到与它配对的 } 的位置。没配上返回 -1
+function braceEnd(s, at) {
+  let depth = 0;
+  let str = false;
+  let esc = false;
+  for (let i = at; i < s.length; i++) {
+    const c = s[i];
+    if (str) {
+      if (esc) esc = false;
+      else if (c === '\\') esc = true;
+      else if (c === '"') str = false;
+      continue;
+    }
+    if (c === '"') str = true;
+    else if (c === '{') depth += 1;
+    else if (c === '}') { depth -= 1; if (depth === 0) return i; }
+  }
+  return -1;
+}
+
+function liftCalls(text) {
+  const calls = [];
+  let out = '';
+  let last = 0;
+  let m;
+  CALL_HEAD.lastIndex = 0;
+  while ((m = CALL_HEAD.exec(text))) {
+    let i = m.index + m[0].length;
+    let j = i;
+    while (j < text.length && !/[\s{\]】]/.test(text[j])) j++;
+    const name = text.slice(i, j).trim();
+    let k = j;
+    while (k < text.length && /\s/.test(text[k])) k++;
+    let args = {};
+    let bad = '';
+    if (text[k] === '{') {
+      const end = braceEnd(text, k);
+      if (end < 0) continue;
+      const raw = text.slice(k, end + 1);
+      try {
+        const v = JSON.parse(raw);
+        if (v && typeof v === 'object' && !Array.isArray(v)) args = v; else bad = raw;
+      } catch { bad = raw; }
+      k = end + 1;
+      while (k < text.length && /\s/.test(text[k])) k++;
+    }
+    if (!name || (text[k] !== ']' && text[k] !== '】')) continue;
+    out += `${text.slice(last, m.index)}[调用：#${calls.length}]`;
+    calls.push({ name, args, bad });
+    last = k + 1;
+    CALL_HEAD.lastIndex = last;
+  }
+  return { text: out + text.slice(last), calls };
+}
 const TRIP_KINDS = new Set(['旅行']);
 const PLAN_KINDS = new Set(['攻略']);
 const ASK_KINDS = new Set(['申请']);
@@ -379,8 +441,9 @@ export function splitReply(raw) {
   // 先摘自检，再摘时间戳：自检里也可能出现方括号时间，
   // 反过来会把检查内容里的东西当成这一轮的时刻
   const { text: spoken } = stripThink(raw);
-  const { text, stamp } = stripStamps(spoken.trim());
-  if (!text.trim()) return [];
+  const { text: unstamped, stamp } = stripStamps(spoken.trim());
+  if (!unstamped.trim()) return [];
+  const { text, calls } = liftCalls(unstamped);
 
   const parts = [];
   let last = 0;
@@ -563,6 +626,9 @@ export function splitReply(raw) {
         if (name && (LIST_KINDS.has(kind) || songs.length)) push({ type: 'newlist', name, songs });
       } else if (SHARE_SONG_KINDS.has(kind)) {
         push({ type: 'song', query: body });
+      } else if (CALL_KINDS.has(kind)) {
+        const c = /^#\d+$/.test(body) ? calls[Number(body.slice(1))] : null;
+        if (c) push({ type: 'tool', ...c });
       } else if (TRIP_KINDS.has(kind)) {
         // 去哪儿读不出来就整条丢掉。一次没有目的地的出行比少发一条更怪
         const o = trip.parse(body);
@@ -874,6 +940,27 @@ export function materialize(part, base, char) {
       .catch(() => messages.update(msg.id, { songState: 'missing' }));
     return msg;
   }
+  // 调用 MCP 工具。落一条消息记着调的是什么，真的发出去由 mcptools 管：
+  // 服务器设成要确认的，停在 ask 等你点允许；不用确认的当场发出去。
+  // 名字对不上、参数不是 JSON 的，照样落一条（标成失败）—— 角色下一轮读得到失败原因，
+  // 丢掉的话它会以为调成了，接着编一个结果出来
+  if (part.type === 'tool') {
+    const hit = char ? mcpTools.resolve(char, part.name) : null;
+    const why = !hit ? `没有名为「${part.name}」的工具`
+      : part.bad ? `参数不是一个合法的 JSON 对象：${part.bad.slice(0, 200)}` : '';
+    const msg = messages.create({
+      ...row, kind: 'tool',
+      content: `[调用：${part.name} ${part.bad || JSON.stringify(part.args || {})}]`,
+      toolName: hit ? hit.tool.name : part.name,
+      toolTitle: hit ? (hit.tool.title || hit.tool.name) : part.name,
+      toolServerId: hit ? hit.server.id : '',
+      toolArgs: part.args || {},
+      toolState: why ? 'error' : mcpTools.needsAsk(hit.server, hit.tool) ? 'ask' : 'running',
+      toolError: why,
+    });
+    if (!why && msg.toolState === 'running') mcpTools.run(msg.id);
+    return msg;
+  }
   if (part.type === 'ring') {
     // 动态 import：call.js 要用 engine，engine 又要用本文件，静态引会成环。
     // 电话本身不落消息，接没接通由 call 那边收尾时记。
@@ -1097,7 +1184,7 @@ function shouldNotify(chatId) {
 const BODY_OF = {
   image: '[图片]', clip: '[视频]', voice: '[语音]', sticker: '[表情]', transfer: '[转账]', gift: '[礼物]',
   location: '[位置]', call: '[通话]', listen: '[一起听]', watch: '[一起看]',
-  takeout: '[外卖]', request: '[申请]', share: '[分享]', dice: '[骰子]', song: '[分享歌曲]',
+  takeout: '[外卖]', request: '[申请]', share: '[分享]', dice: '[骰子]', song: '[分享歌曲]', tool: '[调用工具]',
   trip: '[旅行]',
   pact: '[约定]', letter: '[信]', vote: '[投票]',
 };

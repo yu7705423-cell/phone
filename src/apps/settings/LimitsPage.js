@@ -94,6 +94,18 @@ export function LimitsPage() {
               + `当前填全的共 ${ai.cost.usableChatCount()} 套。`}
             right=${html`<${NumberInput} value=${Number(s.failoverMax) || 0} min=${0}
               onChange=${v => set({ failoverMax: v })}/>`}/>` : null}
+        <${ListItem} title="工具结果回来后角色接着回复" multiline
+          subtitle=${s.mcpFollowUp === true
+            ? '已开启。角色调用的 MCP 工具有了结果（包括失败与被拒绝）之后，再调用一次主用接口，'
+              + '让角色读到结果后接着回复。'
+            : '已关闭。工具结果留在对话中，角色在下一次回复时读到，不额外调用接口。'}
+          right=${html`<${Switch} checked=${s.mcpFollowUp === true}
+            onChange=${v => set({ mcpFollowUp: v })}/>`}/>
+        ${s.mcpFollowUp === true ? html`
+          <${ListItem} title="每条消息最多接着回复几次" multiline
+            subtitle="从你发出一条消息算起，角色调用工具、读到结果、再调用，最多这么多轮。填 0 表示不限。"
+            right=${html`<${NumberInput} value=${Number(s.mcpFollowMax) || 0} min=${0}
+              onChange=${v => set({ mcpFollowMax: v })}/>`}/>` : null}
         <${ListItem} title="打完电话自动总结" multiline
           subtitle=${s.callSummary === false
             ? '已关闭。挂断后不生成总结，可在通话记录中手动生成。'
@@ -271,6 +283,13 @@ export function LimitsPage() {
             「线下一场收尾时生成摘要」。填 0 表示不带。">
           <${NumberInput} value=${s.bridgeSceneChars} unit="字" placeholder="不带"
             onChange=${v => set({ bridgeSceneChars: v })}/>
+        <//>
+
+        <${Field} label="工具结果给角色读多少字"
+          desc="角色调用 MCP 工具拿到的结果，在之后每一轮请求中都会随那次调用一并发送，按这个字数截断。
+            填 0 表示整段发送，结果较长时会明显增加每次请求的长度。">
+          <${NumberInput} value=${s.mcpResultChars} unit="字" placeholder="整段"
+            onChange=${v => set({ mcpResultChars: v })}/>
         <//>
 
         <${Field} label="分享歌曲时附上歌词"

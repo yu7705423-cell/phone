@@ -22,6 +22,7 @@ import * as ledger from '../ledger.js';
 import { PENDING as REQ_PENDING } from '../request.js';
 import { PENDING as MEAL_PENDING } from '../takeout.js';
 import { allSongs } from '../music.js';
+import * as mcpTools from '../mcptools.js';
 
 // 能力目录。
 //
@@ -192,6 +193,16 @@ export const CAPS = [
     line: () => 'Give a gift: write a line on its own, [礼物：cover name | what is inside];'
       + ' on receiving one, write [拆开] or [拒收]',
     detail: () => template('skeleton.gift'),
+  },
+  {
+    // MCP 工具。清单本身就是写法的一部分（不知道有哪些工具、参数长什么样就调不对），
+    // 所以不走「冷着只给一行」那套，一直给整段。多长由角色卡上勾了几台服务器、
+    // 设置里关了哪几个工具决定
+    id: 'mcp',
+    label: '调用工具（MCP）',
+    always: true,
+    on: ({ char }) => mcpTools.toolsFor(char).length > 0,
+    detail: ({ char }) => fillTemplate(template('skeleton.mcp'), { tools: mcpTools.toolList(char) }),
   },
   {
     id: 'listen',

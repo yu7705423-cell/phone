@@ -160,6 +160,10 @@ export const DEFAULT_SETTINGS = {
   bridgeChatLines: 20,            // 线下带上手机里最近几条消息
   bridgeSceneChars: 400,          // 线上带上最近一次见面的多少字
   planCount: 8,                   // 注入几条「你记着的事」（待办）。0 = 全给
+  // MCP 工具。结果回来之后角色要不要接着说：那是又一次接口调用，默认关（第 15 条，见 cost.js）
+  mcpFollowUp: false,
+  mcpFollowMax: 1,                // 你每发一条消息，最多接着回复几次。0 = 不限
+  mcpResultChars: 4000,           // 工具结果给角色读多少字。0 = 整段
   // 分享的歌附上歌词给角色读。不调模型，只多占几行上下文，见 music.lyricBlock
   songLyric: true,
   songLyricLines: 20,             // 附几行。0 = 整首

@@ -61,6 +61,16 @@ export const EXTRA_CALLS = [
     when: s => `接口返回 429 或 5xx 时，最多再试 ${retryMax()} 次`,
   },
   {
+    id: 'mcpFollowUp',
+    label: '工具结果回来后角色接着回复',
+    setting: 'mcpFollowUp', off: false,
+    on: s => s.mcpFollowUp === true,
+    when: s => {
+      const n = Math.max(0, Number(s.mcpFollowMax) || 0);
+      return `角色调用的工具有了结果之后一次（走主用接口）；${n ? `你每发一条消息，最多接着回复 ${n} 次` : '不限次数'}`;
+    },
+  },
+  {
     id: 'videoOn',
     label: '角色自己发视频',
     setting: 'videoOn', off: false,

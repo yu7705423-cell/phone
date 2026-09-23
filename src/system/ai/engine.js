@@ -27,6 +27,7 @@ import * as group from '../group.js';
 import { sync as syncBadges } from '../badges.js';
 import { note as noteCall } from './usage.js';
 import { lyricBlock } from '../music.js';
+import * as mcpTools from '../mcptools.js';
 
 // 接口协议要求带 max_tokens，取一个足够大的值，等同于不限制
 export const MAX_OUTPUT = 32000;
@@ -406,9 +407,14 @@ export function buildHistory(chat, char, msgs, opts = {}) {
   // 「不必翻」，设定区里那段规则拗不过几十个反例 —— 掉翻译多半是这么掉的。
   // 界面上那一行是从消息里剥出来单独存的（reply.js），这里再拼回去。
   const inlineTrans = !!chat.translateTo && translateMode() === 'inline';
-  const view2 = view.map((m, i) => {
+  const view2 = view.flatMap((m, i) => {
     const mine = m.role === 'char' && m.authorId === char.id;
     const text = timeLine(m, view[i - 1]) + withQuote(m);
+    // 调用工具：调用那一句是它自己写的，结果紧跟在后面，以对方那一侧的一条读进去
+    // （mcptools.resultFor：状态说明、按字数截断）
+    if (mine && m.kind === 'tool') {
+      return [{ role: 'assistant', content: text }, { role: 'user', content: mcpTools.resultFor(m, s) }];
+    }
     if (m.role === 'user') {
       const pic = pics && pics.get(m.id);
       const body = text + songLyricOf(m, s);

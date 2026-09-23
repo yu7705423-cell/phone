@@ -48,7 +48,7 @@ const ROUTES = {
   skin: ['/', '/one/:skin', '/one/nope', '/contract', '/gen/:skin', '/gen/nope'],
   us: ['/', `/chat/:chat`, '/work/:work', '/work/:work/edit', '/work/nope',
     '/chapter/:chapter', '/chapter/nope', '/read/:chapter', '/read/nope'],
-  settings: ['/', '/api', '/voice', '/image', '/embed', '/notify', '/music',
+  settings: ['/', '/mcp', '/mcp/none', '/api', '/voice', '/image', '/embed', '/notify', '/music',
     '/appearance', '/storage', '/storage/files', '/trace', '/vision', '/asr', '/limits', '/search', '/translate', '/memoryapi', '/rerank', '/ban', '/github', '/background'],
 };
 

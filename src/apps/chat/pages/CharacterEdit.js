@@ -254,6 +254,28 @@ export function CharacterEdit({ id }) {
         ${scene ? html`<div class="call-scene-preview" style=${`background-image:url(${scene})`}></div>` : null}
       <//>
 
+      <${List} title="MCP 工具">
+        ${phone.ai.services.mcpServers().length ? phone.ai.services.mcpServers().map(sv => {
+          const on = (char.mcpServers || []).includes(sv.id);
+          const n = (sv.tools || []).length - (sv.toolsOff || []).length;
+          return html`
+            <${ListItem} key=${sv.id} title=${sv.name || '未命名'} multiline
+              subtitle=${sv.error ? `连接失败：${sv.error}` : sv.checkedAt ? `${n} 个工具` : '尚未连接，请先在设置中连接'}
+              right=${html`<${Switch} checked=${on} onChange=${v => patch({
+                mcpServers: v ? [...new Set([...(char.mcpServers || []), sv.id])]
+                  : (char.mcpServers || []).filter(x => x !== sv.id),
+              })}/>`}/>`;
+        }) : html`
+          <${ListItem} title="尚未添加 MCP 服务器" arrow multiline
+            subtitle="在「设置 - MCP 工具」中添加服务器后，可在此选择该角色能够调用哪几台"
+            onClick=${() => phone.intent.open('settings', { route: '/mcp', back: true })}/>`}
+      <//>
+      ${(char.mcpServers || []).length ? html`
+        <div class="settings-foot">
+          开启的服务器上的工具连同参数说明会随每一轮请求发送给模型。
+          角色调用工具时是否需要你确认，在各服务器的设置中选择。
+        </div>` : null}
+
       ${phone.ai.services.neteaseReady() && char.canListen !== false ? html`
         <${List} title="角色的网易云账号">
           ${char.neteaseCookie ? html`

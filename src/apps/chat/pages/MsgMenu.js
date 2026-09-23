@@ -8,6 +8,7 @@ const { db, ai } = phone;
 const textOf = m => m.kind === 'image' ? (m.prompt || m.imageDesc || '')
   : m.kind === 'voice' ? (m.voiceText || '')
   : m.kind === 'song' ? `分享歌曲：${m.songQuery || ''}`
+  : m.kind === 'tool' ? `调用工具：${m.toolTitle || m.toolName || ''}`
   : (m.content || '');
 
 // 改的是「这条消息的正文」，但正文在哪个字段要看消息类型与是谁发的。
