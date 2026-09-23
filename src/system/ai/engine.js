@@ -24,6 +24,7 @@ import * as work from '../work.js';
 import * as tone from '../tone.js';
 import { markRead } from '../receipt.js';
 import * as group from '../group.js';
+import { sync as syncBadges } from '../badges.js';
 
 // 接口协议要求带 max_tokens，取一个足够大的值，等同于不限制
 export const MAX_OUTPUT = 32000;
@@ -897,6 +898,8 @@ export function streamReply({ chat, char, onDelta }) {
     // 界面里，是因为「角色说话」有好几个入口（手动、自动回复、主动找你），
     // 它们都从这里过（见 system/receipt.js）。
     markRead(chat.id);
+    // 标识的统计先对齐到这一刻：「让角色知道」开着时，那一行要是最新的
+    try { syncBadges(chat.id); } catch { /* 统计出错不该拖住回复 */ }
     // 今天还没排日程就先排一次，排完了这一轮才拼上下文 —— 否则「你今天」
     // 那一段要等到下一条消息才出现。开关默认关着，关着就是一句 return。
     // 动态 import：day 那个任务要用本模块，静态引会成环。
@@ -965,7 +968,7 @@ export function streamReply({ chat, char, onDelta }) {
 //   每人一份  人设、情境、说话示例、核心设定、关系底色、钉住的、最近记下的、本轮召回
 // 线上一对一才有意义的那几块（你们之间的空间、距离、一起听、账本、出行……）不进群。
 
-const GROUP_SHARED = ['lorebook', 'loreAfter', 'user', 'time'];
+const GROUP_SHARED = ['lorebook', 'loreAfter', 'user', 'time', 'badges'];
 const GROUP_MEMBER = ['bond', 'pinned', 'recent'];
 
 /** 成员各自激活世界书，取并集。同一本书的同一条只算一次 */
@@ -1089,6 +1092,7 @@ export function streamGroupReply({ chat, onDelta, opening = '' }) {
 
   return enqueue(groupKey(chat.id), async signal => {
     markRead(chat.id);
+    try { syncBadges(chat.id); } catch { /* 统计出错不该拖住回复 */ }
     const s0 = settings.get();
     const me = accounts.get(chat?.personaId) || accounts.current();
     const pics = await imagesFor(msgs);

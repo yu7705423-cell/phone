@@ -75,6 +75,8 @@ import * as listenApi from '../system/listen.js';
 import * as neteaseApi from '../system/netease.js';
 import * as purgeApi from '../system/purge.js';
 import * as groupApi from '../system/group.js';
+import * as badgesApi from '../system/badges.js';
+import * as yearNote from '../system/ai/tasks/year-note.js';
 import * as aiGroup from '../system/ai/group.js';
 import * as charpackApi from '../system/charpack.js';
 import * as bookApi from '../system/book.js';
@@ -216,6 +218,7 @@ export const phone = {
     cost: costApi,
     reply: replyApi,
     group: aiGroup,
+    yearNote,
     repair: repairApi,
     proactive: proactiveApi,
     charAlt: charAltApi,
@@ -277,6 +280,7 @@ export const phone = {
   netease: neteaseApi,
   purge: purgeApi,
   group: groupApi,
+  badges: badgesApi,
   charpack: charpackApi,
   book: bookApi,
   read: readApi,

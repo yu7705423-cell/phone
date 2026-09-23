@@ -285,7 +285,8 @@ let altMod = null;
 import('./tasks/char-alt.js').then(m => { altMod = m; }).catch(() => {});
 
 // 同样的道理，这两个也只在装载时引一次，不在每个 tick 里现 import。
-let spaceMod = null, paceMod = null, snapMod = null;
+let spaceMod = null, paceMod = null, snapMod = null, badgesMod = null;
+import('../badges.js').then(m => { badgesMod = m; }).catch(() => {});
 import('../space.js').then(m => { spaceMod = m; }).catch(() => {});
 import('../pace.js').then(m => { paceMod = m; }).catch(() => {});
 import('./tasks/snap.js').then(m => { snapMod = m; }).catch(() => {});
@@ -298,6 +299,8 @@ export async function tick() {
   // 到点该回的那几段。会话页自己也有定时器，但只管你正开着的那一段 ——
   // 人在别处的时候靠这一条，「她趁你没看的时候回了一句」才成立
   paceMod?.runDue().catch(() => {});
+  // 互动标识：同步统计、快断了的到点提醒。本地算，不调接口，所以也在这条线前面
+  try { badgesMod?.tick(); } catch (err) { console.warn('[badges]', err.message || err); }
   if (!isConfigured()) return;
   const now = Date.now();
   const live = new Set();

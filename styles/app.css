@@ -2660,3 +2660,103 @@ button.search-bar { width: 100%; border: none; }
 /* 群里别人说的话，气泡上方写着是谁 */
 .msg-who { font-size: var(--fs-11); color: var(--text-3); padding: 0 var(--sp-1); }
 .mention-bar { padding: 0 var(--sp-3) var(--sp-2); margin-top: 0; }
+
+/* ---- 互动标识（ARCHITECTURE 4.164） ----
+   单色：一律是 currentColor。动效只在形态上做：火苗晃、快断时一明一暗、
+   余烬暗着、太阳慢慢转、满级那一圈的亮点绕着走。
+   系统设置里开了「减弱动态效果」的，全部停下来 */
+.bd-g { display: inline-flex; align-items: center; justify-content: center; color: var(--text); line-height: 0; }
+.bd-g.is-off { color: var(--text-3); }
+.bd-g.is-ember { color: var(--text-3); }
+.bd-g.is-lit.is-spark svg, .bd-g.is-lit.is-flame svg, .bd-g.is-lit.is-torch svg {
+  transform-origin: 50% 90%; animation: bd-flicker calc(var(--dur-slow) * 6) var(--ease) infinite;
+}
+.bd-g.is-risk svg { animation: bd-risk calc(var(--dur-slow) * 4) ease-in-out infinite; }
+.bd-g.is-lit.is-sun svg { animation: bd-spin calc(var(--dur-slow) * 60) linear infinite; }
+.bd-g.is-lit.is-star svg { animation: bd-twinkle calc(var(--dur-slow) * 8) ease-in-out infinite; }
+@keyframes bd-flicker {
+  0%, 100% { transform: scale(1, 1) rotate(0); }
+  30% { transform: scale(.96, 1.05) rotate(-2deg); }
+  60% { transform: scale(1.03, .97) rotate(2deg); }
+}
+@keyframes bd-risk { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
+@keyframes bd-spin { to { transform: rotate(360deg); } }
+@keyframes bd-twinkle { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
+
+.bd-streak { display: inline-flex; align-items: center; gap: 2px; margin-left: var(--sp-1); vertical-align: middle; }
+.bd-num { font-size: var(--fs-11); color: var(--text-2); font-weight: var(--fw-medium); }
+.bd-num.is-risk { color: var(--text-3); }
+.bd-list { flex: none; display: inline-flex; align-items: center; gap: var(--sp-1); }
+/* 名字与标识挨着，时刻仍然靠右 */
+.msg-name-wrap { flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--sp-1); }
+.msg-name-wrap .msg-name { flex: 0 1 auto; }
+
+/* 头像外那一圈：比头像大一圈，圈本身不挡点击 */
+.lv-ring { position: relative; display: inline-flex; width: var(--lv-size); height: var(--lv-size); color: var(--text); }
+.lv-svg { position: absolute; inset: -6px; width: calc(100% + 12px); height: calc(100% + 12px);
+  transform: rotate(-90deg); pointer-events: none; overflow: visible; }
+.lv-track { fill: none; stroke: var(--border-2); stroke-width: 1.5; }
+.lv-arc { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round;
+  transition: stroke-dasharray var(--dur-slow) var(--ease-out); }
+.lv-orbit { fill: currentColor; transform-origin: 50% 50%; animation: bd-spin calc(var(--dur-slow) * 16) linear infinite; }
+
+.bd-strip {
+  display: flex; align-items: center; gap: var(--sp-2); width: calc(100% - var(--sp-8));
+  margin: var(--sp-2) var(--sp-4) 0; padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r-md); background: var(--surface-2); color: var(--text); font-size: var(--fs-12);
+}
+.bd-strip .bd-streak { margin-left: 0; }
+.bd-strip-lv { font-weight: var(--fw-medium); }
+.bd-strip-n { margin-left: auto; color: var(--text-2); }
+
+.bd-award {
+  display: flex; align-items: center; gap: var(--sp-3); min-width: 200px; max-width: 260px;
+  padding: var(--sp-3); border-radius: var(--r-lg); border: 1px solid var(--border-2);
+  background: var(--surface);
+}
+.bd-award-body { min-width: 0; }
+.bd-award-tag { font-size: var(--fs-11); color: var(--text-3); }
+.bd-award-name { font-size: var(--fs-15); font-weight: var(--fw-medium); }
+.bd-award-why { font-size: var(--fs-12); color: var(--text-2); margin-top: 2px; }
+
+/* 解锁那一下：从上面落下来，图形放大后落定 */
+.bd-toast {
+  position: absolute; left: var(--sp-4); right: var(--sp-4); top: var(--sp-3); z-index: 30;
+  display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--r-lg); background: var(--surface); box-shadow: var(--shadow-3);
+  animation: bd-drop var(--dur-slow) var(--ease-out);
+}
+.bd-toast-glyph { animation: bd-pop calc(var(--dur-slow) * 2) var(--ease-out); }
+.bd-toast-tag { font-size: var(--fs-11); color: var(--text-3); }
+.bd-toast-name { font-size: var(--fs-17); font-weight: var(--fw-medium); }
+.bd-toast-desc { font-size: var(--fs-12); color: var(--text-2); }
+@keyframes bd-drop { from { transform: translateY(-120%); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes bd-pop { 0% { transform: scale(.2); } 60% { transform: scale(1.25); } 100% { transform: scale(1); } }
+.conv { position: relative; }
+
+.bd-hero { display: flex; flex-direction: column; align-items: center; gap: var(--sp-2); padding: var(--sp-6) 0 var(--sp-2); }
+.bd-hero-face { width: 100%; height: 100%; border-radius: var(--r-full); background: var(--surface-2);
+  display: flex; align-items: center; justify-content: center; }
+.bd-hero-lv { font-size: var(--fs-17); font-weight: var(--fw-medium); margin-top: var(--sp-2); }
+.bd-hero-sub { font-size: var(--fs-12); color: var(--text-3); }
+.bd-forms { display: flex; justify-content: space-between; padding: var(--sp-3) var(--sp-4) var(--sp-4); }
+.bd-form { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: var(--fs-12); color: var(--text-3); }
+.bd-form.is-got { color: var(--text); }
+.bd-form small { font-size: var(--fs-11); color: var(--text-3); }
+.bd-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-2); padding: var(--sp-3); }
+.bd-cell { display: flex; flex-direction: column; align-items: center; gap: var(--sp-1); text-align: center;
+  padding: var(--sp-3) var(--sp-2); border-radius: var(--r-md); background: var(--surface-2); color: var(--text-3); }
+.bd-cell.is-got { color: var(--text); }
+.bd-cell b { font-size: var(--fs-13); font-weight: var(--fw-medium); }
+.bd-cell small { font-size: var(--fs-11); color: var(--text-3); line-height: 1.4; }
+
+.yr-head { display: flex; align-items: center; justify-content: space-between; padding: var(--sp-4); }
+.yr-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--sp-2); padding: 0 var(--sp-4) var(--sp-2); }
+.yr-cell { display: flex; flex-direction: column; padding: var(--sp-4); border-radius: var(--r-lg); background: var(--surface-2); }
+.yr-cell b { font-size: var(--fs-24); font-weight: var(--fw-medium); }
+.yr-cell span { font-size: var(--fs-12); color: var(--text-2); }
+.yr-note { padding: var(--sp-4); font-size: var(--fs-14); line-height: 1.7; white-space: pre-wrap; }
+
+@media (prefers-reduced-motion: reduce) {
+  .bd-g svg, .lv-orbit, .bd-toast, .bd-toast-glyph { animation: none !important; }
+}

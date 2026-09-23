@@ -576,6 +576,14 @@ to it; an exact match is not required.
 Do not mark unfulfilled promises as complete, and do not decide on the other
 party's behalf whether something is complete.`,
 
+  // 互动标识：角色颁给对方一枚自己起名的标识（见 system/badges.js）
+  'skeleton.award':
+`[颁发标识]
+To give the other party a badge, write a line on its own,
+[授予：badge name｜reason], for example [授予：记得我喝什么的人｜连续三周都没点错].
+The name is at most 24 characters; the reason may be left out.
+The badge is kept in their collection with your name and the date.`,
+
   'skeleton.letter':
 `[写信]
 When something is better written down than said, write a line on its own,
@@ -1649,6 +1657,15 @@ separating messages with blank lines. Write no explanation.`,
 It is now {{time}}. {{gap}} has passed since anyone last spoke in this group.
 No one has addressed the members. One or more of them open a new conversation
 now; they are not replying to anything. Follow [群聊规则].`,
+
+  // 年度回顾里由角色写的那一段，点了才调用（见 ai/tasks/year-note.js）
+  'task.year-note':
+`[年度回顾]
+Write one passage looking back on {{year}}, as the character, addressed to the
+other party. The facts of the year:
+{{facts}}
+Do not change any number above. Do not state anything that neither these facts
+nor the conversation history supports. Output the passage only.`,
 
   'task.emo':
 `It is now {{time}}, during the night. No one has contacted you; you are awake

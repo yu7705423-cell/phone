@@ -17,6 +17,7 @@ const ROUTES = {
      '/profile/:char', '/edit/:char', '/proactive/:char', '/extras/:chat', '/pace/:chat',
      '/bond/:chat',
     '/group/new', '/group/:group', '/group/nope', '/chat/:group',
+    '/badges/:chat', '/badges/:group', '/badges/nope', '/year/:chat', '/year/:group', '/year/nope',
     '/skin/:chat', '/skin/nope',
     '/stage/:chat', '/stage/nope', '/stage/settings', '/stage/settings/:scene',
     '/scene/:scene', '/scene/:scene/edit', '/scene/nope', '/scene/nope/edit'],

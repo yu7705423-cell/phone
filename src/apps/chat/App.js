@@ -26,6 +26,7 @@ import { StageRead } from './pages/StageRead.js';
 import { StageSettings } from './pages/StageSettings.js';
 import { SkinPage } from './pages/SkinPage.js';
 import { NewGroupPage, GroupPage } from './pages/GroupBits.js';
+import { BadgesPage, YearPage } from './pages/BadgeBits.js';
 
 const { db, nav } = phone;
 
@@ -75,6 +76,12 @@ export default function ChatApp({ route }) {
   // 进去之后滚到那一条。会话 id 里不会有 @，所以拿它当分隔符是安全的。
   const conv = route?.match(/^\/chat\/([^@]+)(?:@(.+))?$/);
   if (conv) return html`<${Conversation} chatId=${conv[1]} focusId=${conv[2] || ''}/>`;
+
+  // 互动标识与年度回顾，都按会话
+  const bdg = route?.match(/^\/badges\/(.+)$/);
+  if (bdg) return html`<${BadgesPage} chatId=${bdg[1]}/>`;
+  const yr = route?.match(/^\/year\/(.+)$/);
+  if (yr) return html`<${YearPage} chatId=${yr[1]}/>`;
 
   // 群聊。/group/new 建群，/group/<chatId> 群资料
   if (route === '/group/new') return html`<${NewGroupPage}/>`;

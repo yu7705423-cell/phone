@@ -4,6 +4,7 @@ import { Avatar, EmptyState, Button, Icon, Sheet, List, ListItem,
          toast, confirm } from '../../../ui/index.js';
 import { relTime, splitBubbles, myChats } from '../helpers.js';
 import { GroupFace } from './GroupBits.js';
+import { ListBadges } from './BadgeBits.js';
 
 const { db, nav } = phone;
 
@@ -22,6 +23,7 @@ const Row = memo(function Row({ chat, onHold }) {
     : last.kind === 'trip' ? `[旅行] ${last.where || ''}`
     : last.kind === 'takeout' ? `[外卖] ${last.item || ''}`
     : last.kind === 'dice' ? `[骰子] ${last.value}`
+    : last.kind === 'award' ? `[标识] ${last.awardName || ''}`
     : last.kind === 'listen' ? `[一起听] ${phone.listen.fmt(last.seconds)}`
     : last.kind === 'call' ? `[${phone.call.label(last.direction, last.outcome, last.seconds, last.callKind === 'video')}]`
     : last.kind === 'notice' ? String(last.content || '').replace(/^\[|\]$/g, '')
@@ -48,7 +50,10 @@ const Row = memo(function Row({ chat, onHold }) {
         <div class="msg-line">
           ${!isGroup && phone.extras.isStarred(char) ? html`
             <${Icon} name="star" size=${13} class="msg-star"/>` : null}
-          <span class="msg-name ellipsis">${title}</span>
+          <span class="msg-name-wrap">
+            <span class="msg-name ellipsis">${title}</span>
+            <${ListBadges} chat=${chat}/>
+          </span>
           <span class="msg-time">${relTime(chat.lastMessageAt)}</span>
         </div>
         <div class="msg-line">

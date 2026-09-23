@@ -282,6 +282,14 @@ export const CAPS = [
     detail: () => template('skeleton.letter'),
   },
   {
+    id: 'award',
+    label: '颁发标识',
+    on: ({ char }) => char.canAward !== false,
+    hot: ({ msgs }) => usedRecently(msgs, /^award$|[[【]授予[:：]/),
+    line: () => 'Give them a badge: write a line on its own, [授予：badge name｜reason]',
+    detail: () => template('skeleton.award'),
+  },
+  {
     id: 'watch',
     label: '一起看',
     // 这一场开着才有这回事。没开的时候一个字都不提 ——
@@ -376,7 +384,7 @@ export const CAPS = [
  */
 // 群聊里说得通的那几样。转账、礼物、一起听、约定、出行这些都是「你和我」
 // 之间的事，群里没有一个对象可以接；心声、换头像按一个角色设计，群里一次写几个人。
-const GROUP_CAPS = new Set(['image', 'video', 'voice', 'sticker', 'quote', 'dice', 'time', 'translate']);
+const GROUP_CAPS = new Set(['image', 'video', 'voice', 'sticker', 'quote', 'dice', 'time', 'translate', 'award']);
 
 export function capabilityBlock(raw) {
   // 注入块那边把消息列表叫 messages，这里一路叫 msgs，入口处对齐一次

@@ -1,5 +1,6 @@
 import { messages, messagesOf, chats, characters, files, images, settings } from '../db/index.js';
 import * as group from '../group.js';
+import * as badges from '../badges.js';
 import { uid } from '../store.js';
 import * as imageSvc from './image.js';
 import { isAbort } from './queue.js';
@@ -38,7 +39,7 @@ import { cropKept } from './tasks/phone.js';
 // 中英文冒号都认，方括号也认全角。
 // 「约定完成」必须排在「约定」前面 —— 交替是从左往右试的，反过来写
 // 「约定完成：早点睡」会先被「约定」吃掉，剩下「完成：早点睡」当成内容。
-const MARK = /[[【]\s*(图片|照片|image|pic|视频|video|语音|voice|audio|表情|sticker|emoji|转账|transfer|位置|定位|location|礼物|gift|点歌|建歌单|约定完成|约定|pact|信|letter|事项完成|事项取消|心声|换头像|外卖|请客|代付|申请|亲属卡|旅行|攻略|待办|todo)\s*[:：]\s*([^\]】]+)[\]】]/gi;
+const MARK = /[[【]\s*(图片|照片|image|pic|视频|video|语音|voice|audio|表情|sticker|emoji|转账|transfer|位置|定位|location|礼物|gift|点歌|建歌单|约定完成|约定|pact|信|letter|事项完成|事项取消|心声|换头像|外卖|请客|代付|申请|亲属卡|旅行|攻略|待办|todo|授予|award)\s*[:：]\s*([^\]】]+)[\]】]/gi;
 
 const IMAGE_KINDS = new Set(['图片', '照片', 'image', 'pic']);
 // 「视频通话」那一格叫 video，这里是会话里那一段片子，两回事。
@@ -54,6 +55,7 @@ const PICK_KINDS = new Set(['点歌']);
 const PACT_KINDS = new Set(['约定', 'pact']);
 const PACTDONE_KINDS = new Set(['约定完成']);
 const LETTER_KINDS = new Set(['信', 'letter']);
+const AWARD_KINDS = new Set(['授予', 'award']);
 const ITEM_DONE_KINDS = new Set(['事项完成']);
 const ITEM_DROP_KINDS = new Set(['事项取消']);
 const INNER_KINDS = new Set(['心声']);
@@ -544,6 +546,12 @@ export function splitReply(raw) {
         push({ type: 'pact', title: body });
       } else if (PACTDONE_KINDS.has(kind)) {
         push({ type: 'pactdone', title: body });
+      } else if (AWARD_KINDS.has(kind)) {
+        // 竖线前是标识的名字，后面是理由。没写竖线就整段是名字
+        const i = body.search(/[|｜]/);
+        const name = (i < 0 ? body : body.slice(0, i)).trim();
+        const reason = i < 0 ? '' : body.slice(i + 1).trim();
+        if (name) push({ type: 'award', name, reason });
       } else if (LETTER_KINDS.has(kind)) {
         // 竖线前是信封上写的标题，后面是正文。不写竖线就整段都是正文。
         const i = body.search(/[|｜]/);
@@ -918,6 +926,15 @@ export function materialize(part, base, char) {
     const target = space.findOpenPact(base.chatId, part.title);
     return target ? space.completePact(target.id, row) : null;
   }
+  if (part.type === 'award') {
+    // 角色颁给你的一枚标识。消息照常落一条（历史里要看得见），
+    // 标识本身记在会话的收藏里（见 system/badges.js）
+    const name = part.name.slice(0, 24);
+    const msg = messages.create({ ...row, kind: 'award', awardName: name, awardReason: part.reason,
+      content: `[授予：${name}${part.reason ? '｜' + part.reason : ''}]` });
+    badges.addAward(base.chatId, { name, reason: part.reason, by: base.authorId, to: 'me', msgId: msg.id });
+    return msg;
+  }
   if (part.type === 'letter') {
     return space.sendLetter({
       chatId: base.chatId, role: base.role, authorId: base.authorId,
@@ -1150,6 +1167,11 @@ export function dropMessage(id) {
     else if (m.settledKind === 'trip') trip.unsettle(id);
     else if (m.settledKind === 'request') request.unsettle(id);
     else (m.settledKind === 'gift' ? gift : transfer).unsettle(id);
+  }
+  // 颁标识的那一条删了，标识也收回。重新生成那一轮时，旧的那一枚不该留在收藏里
+  if (m.kind === 'award') {
+    const aw = (chats.get(m.chatId)?.awards || []).find(a => a.msgId === id);
+    if (aw) badges.dropAward(m.chatId, aw.id);
   }
   const ok = messages.remove(id);
   releaseImages([m.imageId]);

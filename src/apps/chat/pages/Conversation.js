@@ -20,6 +20,7 @@ import { TransferBubble, NoticeLine, TransferSheet, SettleSheet,
          WatchBar, RequestBubble, RequestSheet, VoteSheet } from './TransferBits.js';
 import { SceneBlock, LookFloat } from './SceneInline.js';
 import { MentionBar } from './GroupBits.js';
+import { AwardBubble, StreakMark, UnlockToast } from './BadgeBits.js';
 
 // panel 这个名字在本文件里已经被「当前开着哪个面板」占了（见下面的 useState），
 // 所以模块换个名字进来 —— 同名会被局部变量盖掉，读出来是 null。
@@ -224,6 +225,8 @@ export const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, o
           ? html`<${TakeoutBubble} msg=${msg} onSettle=${selecting ? null : onSettle}/>`
           : msg.kind === 'trip'
           ? html`<${TripBubble} msg=${msg} onSettle=${selecting ? null : onSettle}/>`
+          : msg.kind === 'award'
+          ? html`<${AwardBubble} msg=${msg} mine=${mine}/>`
           : msg.kind === 'sticker'
           ? html`<div class="bubble-sticker ph-sticker">
               ${sticker ? html`<${StickerImg} sticker=${sticker} size=${112}/>`
@@ -389,7 +392,11 @@ export function Conversation({ chatId, focusId = '' }) {
   const isGroup = phone.group.isGroup(chat);
   const members = isGroup ? phone.group.members(chat) : [];
   const authorOf = id => (isGroup ? (members.find(c => c.id === id) || char) : char);
-  const whoOf = m => (isGroup && m.role === 'char' ? authorOf(m.authorId)?.name || '' : '');
+  // 群里这周的话痨、团宠、夜猫子（见 system/badges.js），跟在名字后面
+  const weekly = useMemo(() => (isGroup && chat && phone.badges.shown(chat)
+    ? phone.badges.weeklyTitles(chat) : new Map()), [isGroup, chatId, db.messages.indexVersion(chatId)]);
+  const whoOf = m => (isGroup && m.role === 'char'
+    ? [authorOf(m.authorId)?.name || '', ...(weekly.get(m.authorId) || [])].filter(Boolean).join(' · ') : '');
   // 开场白那条不入库，每次渲染现造。现造的对象身份每次都不一样，
   // 记忆化就永远判不出相等，所以这里也钉住。
   const greeting = useMemo(
@@ -436,6 +443,9 @@ export function Conversation({ chatId, focusId = '' }) {
   useEffect(() => {
     if (chat?.unread) db.chats.update(chatId, { unread: 0 });
   }, [chatId, chat?.unread]);
+
+  // 互动标识跟着消息走：条数一变就同步一次，刚解锁的由 UnlockToast 放出来
+  useEffect(() => { if (chatId) phone.badges.sync(chatId); }, [chatId, msgs.length]);
 
   // 录着音的时候退出这一页，麦克风会一直开着，指示灯也一直亮
   useEffect(() => () => {
@@ -1184,12 +1194,14 @@ export function Conversation({ chatId, focusId = '' }) {
   return html`
     <${Page} title=${selecting ? `已选 ${picked.length} 条`
       : busy ? html`<span class="conv-typing">正在输入</span>`
-      : isGroup ? `${phone.group.titleOf(chat)}（${members.length}）` : char.name}
+      : isGroup ? html`${phone.group.titleOf(chat)}（${members.length}）<${StreakMark} chat=${chat}/>`
+      : html`${char.name}<${StreakMark} chat=${chat}/>`}
       onBack=${selecting ? () => setPicked(null) : nav.pop} noScroll
       right=${selecting
         ? html`<button class="nav-text press" onClick=${() => setPicked(view.map(m => m.id))}>全选</button>`
         : html`<${IconButton} name="more" onClick=${() => setMenu(true)} label="更多" cls="ph-nav-action"/>`}>
       <div class="conv ph-chat">
+        <${UnlockToast} chatId=${chatId}/>
         <${ListenBar} chatId=${chatId}/>
         <${WatchBar} chatId=${chatId}/>
         ${(() => {
@@ -1440,6 +1452,16 @@ export function Conversation({ chatId, focusId = '' }) {
             arrow multiline
             left=${html`<${Icon} name="search" size=${18}/>`}
             onClick=${() => { setMenu(false); nav.push(`/search/${chatId}`); }}/>
+          <${ListItem} title="互动标识" arrow multiline
+            subtitle=${(() => {
+              const s = phone.badges.streakOf(chat);
+              const lv = chat.stats ? phone.badges.levelOf(chat).name : '';
+              const n = Object.keys(chat.unlocked || {}).length;
+              return [s.state === 'lit' || s.state === 'risk' ? `连续互发 ${s.n} 天` : '', lv,
+                n ? `已解锁 ${n} 枚` : '', '年度回顾'].filter(Boolean).join(' · ');
+            })()}
+            left=${html`<${Icon} name="medal" size=${18}/>`}
+            onClick=${() => { setMenu(false); nav.push(`/badges/${chatId}`); }}/>
           <${ListItem} title="多选消息" subtitle="选择多条消息后一并删除。长按任意消息亦可进入" arrow multiline
             left=${html`<${Icon} name="check" size=${18}/>`}
             onClick=${() => { setMenu(false); setPicked([]); setPanel(null); }}/>

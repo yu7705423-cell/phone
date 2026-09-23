@@ -115,3 +115,18 @@ export function ring(cfg = config()) {
   if (cfg.soundFileId) return playFile(cfg.soundFileId, cfg.volume);
   play(cfg.sound, cfg.volume);
 }
+
+/**
+ * 解锁一枚互动标识时的那一声：四个音往上走。跟着通知音量，通知音关着就不响
+ *（见 system/badges.js）。
+ */
+export function chime(volume = config().volume) {
+  const c = audio();
+  if (!c || !(volume > 0)) return;
+  const out = c.createGain();
+  out.gain.value = Math.min(1, volume) * 0.5;
+  out.connect(c.destination);
+  const at = c.currentTime + 0.02;
+  [523.25, 659.25, 783.99, 1046.5].forEach((f, i) =>
+    tone(c, out, { freq: f, at: at + i * 0.09, dur: 0.5, gain: 0.8 - i * 0.12 }));
+}

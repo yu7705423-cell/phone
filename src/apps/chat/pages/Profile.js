@@ -4,6 +4,7 @@ import { Page, Avatar, Button, Icon, EmptyState, Sheet, toast, prompt, confirm }
 import { chatFor } from '../helpers.js';
 import { MomentCard, CommentSheet } from './MomentBits.js';
 import { PHOTO_MAX, AVATAR_MAX } from '../../../system/db/images.js';
+import { LevelRing, BadgeStrip } from './BadgeBits.js';
 
 const { db, nav, ai } = phone;
 
@@ -142,14 +143,22 @@ export function Profile({ subjectId, embedded }) {
 
   const openMoment = m => nav.push(`/moment/${m.id}`);
 
+  // 和这个角色的那段私聊（当前身份下的）。没聊过就没有，标识那一排与那一圈都不画 ——
+  // 这里只读，不替人建会话
+  const meId = phone.accounts.currentId();
+  const pair = isMe ? null : db.chats.all().find(c => c.group !== true && (c.characterIds || []).length === 1
+    && c.characterIds[0] === subjectId && (c.personaId || meId) === meId) || null;
+
   const body = html`
     <div class="ig">
       <div class="ig-head">
         <div class="ig-face">
-          <button class="press" onClick=${() => isMe && avatarRef.current?.click()}
-            aria-label=${isMe ? '更换头像' : '头像'}>
-            <${Avatar} src=${avatar} name=${subject.name} size=${84} radius=${42}/>
-          </button>
+          <${LevelRing} chat=${pair} size=${84}>
+            <button class="press" onClick=${() => isMe && avatarRef.current?.click()}
+              aria-label=${isMe ? '更换头像' : '头像'}>
+              <${Avatar} src=${avatar} name=${subject.name} size=${84} radius=${42}/>
+            </button>
+          <//>
           ${faces.changed ? html`
             <button class="ig-face-base press" onClick=${restore} aria-label="换回原本的头像">
               <${Avatar} src=${baseFace} name=${subject.name} size=${28} radius=${14}/>
@@ -170,6 +179,8 @@ export function Profile({ subjectId, embedded }) {
         <div class="ig-name">${subject.name}</div>
         ${subject.signature ? html`<div class="ig-sign">${subject.signature}</div>` : null}
       </div>
+
+      <${BadgeStrip} chat=${pair}/>
 
       <div class="ig-acts">
         ${isMe

@@ -61,6 +61,8 @@ const LABELS = {
   'skeleton.group-mention': '骨架 · 群聊点名',
   'skeleton.call-script': '骨架 · 通话台本标记',
   'task.voice-script': '任务 · 语音台本',
+  'skeleton.award': '骨架 · 颁发标识',
+  'task.year-note': '任务 · 年度回顾里的一段话',
   'task.memory-extract': '任务 · 提取记忆',
   'task.memory-import': '任务 · 从文本导入记忆',
   'task.chat-summarize': '任务 · 压缩历史',
