@@ -30,9 +30,10 @@ export function TransferBubble({ msg, onSettle }) {
 // 提示行。不占气泡，居中一行灰字，两边都看得见刚才发生了什么。
 export function NoticeLine({ msg }) {
   const text = String(msg.content || '').replace(/^\[|\]$/g, '');
-  // 角色往歌单里放了歌：点这一行去一起听那一页，角色的歌单列在那儿
+  // 角色往歌单里放了歌：点这一行直接打开那个歌单，看里面有什么、从那儿一起听
   if (msg.playlistId) {
-    return html`<button class="conv-notice press" onClick=${() => phone.nav.push(`/listen/${msg.chatId}`)}>${text}</button>`;
+    return html`<button class="conv-notice press"
+      onClick=${() => phone.intent.open('music', { route: `/local/${msg.playlistId}/${msg.chatId}`, back: true })}>${text}</button>`;
   }
   return html`<div class="conv-notice">${text}</div>`;
 }

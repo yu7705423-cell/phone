@@ -156,7 +156,30 @@ export function share({ chatId, song, role = 'user', authorId = 'me' }) {
     content: `[分享歌曲：${q}]`,
   });
   chats.update(chatId, { lastMessageAt: Date.now() });
+  // 歌词取回来存在消息上，角色读历史时附在这一条后面（engine.buildHistory）。
+  // 取歌词是曲库或网易云的事，不调模型。动态 import：player 本身引着这个文件
+  import('./player.js').then(p => p.lyricOf(song))
+    .then(r => messages.update(msg.id, lyricFields(r)))
+    .catch(() => {});
   return msg;
+}
+
+/** lyricOf 的结果压成存在消息、动态上的两个字段 */
+export function lyricFields(r) {
+  if (r?.pure) return { songLyric: '', songPure: true };
+  return { songLyric: (r?.lines || []).map(l => l.text).filter(Boolean).join('\n'), songPure: false };
+}
+
+/**
+ * 附在「[分享歌曲：…]」后面的那一段歌词。关了、没取到就是空串。
+ * lines 是「用量与上限」里填的行数，0 表示整首（CLAUDE.md 第 13 条）
+ */
+export function lyricBlock({ songLyric = '', songPure = false } = {}, { on = true, lines = 0 } = {}) {
+  if (!on) return '';
+  if (songPure) return '\n[歌词]\n纯音乐';
+  const all = String(songLyric || '').split('\n').filter(Boolean);
+  if (!all.length) return '';
+  return `\n[歌词]\n${(lines > 0 ? all.slice(0, lines) : all).join('\n')}`;
 }
 
 /** 某人名下叫这个名字的歌单。没有就建一个 */
@@ -189,6 +212,13 @@ export function addTrack(listId, songId) {
   return true;
 }
 
+
+export function removeTrack(listId, songId) {
+  const p = playlists.get(listId);
+  if (!p || !(p.trackIds || []).includes(songId)) return false;
+  playlists.update(listId, { trackIds: p.trackIds.filter(x => x !== songId) });
+  return true;
+}
 
 export function tracksOf(listId) {
   const p = playlists.get(listId);

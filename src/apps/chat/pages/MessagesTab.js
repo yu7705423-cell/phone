@@ -25,6 +25,7 @@ const Row = memo(function Row({ chat, onHold }) {
     : last.kind === 'dice' ? `[骰子] ${last.value}`
     : last.kind === 'award' ? `[标识] ${last.awardName || ''}`
     : last.kind === 'listen' ? `[一起听] ${phone.listen.fmt(last.seconds)}`
+    : last.kind === 'song' ? `[歌曲] ${db.songs.get(last.songId)?.title || phone.music.splitQuery(last.songQuery || '').title}`
     : last.kind === 'call' ? `[${phone.call.label(last.direction, last.outcome, last.seconds, last.callKind === 'video')}]`
     : last.kind === 'notice' ? String(last.content || '').replace(/^\[|\]$/g, '')
     : (splitBubbles(last.content).slice(-1)[0] || last.content);

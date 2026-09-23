@@ -1,4 +1,5 @@
-import { moments, characters, persona, images, songs } from '../../db/index.js';
+import { moments, characters, persona, images, songs, settings } from '../../db/index.js';
+import * as player from '../../player.js';
 import * as imageSvc from '../image.js';
 import * as imgPrompt from '../imageprompt.js';
 import { template, runJSONTask } from '../engine.js';
@@ -12,10 +13,16 @@ import * as music from '../../music.js';
 // 该角色能不能带歌：和聊天里「一起听」那一项同一个条件（capabilities.js 的 listen）
 const canSong = char => char.canListen !== false && (music.allSongs().length > 0 || neteaseReady());
 
-// 动态里带的那首歌，写成一句给评论、回复的人看。方括号标记与聊天里分享歌曲那一条同形
-function songLine(mo) {
-  const s = mo.songId ? songs.get(mo.songId) : null;
-  return s ? `\n[分享歌曲：${s.title}${s.artist ? ` - ${s.artist}` : ''}]` : '';
+// 动态里带的那首歌，写成一句给评论、回复的人看。方括号标记与聊天里分享歌曲那一条同形，
+// 后面同样附上歌词（「用量与上限」里那两项管着），取不到歌词就只有歌名
+async function songLine(mo) {
+  const song = mo.songId ? songs.get(mo.songId) : null;
+  if (!song) return '';
+  const st = settings.get();
+  const on = st.songLyric !== false;
+  const got = on ? await player.lyricOf(song).catch(() => null) : null;
+  const tail = got ? music.lyricBlock(music.lyricFields(got), { on, lines: Number(st.songLyricLines) || 0 }) : '';
+  return `\n[分享歌曲：${song.title}${song.artist ? ` - ${song.artist}` : ''}]${tail}`;
 }
 
 function charContext(char) {
@@ -85,7 +92,7 @@ export async function commentMoment(momentId, charId) {
   const author = mo.authorId === 'me' ? persona.get().name : characters.get(mo.authorId)?.name;
 
   const system = fillTemplate(template('task.moment-comment'), {
-    charName: char.name, authorName: author || '对方', momentText: mo.text + songLine(mo),
+    charName: char.name, authorName: author || '对方', momentText: mo.text + await songLine(mo),
   }) + `\n\n## Your own settings\n${charContext(char)}`;
 
   const r = await runJSONTask('moment.comment', { system, key: `moment-comment:${momentId}:${charId}`, maxTokens: 300 });
@@ -100,7 +107,7 @@ export async function replyComment(momentId, charId, commentText) {
 
   const system = fillTemplate(template('task.moment-reply'), {
     charName: char.name, userName: persona.get().name,
-    momentText: mo.text + songLine(mo), commentText,
+    momentText: mo.text + await songLine(mo), commentText,
   }) + `\n\n## Your own settings\n${charContext(char)}`;
 
   const r = await runJSONTask('moment.reply', { system, key: `moment-reply:${momentId}`, maxTokens: 300 });

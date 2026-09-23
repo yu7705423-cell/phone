@@ -129,8 +129,9 @@ await page.waitForTimeout(1000);
 await page.locator('button.conv-notice', { hasText: '夜里听' }).first().tap();
 await page.waitForTimeout(800);
 const lroute = await page.evaluate(async () => (await import('/src/system/nav.js')).currentRoute());
-ok('点歌单那行提示：进一起听那一页，看得到角色的歌单', lroute === `/listen/${ids.chat}`
-  && /夜里听/.test(await page.locator('.page').last().innerText()), lroute);
+const ltxt = await page.locator('.page').last().innerText();
+ok('点歌单那行提示：直接打开那个歌单，看得到里面的歌', /^\/local\/[^/]+\//.test(lroute)
+  && /夜里听/.test(ltxt) && /晚风/.test(ltxt) && /晴天/.test(ltxt) && /林晚的歌单/.test(ltxt), `${lroute} ${ltxt.slice(0, 200)}`);
 
 // ---- 六、角色包与删除 ----
 const pack = await page.evaluate(async o => {

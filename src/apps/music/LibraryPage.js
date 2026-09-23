@@ -126,9 +126,16 @@ function EditSheet({ open, song, onClose }) {
 
 export function LibraryPage() {
   useStore(db.songs.store);
+  useStore(db.playlists.store);
   const [editing, setEditing] = useState(undefined);   // undefined 关着，null 新加，对象 改这一首
 
   const lib = music.allSongs();
+  // 本机的歌单：我的在前，角色建的按角色排在后面
+  const lists = db.playlists.all()
+    .sort((a, b) => (a.owner === music.LIB_OWNER ? 0 : 1) - (b.owner === music.LIB_OWNER ? 0 : 1)
+      || String(a.owner).localeCompare(String(b.owner)) || (a.createdAt || 0) - (b.createdAt || 0));
+  const ownerText = p => (p.owner === music.LIB_OWNER ? '我的歌单'
+    : `${db.characters.get(p.owner)?.name || '已删除的角色'}的歌单`);
 
   const drop = async song => {
     if (!await confirm({
@@ -165,6 +172,18 @@ export function LibraryPage() {
             desc="可上传本机音频或填写播放地址，也可在搜索页将网易云的曲目收入此处。"
             action=${html`<${Button} size="sm" icon="plus"
               onClick=${() => setEditing(null)}>添加歌曲<//>`}/>`}
+
+        ${lists.length ? html`
+          <div class="mu-sec"><span>歌单</span></div>
+          <div class="mu-list">
+            ${lists.map(p => html`
+              <div key=${p.id} class="mu-row press" onClick=${() => nav.push(`/local/${p.id}`)}>
+                <div class="mu-main">
+                  <div class="mu-title ellipsis">${p.name}</div>
+                  <div class="mu-sub ellipsis">${ownerText(p)} · ${(p.trackIds || []).length} 首</div>
+                </div>
+              </div>`)}
+          </div>` : null}
 
         <div class="settings-foot">
           曲库中的曲目供会话中的「一起听」选曲使用，也可在此直接播放。<br/>

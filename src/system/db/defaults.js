@@ -160,6 +160,9 @@ export const DEFAULT_SETTINGS = {
   bridgeChatLines: 20,            // 线下带上手机里最近几条消息
   bridgeSceneChars: 400,          // 线上带上最近一次见面的多少字
   planCount: 8,                   // 注入几条「你记着的事」（待办）。0 = 全给
+  // 分享的歌附上歌词给角色读。不调模型，只多占几行上下文，见 music.lyricBlock
+  songLyric: true,
+  songLyricLines: 20,             // 附几行。0 = 整首
   // 文风预设。**默认一份都不启用** —— 内置提示词不写文风（第 16 条），
   // 这里存的是用户改过或新建的那些，见 system/tone.js
   tonePresets: {},

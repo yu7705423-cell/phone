@@ -273,6 +273,19 @@ export function LimitsPage() {
             onChange=${v => set({ bridgeSceneChars: v })}/>
         <//>
 
+        <${Field} label="分享歌曲时附上歌词"
+          desc="在会话中分享一首歌、或评论带歌的动态时，角色读到的那一条后面附上这首歌的歌词。
+            歌词取自曲库或网易云，不调用模型接口；但这条消息仍在上下文里的每一轮请求都会带着这段歌词。
+            关闭后角色只看到歌名与歌手。">
+          <${Switch} checked=${s.songLyric !== false} onChange=${v => set({ songLyric: v })}/>
+        <//>
+
+        <${Field} label="附上的歌词行数"
+          desc="从第一句起附上这么多行。填 0 表示整首，一首歌通常四十行上下。">
+          <${NumberInput} value=${s.songLyricLines} unit="行" placeholder="整首"
+            onChange=${v => set({ songLyricLines: v })}/>
+        <//>
+
         <${Field} label="视频通话画面间隔"
           desc="视频通话中两帧画面之间至少间隔的秒数。
             仅在开启「让角色看见我」时生效，每传一帧都是一次图片费用。

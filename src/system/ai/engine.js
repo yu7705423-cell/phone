@@ -26,6 +26,7 @@ import { markRead } from '../receipt.js';
 import * as group from '../group.js';
 import { sync as syncBadges } from '../badges.js';
 import { note as noteCall } from './usage.js';
+import { lyricBlock } from '../music.js';
 
 // 接口协议要求带 max_tokens，取一个足够大的值，等同于不限制
 export const MAX_OUTPUT = 32000;
@@ -377,6 +378,14 @@ export function insertLore(list, depths) {
   return out;
 }
 
+// 用户分享的一首歌，后面附上歌词（music.share 取回来存在消息上）。
+// **只附用户那一侧的。** 角色自己分享的那条要是带着歌词回到历史里，
+// 就是在示范「分享完接着贴一段歌词」，下一轮它会照着写
+function songLyricOf(m, s) {
+  if (m.kind !== 'song') return '';
+  return lyricBlock(m, { on: s.songLyric !== false, lines: Number(s.songLyricLines) || 0 });
+}
+
 // 历史消息转 API 格式。群聊时给非本人的发言加上说话人前缀。
 export function buildHistory(chat, char, msgs, opts = {}) {
   const s = settings.get();
@@ -402,7 +411,8 @@ export function buildHistory(chat, char, msgs, opts = {}) {
     const text = timeLine(m, view[i - 1]) + withQuote(m);
     if (m.role === 'user') {
       const pic = pics && pics.get(m.id);
-      return pic ? { role: 'user', content: text, image: pic } : { role: 'user', content: text };
+      const body = text + songLyricOf(m, s);
+      return pic ? { role: 'user', content: body, image: pic } : { role: 'user', content: body };
     }
     if (mine) {
       const tr = inlineTrans ? String(m.translation || '').trim() : '';
@@ -1063,7 +1073,8 @@ export function buildGroupHistory(chat, members, msgs, opts = {}) {
     const text = timeLine(m, view[i - 1]) + withQuote(m);
     if (m.role === 'user') {
       const pic = pics && pics.get(m.id);
-      return pic ? { role: 'user', content: text, image: pic } : { role: 'user', content: text };
+      const body = text + songLyricOf(m, s);
+      return pic ? { role: 'user', content: body, image: pic } : { role: 'user', content: body };
     }
     const tr = inlineTrans ? String(m.translation || '').trim() : '';
     return { role: 'assistant', content: `${nameOf(m.authorId)}：${text}${tr ? `\n[译文：${tr}]` : ''}` };

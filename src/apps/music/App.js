@@ -4,6 +4,7 @@ import { HomeTab } from './HomeTab.js';
 import { SearchTab } from './SearchTab.js';
 import { MineTab } from './MineTab.js';
 import { PlaylistPage } from './PlaylistPage.js';
+import { LocalListPage } from './LocalListPage.js';
 import { LibraryPage } from './LibraryPage.js';
 import { NowBar } from './parts.js';
 import { NowPage } from './NowPage.js';
@@ -39,6 +40,9 @@ export default function MusicApp({ route }) {
   if (route === '/library') return html`<${LibraryPage}/>`;
   if (route === '/now') return html`<${NowPage}/>`;
   if (route === '/now/listen') return html`<${NowPage} from="listen"/>`;
+  // 本机歌单。/local/歌单id，从会话的一起听页进来时后面带着 /会话id
+  const local = route?.match(/^\/local\/([^/]+)(?:\/(.+))?$/);
+  if (local) return html`<${LocalListPage} id=${local[1]} chatId=${local[2] || ''}/>`;
   const list = route?.match(/^\/list\/(.+)$/);
   if (list) return html`<${PlaylistPage} id=${list[1]}/>`;
   return html`<${Tabs}/>`;

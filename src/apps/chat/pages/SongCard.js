@@ -80,11 +80,29 @@ function useProgress(on) {
 
 const RING = 2 * Math.PI * 17;
 
+// 这一首在播放器里是什么状态：0 不是它，1 是它但停着，2 正在放。
+//
+// **不用 useStore 整个订阅播放器。** 播放器每秒更新一次秒数，整个订阅的话，
+// 聊天记录里有几十张歌曲卡片，每秒就几十张一起重画 —— 而它们要显示的东西
+// 一个都没变。这里只在「是不是它、放没放」变了的时候才更新，同一个数不会触发重画
+function usePlayState(id) {
+  const pick = () => {
+    const s = phone.player.player.get();
+    const cur = s.queue[s.index];
+    return id && cur?.id === id ? (s.playing ? 2 : 1) : 0;
+  };
+  const [v, set] = useState(pick);
+  useEffect(() => {
+    set(pick());
+    return phone.player.player.subscribe(() => set(pick()));
+  }, [id]);
+  return v;
+}
+
 function PlayKey({ song, size = 36 }) {
-  const ps = useStore(phone.player.player);
-  const cur = ps.queue[ps.index];
-  const isCur = !!song && cur?.id === song.id;
-  const playing = isCur && ps.playing;
+  const ps = usePlayState(song?.id);
+  const isCur = ps > 0;
+  const playing = ps === 2;
   const prog = useProgress(isCur);
   const tap = e => {
     e.stopPropagation();

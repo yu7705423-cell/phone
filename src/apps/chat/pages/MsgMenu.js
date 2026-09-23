@@ -7,6 +7,7 @@ const { db, ai } = phone;
 
 const textOf = m => m.kind === 'image' ? (m.prompt || m.imageDesc || '')
   : m.kind === 'voice' ? (m.voiceText || '')
+  : m.kind === 'song' ? `分享歌曲：${m.songQuery || ''}`
   : (m.content || '');
 
 // 改的是「这条消息的正文」，但正文在哪个字段要看消息类型与是谁发的。
@@ -133,9 +134,36 @@ function RepairSheet({ msgId, open, onClose }) {
     <//>`;
 }
 
+// 把会话里分享的一首歌放进我的歌单。挑一个已有的，或者当场新建一个
+function AddToListSheet({ song, onClose }) {
+  useStore(db.playlists.store);
+  const lists = phone.music.allLists(phone.music.LIB_OWNER);
+  const put = p => {
+    const added = phone.music.addTrack(p.id, song.id);
+    toast(added ? `已加入「${p.name}」` : `已在「${p.name}」中`, added ? 'ok' : 'plain');
+    onClose();
+  };
+  const fresh = async () => {
+    const name = await prompt({ title: '新建歌单', okText: '创建' });
+    if (!name || !name.trim()) return;
+    try { put(phone.music.createList({ name })); }
+    catch (err) { toast(String(err.message || err), 'error'); }
+  };
+  return html`
+    <${Sheet} open=${true} onClose=${onClose} title="加入我的歌单">
+      <${List} inset=${false}>
+        ${lists.map(p => html`
+          <${ListItem} key=${p.id} title=${p.name} subtitle=${`${(p.trackIds || []).length} 首`}
+            onClick=${() => put(p)}/>`)}
+        <${ListItem} title="新建歌单" arrow left=${html`<${Icon} name="plus" size=${18}/>`} onClick=${fresh}/>
+      <//>
+    <//>`;
+}
+
 export function MsgMenu({ msg, char, onClose, onRegenerate, onQuote, onMultiSelect, onDelete }) {
   useStore(db.messages.store);
   const [repairing, setRepairing] = useState(false);
+  const [adding, setAdding] = useState(false);     // 歌曲那一条：正在挑放进哪个歌单
   // 修完可能整条被拆掉，每次都从库里重取，别拿着长按那一刻的旧快照
   const fresh = msg ? db.messages.get(msg.id) : null;
   const fixes = fresh ? ai.repair.fixesFor(fresh) : [];
@@ -143,11 +171,14 @@ export function MsgMenu({ msg, char, onClose, onRegenerate, onQuote, onMultiSele
   // 这个组件一直挂着，靠 msg 有没有值来决定显不显示，
   // 所以每条出口都得把 repairing 归零 —— 否则下次长按别的消息，
   // 弹出来的是上一条留下的「修格式」。
-  const close = () => { setRepairing(false); onClose(); };
+  const close = () => { setRepairing(false); setAdding(false); onClose(); };
 
   if (!msg) return null;
   // 修格式单独占一层，不套在菜单里面 —— 浮层套浮层在 iOS 上定位会飘
   if (repairing) return html`<${RepairSheet} msgId=${msg.id} open=${true} onClose=${close}/>`;
+  // 分享的歌。卡片正文是给角色读的标记，对人来说要的是这首歌本身
+  const song = fresh?.kind === 'song' && fresh.songId ? db.songs.get(fresh.songId) : null;
+  if (adding && song) return html`<${AddToListSheet} song=${song} onClose=${close}/>`;
 
   const gone = !fresh;
   // 转账、礼物、约定、信这些不给改：正文里写着金额和内容，改了正文，
@@ -157,7 +188,8 @@ export function MsgMenu({ msg, char, onClose, onRegenerate, onQuote, onMultiSele
 
   const copy = async () => {
     try {
-      await navigator.clipboard.writeText(fresh.content || '');
+      await navigator.clipboard.writeText(song
+        ? `${song.title}${song.artist ? ` - ${song.artist}` : ''}` : (fresh.content || ''));
       toast('已复制');
     } catch { toast('复制失败：浏览器未授予剪贴板权限', 'error'); }
     close();
@@ -221,6 +253,15 @@ export function MsgMenu({ msg, char, onClose, onRegenerate, onQuote, onMultiSele
     phone.intent.open('memory', { route: `/edit/${row.id}`, back: true });
   };
 
+  // 从这一首开始一起听。和一起听页里点一首是同一件事，只是不用先翻过去找
+  const chatOf = fresh ? db.chats.get(fresh.chatId) : null;
+  const canListen = !!song && chatOf && !phone.group.isGroup(chatOf) && char?.canListen !== false;
+  const listenFrom = () => {
+    try { phone.listen.start({ chatId: fresh.chatId, songId: song.id }); toast('已开始一起听', 'ok'); }
+    catch (err) { toast(String(err.message || err), 'error'); }
+    close();
+  };
+
   const del = async () => {
     if (!await confirm({ title: '删除这条消息', message: '删除后不再进入上下文。', danger: true })) return;
     onDelete(msg.id);
@@ -249,7 +290,13 @@ export function MsgMenu({ msg, char, onClose, onRegenerate, onQuote, onMultiSele
           <${ListItem} title="引用" subtitle="回复这一条，角色可据此判断你在回应哪句" arrow multiline
             left=${html`<${Icon} name="reply" size=${18}/>`}
             onClick=${() => { close(); onQuote(fresh); }}/>
-          <${ListItem} title="复制" arrow
+          ${canListen ? html`
+            <${ListItem} title="从这首开始一起听" arrow
+              left=${html`<${Icon} name="headphone" size=${18}/>`} onClick=${listenFrom}/>` : null}
+          ${song ? html`
+            <${ListItem} title="加入我的歌单" arrow
+              left=${html`<${Icon} name="plus" size=${18}/>`} onClick=${() => setAdding(true)}/>` : null}
+          <${ListItem} title=${song ? '复制歌名' : '复制'} arrow
             left=${html`<${Icon} name="copy" size=${18}/>`} onClick=${copy}/>
           <${ListItem} title="记住这句" multiline arrow
             subtitle="存成一条记忆，接着可以填关键词，或者钉成一直记着的"

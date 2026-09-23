@@ -36,6 +36,8 @@ export function ListenPage({ chatId }) {
     try { listen.start({ chatId, listId: id }); nav.pop(); }
     catch (err) { toast(String(err.message || err), 'error'); }
   };
+  // 角色的歌单点进去先看里面有什么，一起听的按钮在那一页上
+  const openList = id => phone.intent.open('music', { route: `/local/${id}/${chatId}`, back: true });
   const startSong = id => {
     try { listen.start({ chatId, songId: id }); nav.pop(); }
     catch (err) { toast(String(err.message || err), 'error'); }
@@ -81,7 +83,7 @@ export function ListenPage({ chatId }) {
           ${hers.map(p => html`
             <${ListItem} key=${p.id} title=${p.name}
               subtitle=${`${(p.trackIds || []).length} 首`} arrow
-              onClick=${() => startList(p.id)}/>`)}
+              onClick=${() => openList(p.id)}/>`)}
         <//>` : null}
 
       <${List} title="我的歌单">
@@ -111,7 +113,7 @@ export function ListenPage({ chatId }) {
           action=${html`<${Button} size="sm" icon="database" onClick=${openLib}>前往曲库<//>`}/>`}
 
       <div class="settings-foot">
-        点击歌单或单曲即可开始一起听。播放期间可在会话顶部控制。
+        点击我的歌单或单曲即可开始一起听；角色的歌单点击后先查看曲目。播放期间可在会话顶部控制。
       </div>
 
       <${Sheet} open=${!!picking} onClose=${() => setPicking(null)} title="选择要加入的歌曲" height="70%">
