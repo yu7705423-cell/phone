@@ -24,7 +24,8 @@ export function groupImages(list) {
     // **带着状态的那几张不并进来**：出错的、还在生成的、还在识别的、
     // 识图没开的 —— 它们各自下面挂着一行说明（「角色看不到这张图」之类），
     // 摞进叠里那行说明就没了，而那正是当时最该看见的一句话。
-    const plain = m.kind === 'image'
+    // 用文字写的那张没有图可叠，照一条文字气泡单独摆
+    const plain = m.kind === 'image' && m.media !== 'text'
       && m.status !== 'error'
       && m.media !== 'pending' && m.media !== 'error'
       && (!m.vision || m.vision === 'done');

@@ -14,7 +14,7 @@ function Cell({ photo, onPick }) {
 }
 
 // 发图时挑来源。相册里存过的可以直接发，不必每次从系统相册翻。
-export function PhotoSource({ open, onClose, onFile, onPick, onClip }) {
+export function PhotoSource({ open, onClose, onFile, onPick, onClip, onText }) {
   useStore(db.photos.store);
   if (!open) return null;
   // 卡片没光栅成的那些没有图可发，挑不了
@@ -26,6 +26,11 @@ export function PhotoSource({ open, onClose, onFile, onPick, onClip }) {
         <${ListItem} title="从文件选择" arrow
           left=${html`<${Icon} name="upload" size=${18}/>`}
           onClick=${onFile}/>
+        ${onText ? html`
+          <${ListItem} title="输入图片内容" arrow multiline
+            subtitle="不选择图片，以文字写下画面。角色收到的是这段描述"
+            left=${html`<${Icon} name="edit" size=${18}/>`}
+            onClick=${onText}/>` : null}
         ${onClip ? html`
           <${ListItem} title="发送短视频" arrow multiline
             subtitle="气泡上显示首帧，点击后播放。角色读不到视频内容"

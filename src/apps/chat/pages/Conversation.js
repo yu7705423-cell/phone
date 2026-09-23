@@ -932,6 +932,27 @@ export function Conversation({ chatId, focusId = '' }) {
     db.chats.update(chatId, { lastMessageAt: Date.now() });
   };
 
+  // 用文字发一张图。和「改为输入」发语音同一个道理：手边没有那张图，或者那张图
+  // 本来就不存在，写下画面发出去。角色收到的是 [图片：…]，和识图读出来的是同一种东西，
+  // 所以这一条不走识图，也不占生图接口
+  const typePhoto = async () => {
+    setPicking(null);
+    const text = await prompt({
+      title: '输入图片内容', multiline: true, okText: '发送', placeholder: '描述图片上的画面',
+      message: '将作为一张图片发出。角色收到的是这段描述，与识图读出的结果相同。',
+    });
+    const t = String(text || '').trim();
+    if (!t) return;
+    const q = draftQuote();
+    setQuoting(null);
+    db.messages.create({
+      chatId, role: 'user', authorId: 'me', kind: 'image', imageId: null,
+      imageDesc: t, vision: 'done', status: 'done', media: 'text',
+      content: `[图片：${t}]`, ...q,
+    });
+    db.chats.update(chatId, { lastMessageAt: Date.now() });
+  };
+
   // 整轮删掉重来，新原文追加进候选。
   //
   // 只有最后一轮能重新生成。重生成中间某一轮，模型看到的历史里
@@ -1383,6 +1404,7 @@ export function Conversation({ chatId, focusId = '' }) {
       <${PhotoSource} open=${picking === 'photo'} onClose=${() => setPicking(null)}
         onFile=${() => { setPicking(null); imgRef.current?.click(); }}
         onClip=${() => { setPicking(null); clipRef.current?.click(); }}
+        onText=${typePhoto}
         onPick=${async id => {
           setPicking(null);
           const q = draftQuote();

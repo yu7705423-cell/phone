@@ -981,6 +981,10 @@ input[type="range"] {
 .time-note { margin-top: 3px; font-size: var(--fs-11); color: var(--text-3); }
 
 /* 用户发的图片与语音 */
+/* 用文字写的一张图（MediaBubble 的 photo-text）：顶上一行小标「图片」，下面是画面描述 */
+.photo-text { max-width: 240px; }
+.photo-text-head { display: flex; align-items: center; gap: 4px; font-size: var(--fs-11); opacity: .6; margin-bottom: 2px; }
+.photo-text-body { white-space: pre-wrap; word-break: break-word; }
 .media-wrap { display: flex; flex-direction: column; gap: 4px; align-items: inherit; }
 
 /* 视频消息。海报 + 一个播放标记，点一下才播（长按是消息菜单，见第 12 条） */

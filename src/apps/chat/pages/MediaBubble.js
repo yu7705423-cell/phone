@@ -24,6 +24,14 @@ function ImageBubble({ msg }) {
         <div class="media-note">${msg.mediaError || '生成失败'}</div>
       </div>`;
   }
+  // 用文字写的那张（Conversation 的 typePhoto）：没有图，只有画面描述
+  if (mine && !msg.imageId && msg.media === 'text') {
+    return html`
+      <div class="bubble photo-text">
+        <div class="photo-text-head"><${Icon} name="image" size=${13}/><span>图片</span></div>
+        <div class="photo-text-body">${msg.imageDesc || ''}</div>
+      </div>`;
+  }
   if (!url) return html`<div class="bubble media-pending"><${Spinner} size=${16}/></div>`;
 
   // chat 档不用提示：图片会跟着当前这一轮的请求直接发给聊天模型
@@ -136,6 +144,14 @@ function VideoBubble({ msg }) {
       <div class="bubble media-failed">
         <div class="media-prompt">[视频] ${msg.prompt}</div>
         <div class="media-note">${msg.mediaError || '生成失败'}</div>
+      </div>`;
+  }
+  // 用文字写的那张（Conversation 的 typePhoto）：没有图，只有画面描述
+  if (mine && !msg.imageId && msg.media === 'text') {
+    return html`
+      <div class="bubble photo-text">
+        <div class="photo-text-head"><${Icon} name="image" size=${13}/><span>图片</span></div>
+        <div class="photo-text-body">${msg.imageDesc || ''}</div>
       </div>`;
   }
   if (!url) return html`<div class="bubble media-pending"><${Spinner} size=${16}/></div>`;
