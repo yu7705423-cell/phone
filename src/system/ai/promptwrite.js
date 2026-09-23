@@ -2,6 +2,8 @@ import { settings, messagesOf, characters } from '../db/index.js';
 import { template, fillTemplate } from './templates.js';
 import { runTextTask } from './engine.js';
 import { styleAsk } from './imageprompt.js';
+import { activateVoice, textOf } from './context/lorebook.js';
+import * as vscript from './voicescript.js';
 
 /**
  * 把角色随手写的那一句，改写成一份真正能用的生成提示词。
@@ -94,19 +96,35 @@ export async function forVideo(desc, { chatId, char, key } = {}) {
   } catch { return raw; }
 }
 
+// 比较两句话是不是同一句：去掉空白与标点再比。模型常动一两个标点，那不算改台词
+const bare = t => String(t || '').replace(/[\s\p{P}\p{S}]/gu, '');
+
 /**
- * 这一句该用什么语气读。
+ * 把要念的那一句写成台本：原话不动，只在里面插停顿与情绪标记
+ * （格式见 ai/voicescript.js）。
  *
- * 和上面两个不一样：**它不改那行字**，只另外给一句语气说明。
- * 回来的东西交给语音那一层 —— MiniMax 只收固定的几个情绪词
- *（`voice.js` 的 `moodOf` 负责认），OpenAI 兼容那一档收的是自由文本。
- * 所以这里让它写得短，认得出就当情绪词用，认不出就当自由文本送过去。
+ * **从前这里只回一句不超过十二个词的「语气」**，整句一个腔调。
+ * 而配音台本要的是「哪里停、哪里换情绪」—— 位置在句子里面，
+ * 一句话概括不出来。
+ *
+ * **依据是用户自己写的语音世界书**（用途为「语音」的那几本）。
+ * 拿这一句加前几句对话去扫关键词，命中的与常驻的一起交给它。
+ * 一本都没有也照样写，只是全凭上下文。
+ *
+ * **台本只许加标记，不许改台词。** 去掉标记之后和原话对不上（去空白标点再比），
+ * 就不用它，照原话念 —— 写台本这一步没有资格替角色改口。
  */
-export async function forVoice(text, { chatId, char, key } = {}) {
+export async function scriptFor(text, { chatId, char, key } = {}) {
   const raw = String(text || '').trim();
-  if (!voiceOn() || !raw) return '';
+  if (!voiceOn() || !raw) return raw;
+  const recent = chatId
+    ? messagesOf(chatId).slice(-4).map(m => m.content || '').join('\n') : '';
+  const rules = textOf(activateVoice(char, `${recent}\n${raw}`));
   try {
-    return await write('voice.prompt', 'task.voice-prompt',
-      { line: raw, context: contextOf(chatId, char) }, key);
-  } catch { return ''; }
+    const out = await write('voice.script', 'task.voice-script', {
+      line: raw, context: contextOf(chatId, char), rules: rules || '(none)',
+    }, key);
+    if (!out || !vscript.hasTags(out)) return raw;
+    return bare(vscript.plain(out)) === bare(raw) ? out : raw;
+  } catch { return raw; }
 }

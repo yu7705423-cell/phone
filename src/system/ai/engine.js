@@ -2,7 +2,7 @@ import { settings, persona, characters, chats, messages, messagesOf } from '../d
 import * as accounts from '../accounts.js';
 import * as clock from '../time.js';
 import { assemble } from './context/index.js';
-import { activate as activateLore, split as splitLore, textOf as loreText } from './context/lorebook.js';
+import { activate as activateLore, split as splitLore, textOf as loreText, voiceBookText } from './context/lorebook.js';
 import { recallAsync as recallMemory, recallText, depthOf as memoryDepth,
   markRecalled, recentOf as recentMemories } from './context/memory.js';
 import { fillTemplate, template } from './templates.js';
@@ -455,12 +455,20 @@ export function mergeAdjacent(list) {
 //      退回接口本身的上限（见 CLAUDE.md 第 13 条）。
 const callMax = () => settings.get().callMaxTokens || 0;
 
-export async function buildCallSystem(chat, char) {
+export async function buildCallSystem(chat, char, { script = false } = {}) {
   const msgs = messagesOf(chat.id).filter(m => m.status !== 'error');
   const { system, volatile: hot } = buildChatSystem(chat, char, msgs, { queryVec: await queryVecFor(msgs) });
+  // 语音台本：通话里由角色自己在台词里标停顿与情绪。台词是边说边念的，
+  // 另调一次接口写台本来不及，所以不另调。规则是用户的语音世界书，整本给出
+  const rules = script ? voiceBookText(char) : '';
+  const scriptPart = script
+    ? fillTemplate(template('skeleton.call-script'), {
+      rules: rules ? `Delivery rules written by the user:\n${rules}` : '',
+    }).trim()
+    : '';
   // 通话没有 buildHistory 那条路，下沉的那几块只能接回来。
   // 这里也不必为缓存操心：整通电话只拼一次 system，本来就复用。
-  return [system, hot, template('skeleton.call')].filter(Boolean).join('\n\n');
+  return [system, hot, template('skeleton.call'), scriptPart].filter(Boolean).join('\n\n');
 }
 
 export const callKey = chatId => `call:${chatId}`;
@@ -473,9 +481,11 @@ export const cancelCall = chatId => cancel(callKey(chatId));
 export function streamCall({ chat, char, system, lines = [], opening = '', image, onDelta }) {
   const msgs = messagesOf(chat.id).filter(m => m.status !== 'error');
   const history = buildHistory(chat, char, msgs, {});
+  // 角色自己的台词带着台本标记回去（l.script）：模型最听自己前几轮的样子，
+  // 历史里一个标记都没有，等于每一轮都在示范「不必标」
   const talk = lines.map(l => ({
     role: l.role === 'user' ? 'user' : 'assistant',
-    content: l.text,
+    content: (l.role !== 'user' && l.script) || l.text,
   }));
   const tail = opening ? [{ role: 'user', content: opening }] : [];
   const all = mergeAdjacent([...history, ...talk, ...tail]);

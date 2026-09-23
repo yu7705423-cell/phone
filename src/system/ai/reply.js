@@ -1246,16 +1246,15 @@ async function generateVoice(msgId, text, char) {
     return;
   }
   try {
-    // 这一句该用什么语气，只看那行字是读不出来的。默认关着，开了才多这一次调用。
-    // 标不出来就退回角色卡与全局那一份，不影响这一句发不发得出去
-    const tone = await promptwrite.forVoice(text, {
-      chatId: messages.get(msgId)?.chatId, char, key: `tts-tone:${msgId}`,
+    // 先写成台本：原话不动，插上哪里停顿、哪里换情绪（依据是用户的语音世界书）。
+    // 默认关着，开了才多这一次调用；写不出来或改了台词就照原话念
+    const said = await promptwrite.scriptFor(text, {
+      chatId: messages.get(msgId)?.chatId, char, key: `tts-script:${msgId}`,
     });
-    const style = voiceSvc.styleFor(char);
+    if (said !== text) messages.update(msgId, { voiceScript: said });
     const url = await voiceSvc.speak({
-      text, voiceId: char.voiceId, speed: char.voiceSpeed || 1,
-      ...style,
-      ...(tone ? { prompt: tone } : {}),
+      text: said, voiceId: char.voiceId, speed: char.voiceSpeed || 1,
+      ...voiceSvc.styleFor(char),
       key: `msg-tts:${msgId}`,
     });
     const blob = await (await fetch(url)).blob();

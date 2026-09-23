@@ -20,20 +20,32 @@ export const PARTS = ['before', 'after'];
 export const partOf = e => (PARTS.includes(e?.part) ? e.part : 'before');
 export const depthOf = e => Math.max(0, Math.round(Number(e?.depth) || 0));
 
-/**
- * 「只用于生图」的那种书。见 ARCHITECTURE 4.122
+/*
+ * 「只用于生图」的那种书，见 ARCHITECTURE 4.122。
  *
- * **两边互斥。** 标了这个的一律不进聊天，没标的一律不进生图提示词。
+ * **各用途互斥。** 生图的一律不进聊天，聊天的一律不进生图提示词。
  * 一本书要是两边都进，画风描述（「柔和的侧光，胶片颗粒」）就会漏进对话，
  * 角色开口就是一股说明书味 —— 那正是要拆出这一档的原因。
  */
-export const isImageBook = b => b?.forImage === true;
+/**
+ * 一本书是拿来干什么的：`chat` 进对话、`image` 进生图提示词、`voice` 进语音台本。
+ *
+ * **三选一，互斥。** 从前只有「只用于生图」一个布尔，再加一个「只用于语音」的布尔
+ * 就可能两个都开 —— 那本书该进哪儿说不清。所以折成一个用途。
+ * 老数据照读：`forImage` 还是那个字段，`forVoice` 是新加的，两个都没有就是对话。
+ *
+ * 语音那一档和生图同一个理由要单独拆出来：「这里停顿半秒」「说到这个名字声音放低」
+ * 这种话漏进对话，角色开口就是一股导演笔记的味道。
+ */
+export const purposeOf = b => (b?.forImage === true ? 'image' : b?.forVoice === true ? 'voice' : 'chat');
+/** 改用途时写回去的那两个字段。两个都写，免得残留一个旧的 true */
+export const purposePatch = p => ({ forImage: p === 'image', forVoice: p === 'voice' });
 
-/** 这个角色用得上的书。`forImage` 决定取哪一半。 */
-function booksFor(char, forImage) {
+/** 这个角色用得上的书，只取某一种用途的。 */
+function booksFor(char, purpose) {
   const attached = new Set(char?.lorebookIds || []);
   return lorebooks.all().filter(b =>
-    isImageBook(b) === forImage && (b.global || attached.has(b.id)));
+    purposeOf(b) === purpose && (b.global || attached.has(b.id)));
 }
 
 /** 关键词命中没有。常驻的一律算命中。 */
@@ -51,11 +63,11 @@ function hits(e, text, lower) {
   return true;
 }
 
-function pick(char, scanText, forImage) {
+function pick(char, scanText, purpose) {
   const text = String(scanText || '');
   const lower = text.toLowerCase();
   const entries = [];
-  for (const book of booksFor(char, forImage)) {
+  for (const book of booksFor(char, purpose)) {
     for (const e of book.entries || []) {
       if (!e.enabled) continue;
       entries.push({ ...e, bookName: book.name, bookId: book.id });
@@ -65,7 +77,7 @@ function pick(char, scanText, forImage) {
 }
 
 export function activate(char, scanText, budget) {
-  return takeTopWithin(pick(char, scanText, false), budget, e => e.content || '');
+  return takeTopWithin(pick(char, scanText, 'chat'), budget, e => e.content || '');
 }
 
 /**
@@ -75,7 +87,32 @@ export function activate(char, scanText, budget) {
  * （CLAUDE.md 第 13 条）。`part` 与 `depth` 在这里没有意义 ——
  * 生图请求里没有「对话历史」可插，所以编辑页上那两项对这种书不显示。
  */
-export const activateImage = (char, scanText) => pick(char, scanText, true);
+export const activateImage = (char, scanText) => pick(char, scanText, 'image');
+
+/**
+ * 语音那一份。拿**要念的那句话**加上前后几句对话去扫，命中的交给写台本那一步。
+ * 和生图那份一样不设预算：条目是用户自己写的、自己关的（第 13 条）。
+ */
+export const activateVoice = (char, scanText) => pick(char, scanText, 'voice');
+
+/**
+ * 通话里用的那一份：**整本给出去**，不按关键词挑。
+ *
+ * 通话的台词是边说边生成的，开口之前不知道这一句会说什么，没法先拿它去扫。
+ * 所以常驻的、带关键词的一并交给模型，关键词写在条目前面，由它自己对。
+ */
+export function voiceBookText(char) {
+  const out = [];
+  for (const book of booksFor(char, 'voice')) {
+    for (const e of book.entries || []) {
+      if (!e.enabled || !String(e.content || '').trim()) continue;
+      const keys = (e.keys || []).filter(Boolean);
+      out.push(e.constant || !keys.length ? e.content.trim()
+        : `(${keys.join(' / ')}) ${e.content.trim()}`);
+    }
+  }
+  return out.join('\n');
+}
 
 // 注入顺序：先按 part（角色前在先），同一部分里深的排在浅的前面
 //（深度大 = 离当前对话远），再按优先级、再按手填的序号。

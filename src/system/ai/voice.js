@@ -2,6 +2,7 @@ import { baseOf } from './url.js';
 import { voiceConfig } from './services.js';
 import { enqueue } from './queue.js';
 import { nfetch, routeOf, canNative, reachable } from '../net.js';
+import * as script from './voicescript.js';
 
 /**
  * 语音合成。
@@ -313,10 +314,28 @@ export function speak({ text, voiceId, speed = 1, prompt = '', lang = '', key })
   // 没指名道姓给风格和语种时，用全局那份 —— 试听、以及任何不带角色的调用
   // 都该和真正说话时是同一套，不然听到的和用到的不是一回事
   const style = { prompt: prompt || v.prompt || '', lang: lang || v.lang || '' };
-  const run = RUN[kindOf(v.kind).id];
+  const kind = kindOf(v.kind).id;
+  const run = RUN[kind];
   return enqueue(key || `tts:${Date.now()}`, async signal => {
-    const blob = await run(v, { text, voiceId, speed, ...style, signal });
-    return URL.createObjectURL(blob);
+    // 没有台本标记就是从前那一次请求，一个字都不变
+    if (!script.hasTags(text)) {
+      const blob = await run(v, { text, voiceId, speed, ...style, signal });
+      return URL.createObjectURL(blob);
+    }
+    // 有标记：按情绪切段，一段一次，回来的音频按顺序接上（见 voicescript.js）
+    const blobs = [];
+    for (const seg of script.plan(kind, text, style.prompt)) {
+      const segText = script.textFor(kind, seg);
+      if (!segText) continue;
+      // MiniMax 的情绪只认固定几个词，拿这一段的情绪词本身去认；
+      // 别家收自由文本，这一段的情绪与角色卡那一份一起给
+      const segPrompt = kind === 'minimax'
+        ? (seg.mood || style.prompt)
+        : [seg.mood && seg.mood !== style.prompt ? seg.mood : '', style.prompt].filter(Boolean).join('；');
+      blobs.push(await run(v, { text: segText, voiceId, speed, prompt: segPrompt, lang: style.lang, signal }));
+    }
+    if (!blobs.length) throw new Error('台本里没有可念的内容');
+    return URL.createObjectURL(new Blob(blobs, { type: blobs[0].type || 'audio/mpeg' }));
   }, { retries: 0 });
 }
 

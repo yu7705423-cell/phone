@@ -319,7 +319,7 @@ export function CharacterEdit({ id }) {
         ${db.lorebooks.all().map(b => html`
           <${ListItem} key=${b.id} title=${b.name}
             subtitle=${(b.global ? '全局生效，无需关联' : `${(b.entries || []).length} 个条目`)
-              + (ai.lore.isImageBook(b) ? ' · 只用于生图' : '')}
+              + ({ image: ' · 只用于生图', voice: ' · 只用于语音' }[ai.lore.purposeOf(b)] || '')}
             right=${html`<${Switch} checked=${b.global || (char.lorebookIds || []).includes(b.id)}
               onChange=${() => !b.global && toggleBook(b.id)}/>`}/>`)}
         ${!db.lorebooks.count() ? html`<${ListItem} title="暂无世界书"/>` : null}

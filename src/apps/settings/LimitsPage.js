@@ -115,11 +115,13 @@ export function LimitsPage() {
               + '每一段视频多一次调用，走副用接口。'}
           right=${html`<${Switch} checked=${s.writeVideoPrompt === true}
             onChange=${v => set({ writeVideoPrompt: v })}/>`}/>
-        <${ListItem} title="合成语音前先标一遍语气" multiline
+        <${ListItem} title="合成语音前先写成台本" multiline
           subtitle=${s.writeVoicePrompt !== true
-            ? '已关闭。语气沿用角色卡与全局设置中填写的那一份。'
-            : '在合成之前额外调用一次接口，为这一句单独标出情绪、语速与音量，'
-              + '仅对这一句生效。每一条语音多一次调用，走副用接口。'}
+            ? '已关闭。语音按原句合成，语气沿用角色卡与全局设置中填写的那一份。'
+            : '语音消息在合成之前额外调用一次接口，在原句中标出停顿与情绪，'
+              + '原句的文字不作改动。每一条语音多一次调用，走副用接口。'
+              + '通话中由通话模型随台词一并标出，不额外调用。'
+              + '标注规则写在用途为「语音」的世界书中。'}
           right=${html`<${Switch} checked=${s.writeVoicePrompt === true}
             onChange=${v => set({ writeVoicePrompt: v })}/>`}/>
         <${ListItem} title="角色自己发视频" multiline

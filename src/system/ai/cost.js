@@ -83,10 +83,11 @@ export const EXTRA_CALLS = [
   },
   {
     id: 'writeVoicePrompt',
-    label: '合成语音前先标一遍语气',
+    label: '合成语音前先写成台本',
     setting: 'writeVoicePrompt', off: false,
     on: s => s.writeVoicePrompt === true,
-    when: '角色每写一个 [语音：…]，先多一次接口标出该用什么语气（走副用接口）',
+    // 通话里是让通话模型在台词里直接标，不另打一次，所以这里只算聊天那一路
+    when: '角色每发一条语音，先多一次接口在原句中标出停顿与情绪（走副用接口；通话中随台词一并标出，不另计）',
   },
   {
     id: 'callSummary',

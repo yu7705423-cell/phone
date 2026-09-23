@@ -6,6 +6,7 @@ import * as voice from './ai/voice.js';
 import { isVoiceReady } from './ai/voice.js';
 import { buildCallSystem, streamCall, cancelCall, template, isConfigured, runTextTask } from './ai/engine.js';
 import * as translate from './ai/translate.js';
+import * as vs from './ai/voicescript.js';
 import { isAbort } from './ai/queue.js';
 import { fillTemplate } from './ai/templates.js';
 import { configOf, inQuiet } from './ai/proactive.js';
@@ -125,6 +126,9 @@ function canUseApi(char) {
 async function playOne(item, char) {
   const { text, bucket } = typeof item === 'string' ? { text: item, bucket: null } : item;
   const mine = era;
+  // 只剩一个标记、没有字的那一截（「<停顿 1>」落在句号后面）不念
+  const words = vs.plain(text);
+  if (!words) return;
   if (canUseApi(char)) {
     try {
       const url = await voice.speak({ text, voiceId: char.voiceId, speed: char.voiceSpeed || 1,
@@ -152,7 +156,8 @@ async function playOne(item, char) {
     }
   }
   if (mine !== era) return;
-  await audio.speakLocally(text);
+  // 浏览器自带那档不认台本标记，念的是去掉标记之后的那句话
+  await audio.speakLocally(words);
 }
 
 let draining = false;
@@ -312,7 +317,7 @@ async function connect() {
   const chat = chats.get(chatId);
   const char = characters.get(charId);
   try {
-    systemPrompt = await buildCallSystem(plain(chat), char);
+    systemPrompt = await buildCallSystem(plain(chat), char, { script: scriptOn() });
   } catch (err) {
     call.set({ error: '准备通话内容时出错：' + (err.message || err) });
   }
@@ -350,6 +355,17 @@ async function turn(opening) {
   let buf = '';
   let spoken = 0;            // 已经排进播放队列的字数
   const bucket = [];         // 这一轮合成出来的声音，存进 files 之后的 id
+  // 情绪要跨句带着走：上一句换成了「生气」，下一句没写情绪就还是生气。
+  // 按句送进语音接口时每句是单独一次，不补上的话每句开头都回到默认
+  let mood = '';
+  const enqueue = sentences => {
+    for (const s of sentences) {
+      const lead = mood && !/^\s*<\s*情绪/.test(s) ? `<情绪 ${mood}>` : '';
+      queue.push({ text: lead + s, bucket });
+      mood = vs.lastMood(s) || mood;
+    }
+    drain(char);
+  };
 
   // 一轮最多带一帧，而且离上一帧至少这么久 —— 你来我往说得快的时候，
   // 每句话都传一张图，贵得没道理，画面也没怎么变。
@@ -365,33 +381,38 @@ async function turn(opening) {
       onDelta: (_, all) => {
         if (call.get().phase !== 'active') return;
         buf = all;
-        call.set({ thinking: false, draft: all });
-        // 按句切：够一整句就排进去，不等整段说完
+        // 字幕上不露台本标记，半个标记也不露
+        call.set({ thinking: false, draft: vs.plain(all) });
+        // 按句切：够一整句就排进去，不等整段说完。送去念的是带标记的原文
         if (call.get().speak) {
           const { out, rest } = takeSentences(all.slice(spoken));
           if (out.length) {
             spoken = all.length - rest.length;
-            queue.push(...out.map(t => ({ text: t, bucket })));
-            drain(char);
+            enqueue(out);
           }
         }
       },
     });
 
-    const text = String(full || buf || '').trim();
+    const raw = String(full || buf || '').trim();
+    // 字幕、历史、翻译、通话记录用的都是去掉标记的那句；带标记的另存一份，
+    // 下一轮原样还给模型（见 engine.streamCall）
+    const text = vs.plain(raw);
     if (call.get().phase !== 'active') return;
     if (!text) { call.set({ thinking: false, error: '对方那边没有声音' }); return; }
 
     const idx = call.get().lines.length;
     call.set({
-      lines: [...call.get().lines, { role: 'char', text, audio: bucket }],
+      lines: [...call.get().lines, {
+        role: 'char', text, audio: bucket, ...(raw !== text ? { script: raw } : {}),
+      }],
       draft: '', thinking: false,
     });
     // 最后半句没有标点，收尾时补进去。这里按未整理过的 buf 下标算，
     // spoken 记的就是它的下标。
     if (call.get().speak && buf.length > spoken) {
       const tailText = buf.slice(spoken).trim();
-      if (tailText) { queue.push({ text: tailText, bucket }); drain(char); }
+      if (tailText) enqueue([tailText]);
     }
     transLine(chat, idx, text);
   } catch (err) {
@@ -500,6 +521,10 @@ function finish(outcome) {
 // 开关就是这段对话自己的「翻译」设置（第 5 条），没开就一次都不翻。
 // 一轮一次，登记在 cost.js 的 callTranslate。
 const plain = chat => (chat && chat.translateTo ? { ...chat, translateTo: '' } : chat);
+
+// 通话里要不要让角色自己标台本。和聊天里的语音消息是同一个开关
+//（「合成语音前先写成台本」），只是通话里不另调接口
+const scriptOn = () => settings.get().writeVoicePrompt === true;
 
 let lastMsgId = '';
 

@@ -5,6 +5,20 @@ import { Page, List, ListItem, Button, Icon, Field, Input, Textarea, Switch,
 
 const { db, nav, ai } = phone;
 
+// 世界书的三种用途。见 system/ai/context/lorebook.js 的 purposeOf
+const PURPOSE_ITEMS = [
+  { value: 'chat', label: '对话' },
+  { value: 'image', label: '生图' },
+  { value: 'voice', label: '语音' },
+];
+const PURPOSE_DESC = {
+  chat: '注入对话。条目按所属部分与注入深度进入 prompt。',
+  image: '仅在生成图片时按画面描述匹配，拼入生图提示词，不注入对话。所属部分与注入深度不生效。',
+  voice: '仅在合成语音前写台本时使用，决定哪里停顿、哪里用什么情绪，不注入对话。'
+    + '需在「设置 - 用量与上限」开启「合成语音前先写成台本」。所属部分与注入深度不生效。',
+};
+const PURPOSE_TAG = { chat: '', image: ' · 只用于生图', voice: ' · 只用于语音' };
+
 const PARTS = [
   { value: 'before', label: '角色前' },
   { value: 'after', label: '角色后' },
@@ -37,7 +51,7 @@ function BookList() {
           ${books.map(b => html`
             <${ListItem} key=${b.id} title=${b.name}
               subtitle=${`${(b.entries || []).length} 个条目${b.global ? ' · 全局生效' : ''}`
-                + (ai.lore.isImageBook(b) ? ' · 只用于生图' : '')}
+                + PURPOSE_TAG[ai.lore.purposeOf(b)]}
               arrow left=${html`<${Icon} name="book" size=${18}/>`}
               onClick=${() => nav.push(`/book/${b.id}`)}/>`)}
         <//>`
@@ -75,7 +89,9 @@ function BookPage({ id }) {
     nav.push(`/entry/${id}/${e.id}`);
   };
 
-  const forImage = ai.lore.isImageBook(book);
+  const purpose = ai.lore.purposeOf(book);
+  const forImage = purpose === 'image';
+  const bare = purpose !== 'chat';   // 不进对话的那两种，没有「所属部分」与「注入深度」
 
   const del = async () => {
     if (!await confirm({ title: '删除世界书', message: `将删除「${book.name}」及其全部条目。`, danger: true })) return;
@@ -95,20 +111,20 @@ function BookPage({ id }) {
         <${ListItem} title="全局生效" subtitle="开启后对所有角色注入，无需单独关联"
           right=${html`<${Switch} checked=${book.global}
             onChange=${v => db.lorebooks.update(id, { global: v })}/>`}/>
-        <${ListItem} title="只用于生图" multiline
-          subtitle=${'开启后，本世界书仅在生成图片时按画面描述匹配并拼入生图提示词，'
-            + '不再注入对话。关闭后恢复为普通世界书，仅用于对话。'
-            + '条目的所属部分与注入深度对生图不生效。'}
-          right=${html`<${Switch} checked=${forImage}
-            onChange=${v => db.lorebooks.update(id, { forImage: v })}/>`}/>
       <//>
+      <div class="pad-x">
+        <${Field} label="用途" desc=${PURPOSE_DESC[purpose]}>
+          <${Segmented} value=${purpose} items=${PURPOSE_ITEMS}
+            onChange=${v => db.lorebooks.update(id, ai.lore.purposePatch(v))}/>
+        <//>
+      </div>
 
       <${List} title=${`条目 ${(book.entries || []).length}`}>
         ${(book.entries || []).map(e => html`
           <${ListItem} key=${e.id}
             title=${e.comment || e.content.slice(0, 18) || '未命名条目'}
             subtitle=${`${e.constant ? '常驻' : (e.keys.length ? `关键词：${e.keys.join('、')}` : '未填写关键词，不会触发')}`
-              + (forImage ? '' : ` · ${placeText(e)}`)}
+              + (bare ? '' : ` · ${placeText(e)}`)}
             multiline
             arrow
             left=${html`<${Switch} checked=${e.enabled}
@@ -129,7 +145,9 @@ function EntryPage({ bookId, entryId }) {
   useStore(db.lorebooks.store);
   const book = db.lorebooks.get(bookId);
   const entry = book?.entries.find(e => e.id === entryId);
-  const forImage = ai.lore.isImageBook(book);
+  const purpose = ai.lore.purposeOf(book);
+  const forImage = purpose === 'image';
+  const forVoice = purpose === 'voice';
   if (!entry) return html`<${Page} title="条目" onBack=${nav.pop}><${EmptyState} title="该条目不存在"/><//>`;
 
   const patch = p => db.lorebooks.update(bookId, b => ({
@@ -153,14 +171,19 @@ function EntryPage({ bookId, entryId }) {
         <${Field} label="内容"
           desc=${forImage
             ? '命中后原样拼入生图提示词。建议使用该生图接口所用的语言。'
-            : '命中后原样注入 prompt。'}>
+            : forVoice
+              ? '命中后交给写台本的那一步，用于决定哪里停顿、哪里用什么情绪。'
+                + '例如：说到对方名字时停顿半秒；生气时语速加快、句间不停顿。'
+              : '命中后原样注入 prompt。'}>
           <${Textarea} rows=${6} value=${entry.content} onInput=${v => patch({ content: v })}/>
         <//>
 
         <${Field} label="关键词"
           desc=${forImage
             ? '以逗号分隔。生成图片时按画面描述匹配，出现任意一个即命中。'
-            : '以逗号分隔。扫描窗口内出现任意一个即命中。'}>
+            : forVoice
+              ? '以逗号分隔。按要念的那句话与前几句对话匹配，出现任意一个即命中。通话中整本给出，由模型自行对照。'
+              : '以逗号分隔。扫描窗口内出现任意一个即命中。'}>
           <${Input} value=${(entry.keys || []).join('，')}
             placeholder="社团，学生会"
             onInput=${v => patch({ keys: v.split(/[,，]/).map(s => s.trim()).filter(Boolean) })}/>
@@ -171,7 +194,7 @@ function EntryPage({ bookId, entryId }) {
             onInput=${v => patch({ secondaryKeys: v.split(/[,，]/).map(s => s.trim()).filter(Boolean) })}/>
         <//>
 
-        ${forImage ? null : html`
+        ${forImage || forVoice ? null : html`
           <${Field} label="所属部分"
             desc="决定该条目位于角色卡之前还是之后。世界观、时代背景一类置于角色前；角色在该世界中的处境一类置于角色后。">
             <${Segmented} value=${partOf(entry)} items=${PARTS}
@@ -189,8 +212,8 @@ function EntryPage({ bookId, entryId }) {
           <div class="field-desc pad-x">当前位置：${placeText(entry)}</div>`}
 
         <${Field} label=${`优先级　${entry.priority}`}
-          desc=${forImage
-            ? '仅决定多条同时命中时的拼接先后，数值高的在前。生图提示词不设预算，不会因此丢弃。'
+          desc=${forImage || forVoice
+            ? '仅决定多条同时命中时的先后，数值高的在前。这一类不设预算，不会因此丢弃。'
             : '注入预算不足时，从低优先级开始丢弃。'}>
           <input type="range" min="0" max="400" step="10" value=${entry.priority}
             onInput=${e => patch({ priority: parseInt(e.target.value, 10) })}/>
@@ -204,7 +227,8 @@ function EntryPage({ bookId, entryId }) {
 
       <${List}>
         <${ListItem} title="常驻"
-          subtitle=${forImage ? '无需关键词，每次生成图片时均拼入' : '无需关键词，每次均注入'}
+          subtitle=${forImage ? '无需关键词，每次生成图片时均拼入'
+            : forVoice ? '无需关键词，每次写台本时均使用' : '无需关键词，每次均注入'}
           right=${html`<${Switch} checked=${entry.constant} onChange=${v => patch({ constant: v })}/>`}/>
         <${ListItem} title="区分大小写"
           right=${html`<${Switch} checked=${entry.caseSensitive} onChange=${v => patch({ caseSensitive: v })}/>`}/>
@@ -276,16 +300,19 @@ function MapPage() {
 
   const all = [];
   const forImg = [];
+  const forVoc = [];
   for (const b of db.lorebooks.all()) {
     const applies = b.global || attached.has(b.id);
+    const p = ai.lore.purposeOf(b);
     for (const e of (b.entries || [])) {
       const row = { ...e, bookName: b.name, bookId: b.id, applies };
-      // 生图那种不进对话，按位置分组对它没有意义，单列一组
-      (ai.lore.isImageBook(b) ? forImg : all).push(row);
+      // 生图与语音那两种不进对话，按位置分组对它们没有意义，各自单列一组
+      (p === 'image' ? forImg : p === 'voice' ? forVoc : all).push(row);
     }
   }
   all.sort(ai.lore.compare);
   forImg.sort(ai.lore.compare);
+  forVoc.sort(ai.lore.compare);
 
   // 分组的顺序就是注入的顺序
   const groups = [
@@ -307,8 +334,15 @@ function MapPage() {
   if (forImg.length) {
     groups.push({
       key: 'image', title: '生图提示词',
-      desc: '标为「只用于生图」的条目。生成图片时按画面描述匹配，不注入对话。',
+      desc: '用途为「生图」的条目。生成图片时按画面描述匹配，不注入对话。',
       rows: forImg,
+    });
+  }
+  if (forVoc.length) {
+    groups.push({
+      key: 'voice', title: '语音台本',
+      desc: '用途为「语音」的条目。写台本时决定停顿与情绪，不注入对话。',
+      rows: forVoc,
     });
   }
 

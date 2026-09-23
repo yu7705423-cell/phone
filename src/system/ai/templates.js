@@ -374,6 +374,18 @@ way the transcript names them.
 Write plainly, in {{lang}}. Do not add anything the transcript does not
 state, and do not leave out what it does state. No commentary.`,
 
+  // 通话里由角色自己标台本，不另调接口（台词是边说边念的，另写一遍来不及）。
+  // 见 system/call.js 与 ai/voicescript.js
+  'skeleton.call-script':
+`[语音台本]
+Your lines are spoken aloud by a voice engine. Inside a line you may mark how
+it is delivered:
+  <停顿 seconds>  a pause of that many seconds, e.g. <停顿 0.8>
+  <情绪 word>     from this point on, deliver it with that emotion, e.g. <情绪 生气>
+These two are the only markers allowed, and the other party does not see them.
+开心、难过、生气、害怕、厌恶、惊讶、平静 are understood by every voice engine.
+{{rules}}`,
+
   'task.call-open':
 `The call has just connected{{origin}}. You speak first: say one thing, then
 stop and wait for them to respond.`,
@@ -489,19 +501,26 @@ anyone, and do not write anything the line and the context do not support.
 Write one paragraph, in the same language as the line.
 Output the paragraph only.`,
 
-  'task.voice-prompt':
-`State how one spoken line sounds.
+  'task.voice-script':
+`Mark up one spoken line as a voice actor's script.
 
 ## Context
 {{context}}
 
+## Delivery rules
+{{rules}}
+
 ## The line
 {{line}}
 
-Write at most twelve words: the emotion, the pace, the volume.
-Describe the delivery only. Do not rewrite the line, do not explain the
-reason, and do not write anything the line and the context do not support.
-Output those words only.`,
+Insert markers into the line to show how it is delivered:
+  <停顿 seconds>  a pause of that many seconds, e.g. <停顿 0.8>
+  <情绪 word>     from this point on, deliver it with that emotion, e.g. <情绪 生气>
+开心、难过、生气、害怕、厌恶、惊讶、平静 are understood by every voice engine;
+other words are understood by some.
+Apply the delivery rules above where they fit the line.
+Do not change, add, remove or reorder any word of the line. Only insert markers.
+Output the marked-up line only.`,
 
   'task.face-describe':
 `Describe this person's appearance, so that someone else can draw them from
