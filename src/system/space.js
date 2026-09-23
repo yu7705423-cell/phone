@@ -1,6 +1,7 @@
 import { chats, characters, messages, messagesOf, spaceItems } from './db/index.js';
 import * as accounts from './accounts.js';
 import * as clock from './time.js';
+import { sync as syncBadges } from './badges.js';
 
 // 情侣空间。
 //
@@ -57,8 +58,13 @@ export function togetherDays(chat) {
   return Math.max(0, Math.round((today - from) / DAY_MS)) + 1;
 }
 
+// 这几处日子改了，互动标识整段重算一遍：在一起纪念日与自己加的纪念日要回头
+// 看从前那几年的这一天有没有互发（见 system/badges.js，两万条约二十几毫秒）
+const recount = chatId => { try { syncBadges(chatId, { full: true }); } catch { /* 标识算不成不该拦住这里 */ } };
+
 export function setStart(chatId, ts) {
   chats.update(chatId, { loveStartAt: ts || 0 });
+  recount(chatId);
 }
 
 // 上下文里要不要提这些。默认关 —— 它每轮都占一段，得用户自己点开。
@@ -108,7 +114,9 @@ export function addDay({ chatId, title, date, yearly = true }) {
   const t = trim(title, 20);
   if (!t) throw new Error('请填写纪念日名称');
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date || ''))) throw new Error('请选择日期');
-  return spaceItems.create({ chatId, type: DAY, title: t, date, yearly: !!yearly });
+  const row = spaceItems.create({ chatId, type: DAY, title: t, date, yearly: !!yearly });
+  recount(chatId);
+  return row;
 }
 
 export function updateDay(id, patch) {
@@ -118,10 +126,17 @@ export function updateDay(id, patch) {
   if (patch.title !== undefined) next.title = trim(patch.title, 20);
   if (patch.date !== undefined) next.date = patch.date;
   if (patch.yearly !== undefined) next.yearly = !!patch.yearly;
-  return spaceItems.update(id, next);
+  const out = spaceItems.update(id, next);
+  if (patch.date !== undefined || patch.yearly !== undefined) recount(row.chatId);
+  return out;
 }
 
-export function removeDay(id) { return spaceItems.remove(id); }
+export function removeDay(id) {
+  const row = spaceItems.get(id);
+  const ok = spaceItems.remove(id);
+  if (row) recount(row.chatId);
+  return ok;
+}
 
 // 这个纪念日下一次是什么时候。每年一次的就滚到今年或明年，
 // 只过一次的过了就是过了，返回的 left 会是负数，界面自己决定还显不显示。

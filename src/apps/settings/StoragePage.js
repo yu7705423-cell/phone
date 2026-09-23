@@ -1,6 +1,6 @@
 import { html, useState, useRef, useEffect } from '../../lib.js';
 import { phone, useStore } from '../../sdk/index.js';
-import { Page, List, ListItem, Button, Icon, Sheet, toast, confirm, Switch } from '../../ui/index.js';
+import { Page, List, ListItem, Button, Icon, Sheet, toast, confirm, Switch, NumberInput } from '../../ui/index.js';
 
 const { db, nav, backup } = phone;
 
@@ -20,6 +20,13 @@ export function StoragePage() {
   const fileRef = useRef(null);
 
   useEffect(() => { backup.quota().then(setRoom); }, []);
+  // 浏览器有没有答应不自动清这个站的数据
+  const [kept, setKept] = useState(null);
+  useEffect(() => { phone.safekeep.persisted().then(setKept); }, []);
+  const s = useStore(db.settings.store);
+  const keep = phone.safekeep;
+  const last = keep.lastBackupAt();
+  const gh = phone.ghbackup.configOf();
 
   const counts = {
     角色卡: db.characters.count(),
@@ -47,6 +54,7 @@ export function StoragePage() {
       a.download = media ? `小手机备份-${day}.zip` : `小手机备份-${day}.json`;
       a.click();
       setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+      phone.safekeep.markBackedUp();
       toast(`已导出 ${backup.sizeText(blob.size)}`, 'ok', 4000);
     } catch (err) { toast('导出失败：' + (err.message || err), 'error', 5000); }
     finally { setBusy(false); setWork(null); }
@@ -97,6 +105,38 @@ export function StoragePage() {
 
   return html`
     <${Page} title="存储与备份" onBack=${nav.pop}>
+      <${List} title="防丢">
+        <${ListItem} title="上次备份" multiline
+          subtitle=${last
+            ? `${new Date(last).toLocaleString('zh-CN', { hour12: false })}，距今 ${keep.daysSince()} 天`
+            : '尚未备份过。数据只保存在这台设备上'}
+          left=${html`<${Icon} name="clock" size=${18}/>`}/>
+        <${ListItem} title="浏览器不自动清理" multiline
+          subtitle=${kept === true
+            ? '已获承诺。存储空间紧张时，浏览器不会自动清除这里的数据；手动清除站点数据仍会清除'
+            : kept === false
+              ? '未获承诺。存储空间紧张时，浏览器可能自动清除这里的数据。添加到主屏幕后再申请，通过的可能更大'
+              : '这个浏览器不支持查询'}
+          left=${html`<${Icon} name="lock" size=${18}/>`}
+          right=${kept === false ? html`<button class="nav-text press"
+            onClick=${async () => { setKept(await keep.askPersist()); }}>申请</button>` : null}/>
+        <${ListItem} title="备份提醒" multiline
+          subtitle=${keep.remindDays()
+            ? `距上次备份超过 ${keep.remindDays()} 天时提醒一次，每天最多一次。填 0 不提醒`
+            : '已关闭。填写天数后开启'}
+          left=${html`<${Icon} name="bell" size=${18}/>`}/>
+        <div class="pad-x pad-b">
+          <${NumberInput} value=${keep.remindDays()} min=${0} unit="天" placeholder="0"
+            onChange=${v => db.settings.set({ backupRemindDays: v })}/>
+        </div>
+        <${ListItem} title="备份到 GitHub" arrow multiline
+          subtitle=${phone.ghbackup.ready()
+            ? `${gh.repo}${gh.lastAt ? ` · 上次 ${new Date(gh.lastAt).toLocaleString('zh-CN', { hour12: false })}` : ' · 尚未备份'}`
+              + (gh.autoDays ? ` · 每 ${gh.autoDays} 天自动一次` : '') + (gh.lastError ? ` · 上次失败：${gh.lastError}` : '')
+            : '存进自己的私有仓库，每次一个版本，换设备可直接恢复。未设置'}
+          left=${html`<${Icon} name="cloud" size=${18}/>`}
+          onClick=${() => nav.push('/github')}/>
+      <//>
       ${room ? html`
         <${List} title="浏览器给的空间">
           <${ListItem} title=${`已用 ${backup.sizeText(room.usage)}`} multiline

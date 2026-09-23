@@ -486,3 +486,16 @@ doctor 的「导入导出」只查模块之间的引用。**文件内部引用�
 
 本项目不装 npm 依赖（第 9 条），所以 playwright 从别处借，用 `SMOKE_PW` 指过去。
 找不到就跳过，不拦提交。
+
+## 改了哪一块，就跑那一块的回归测试
+
+```
+SMOKE_PW=<某个装了 playwright 的目录> node scripts/test.mjs            全部
+SMOKE_PW=... node scripts/test.mjs group badges                         名字里带这些词的
+```
+
+测试在 `tests/*.test.mjs`，自己起静态服务器，不用先开 python。
+**新写的测试放进 `tests/`，不要放在临时目录** —— 从前一百多个测试都在临时目录里，
+容器一回收全没了。路径一律从 `tests/_env.mjs` 取，不写死 `/tmp`、`/opt`。
+
+修 bug 的测试要先在旧代码上跑一遍，确认它真的会失败，再修。

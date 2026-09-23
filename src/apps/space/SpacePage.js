@@ -23,7 +23,7 @@ function StartSheet({ open, chat, onClose }) {
   return html`
     <${Sheet} open=${open} onClose=${onClose} title="在一起的日子">
       <div class="pad">
-        <${Field} label="起始日" desc="设定后，空间与上下文中会显示在一起的天数。清除后不再显示。">
+        <${Field} label="起始日" desc="设定后，空间与上下文中会显示在一起的天数，互动标识多一档「在一起」，每年这一天互发消息得一枚在一起纪念日。清除后不再显示。">
           <input class="dt-input" type="date" value=${value}
             onInput=${e => setDraft(e.target.value)}/>
         <//>
@@ -98,6 +98,22 @@ export function SpacePage({ chatId }) {
       </div>
 
       <${List}>
+        <${ListItem} title="互动标识" arrow multiline
+          subtitle=${(() => {
+            // 标识与年度回顾挂在会话上（聊天 app 里），这里是它们在关系这一侧的入口
+            const b = phone.badges;
+            const s0 = b.streakOf(chat);
+            const n = Object.keys(chat.unlocked || {}).length + Object.keys(chat.limited || {}).length
+              + (chat.awards || []).length;
+            return [s0.state === 'lit' || s0.state === 'risk' ? `连续互发 ${s0.n} 天` : '',
+              chat.stats ? b.levelOf(chat).name : '', n ? `${n} 枚` : '尚未解锁'].filter(Boolean).join(' · ');
+          })()}
+          left=${html`<${Icon} name="medal" size=${19}/>`}
+          onClick=${() => phone.intent.open('chat', { route: `/badges/${chatId}`, back: true })}/>
+        <${ListItem} title="年度回顾" arrow
+          subtitle="这一年的消息、最热闹的一天、最常说的词与解锁的标识"
+          left=${html`<${Icon} name="sparkle" size=${19}/>`}
+          onClick=${() => phone.intent.open('chat', { route: `/year/${chatId}`, back: true })}/>
         <${ListItem} title="纪念日" subtitle=${dayText} arrow
           left=${html`<${Icon} name="calendar" size=${19}/>`}
           onClick=${() => nav.push(`/days/${chatId}`)}/>

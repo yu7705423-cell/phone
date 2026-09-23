@@ -76,6 +76,8 @@ import * as neteaseApi from '../system/netease.js';
 import * as purgeApi from '../system/purge.js';
 import * as groupApi from '../system/group.js';
 import * as badgesApi from '../system/badges.js';
+import * as safekeepApi from '../system/safekeep.js';
+import * as ghbackupApi from '../system/ghbackup.js';
 import * as yearNote from '../system/ai/tasks/year-note.js';
 import * as aiGroup from '../system/ai/group.js';
 import * as charpackApi from '../system/charpack.js';
@@ -281,6 +283,8 @@ export const phone = {
   purge: purgeApi,
   group: groupApi,
   badges: badgesApi,
+  safekeep: safekeepApi,
+  ghbackup: ghbackupApi,
   charpack: charpackApi,
   book: bookApi,
   read: readApi,

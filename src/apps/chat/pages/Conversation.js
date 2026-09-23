@@ -444,8 +444,16 @@ export function Conversation({ chatId, focusId = '' }) {
     if (chat?.unread) db.chats.update(chatId, { unread: 0 });
   }, [chatId, chat?.unread]);
 
-  // 互动标识跟着消息走：条数一变就同步一次，刚解锁的由 UnlockToast 放出来
-  useEffect(() => { if (chatId) phone.badges.sync(chatId); }, [chatId, msgs.length]);
+  // 互动标识跟着消息走：条数一变就同步一次，刚解锁的由 UnlockToast 放出来。
+  //
+  // **晚一点再算**。同步完要写回会话，会话一变整屏气泡都要重画（它们收着 chat）。
+  // 刚打开、尤其是从搜索跳进一段几千条的会话时，这一下和「滚到那一条、闪一下」
+  // 撞在一起，主线程被占住一秒多，闪那一下还没看见就过去了。等页面先落定
+  useEffect(() => {
+    if (!chatId) return undefined;
+    const t = setTimeout(() => phone.badges.sync(chatId), 1500);
+    return () => clearTimeout(t);
+  }, [chatId, msgs.length]);
 
   // 录着音的时候退出这一页，麦克风会一直开着，指示灯也一直亮
   useEffect(() => () => {

@@ -8,6 +8,7 @@ import { ImagePage } from './ImagePage.js';
 import { VideoPage } from './VideoPage.js';
 import { AppearancePage } from './AppearancePage.js';
 import { StoragePage } from './StoragePage.js';
+import { GitHubPage } from './GitHubPage.js';
 import { TracePage } from './TracePage.js';
 import { NotifyPage } from './NotifyPage.js';
 import { EmbedPage } from './EmbedPage.js';
@@ -246,6 +247,7 @@ export default function SettingsApp({ route }) {
   if (route === '/video') return html`<${VideoPage}/>`;
   if (route === "/appearance") return html`<${AppearancePage}/>`;
   if (route === '/storage') return html`<${StoragePage}/>`;
+  if (route === '/github') return html`<${GitHubPage}/>`;
   if (route === '/storage/files') return html`<${FilesPage}/>`;
   if (route === '/trace') return html`<${TracePage}/>`;
   return html`<${Home}/>`;

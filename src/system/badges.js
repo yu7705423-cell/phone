@@ -1,4 +1,4 @@
-import { chats, characters, messagesOf } from './db/index.js';
+import { chats, characters, messagesOf, spaceItems } from './db/index.js';
 import * as accounts from './accounts.js';
 import { createStore } from './store.js';
 import { notify } from './notify.js';
@@ -66,6 +66,9 @@ export const STREAK_TIERS = [
 
 /** 成长类：数值到了就升一级，界面上写明下一级要多少 */
 export const TIERS = [
+  // 在一起多少天：只有在情侣空间里设过「在一起」那一天才有这一档（见 system/space.js）
+  { id: 'together', icon: 'heart', name: '在一起', unit: '天', only: chat => !!chat?.loveStartAt,
+    steps: [100, 365, 1000], of: (s, now, chat) => (chat?.loveStartAt ? dayNo(now) - dayNo(chat.loveStartAt) + 1 : 0) },
   { id: 'known', icon: 'calendar', name: '相识', unit: '天',
     steps: [100, 365, 1000], of: (s, now) => (s.first ? dayNo(now) - dayNo(s.first) + 1 : 0) },
   { id: 'count', icon: 'boat', name: '消息', unit: '条',
@@ -109,17 +112,27 @@ export const LIMITED = [
   { id: 'bdayChar', name: '对方的生日', md: ctx => ctx.charBday },
   { id: 'bdayMe', name: '我的生日', md: ctx => ctx.myBday },
   { id: 'anniv', name: '相识纪念日', md: ctx => ctx.anniv },
+  { id: 'love', name: '在一起纪念日', md: ctx => ctx.love },
 ];
 
 export const achievementOf = id => ACHIEVEMENTS.find(a => a.id === id) || null;
 export const limitedOf = id => LIMITED.find(x => x.id === id.split(':')[0]) || null;
 
+/**
+ * 限定款的名字。除了表里那几个，还有情侣空间里自己加的每年重复的纪念日：
+ * id 是 `day-<纪念日 id>:<年份>`，名字取那个纪念日自己的标题（改了名就跟着改）。
+ */
+export function limitedName(id) {
+  const key = String(id).split(':')[0];
+  if (key.startsWith('day-')) return spaceItems.get(key.slice(4))?.title || '纪念日';
+  return limitedOf(id)?.name || '';
+}
+
 /** 任何一种解锁记录（成就、档位、限定）写成一句给人看的名字 */
 export function labelOf(id) {
   const a = achievementOf(id);
   if (a) return `${a.name}（${a.desc}）`;
-  const lim = id.includes(':') ? limitedOf(id) : null;
-  if (lim) return `${id.split(':')[1]} ${lim.name}`;
+  if (id.includes(':')) return `${id.split(':')[1]} ${limitedName(id)}`;
   const m = String(id).match(/^([a-z]+)-(\d+)$/);
   if (!m) return '';
   if (m[1] === 'streak') {
@@ -150,7 +163,12 @@ function bdayCtx(chat) {
   const inGroup = group.isGroup(chat);
   const char = inGroup ? null : characters.get((chat.characterIds || [])[0]);
   const me = accounts.get(chat.personaId) || accounts.current();
-  return { charBday: birthdayMd(char?.birthday), myBday: birthdayMd(me?.birthday) };
+  // 情侣空间里的日子：在一起那一天，和自己加的每年重复的纪念日
+  const love = chat.loveStartAt ? mdOf(chat.loveStartAt) : '';
+  const loveYear = chat.loveStartAt ? new Date(chat.loveStartAt).getFullYear() : 0;
+  const days = spaceItems.byIndex(chat.id).filter(x => x.type === 'day' && x.yearly && /^\d{4}-\d{2}-\d{2}$/.test(x.date || ''))
+    .map(x => ({ id: x.id, md: x.date.slice(5) }));
+  return { charBday: birthdayMd(char?.birthday), myBday: birthdayMd(me?.birthday), love, loveYear, days };
 }
 
 /** 过一条消息。返回这一条让哪些东西解锁了 */
@@ -192,8 +210,10 @@ function step(st, m, got, ctx) {
     const md = mdOf(t);
     const year = new Date(t).getFullYear();
     const anniv = new Date(st.first).getFullYear() < year ? mdOf(st.first) : '';
-    const c = { ...ctx, anniv };
+    // 在一起纪念日从在一起的第二年起算，和相识纪念日一样
+    const c = { ...ctx, anniv, love: ctx.loveYear && ctx.loveYear < year ? ctx.love : '' };
     LIMITED.forEach(x => { if (x.md(c) && x.md(c) === md) got(`${x.id}:${year}`, t, 'limited'); });
+    (ctx.days || []).forEach(d => { if (d.md === md) got(`day-${d.id}:${year}`, t, 'limited'); });
   }
 
   // 早安晚安：同一天里四句都有（你的早安、对方的早安、你的晚安、对方的晚安）
@@ -238,9 +258,10 @@ function step(st, m, got, ctx) {
 }
 
 /** 按当前统计把成长类的档位补上（相识天数这种不靠消息推进，要按今天算） */
-function tierUnlocks(st, got, now) {
+function tierUnlocks(st, got, now, chat) {
   for (const tier of TIERS) {
-    const v = tier.of(st, now);
+    if (tier.only && !tier.only(chat)) continue;
+    const v = tier.of(st, now, chat);
     tier.steps.forEach(x => { if (v >= x) got(`${tier.id}-${x}`, now); });
   }
 }
@@ -288,7 +309,7 @@ export function sync(chatId, { full = false, now = Date.now() } = {}) {
     moved = true;
   }
   st.edge = [...edge];
-  tierUnlocks(st, got, now);
+  tierUnlocks(st, got, now, chat);
   if (!moved && !news.length && !redo) return [];
   chats.update(chatId, { stats: st, unlocked, limited });
   if (!redo && news.length) {
@@ -336,8 +357,8 @@ export function streakOf(chat, now = Date.now()) {
 /** 成长类的当前档与下一档 */
 export function tiersOf(chat, now = Date.now()) {
   const s = chat?.stats || blank();
-  return TIERS.map(t => {
-    const v = t.of(s, now);
+  return TIERS.filter(t => !t.only || t.only(chat)).map(t => {
+    const v = t.of(s, now, chat);
     const idx = t.steps.filter(x => v >= x).length - 1;
     return {
       ...t, value: v, level: idx + 1,

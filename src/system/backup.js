@@ -43,7 +43,7 @@ const VERSION = 2;                 // 备份文件的格式版本
 // 另外还要记一个数据结构的版本号（_data）。开机时那句
 // from < DATA_VERSION 看的是本机的记号，不是备份的，老备份灌回来不会补迁移。
 
-const extOf = (type, fallback) => {
+export const extOf = (type, fallback) => {
   const t = String(type || '').toLowerCase();
   const m = t.match(/^(?:image|audio|video|application)\/([a-z0-9.+-]+)/);
   if (!m) return fallback;
@@ -85,7 +85,9 @@ export async function build({ media = true, keys = false, onProgress } = {}) {
     _keys: !!keys,
     exportedAt: new Date().toISOString(),
     persona: db.persona.get(),
-    settings: keys ? { ...s } : { ...s, services: undefined, apiKey: '' },
+    // GitHub 备份的令牌同理：能写你的仓库，不跟着文件走（见 system/ghbackup.js）
+    settings: keys ? { ...s } : { ...s, services: undefined, apiKey: '',
+      ...(s.githubBackup ? { githubBackup: { ...s.githubBackup, token: '' } } : {}) },
     layout: db.layout.get(),
   };
   // Float32Array 进 JSON 之前要换个写法，见 system/typed.js

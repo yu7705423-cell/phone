@@ -285,8 +285,10 @@ let altMod = null;
 import('./tasks/char-alt.js').then(m => { altMod = m; }).catch(() => {});
 
 // 同样的道理，这两个也只在装载时引一次，不在每个 tick 里现 import。
-let spaceMod = null, paceMod = null, snapMod = null, badgesMod = null;
+let spaceMod = null, paceMod = null, snapMod = null, badgesMod = null, keepMod = null, ghMod = null;
 import('../badges.js').then(m => { badgesMod = m; }).catch(() => {});
+import('../safekeep.js').then(m => { keepMod = m; }).catch(() => {});
+import('../ghbackup.js').then(m => { ghMod = m; }).catch(() => {});
 import('../space.js').then(m => { spaceMod = m; }).catch(() => {});
 import('../pace.js').then(m => { paceMod = m; }).catch(() => {});
 import('./tasks/snap.js').then(m => { snapMod = m; }).catch(() => {});
@@ -301,6 +303,8 @@ export async function tick() {
   paceMod?.runDue().catch(() => {});
   // 互动标识：同步统计、快断了的到点提醒。本地算，不调接口，所以也在这条线前面
   try { badgesMod?.tick(); } catch (err) { console.warn('[badges]', err.message || err); }
+  // 防丢：多久没备份就提醒一次；开了自动备份到 GitHub 的，到了间隔在后台传一次
+  try { keepMod?.tick(); ghMod?.tick(); } catch (err) { console.warn('[safekeep]', err.message || err); }
   if (!isConfigured()) return;
   const now = Date.now();
   const live = new Set();

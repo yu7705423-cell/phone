@@ -1,0 +1,5 @@
+
+# 开发时的截图不进仓库：它们会跟着 GitHub Pages 一起发布出去。图标除外
+/*.png
+!/icon-192.png
+!/icon-512.png

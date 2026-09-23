@@ -134,8 +134,7 @@ function viewOf(id) {
   const a = B().achievementOf(id);
   if (a) return { icon: a.icon, name: a.name, desc: a.desc };
   if (id.includes(':')) {
-    const lim = B().limitedOf(id);
-    return { icon: 'calendar', name: `${id.split(':')[1]} ${lim?.name || ''}`, desc: '节日与纪念日限定' };
+    return { icon: 'calendar', name: `${id.split(':')[1]} ${B().limitedName(id)}`, desc: '节日与纪念日限定' };
   }
   const m = id.match(/^([a-z]+)-(\d+)$/);
   if (m && m[1] === 'streak') {
@@ -233,6 +232,11 @@ export function BadgesPage({ chatId }) {
       <//>
 
       <${List} title="成长">
+        ${!inGroup && !chat.loveStartAt ? html`
+          <${ListItem} title="在一起" arrow multiline
+            subtitle="尚未设定在一起的那一天。在情侣空间中设定后，这里多一档「在一起」，每年那一天也会有一枚限定"
+            left=${html`<${Glyph} name="heart" size=${18} state="off"/>`}
+            onClick=${() => phone.intent.open('space', { route: `/space/${chatId}`, back: true })}/>` : null}
         ${tiers.map(t => html`
           <${ListItem} key=${t.id} title=${t.level ? t.label : t.name}
             left=${html`<${Glyph} name=${t.iconNow} size=${18} state=${t.level ? 'lit' : 'off'}/>`}
@@ -255,10 +259,10 @@ export function BadgesPage({ chatId }) {
 
       <${List} title="限定">
         ${limited.length ? limited.map(([id, at]) => html`
-          <${ListItem} key=${id} title=${`${id.split(':')[1]} ${B().limitedOf(id)?.name || ''}`}
+          <${ListItem} key=${id} title=${`${id.split(':')[1]} ${B().limitedName(id)}`}
             left=${html`<${Glyph} name="calendar" size=${18}/>`} subtitle=${dateOf(at)}/>`)
           : html`<${ListItem} title="尚未获得" multiline
-              subtitle="新年第一天、情人节、圣诞节、双方的生日、相识纪念日，当天双方互发消息即获得当年的一枚。生日取自角色卡与我的资料。"/>`}
+              subtitle="新年第一天、情人节、圣诞节、双方的生日、相识纪念日、在一起纪念日，以及情侣空间里每年重复的纪念日，当天双方互发消息即获得当年的一枚。生日取自角色卡与我的资料。"/>`}
       <//>
 
       <${List} title="颁发">
