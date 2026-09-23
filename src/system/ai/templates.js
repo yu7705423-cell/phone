@@ -382,8 +382,11 @@ Your lines are spoken aloud by a voice engine. Inside a line you may mark how
 it is delivered:
   <停顿 seconds>  a pause of that many seconds, e.g. <停顿 0.8>
   <情绪 word>     from this point on, deliver it with that emotion, e.g. <情绪 生气>
-These two are the only markers allowed, and the other party does not see them.
-开心、难过、生气、害怕、厌恶、惊讶、平静 are understood by every voice engine.
+  <声音 word>     a non-verbal sound at this point, e.g. <声音 叹气>
+These three are the only markers allowed, and the other party does not see them.
+Emotions understood by every voice engine: 开心、难过、生气、害怕、厌恶、惊讶、平静.
+Sounds: 笑、轻笑、叹气、吸气、呼气、喘气、倒吸气、咳嗽、清嗓子、吸鼻子.
+Some voice engines cannot produce sounds and skip them.
 {{rules}}`,
 
   'task.call-open':
@@ -516,8 +519,11 @@ Output the paragraph only.`,
 Insert markers into the line to show how it is delivered:
   <停顿 seconds>  a pause of that many seconds, e.g. <停顿 0.8>
   <情绪 word>     from this point on, deliver it with that emotion, e.g. <情绪 生气>
-开心、难过、生气、害怕、厌恶、惊讶、平静 are understood by every voice engine;
-other words are understood by some.
+  <声音 word>     a non-verbal sound at this point, e.g. <声音 叹气>
+Emotions understood by every voice engine: 开心、难过、生气、害怕、厌恶、惊讶、平静.
+Other emotion words are understood by some.
+Sounds: 笑、轻笑、叹气、吸气、呼气、喘气、倒吸气、咳嗽、清嗓子、吸鼻子.
+Some voice engines cannot produce sounds and skip them.
 Apply the delivery rules above where they fit the line.
 Do not change, add, remove or reorder any word of the line. Only insert markers.
 Output the marked-up line only.`,

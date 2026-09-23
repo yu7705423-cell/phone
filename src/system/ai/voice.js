@@ -155,21 +155,10 @@ export const LANGS = [
 ];
 export const langOf = v => LANGS.find(l => l.id === v || l.label === v) || null;
 
-// MiniMax 的风格只收这几个固定的值，不是自由文本。填的是它认得的词就送过去，
-// 别的就不送 —— 送一个它不认的值，整个请求会被退回来。
-const MOODS = {
-  happy: 'happy', 高兴: 'happy', 开心: 'happy',
-  sad: 'sad', 难过: 'sad', 伤心: 'sad', 低落: 'sad',
-  angry: 'angry', 生气: 'angry', 愤怒: 'angry',
-  fearful: 'fearful', 害怕: 'fearful', 恐惧: 'fearful',
-  disgusted: 'disgusted', 厌恶: 'disgusted',
-  surprised: 'surprised', 惊讶: 'surprised', 吃惊: 'surprised',
-  calm: 'calm', 平静: 'calm', 冷静: 'calm',
-  fluent: 'fluent', 流畅: 'fluent',
-  neutral: 'neutral', 中性: 'neutral', 平淡: 'neutral',
-};
-export const moodOf = t => MOODS[String(t || '').trim().toLowerCase()]
-  || MOODS[String(t || '').trim()] || '';
+// MiniMax 的风格只收几个固定的值，不是自由文本。词表在 voicescript.js
+//（台本的情绪标记用的是同一张），认得的才送；fluent 与 whisper 只有 2.6 认。
+// 从前这里还有一个 neutral —— 它不在 MiniMax 的枚举里，填「中性」「平淡」
+// 的人整个请求都被退回来。
 
 /**
  * 这个角色该用什么风格、什么语种说话。
@@ -236,7 +225,7 @@ async function minimax(v, { text, voiceId, speed, prompt, lang, signal }) {
   // 语种：表里有就翻成它认的英文名，表里没有就原样送 —— 它认的名字比那张表长
   const known = langOf(lang);
   const boost = known ? known.mm : String(lang || '').trim();
-  const mood = moodOf(prompt);
+  const mood = script.mmEmotion(prompt, v.model);
   const res = await ask(`${base}/v1/t2a_v2${q}`, {
     method: 'POST', signal,
     headers: { 'content-type': 'application/json', authorization: `Bearer ${v.apiKey}` },
@@ -324,8 +313,8 @@ export function speak({ text, voiceId, speed = 1, prompt = '', lang = '', key })
     }
     // 有标记：按情绪切段，一段一次，回来的音频按顺序接上（见 voicescript.js）
     const blobs = [];
-    for (const seg of script.plan(kind, text, style.prompt)) {
-      const segText = script.textFor(kind, seg);
+    for (const seg of script.plan(kind, text, style.prompt, v.model)) {
+      const segText = script.textFor(kind, seg, v.model);
       if (!segText) continue;
       // MiniMax 的情绪只认固定几个词，拿这一段的情绪词本身去认；
       // 别家收自由文本，这一段的情绪与角色卡那一份一起给
