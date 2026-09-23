@@ -2,7 +2,7 @@ import { html, useState, useEffect } from '../../lib.js';
 import { phone, useStore } from '../../sdk/index.js';
 import { Icon, EmptyState, Button, toast } from '../../ui/index.js';
 
-const { player } = phone;
+const { player, nav } = phone;
 
 // 封面。取不到就摆一个字，不留一个空框。
 export function Cover({ src, name = '', size = 48, radius = 'var(--r-md)' }) {
@@ -49,7 +49,7 @@ export function KeepButton({ track }) {
     </button>`;
 }
 
-// 底部那条。没在放就不占位置。
+// 底部那条。没在放就不占位置。点它（除了两个按钮和进度条）进「正在播放」，看大封面与歌词。
 // safe：这一页底下没有页签栏，那条就得自己让开 Home Indicator。
 export function NowBar({ safe }) {
   const s = useStore(player.player);
@@ -58,6 +58,7 @@ export function NowBar({ safe }) {
   const pct = s.duration ? Math.min(100, (s.seconds / s.duration) * 100) : 0;
   // 点进度条跳到那一处。条子只有两像素高，热区靠 CSS 的 padding 撑开。
   const jump = e => {
+    e.stopPropagation();
     if (!s.duration) return;
     const box = e.currentTarget.getBoundingClientRect();
     player.seek(((e.clientX - box.left) / box.width) * s.duration);
@@ -65,7 +66,7 @@ export function NowBar({ safe }) {
   return html`
     <div class=${`mu-bar${safe ? ' mu-bar-safe' : ''}`}>
       <div class="mu-bar-line" onClick=${jump}><i style=${`width:${pct}%`}></i></div>
-      <div class="mu-bar-body">
+      <div class="mu-bar-body press" onClick=${() => nav.push('/now')} aria-label="打开正在播放">
         <${Cover} src=${cur.cover} name=${cur.title} size=${40}/>
         <div class="mu-main">
           <div class="mu-title ellipsis">${cur.title}</div>
@@ -74,10 +75,10 @@ export function NowBar({ safe }) {
           </div>
         </div>
         <button class="mu-ctl press" aria-label=${s.playing ? '暂停' : '播放'}
-          onClick=${player.toggle}>
+          onClick=${e => { e.stopPropagation(); player.toggle(); }}>
           <${Icon} name=${s.playing ? 'pause' : 'play'} size=${19}/>
         </button>
-        <button class="mu-ctl press" aria-label="下一首" onClick=${player.next}>
+        <button class="mu-ctl press" aria-label="下一首" onClick=${e => { e.stopPropagation(); player.next(); }}>
           <${Icon} name="skipNext" size=${19}/>
         </button>
       </div>

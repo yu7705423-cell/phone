@@ -2,6 +2,7 @@ import { createStore } from './store.js';
 import { settings, files } from './db/index.js';
 import * as netease from './netease.js';
 import * as listen from './listen.js';
+import * as music from './music.js';
 
 // 音乐 app 自己的播放器。
 //
@@ -179,6 +180,46 @@ export function stop() {
   scrobble(current(), played);
   clear();
   player.set({ queue: [], index: -1, playing: false, seconds: 0, duration: 0, loading: false });
+}
+
+/**
+ * 精确到小数的播放位置。歌词逐句高亮要用它 —— player 里那个 seconds 一秒才更新一次，
+ * 还取了整，拿它对歌词，每一句都要慢半拍才亮
+ */
+export function position() {
+  return audio ? audio.currentTime : player.get().seconds;
+}
+
+// ---- 歌词 ----
+//
+// 曲库里自己粘过歌词的用那一份；网易云的现取，取过的记在内存里，
+// 切回来不再问一遍。译文按时间戳挂到同一句原文下面（外文歌才有）。
+const lyricCache = new Map();
+
+function mergeTrans(lines, trans) {
+  return lines
+    .filter(l => l.text)
+    .map(l => {
+      const t = trans.find(x => Math.abs(x.at - l.at) < 0.06 && x.text);
+      return t ? { ...l, trans: t.text } : l;
+    });
+}
+
+/**
+ * 这一首的歌词：{ lines: [{ at, text, trans? }], pure, none, local }。
+ * pure 是纯音乐，none 是对方没有收录，local 是自己传的歌、又没粘过歌词。
+ */
+export async function lyricOf(track) {
+  if (!track) return { lines: [], none: true };
+  if (track.lyric) return { lines: mergeTrans(music.parseLyric(track.lyric), []) };
+  const nid = neteaseIdOf(track);
+  if (!nid) return { lines: [], none: true, local: true };
+  if (lyricCache.has(nid)) return lyricCache.get(nid);
+  const r = await netease.lyric(nid);
+  const lines = mergeTrans(music.parseLyric(r.lrc), music.parseLyric(r.tlrc));
+  const out = { lines, pure: r.pure || (lines.length <= 2 && /纯音乐/.test(r.lrc)), none: r.none || !lines.length };
+  lyricCache.set(nid, out);
+  return out;
 }
 
 /** 秒数写成 3:07。时长为 0 时给 --:--，不假装知道。 */

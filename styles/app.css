@@ -1505,6 +1505,62 @@ button.search-bar { width: 100%; border: none; }
 }
 .mu-ctl:active { opacity: .6; }
 
+/* ---- 正在播放（apps/music/NowPage.js）---- */
+.mu-bar-body { cursor: pointer; }
+.mu-now {
+  height: 100%; display: flex; flex-direction: column; min-height: 0;
+  padding: 0 var(--sp-5) calc(var(--sp-4) + var(--safe-bottom));
+}
+.mu-now-artist { text-align: center; font-size: var(--fs-13); color: var(--text-2); margin-bottom: var(--sp-3); }
+.mu-now-face {
+  flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: var(--sp-4); background: none; border: 0; padding: 0; color: inherit; cursor: pointer;
+}
+.mu-now-face .mu-cover { box-shadow: var(--shadow-2); }
+.mu-now-line { font-size: var(--fs-15); text-align: center; line-height: 1.5; min-height: 1.5em; padding: 0 var(--sp-2); }
+.mu-now-line-t { font-size: var(--fs-13); color: var(--text-2); text-align: center; margin-top: calc(var(--sp-3) * -1); }
+/* 歌词那一面。上下各留半屏空白，第一句和最后一句也能滚到正中 */
+.mu-lyrics { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; text-align: center;
+  mask-image: linear-gradient(transparent, var(--text) 12%, var(--text) 88%, transparent);
+  -webkit-mask-image: linear-gradient(transparent, var(--text) 12%, var(--text) 88%, transparent); }
+.mu-lyrics-pad { height: 42%; }
+.mu-ly {
+  margin: 0; padding: var(--sp-2) var(--sp-2); font-size: var(--fs-15); line-height: 1.55;
+  color: var(--text-3); cursor: pointer; transition: color var(--dur) var(--ease), transform var(--dur) var(--ease);
+}
+.mu-ly.is-on { color: var(--text); font-weight: var(--fw-semi); transform: scale(1.04); }
+.mu-ly-t { display: block; font-size: var(--fs-12); font-weight: normal; margin-top: 2px; }
+.mu-lyrics-empty { height: 100%; display: flex; align-items: center; justify-content: center;
+  color: var(--text-3); font-size: var(--fs-14); padding: 0 var(--sp-5); line-height: 1.6; }
+.mu-trans-btn { color: var(--text-3); }
+.mu-trans-btn.is-on { color: var(--text); }
+.mu-now-ctl { flex: none; padding-top: var(--sp-4); }
+.mu-now-seek { display: flex; align-items: center; gap: var(--sp-3); }
+.mu-now-t { flex: none; width: 3em; font-size: var(--fs-12); color: var(--text-3); font-variant-numeric: tabular-nums; }
+.mu-now-t:last-child { text-align: right; }
+.mu-range {
+  flex: 1; min-width: 0; height: 20px; margin: 0; background: transparent;
+  -webkit-appearance: none; appearance: none; cursor: pointer;
+}
+.mu-range::-webkit-slider-runnable-track {
+  height: 3px; border-radius: var(--r-full);
+  background: linear-gradient(to right, var(--text) var(--pct, 0%), var(--border) var(--pct, 0%));
+}
+.mu-range::-moz-range-track { height: 3px; border-radius: var(--r-full); background: var(--border); }
+.mu-range::-moz-range-progress { height: 3px; border-radius: var(--r-full); background: var(--text); }
+.mu-range::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 12px; height: 12px; margin-top: -4.5px;
+  border-radius: var(--r-full); background: var(--text); border: 0;
+}
+.mu-range::-moz-range-thumb { width: 12px; height: 12px; border-radius: var(--r-full); background: var(--text); border: 0; }
+.mu-now-err { margin-top: var(--sp-2); text-align: center; font-size: var(--fs-12); color: var(--danger); }
+.mu-now-btns { display: flex; align-items: center; justify-content: center; gap: var(--sp-8); margin-top: var(--sp-3); }
+.mu-now-btn {
+  width: 48px; height: 48px; border-radius: var(--r-full); background: none; border: 0;
+  display: flex; align-items: center; justify-content: center; color: var(--text);
+}
+.mu-now-main { width: 64px; height: 64px; background: var(--text); color: var(--bg); }
+
 /* 片库：转换进度 */
 .vd-work { display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-2) 0; }
 .vd-work-line { flex: 1; height: 3px; border-radius: var(--r-full); background: var(--border); }

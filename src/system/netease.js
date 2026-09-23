@@ -482,9 +482,18 @@ export async function songUrl(id, cookie = cookieOf()) {
   return row.url;
 }
 
+/**
+ * 歌词。原文、译文各一份 LRC（外文歌才有译文）。
+ * 纯音乐与「暂无歌词」接口自己会标出来，照实带回去，界面上各说各的话。
+ */
 export async function lyric(id) {
   const r = await call('/lyric', { id });
-  return r.lrc?.lyric || '';
+  return {
+    lrc: r.lrc?.lyric || '',
+    tlrc: r.tlyric?.lyric || '',
+    pure: !!r.pureMusic,
+    none: !!(r.nolyric || r.uncollected),
+  };
 }
 
 // ---- 她在听什么 ----
