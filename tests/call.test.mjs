@@ -73,6 +73,8 @@ unit.forEach(r=>ok(r.name,r.pass,r.extra));
 // ---- 打一通 ----
 await page.locator('.composer-side').first().click();
 await page.waitForTimeout(400);
+// 接不接带 10% 的随机（见 call.willAnswer）。这里测的不是接不接，拨号这一段把随机数钉在「接」上
+await page.evaluate(() => { window.__rand = Math.random; Math.random = () => 0.01; });
 await page.getByText('通话',{exact:true}).click();
 await page.waitForTimeout(400);
 ok('拨号界面起来了', await page.locator('.call-layer').count()===1);
@@ -89,6 +91,7 @@ await page.screenshot({path:`${OUT}/c1-dial.png`});
 // 直接接通，不等随机
 await page.evaluate(async ()=>{ const c=await import('/src/system/call.js'); c.call.set({phase:'dialing'}); });
 const phase = await waitPhase('active');
+await page.evaluate(() => { if (window.__rand) Math.random = window.__rand; });
 ok('接通了', phase==='active', phase);
 
 await page.waitForTimeout(1500);

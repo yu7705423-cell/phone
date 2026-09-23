@@ -113,9 +113,14 @@ await page.evaluate(async (o) => {
   const c = await import('/src/system/call.js');
   const db = (await import('/src/system/db/index.js'));
   db.settings.set({ callSpeak: false, callMic: false });
+  // 接不接带一点随机（见 call.willAnswer），免打扰时段里多半不接。这里测的不是接不接，
+  // 拨号这一段把随机数钉在「接」上、把免打扰关掉，接通之后再放回去
+  db.characters.update(o.char, { proactiveQuietFrom: 0, proactiveQuietTo: 0 });
+  window.__rand = Math.random; Math.random = () => 0.01;
   c.dial(o.chat, { video: false });
 }, ids);
 for (let i = 0; i < 60 && (await callState()).phase !== 'active'; i++) await page.waitForTimeout(300);
+await page.evaluate(() => { if (window.__rand) Math.random = window.__rand; });
 for (let i = 0; i < 30 && !(await callState()).lines.length; i++) await page.waitForTimeout(300);
 let st = await callState();
 ok('接通，角色先开口', st.phase === 'active' && st.lines[0] === 'char:喂，是我。', JSON.stringify(st));
