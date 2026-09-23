@@ -188,7 +188,9 @@ ok('说明写了它的用途', mine.includes('人称'), mine.slice(0,600));
 await page.evaluate(async () => {
   const nav=await import('/src/system/nav.js'); nav.openApp('chat','/context');
 });
-await page.waitForTimeout(600);
+// 等页面真的画出来，不按固定时长：完整跑的时候机器忙，600 毫秒不够，读到的是空白
+await page.waitForFunction(() => /不可关闭/.test(document.querySelector('.app-layer')?.innerText || ''),
+  null, { timeout: 8000 }).catch(() => {});
 const ctx = await page.locator('.app-layer').innerText();
 ok('上下文页上不再有示例与自检两个开关',
   !ctx.includes('输出前的自检') && !/示例/.test(ctx), ctx.slice(0,500));
