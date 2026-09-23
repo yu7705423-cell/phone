@@ -1,5 +1,6 @@
 import { rerankConfig, rerankReady } from './services.js';
 import { enqueue } from './queue.js';
+import { note } from './usage.js';
 
 // 重排。向量检索先粗筛出一批候选，再让重排模型按「和这句话有多相关」重新排一遍。
 //
@@ -65,6 +66,7 @@ export async function rank(query, documents, { topN, signal, scores = false } = 
   const n = Math.max(0, Math.round(Number(topN) || 0));
   if (n > 0) body.top_n = Math.min(n, docs.length);
 
+  note('rerank');
   const res = await fetch(url, {
     method: 'POST', signal,
     headers: { 'content-type': 'application/json', authorization: `Bearer ${cfg.apiKey}` },

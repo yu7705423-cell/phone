@@ -316,7 +316,6 @@ export function Conversation({ chatId, focusId = '' }) {
   const [paying, setPaying] = useState(false);   // 转账面板开着
   const [settling, setSettling] = useState(null);// 正在处理的那一笔
   const [asking, setAsking] = useState(false);   // 申请面板开着
-  const [packing, setPacking] = useState(false); // 正在打这个角色的包
   const [summing, setSumming] = useState(false); // 正在总结记忆
   const [voting, setVoting] = useState(null);    // 正在表态的那一条申请
   const [placing, setPlacing] = useState(false); // 发位置的面板开着
@@ -1033,61 +1032,6 @@ export function Conversation({ chatId, focusId = '' }) {
     } catch (err) { toast(String(err.message || err), 'error'); }
   };
 
-  // 只打包这一个角色。整个库那一份是「设置 - 存储」里的完整备份。
-  const exportChar = async () => {
-    setPacking(true);
-    try {
-      const blob = await phone.charpack.build(char.id, { history: true });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = phone.charpack.fileNameFor(char.name);
-      a.click();
-      setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-      setMenu(false);
-      toast(`已导出 ${phone.backup.sizeText(blob.size)}`, 'ok', 4000);
-    } catch (err) {
-      toast('导出失败：' + (err.message || err), 'error', 5000);
-    } finally { setPacking(false); }
-  };
-
-  // 清除数据。三样都删不回来，所以数目先在确认框里摆出来，不让用户蒙着点。
-  // 作用范围是这个角色名下的全部会话，不只是眼前这一段 —— 说明里写明了。
-  const wipe = async which => {
-    const n = phone.purge.counts(char.id);
-    const act = {
-      history: {
-        title: '清空聊天记录',
-        message: `将删除 ${n.messages} 条消息，其中的图片与语音一并清除。`
-          + '已提取的记忆保留。由聊天记录推算出的账目会随之消失。',
-        run: () => { phone.purge.clearHistory(char.id); return `已清空 ${n.messages} 条消息`; },
-      },
-      memory: {
-        title: '清空记忆',
-        message: `将删除 ${n.memories} 条记忆。聊天记录保留，`
-          + '下次总结时会从现有的聊天记录重新提取。',
-        run: () => { phone.purge.clearMemories(char.id); return `已清空 ${n.memories} 条记忆`; },
-      },
-      both: {
-        title: '清空记忆与聊天记录',
-        message: `将删除 ${n.messages} 条消息与 ${n.memories} 条记忆，`
-          + '消息中的图片与语音一并清除。角色卡本身保留。',
-        run: () => {
-          phone.purge.clearAll(char.id);
-          return `已清空 ${n.messages} 条消息、${n.memories} 条记忆`;
-        },
-      },
-    }[which];
-    if (!await confirm({ title: act.title, message: act.message, danger: true })) return;
-    setMenu(false);
-    toast(act.run(), 'ok');
-  };
-
-  // 菜单没开就不数。counts 要把这个角色名下所有会话的消息过一遍，
-  // 而这一页每来一条消息就重渲染一次
-  const wipeN = menu ? phone.purge.counts(char.id) : { chats: 0, messages: 0, memories: 0 };
-  // 导出之前把账摆出来：这一下会带走哪些东西。菜单开着才算，算一遍要扫几域
-  const packN = menu ? phone.charpack.estimate(char.id) : null;
-
   // 总结要走一次接口，真机上十几二十秒。**菜单先别关。**
   // 从前是点完立刻 setMenu(false)，于是屏幕上只发生了一件事：菜单没了，
   // 人回到聊天页，没有任何迹象说明它在干活 —— 看着就是「点了没用」。
@@ -1113,6 +1057,8 @@ export function Conversation({ chatId, focusId = '' }) {
   };
 
   const pending = ai.memory.pendingOf(chatId).length;
+  // 那年今天：只在往年的今天有记录时出现在菜单里。菜单开着才翻，翻一遍要过整段历史
+  const otdYears = menu ? phone.onThisDay.ofChat(chatId) : [];
   // 追平积压要按几次。1 次是常态，迁进来一堆历史时会很大
   const runs = ai.memory.runsFor(chatId);
 
@@ -1443,7 +1389,7 @@ export function Conversation({ chatId, focusId = '' }) {
             left=${html`<${Icon} name="bell" size=${18}/>`}
             onClick=${() => { setMenu(false); nav.push(`/proactive/${char.id}`); }}/>
           ${phone.netease.cookieOf(char.id) ? html`
-            <${ListItem} title="看看她在听什么" arrow multiline
+            <${ListItem} title="查看角色在听什么" arrow multiline
               subtitle=${(() => {
                 const np = char.nowPlaying;
                 if (!np?.songs?.length) return '读取该角色音乐账号的播放记录，写入本轮上下文';
@@ -1470,6 +1416,11 @@ export function Conversation({ chatId, focusId = '' }) {
             })()}
             left=${html`<${Icon} name="medal" size=${18}/>`}
             onClick=${() => { setMenu(false); nav.push(`/badges/${chatId}`); }}/>
+          ${otdYears.length ? html`<${ListItem} title="那年今天" arrow multiline
+            subtitle=${`${otdYears[0].ago} 年前的今天，共 ${otdYears[0].msgs.length} 条`
+              + (otdYears.length > 1 ? `。往年共 ${otdYears.length} 年的今天有记录` : '')}
+            left=${html`<${Icon} name="clock" size=${18}/>`}
+            onClick=${() => { setMenu(false); nav.push(`/onthisday/${chatId}`); }}/>` : null}
           <${ListItem} title="多选消息" subtitle="选择多条消息后一并删除。长按任意消息亦可进入" arrow multiline
             left=${html`<${Icon} name="check" size=${18}/>`}
             onClick=${() => { setMenu(false); setPicked([]); setPanel(null); }}/>
@@ -1511,10 +1462,7 @@ export function Conversation({ chatId, focusId = '' }) {
             onClick=${() => { setMenu(false); setSharing(true); }}/>`}
         <//>
 
-        <${List} title="记忆与上下文">
-          <${ListItem} title="上下文与记忆" subtitle="注入顺序、扫描窗口、历史范围、自动总结" arrow multiline
-            left=${html`<${Icon} name="layers" size=${18}/>`}
-            onClick=${() => { setMenu(false); nav.push('/context'); }}/>
+        <${List} title="记忆">
           <${ListItem} title=${summing ? '正在总结记忆' : '立即总结记忆'} arrow multiline
             subtitle=${summing
               ? '正在调用接口，完成后会给出结果。这段时间请不要离开本页。'
@@ -1548,77 +1496,16 @@ export function Conversation({ chatId, focusId = '' }) {
             })()}
             left=${html`<${Icon} name="book" size=${18}/>`}
             onClick=${() => { setMenu(false); phone.intent.open('us', { route: `/chat/${chatId}`, back: true }); }}/>`}
-          <${ListItem} title="每轮的接口调用" arrow multiline
-            subtitle=${(() => {
-              const n = ai.cost.perTurn(chatId);
-              const worst = ai.cost.worstPerTurn(chatId);
-              const head = n > 1
-                ? `这段对话每轮固定调用 ${n} 次接口`
-                : '这段对话每轮调用 1 次接口';
-              // 重试与换套相乘，失败那一轮的数目和顺利时不是一回事
-              const tail = worst > n ? `，请求失败时最多 ${worst} 次` : '';
-              return `${head}${tail}${n > 1 || worst > n
-                ? '。点击查看是哪几项，并可逐项关闭' : ''}`;
-            })()}
-            left=${html`<${Icon} name="filter" size=${18}/>`}
-            onClick=${() => { setMenu(false); phone.intent.open('settings', { route: '/limits', back: true }); }}/>
         <//>
 
-        <${List} title="所有角色通用">
-          <${ListItem} title="表情包" subtitle=${`共 ${db.stickers.count()} 个，所有角色共用`} arrow multiline
-            left=${html`<${Icon} name="image" size=${18}/>`}
-            onClick=${() => { setMenu(false); nav.push('/stickers'); }}/>
-          <${ListItem} title="能力开关" arrow multiline
-            subtitle=${(() => {
-              const list = ai.caps.switchable();
-              const off = ai.caps.offSet(settings);
-              const n = list.length - list.filter(c => off.has(c.id)).length;
-              return `已开启 ${n} / ${list.length} 项。关闭的不会写进 prompt`;
-            })()}
-            left=${html`<${Icon} name="filter" size=${18}/>`}
-            onClick=${() => { setMenu(false); nav.push('/caps'); }}/>
-          <${ListItem} title="Prompt 模板" subtitle="骨架与各任务的提示词" arrow multiline
-            left=${html`<${Icon} name="sparkle" size=${18}/>`}
-            onClick=${() => { setMenu(false); nav.push('/templates'); }}/>
+        <${List}>
+          <${ListItem} title="更多" arrow multiline
+            subtitle=${isGroup
+              ? '上下文设定、表情包、能力开关、Prompt 模板、每轮的接口调用'
+              : '上下文设定、表情包、能力开关、Prompt 模板、每轮的接口调用、导出与清空数据'}
+            left=${html`<${Icon} name="more" size=${18}/>`}
+            onClick=${() => { setMenu(false); nav.push(`/more/${chatId}`); }}/>
         <//>
-
-        ${isGroup ? null : html`<${List} title="数据">
-          <${ListItem} title=${packing ? '正在打包' : '导出这个角色'} arrow multiline
-            subtitle=${packN ? [
-    `${packN.chats} 段会话、${packN.messages} 条消息、${packN.memories} 条记忆`,
-    packN.scenes ? `${packN.scenes} 场线下` : '',
-    packN.skins ? `${packN.skins} 份美化` : '',
-    packN.extras ? `${packN.extras} 条其余记录` : '',
-    packN.images ? `${packN.images} 张图片` : '',
-    packN.files ? `${packN.files} 段语音` : '',
-  ].filter(Boolean).join('、') + '。整库备份在「设置 - 存储」' : ''}
-            left=${packing
-              ? html`<${Spinner} size=${16}/>`
-              : html`<${Icon} name="download" size=${18}/>`}
-            onClick=${() => !packing && exportChar()}/>
-          <${ListItem} title="导入角色" arrow multiline
-            subtitle="装回上面导出的压缩包，或从一份资料整理出新角色。与「联系」右上角的入口是同一页"
-            left=${html`<${Icon} name="upload" size=${18}/>`}
-            onClick=${() => { setMenu(false); phone.intent.open('contact', { route: '/import', back: true }); }}/>
-          <${ListItem} title="清空聊天记录" danger arrow multiline
-            subtitle=${wipeN.chats > 1
-              ? `${wipeN.messages} 条消息，分布在 ${wipeN.chats} 段会话中。已提取的记忆保留`
-              : `${wipeN.messages} 条消息。已提取的记忆保留`}
-            left=${html`<${Icon} name="trash" size=${18}/>`}
-            onClick=${() => wipe('history')}/>
-          <${ListItem} title="清空记忆" danger arrow multiline
-            subtitle=${`${wipeN.memories} 条记忆。聊天记录保留`}
-            left=${html`<${Icon} name="brain" size=${18}/>`}
-            onClick=${() => wipe('memory')}/>
-          <${ListItem} title="清空记忆与聊天记录" danger arrow multiline
-            subtitle="两者一并删除，角色卡本身保留"
-            left=${html`<${Icon} name="close" size=${18}/>`}
-            onClick=${() => wipe('both')}/>
-        <//>
-        <div class="settings-foot">
-          清除操作针对该角色名下的全部内容。同一角色与多个身份分别聊过的，
-          各段会话与各身份下的记忆都会被清除。角色卡、世界书关联与各项设置不受影响。
-        </div>`}
       <//>
     ${look ? html`<${LookFloat} sceneId=${live?.id || ''} onClose=${() => setLook(false)}/>` : null}
     <//>`;

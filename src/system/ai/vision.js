@@ -4,6 +4,7 @@ import { enqueue } from './queue.js';
 import { template } from './engine.js';
 import { images } from '../db/images.js';
 import { toDataUrl } from '../audio.js';
+import { note } from './usage.js';
 
 // 识图。用户发来的图片，角色本身是看不见的 —— 聊天接口只收文字。
 // 这里把图片交给一个能看图的模型读成一段描述，描述再随消息进上下文。
@@ -41,6 +42,7 @@ export async function ask({ dataUrl, prompt, key, maxTokens = 500 }) {
   if (!visionReady()) throw new Error('尚未配置识图接口');
 
   return enqueue(key || `vision:${Date.now()}`, async signal => {
+    note('vision');
     const res = await fetch(endpoint(v), {
       method: 'POST', signal,
       headers: { 'content-type': 'application/json', authorization: `Bearer ${v.apiKey}` },

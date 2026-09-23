@@ -27,6 +27,8 @@ import { StageSettings } from './pages/StageSettings.js';
 import { SkinPage } from './pages/SkinPage.js';
 import { NewGroupPage, GroupPage } from './pages/GroupBits.js';
 import { BadgesPage, YearPage } from './pages/BadgeBits.js';
+import { ChatMorePage } from './pages/ChatMorePage.js';
+import { OnThisDayPage } from './pages/OnThisDay.js';
 
 const { db, nav } = phone;
 
@@ -80,6 +82,8 @@ export default function ChatApp({ route }) {
   // 互动标识与年度回顾，都按会话
   const bdg = route?.match(/^\/badges\/(.+)$/);
   if (bdg) return html`<${BadgesPage} chatId=${bdg[1]}/>`;
+  const otd = route?.match(/^\/onthisday\/(.+)$/);
+  if (otd) return html`<${OnThisDayPage} chatId=${otd[1]}/>`;
   const yr = route?.match(/^\/year\/(.+)$/);
   if (yr) return html`<${YearPage} chatId=${yr[1]}/>`;
 
@@ -130,6 +134,9 @@ export default function ChatApp({ route }) {
   if (pc) return html`<${PacePage} chatId=${pc[1]}/>`;
   const bd = route?.match(/^\/bond\/(.+)$/);
   if (bd) return html`<${BondPage} chatId=${bd[1]}/>`;
+  // 会话菜单里低频的那几项
+  const mo = route?.match(/^\/more\/(.+)$/);
+  if (mo) return html`<${ChatMorePage} chatId=${mo[1]}/>`;
   const ex = route?.match(/^\/extras\/(.+)$/);
   if (ex) return html`<${ExtrasPage} chatId=${ex[1]}/>`;
 

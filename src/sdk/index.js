@@ -23,6 +23,7 @@ import * as memvecApi from '../system/ai/memvec.js';
 import * as rerankApi from '../system/ai/rerank.js';
 import * as loreCtx from '../system/ai/context/lorebook.js';
 import * as traceApi from '../system/ai/trace.js';
+import * as usageApi from '../system/ai/usage.js';
 import { extract, shouldAutoExtract, pendingOf, runsFor, markCaughtUp, batchSize } from '../system/ai/tasks/memory-extract.js';
 import * as memImport from '../system/ai/tasks/memory-import.js';
 import * as charAltApi from '../system/ai/tasks/char-alt.js';
@@ -77,6 +78,7 @@ import * as purgeApi from '../system/purge.js';
 import * as groupApi from '../system/group.js';
 import * as badgesApi from '../system/badges.js';
 import * as safekeepApi from '../system/safekeep.js';
+import * as onThisDayApi from '../system/onthisday.js';
 import * as ghbackupApi from '../system/ghbackup.js';
 import * as yearNote from '../system/ai/tasks/year-note.js';
 import * as aiGroup from '../system/ai/group.js';
@@ -205,6 +207,7 @@ export const phone = {
     rerank: rerankApi,
     lore: loreCtx,
     trace: traceApi,
+    usage: usageApi,
     moments: momentTasks,
     services: svc,
     fetchModels,
@@ -284,6 +287,7 @@ export const phone = {
   group: groupApi,
   badges: badgesApi,
   safekeep: safekeepApi,
+  onThisDay: onThisDayApi,
   ghbackup: ghbackupApi,
   charpack: charpackApi,
   book: bookApi,

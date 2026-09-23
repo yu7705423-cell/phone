@@ -3,6 +3,7 @@ import { voiceConfig } from './services.js';
 import { enqueue } from './queue.js';
 import { nfetch, routeOf, canNative, reachable } from '../net.js';
 import * as script from './voicescript.js';
+import { note } from './usage.js';
 
 /**
  * 语音合成。
@@ -304,7 +305,8 @@ export function speak({ text, voiceId, speed = 1, prompt = '', lang = '', key })
   // 都该和真正说话时是同一套，不然听到的和用到的不是一回事
   const style = { prompt: prompt || v.prompt || '', lang: lang || v.lang || '' };
   const kind = kindOf(v.kind).id;
-  const run = RUN[kind];
+  // 带台本标记的一句会拆成几段各请求一次，所以记在每一段上，不记在这一整句上
+  const run = (...a) => { note('tts'); return RUN[kind](...a); };
   return enqueue(key || `tts:${Date.now()}`, async signal => {
     // 没有台本标记就是从前那一次请求，一个字都不变
     if (!script.hasTags(text)) {

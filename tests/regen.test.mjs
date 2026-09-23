@@ -50,7 +50,7 @@ await page.locator('[aria-label="更多"]').click();
 await page.waitForTimeout(500);
 const menu = await page.locator('.fullsheet').innerText();
 ok('右上角菜单里没有重新生成了', !menu.includes('重新生成'), menu.replace(/\n/g,' / '));
-ok('右上角菜单其余项还在', menu.includes('多选消息') && menu.includes('清空聊天记录'));
+ok('右上角菜单其余项还在', menu.includes('多选消息') && menu.includes('更多'));
 // Esc 会被当成「返回」，直接退出会话。关浮层点遮罩。
 const closeSheet = async sel => { await page.locator(sel).click({ position: { x: 8, y: 8 } }); await page.waitForTimeout(450); };
 await page.locator('.fullsheet [aria-label="返回"]').click();

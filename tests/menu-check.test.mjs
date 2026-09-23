@@ -46,7 +46,7 @@ let body = await page.evaluate(() => document.body.innerText);
 check(!body.includes('清除数据') && !body.includes('清空聊天记录'),
   '角色卡里已经没有「清除数据」');
 
-// ---- 2. 会话菜单里有「数据」一组，五项齐 ----
+// ---- 2. 会话菜单最底下是「更多」，数据那一组收在里面，五项齐 ----
 await go('chat', `/chat/${ids.chat}`);
 const openMenu = async () => {
   await page.evaluate(() => [...document.querySelectorAll('button')]
@@ -54,65 +54,70 @@ const openMenu = async () => {
   await page.waitForTimeout(500);
   return page.evaluate(() => !!document.querySelector('.fullsheet'));
 };
+const openMore = async () => {
+  const hit = await page.evaluate(() => {
+    const el = [...document.querySelectorAll('.fullsheet .list-item')].find(e => e.innerText.startsWith('更多'));
+    if (!el) return false;
+    el.click(); return true;
+  });
+  await page.waitForTimeout(700);
+  return hit;
+};
+const pageText = () => page.evaluate(() => [...document.querySelectorAll('.page')].pop()?.innerText || '');
 check(await openMenu(), '会话右上角菜单打得开');
+// 只看每行的标题：「更多」那一行的副标题本来就列着里面有什么
+const titles = await page.evaluate(() => [...document.querySelectorAll('.fullsheet .li-title')].map(e => e.innerText.trim()));
+check(!titles.some(t => /清空|导出这个角色|Prompt 模板|能力开关|表情包/.test(t)),
+  `菜单本身不再列低频的那几项（${titles.join(' / ')}）`);
+const lastRow = await page.evaluate(() => [...document.querySelectorAll('.fullsheet .li-title')].pop()?.innerText.trim());
+check(lastRow === '更多', `菜单最后一行是「更多」（实际：${lastRow}）`);
+check(await openMore(), '点得到「更多」');
+check(!await page.evaluate(() => !!document.querySelector('.fullsheet')), '点进去之后菜单收起');
 
-body = await page.evaluate(() => document.querySelector('.fullsheet')?.innerText || '');
-for (const t of ['导出这个角色', '导入角色', '清空聊天记录', '清空记忆', '清空记忆与聊天记录']) {
-  check(body.includes(t), `菜单里有「${t}」`);
+body = await pageText();
+for (const t of ['上下文与记忆', '表情包', '能力开关', 'Prompt 模板', '每轮的接口调用',
+  '导出这个角色', '导入角色', '清空聊天记录', '清空记忆', '清空记忆与聊天记录']) {
+  check(body.includes(t), `「更多」里有「${t}」`);
 }
-// 「数据」这一组在最下面
-const order = await page.evaluate(() => {
-  const titles = [...document.querySelectorAll('.fullsheet .list-title')].map(e => e.innerText.trim());
-  return titles;
-});
+const order = await page.evaluate(() =>
+  [...[...document.querySelectorAll('.page')].pop().querySelectorAll('.list-title')].map(e => e.innerText.trim()));
 check(order[order.length - 1] === '数据', `「数据」是最后一组（实际顺序：${order.join(' / ')}）`);
 
 // 数目写对了
 check(body.includes('4 条消息'), `清空聊天记录写了 4 条消息`);
 check(body.includes('2 条记忆'), `清空记忆写了 2 条记忆`);
+await page.screenshot({ path: `${OUT}/menu-more.png` });
 
-await page.screenshot({ path: `${OUT}/menu-top.png` });
-await page.evaluate(() => {
-  const el = document.querySelector('.fullsheet .scroll') || document.querySelector('.fullsheet');
-  if (el) el.scrollTop = el.scrollHeight;
-});
-await page.waitForTimeout(400);
-await page.screenshot({ path: `${OUT}/menu-bottom.png` });
-
-// ---- 3. 清空聊天记录真的清了 ----
-await page.evaluate(() => [...document.querySelectorAll('.fullsheet .list-item, .fullsheet .li')]
+// ---- 3. 清空聊天记录真的清了，清完回到会话 ----
+await page.evaluate(() => [...[...document.querySelectorAll('.page')].pop().querySelectorAll('.list-item')]
   .find(e => e.innerText.startsWith('清空聊天记录'))?.click());
 await page.waitForTimeout(400);
 const dlg = await page.evaluate(() => document.body.innerText.includes('将删除 4 条消息'));
 check(dlg, '确认框里写明了 4 条消息');
 await page.evaluate(() => [...document.querySelectorAll('button')]
   .find(b => b.innerText.trim() === '确定')?.click());
-await page.waitForTimeout(600);
+await page.waitForTimeout(700);
 const left = await page.evaluate(async ([chat]) => {
   const db = await import('/src/system/db/index.js');
+  const n = await import('/src/system/nav.js');
   return {
     msgs: db.messages.all().filter(m => m.chatId === chat).length,
     mems: db.memories.all().length,
+    route: n.nav.get().stack?.at?.(-1)?.route || '',
   };
 }, [ids.chat]);
 check(left.msgs === 0, `聊天记录清空了（剩 ${left.msgs} 条）`);
 check(left.mems === 2, `记忆没被一起删（剩 ${left.mems} 条）`);
-const closed = await page.evaluate(() => !document.querySelector('.fullsheet'));
-check(closed, '清完之后菜单自己关了');
+check(await page.locator('.composer-bar').count() > 0, `清完之后回到了会话（${left.route}）`);
 
 // ---- 4. 导入角色跳到「联系」的导入页 ----
 await go('chat', `/chat/${ids.chat}`);
 check(await openMenu(), '菜单再次打得开');
-await page.evaluate(() => {
-  const el = document.querySelector('.fullsheet .scroll') || document.querySelector('.fullsheet');
-  if (el) el.scrollTop = el.scrollHeight;
-});
+await openMore();
 const hit = await page.evaluate(() => {
-  const sheet = document.querySelector('.fullsheet');
-  if (!sheet) return 'no-sheet';
-  const el = [...sheet.querySelectorAll('.list-item, .li')]
+  const el = [...[...document.querySelectorAll('.page')].pop().querySelectorAll('.list-item')]
     .find(e => e.innerText.startsWith('导入角色'));
-  if (!el) return 'no-item:' + sheet.innerText.slice(-200);
+  if (!el) return 'no-item';
   el.click();
   return 'clicked';
 });

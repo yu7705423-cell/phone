@@ -25,6 +25,7 @@ import * as tone from '../tone.js';
 import { markRead } from '../receipt.js';
 import * as group from '../group.js';
 import { sync as syncBadges } from '../badges.js';
+import { note as noteCall } from './usage.js';
 
 // 接口协议要求带 max_tokens，取一个足够大的值，等同于不限制
 export const MAX_OUTPUT = 32000;
@@ -47,6 +48,7 @@ function send(taskId, c, payload, kind = 'complete') {
     taskId, preset: c.name, model: c.model,
     system: payload.system, messages: payload.messages, stream: kind === 'stream',
   });
+  noteCall(taskId);
   return getProvider(cfg.provider)[kind](cfg, payload)
     .then(text => { t.done(text); return text; })
     .catch(err => { t.fail(err); throw err; });

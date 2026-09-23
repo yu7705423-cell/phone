@@ -29,6 +29,8 @@ const ids = await page.evaluate(async () => {
 });
 await page.waitForSelector('.composer-bar',{timeout:5000});
 await page.locator('.navbar .icon-btn').last().click(); await page.waitForTimeout(500);
+// 导出收在会话菜单底下的「更多」里
+await page.locator('.fullsheet .list-item', { hasText:'导出与清空数据' }).click(); await page.waitForTimeout(600);
 const row = page.locator('.list-item', { hasText:'导出这个角色' }).first();
 const sub = await row.innerText();
 await page.screenshot({ path:`${OUT}/pack-menu.png` });

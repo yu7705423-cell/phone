@@ -51,6 +51,16 @@ const menu = async label => {
   }, label);
   await page.waitForTimeout(900);
 };
+// 会话菜单里低频的几项收在「更多」里，先进这一级
+const more = async label => {
+  await menu('更多');
+  await page.evaluate(l => {
+    const el = [...document.querySelectorAll('.list-item')].find(e => e.innerText.startsWith(l));
+    if (!el) throw new Error('「更多」里没有：' + l);
+    el.click();
+  }, label);
+  await page.waitForTimeout(900);
+};
 const fail = [], ok = [];
 const check = (c, m) => (c ? ok : fail).push(m);
 
@@ -97,18 +107,18 @@ check(at.app === 'theirs' && at.route === `/chats/${ids.a}`,
 
 // ---- 2 会话页右上角「每轮的接口调用」：过去看一眼，退回来还在原处 ----
 await go('chat', `/chat/${ids.chat}`);
-await menu('每轮的接口调用');
+await more('每轮的接口调用');
 at = await where();
 check(at.app === 'settings' && at.route === '/limits',
   `点了之后到了「用量与上限」（${JSON.stringify(at)}）`);
 await back();
 at = await where();
-check(at.app === 'chat' && at.route === `/chat/${ids.chat}`,
-  `退一下就回到刚才那段会话，不是落在设置首页、也不是回桌面（${JSON.stringify(at)}）`);
+check(at.app === 'chat' && at.route === `/more/${ids.chat}`,
+  `退一下就回到刚才那一页，不是落在设置首页、也不是回桌面（${JSON.stringify(at)}）`);
 
 // ---- 3 去的那一页里再往下翻，退回来仍然一级一级走 ----
 await go('chat', `/chat/${ids.chat}`);
-await menu('每轮的接口调用');
+await more('每轮的接口调用');
 await page.evaluate(() => import('/src/system/nav.js').then(n => n.push('/about')));
 await page.waitForTimeout(500);
 await back();
@@ -116,11 +126,11 @@ at = await where();
 check(at.app === 'settings' && at.route === '/limits', '目标 app 里翻进去的那一级照常先退');
 await back();
 at = await where();
-check(at.app === 'chat' && at.route === `/chat/${ids.chat}`, '再退才回出发地');
+check(at.app === 'chat' && at.route === `/more/${ids.chat}`, '再退才回出发地');
 
 // ---- 4 中途回了桌面，就不再记得那条回头路 ----
 await go('chat', `/chat/${ids.chat}`);
-await menu('每轮的接口调用');
+await more('每轮的接口调用');
 await page.evaluate(() => import('/src/system/nav.js').then(n => n.goHome()));
 await page.waitForTimeout(500);
 await go('settings', '/limits');
@@ -131,7 +141,7 @@ check(at.screen === 'home' || at.app === 'settings',
 
 // ---- 4b 在多任务里把那个 app 关掉，回头路也跟着作废 ----
 await go('chat', `/chat/${ids.chat}`);
-await menu('每轮的接口调用');
+await more('每轮的接口调用');
 await page.evaluate(() => import('/src/system/nav.js').then(n => n.closeApp('settings')));
 await page.waitForTimeout(500);
 check(!await page.evaluate(async () =>

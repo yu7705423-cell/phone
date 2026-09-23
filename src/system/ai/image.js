@@ -5,6 +5,7 @@ import { unzip } from '../zip.js';
 import { nfetch, routeOf, canNative, reachable, shellTimeoutOk, OLD_SHELL_CAP } from '../net.js';
 import { images } from '../db/index.js';
 import * as trace from './trace.js';
+import { note } from './usage.js';
 
 /**
  * 生图。两套接口，一套一个 kind：
@@ -313,6 +314,7 @@ export function generateWithRef({ prompt, refBlob, preset, key, parts }) {
   const text = needPrompt(prompt);
 
   return enqueue(key || `imgref:${Date.now()}`, async signal => {
+    note('image');
     // NovelAI 那套的「照着一张脸画」是另一条路（img2img / vibe transfer），
     // 参数和这条完全不同。还没接，所以照实抛 —— 上层会退回纯文字那条
     if (kindOf(p.kind).id === 'nai') throw new Error('NovelAI 这一档还不支持参考图');
@@ -358,6 +360,7 @@ export function generate({ prompt, preset, key, parts, negative }) {
   const text = needPrompt(prompt);
 
   return enqueue(key || `img:${Date.now()}`, async signal => {
+    note('image');
     if (kindOf(p.kind).id === 'nai') return novelai(p, { prompt: text, signal });
     const tr = track({ p, url: endpoint(p), prompt: text, parts });
     try {

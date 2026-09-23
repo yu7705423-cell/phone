@@ -3,6 +3,7 @@ import { activeVideo } from './services.js';
 import { enqueue } from './queue.js';
 import { nfetch, routeOf, canNative, reachable } from '../net.js';
 import * as trace from './trace.js';
+import { note } from './usage.js';
 
 /**
  * 生成视频。
@@ -142,6 +143,7 @@ export function submit({ prompt, preset, first = '', key, parts = '' }) {
   const url = api(p, '/v2/video_generation');
 
   return enqueue(key || `video:${Date.now()}`, async signal => {
+    note('video');
     const content = [{ type: 'text', text }];
     if (first) content.push({ type: 'image_url', image_url: { url: first }, role: 'first_frame' });
     const body = {

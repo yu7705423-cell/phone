@@ -2757,6 +2757,15 @@ button.search-bar { width: 100%; border: none; }
 .yr-cell span { font-size: var(--fs-12); color: var(--text-2); }
 .yr-note { padding: var(--sp-4); font-size: var(--fs-14); line-height: 1.7; white-space: pre-wrap; }
 
+/* 那年今天。一行一条：谁、几点、说了什么。不画成气泡 —— 这是翻旧账，不是再聊一遍 */
+.otd-back { display: flex; justify-content: center; margin-top: calc(var(--sp-2) * -1); padding-bottom: var(--sp-2); }
+.otd-day { display: flex; flex-direction: column; gap: var(--sp-3); padding: var(--sp-3) var(--sp-4); }
+.otd-line { display: grid; grid-template-columns: auto 1fr; column-gap: var(--sp-2); row-gap: var(--sp-1); }
+.otd-who { font-size: var(--fs-12); color: var(--text-2); }
+.otd-line.is-mine .otd-who { color: var(--accent); }
+.otd-time { font-size: var(--fs-12); color: var(--text-3); }
+.otd-text { grid-column: 1 / -1; font-size: var(--fs-14); line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
+
 @media (prefers-reduced-motion: reduce) {
   .bd-g svg, .lv-orbit, .bd-toast, .bd-toast-glyph { animation: none !important; }
 }

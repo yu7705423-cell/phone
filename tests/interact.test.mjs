@@ -102,7 +102,7 @@ await step('chat 打开会话', async () => {
 await step('chat 右上角菜单', () => tap('[aria-label="更多"]'));
 const items = await page.locator('.fullsheet .li-title').allInnerTexts().catch(() => []);
 console.log(`  菜单 ${items.length} 项：${items.join(' / ')}`);
-for (const t of ['角色卡', '角色主页', '主动发起对话', '搜索聊天记录', '节奏与自动回复', '翻译', '互动', '上下文与记忆']) {
+for (const t of ['角色卡', '角色主页', '主动发起对话', '搜索聊天记录', '节奏与自动回复', '翻译', '互动']) {
   if (!items.includes(t)) continue;
   await step(`chat 菜单 - ${t}`, async () => {
     await tapText(t); await page.waitForTimeout(400);
@@ -110,8 +110,29 @@ for (const t of ['角色卡', '角色主页', '主动发起对话', '搜索聊�
     await tap('[aria-label="更多"]');
   });
 }
-await step('chat 菜单 - 导出这个角色', async () => {
-  if (items.includes('导出这个角色')) await tapText('导出这个角色');
+// 低频的几项收在菜单最底下的「更多」里
+const openMore = async () => {
+  await tap('[aria-label="更多"]');
+  await page.locator('.fullsheet .list-item', { hasText: '导出与清空数据' }).click({ timeout: 4000 });
+  await page.waitForTimeout(500);
+};
+await step('chat 菜单 - 更多', async () => {
+  if (!items.includes('更多')) throw new Error('菜单底下没有「更多」');
+  await page.keyboard.press('Escape'); await page.waitForTimeout(300);
+  await open('chat', `/chat/${ids.chat}`); await page.waitForTimeout(400);
+  await openMore();
+});
+for (const t of ['上下文与记忆', '表情包', '能力开关', 'Prompt 模板']) {
+  await step(`chat 更多 - ${t}`, async () => {
+    await open('chat', `/chat/${ids.chat}`); await page.waitForTimeout(400);
+    await openMore();
+    await tapText(t); await page.waitForTimeout(400);
+  });
+}
+await step('chat 更多 - 导出这个角色', async () => {
+  await open('chat', `/chat/${ids.chat}`); await page.waitForTimeout(400);
+  await openMore();
+  await tapText('导出这个角色');
   await page.waitForTimeout(1200);
 });
 
@@ -168,9 +189,9 @@ await step('settings 存储页', async () => {
 // 人在对话里，入口就在对话里（第 5 条）
 await step('chat 会话菜单 - 清空入口', async () => {
   await open('chat', `/chat/${ids.chat}`); await page.waitForTimeout(700);
-  await tap('[aria-label="更多"]');
+  await openMore();
   const t = await page.locator('.app-layer').innerText();
-  if (!/清空记忆与聊天记录/.test(t)) throw new Error('会话菜单里找不到清空入口');
+  if (!/清空记忆与聊天记录/.test(t)) throw new Error('会话菜单的「更多」里找不到清空入口');
   await tapText('清空记忆与聊天记录');
   await page.keyboard.press('Escape');
 });

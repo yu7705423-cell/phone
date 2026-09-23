@@ -276,11 +276,19 @@ export function BadgesPage({ chatId }) {
       <//>
       <div class="settings-foot">角色也可以在对话中颁给你标识，会记在这里。标识名由颁发的一方自行命名。</div>
 
-      <${List} title="年度回顾">
-        <${ListItem} title=${`${new Date().getFullYear()} 年回顾`} arrow
-          subtitle="这一年的消息量、最热闹的一天、最晚的一次、最常说的词与解锁的标识"
+      <${List} title="回顾">
+        <${ListItem} title="年度回顾" arrow multiline
+          subtitle=${`${new Date().getFullYear()} 年的消息量、最热闹的一天、最晚的一次、最常说的词与解锁的标识`}
           left=${html`<${Icon} name="calendar" size=${18}/>`}
           onClick=${() => nav.push(`/year/${chatId}`)}/>
+        <${ListItem} title="那年今天" arrow multiline
+          subtitle=${(() => {
+            const ys = phone.onThisDay.ofChat(chatId);
+            return ys.length ? `往年的今天有 ${ys.length} 年留有对话，最近一次在 ${ys[0].ago} 年前`
+              : '往年的今天没有对话记录。可以翻看其他日期';
+          })()}
+          left=${html`<${Icon} name="clock" size=${18}/>`}
+          onClick=${() => nav.push(`/onthisday/${chatId}`)}/>
       <//>
 
       <${List} title="这段对话">

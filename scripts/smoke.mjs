@@ -17,6 +17,7 @@ const ROUTES = {
      '/profile/:char', '/edit/:char', '/proactive/:char', '/extras/:chat', '/pace/:chat',
      '/bond/:chat',
     '/group/new', '/group/:group', '/group/nope', '/chat/:group',
+    '/more/:chat', '/more/:group', '/more/nope', '/onthisday/:chat', '/onthisday/:group', '/onthisday/nope',
     '/badges/:chat', '/badges/:group', '/badges/nope', '/year/:chat', '/year/:group', '/year/nope',
     '/skin/:chat', '/skin/nope',
     '/stage/:chat', '/stage/nope', '/stage/settings', '/stage/settings/:scene',
@@ -48,7 +49,7 @@ const ROUTES = {
   us: ['/', `/chat/:chat`, '/work/:work', '/work/:work/edit', '/work/nope',
     '/chapter/:chapter', '/chapter/nope', '/read/:chapter', '/read/nope'],
   settings: ['/', '/api', '/voice', '/image', '/embed', '/notify', '/music',
-    '/appearance', '/storage', '/storage/files', '/trace', '/vision', '/asr', '/limits', '/search', '/translate', '/memoryapi', '/rerank', '/ban', '/github'],
+    '/appearance', '/storage', '/storage/files', '/trace', '/vision', '/asr', '/limits', '/search', '/translate', '/memoryapi', '/rerank', '/ban', '/github', '/background'],
 };
 
 // 本项目不装 npm 依赖（CLAUDE.md 第 9 条），所以 playwright 从别处借：

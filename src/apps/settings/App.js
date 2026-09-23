@@ -9,6 +9,7 @@ import { VideoPage } from './VideoPage.js';
 import { AppearancePage } from './AppearancePage.js';
 import { StoragePage } from './StoragePage.js';
 import { GitHubPage } from './GitHubPage.js';
+import { BackgroundPage } from './BackgroundPage.js';
 import { TracePage } from './TracePage.js';
 import { NotifyPage } from './NotifyPage.js';
 import { EmbedPage } from './EmbedPage.js';
@@ -185,6 +186,10 @@ function Home() {
       <//>
 
       <${List} title="后台">
+        <${ListItem} title="后台任务" arrow multiline
+          subtitle="定时执行的任务、每条消息顺带的调用，以及最近实际调用接口的次数"
+          left=${html`<${Icon} name="pulse" size=${18}/>`}
+          onClick=${() => nav.push('/background')}/>
         <${ListItem} title="保活" multiline
           left=${html`<${Icon} name="power" size=${18}/>`}
           subtitle=${(phone.keepAlive.native()
@@ -248,6 +253,7 @@ export default function SettingsApp({ route }) {
   if (route === "/appearance") return html`<${AppearancePage}/>`;
   if (route === '/storage') return html`<${StoragePage}/>`;
   if (route === '/github') return html`<${GitHubPage}/>`;
+  if (route === '/background') return html`<${BackgroundPage}/>`;
   if (route === '/storage/files') return html`<${FilesPage}/>`;
   if (route === '/trace') return html`<${TracePage}/>`;
   return html`<${Home}/>`;

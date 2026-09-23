@@ -4,6 +4,7 @@ import { enqueue } from './queue.js';
 import { template } from './engine.js';
 import { parseJSON } from './sse.js';
 import { toWav, toBase64, speechSupported } from '../audio.js';
+import { note } from './usage.js';
 
 // 把用户发的语音读成文字。两档：
 //
@@ -99,6 +100,7 @@ export function listen({ blob, key }) {
 
   return enqueue(key || `asr:${Date.now()}`, async signal => {
     const wav = await toWav(blob);
+    note('asr');
     return asrMode() === 'tone'
       ? transcribeWithTone(a, wav, signal)
       : transcribeOnly(a, wav, signal);

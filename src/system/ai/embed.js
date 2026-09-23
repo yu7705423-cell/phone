@@ -1,5 +1,6 @@
 import { embedConfig, embedReady } from './services.js';
 import { enqueue } from './queue.js';
+import { note } from './usage.js';
 
 // 向量（嵌入）。走 OpenAI 兼容的 /v1/embeddings，
 // OpenAI 本体、大多数中转站、本地的 Ollama 都是这个形状。
@@ -20,6 +21,7 @@ export async function embedMany(texts, { signal } = {}) {
   const input = texts.map(t => String(t || '').slice(0, 8000));
   if (!input.length) return [];
 
+  note('embed');
   const res = await fetch(endpoint(), {
     method: 'POST', signal,
     headers: { 'content-type': 'application/json', authorization: `Bearer ${cfg.apiKey}` },
