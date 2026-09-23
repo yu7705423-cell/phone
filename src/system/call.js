@@ -200,10 +200,20 @@ function takeSentences(buf) {
 
 // ---- 接不接 ----
 //
+// **默认总是接。** 从前一律按「主动发起对话」里的免打扰时段掷骰子：时段里只有 15% 接，
+// 其余时间 90%。可那个时段是给「角色主动发消息」用的，默认 0 点到 8 点，
+// 哪怕从没打开过主动消息也在 —— 于是夜里打过去几乎回回不接，而界面上看不出为什么。
+// 现在「按作息」是角色卡上一个单独的选项（callAnswer: 'schedule'），开了才走下面那套。
+//
 // 不为「接不接」单独跑一次模型：那要多花一次往返，还要等它想。
-// 直接看角色卡上那个免打扰时段 —— 那本来就是这个人的作息，
-// 睡着的时候接不到电话是天经地义的。再掺一点随机，免得成了闹钟。
+export const ANSWER = [
+  { value: 'always', label: '总是接听' },
+  { value: 'schedule', label: '按作息' },
+];
+export const answerOf = char => (char?.callAnswer === 'schedule' ? 'schedule' : 'always');
+
 function willAnswer(char) {
+  if (answerOf(char) === 'always') return true;
   const cfg = configOf(char);
   if (inQuiet(cfg)) return Math.random() < 0.15;
   return Math.random() < 0.9;

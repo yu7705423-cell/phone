@@ -149,9 +149,23 @@ export function CharacterEdit({ id }) {
           right=${html`<${Switch} checked=${char.canTransfer !== false}
             onChange=${v => patch({ canTransfer: v })}/>`}/>
         <${ListItem} title="通话" multiline
-          subtitle="角色可以接听你的来电，也可以主动打给你。是否接听取决于「主动发起对话」中设置的免打扰时段"
+          subtitle="角色可以接听你的来电，也可以主动打给你。关闭后两者都不再发生"
           right=${html`<${Switch} checked=${char.canCall !== false}
             onChange=${v => patch({ canCall: v })}/>`}/>
+        ${char.canCall !== false ? html`
+          <div class="pad-x pad-b">
+            <${Field} label="接听你的来电"
+              desc=${phone.call.answerOf(char) === 'always'
+                ? '你打过去，角色总会接听。'
+                : `按「主动发起对话」中的免打扰时段（${(() => {
+                    const c = ai.proactive.configOf(char);
+                    return c.proactiveQuietFrom === c.proactiveQuietTo ? '当前未设置'
+                      : `${c.proactiveQuietFrom}:00 到 ${c.proactiveQuietTo}:00`;
+                  })()}）：时段内多半不接，其余时间偶尔不接，未接时记一条未接来电。`}>
+              <${Segmented} value=${phone.call.answerOf(char)} items=${phone.call.ANSWER}
+                onChange=${v => patch({ callAnswer: v })}/>
+            <//>
+          </div>` : null}
         <${ListItem} title="一起听" multiline
           subtitle="角色可以拉你一起听歌、点歌、建自己的歌单。曲库由你在「一起听」中添加"
           right=${html`<${Switch} checked=${char.canListen !== false}
