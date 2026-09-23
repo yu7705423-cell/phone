@@ -46,12 +46,15 @@ function readResults(json, count) {
  *
  * 只送正文，不送人设、记忆以外的任何东西 —— 和翻译那套接口一个规矩。
  */
-export async function rank(query, documents, { topN, signal } = {}) {
+export async function rank(query, documents, { topN, signal, scores = false } = {}) {
   const cfg = rerankConfig();
   const url = endpoint();
   if (!rerankReady() || !url) throw new Error('还没配重排接口');
   const docs = (documents || []).map(d => String(d || ''));
-  if (docs.length < 2) return docs.map((_, i) => ({ index: i, score: 0 }));
+  // 只有一条时没什么可排的，不调接口。要真分数（给缓存用）时照调
+  if (!docs.length || (docs.length < 2 && !scores)) {
+    return docs.map((_, i) => ({ index: i, score: 0 }));
+  }
 
   const body = {
     model: cfg.model,
@@ -83,8 +86,40 @@ export async function probe() {
   return { ok: true, top: got[0]?.index ?? -1, count: got.length };
 }
 
+// 排过的分数按「模型 + 查询」缓存，每一条候选一个分数。
+//
+// 重新生成、命中禁写词重掷、失败重试，送过去的查询和上一次一字不差 ——
+// 从前每一次都再付一次重排的钱，排出来的名次却一模一样。
+// 向量那边的查询早就这么缓存了（embed.js 的 queryCache），这里补上。
+//
+// 按「每条候选的分数」存，不按整份列表存：回复完之后召回过的那几条会疲劳，
+// 本地打分变了，重新生成时送来的候选**大半相同、顺序变了、进出几条**。
+// 分数是这一条和这句查询的相关度，和同批还有谁无关，所以：
+//   已经打过分的不再送，只送没见过的那几条，合起来排
+// 为此不再向接口要 top_n：top_n 只缩短回来的列表，不省钱（按送进去的字数计），
+// 却会让排在后面的那些没有分数，下次换一批就排不出来。
+const cache = new Map();
+const CACHE_MAX = 30;
+
 /** 排队跑。和别的接口共用同一条队列，取消与去重都归它管。 */
-export function rankQueued(key, query, documents, opts = {}) {
-  return enqueue(`rerank:${key}`, signal => rank(query, documents, { ...opts, signal }),
-    { replace: true, retries: 1 });
+export async function rankQueued(key, query, documents, opts = {}) {
+  const docs = (documents || []).map(d => String(d || ''));
+  const k = `${rerankConfig().model}\u0001${query}`;
+  const topN = Math.max(0, Math.round(Number(opts.topN) || 0));
+  const entry = cache.get(k) || new Map();
+
+  const unknown = [...new Set(docs.filter(d => !entry.has(d)))];
+  if (unknown.length) {
+    const got = await enqueue(`rerank:${key}`,
+      signal => rank(query, unknown, { signal, scores: true }), { replace: true, retries: 1 });
+    unknown.forEach(d => entry.set(d, -Infinity));   // 接口没给分的算排在最后
+    got.forEach(r => entry.set(unknown[r.index], r.score));
+  }
+  cache.delete(k);
+  cache.set(k, entry);
+  if (cache.size > CACHE_MAX) cache.delete(cache.keys().next().value);
+
+  const out = docs.map((d, index) => ({ index, score: entry.get(d) }))
+    .sort((a, b) => b.score - a.score);
+  return topN > 0 ? out.slice(0, topN) : out;
 }

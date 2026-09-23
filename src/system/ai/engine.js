@@ -907,7 +907,8 @@ export function streamReply({ chat, char, onDelta }) {
     // 关系底色：S 级记忆有增删改时重压一遍。不 await —— 这一轮用旧的那份，
     // 下一轮就是新的。压一次要花一次接口调用，所以只在签名变了时才跑，
     // 而且整项可以关掉（见「用量与上限」）。
-    if (settings.get().bondAuto !== false) {
+    // 和「用量与上限」、cost.js 同一个判断：明确打开才跑
+    if (settings.get().bondAuto === true) {
       import('../bond.js')
         .then(m => m.refresh(char.id, chat.personaId))
         .catch(err => console.warn('[bond] 没压成:', err.message || err));

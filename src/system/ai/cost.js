@@ -201,6 +201,30 @@ export const EXTRA_CALLS = [
     on: () => characters.all().some(c => c.dayOn),
     when: '每个开了的角色，每天第一条消息一次',
   },
+  // 下面三项不跟着「发一条消息」走，是到点了自己跑的。开关各在各的对象上
+  //（第 5 条），这里只把账摆出来 —— 从前它们不在这张表里，
+  // 「用量与上限」上看不出后台还有东西在花钱
+  {
+    id: 'proactive',
+    label: '角色主动发消息',
+    setting: null,
+    on: () => characters.all().some(c => c.proactive === true || c.emo === true),
+    when: '每个开了的角色按设定的间隔一次，深夜那一档另算；只在应用打开时发送。开关在该角色的会话菜单',
+  },
+  {
+    id: 'groupProactive',
+    label: '群里主动开口',
+    setting: null,
+    on: () => chats.all().some(c => c.groupProactive?.on === true),
+    when: '每个开了的群按设定的间隔一次；只在应用打开时发送。开关在群资料',
+  },
+  {
+    id: 'visionCarry',
+    label: '发给角色的图写成描述',
+    setting: null,
+    on: () => svc.visionMode() === 'chat',
+    when: '你每发一张图，角色回复之后一次，把图写成一句描述存下；之后几轮只带描述，不再重传图片。识图方式在「设置 - 识图」',
+  },
 ];
 
 /**
