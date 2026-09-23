@@ -101,10 +101,13 @@ const again = await page.evaluate(async o => {
   const lists = db.playlists.all().filter(p => p.owner === o.char);
   const card = db.messagesOf(o.chat).filter(m => m.kind === 'song').pop();
   const notice = db.messagesOf(o.chat).filter(m => m.kind === 'notice' && m.playlistId).pop();
-  return { lists: lists.length, n: lists[0].trackIds.length, state: card.songState, notice: notice.content };
+  // 这一轮先写的歌单、后写的分享：落下来的顺序也得是这样
+  const order = db.messagesOf(o.chat).filter(m => m.turnId === 'cm2').map(m => m.kind);
+  return { lists: lists.length, n: lists[0].trackIds.length, state: card.songState, notice: notice.content, order };
 }, ids);
 ok('再往同名歌单里放：不另建，已有的不重复，提示写明已在歌单中', again.lists === 1 && again.n === 2
   && again.notice === '[《晚风》已在歌单「夜里听」中]', JSON.stringify(again));
+ok('歌单提示按角色写的顺序落，不因为找歌慢一拍排到后面', JSON.stringify(again.order) === '["notice","song"]', JSON.stringify(again.order));
 ok('两处都找不到的歌：卡片标成没找到', again.state === 'missing', JSON.stringify(again));
 
 // ---- 五、界面：卡片与提示 ----

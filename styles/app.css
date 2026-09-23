@@ -2836,12 +2836,17 @@ button.search-bar { width: 100%; border: none; }
   .bd-g svg, .lv-orbit, .bd-toast, .bd-toast-glyph { animation: none !important; }
 }
 
-/* 分享的一首歌（chat/pages/TransferBits.js 的 SongBubble） */
-.bubble-song {
+/* 分享的一首歌（chat/pages/SongCard.js）。会话气泡与朋友圈共用 */
+.song-card {
   display: flex; align-items: center; gap: var(--sp-3); width: 240px; max-width: 100%;
   text-align: left; border: 0; font: inherit; color: inherit; cursor: pointer;
 }
-.bubble-song.is-off { cursor: default; }
+.song-card.is-off { cursor: default; }
+.mo-song { margin-top: var(--sp-2); width: 100%; padding: var(--sp-2); border-radius: var(--r-sm); background: var(--surface-2); }
+.mo-song-pick { display: flex; align-items: center; gap: var(--sp-2); margin: var(--sp-3) 0; }
+.mo-song-pick .song-card { flex: 1; width: auto; }
+.song-search { display: flex; gap: var(--sp-2); align-items: center; padding: 0 0 var(--sp-3); }
+.song-search input { flex: 1; min-width: 0; }
 .song-cover {
   flex: none; width: 44px; height: 44px; border-radius: var(--r-sm); overflow: hidden;
   display: flex; align-items: center; justify-content: center;

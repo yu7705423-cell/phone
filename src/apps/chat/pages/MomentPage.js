@@ -2,7 +2,7 @@ import { html, useState } from '../../../lib.js';
 import { phone, useStore, useImage } from '../../../sdk/index.js';
 import { Page, Avatar, Icon, IconButton, EmptyState } from '../../../ui/index.js';
 import { relTime } from '../helpers.js';
-import { authorOf, CommentList, sendComment, removeMoment } from './MomentBits.js';
+import { authorOf, CommentList, sendComment, removeMoment, MomentSong } from './MomentBits.js';
 
 const { db, nav, ai } = phone;
 
@@ -71,6 +71,7 @@ export function MomentPage({ id }) {
       </div>
 
       ${mo.text ? html`<div class="ig-text">${mo.text}</div>` : null}
+      <div class="pad-x"><${MomentSong} mo=${mo}/></div>
 
       <div class="ig-comments">
         <${CommentList} comments=${mo.comments}/>

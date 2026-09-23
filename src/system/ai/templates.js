@@ -1600,6 +1600,12 @@ has happened recently.
 ## Output JSON only
 {"text":"动态正文","mood":"当下心情一词","imagePrompt":"想配图就写画面描述，不配就写 null"}`,
 
+  // 只在该角色能用音乐（一起听没关、曲库非空或配了网易云）时接在 task.moment-create 后面
+  'task.moment-song':
+`## Attaching a song
+To attach one song to the post, add a "song" field to the JSON, written as
+"song title - artist". Without a song, write "song":null.`,
+
   'task.moment-comment':
 `You are {{charName}}. Below is a post by {{authorName}}:
 

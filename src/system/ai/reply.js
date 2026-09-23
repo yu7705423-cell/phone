@@ -755,10 +755,22 @@ function justSent(chatId, turnId) {
  * 歌单挂在角色名下（owner 是角色 id），不存在就建一个。每首歌照分享那一套找：
  * 曲库里没有、配了网易云就去搜一首收进来。做完落一行提示，告诉人它放了什么、
  * 哪几首没找到 —— 不然角色嘴上说「我建了个歌单」，人去看是空的，不知道为什么。
+ *
+ * **那一行提示当场落，找完再改字。** 从前是找完才落，网易云一搜一两秒，
+ * 这一轮后面的话早就落下去了，提示排到了它们后面，顺序和角色写的对不上。
  */
-async function collect(base, name, queries) {
-  try {
-    const list = music.listNamed(base.authorId, name);
+function collect(base, name, queries) {
+  let list;
+  try { list = music.listNamed(base.authorId, name); }
+  catch (err) { console.warn('[listen] 歌单没建成:', err.message || err); return; }
+  const who = characters.get(base.authorId)?.name || '对方';
+  const note = messages.create({
+    chatId: base.chatId, role: 'char', authorId: base.authorId, turnId: base.turnId,
+    kind: 'notice', status: 'done', playlistId: list.id,
+    content: queries.length ? `[${who}正在整理歌单「${list.name}」]` : `[${who}新建了歌单「${list.name}」]`,
+  });
+  if (!queries.length) return;
+  (async () => {
     const added = [];
     const had = [];
     const missed = [];
@@ -769,18 +781,12 @@ async function collect(base, name, queries) {
       if (music.addTrack(list.id, song.id)) added.push(song.title);
       else had.push(song.title);
     }
-    const who = characters.get(base.authorId)?.name || '对方';
     const bits = [];
     if (added.length) bits.push(`${who}把${books(added)}加入了歌单「${list.name}」`);
-    else if (!queries.length) bits.push(`${who}新建了歌单「${list.name}」`);
     if (had.length) bits.push(`${books(had)}已在歌单「${list.name}」中`);
     if (missed.length) bits.push(`${books(missed)}没有找到`);
-    messages.create({
-      chatId: base.chatId, role: 'char', authorId: base.authorId, turnId: base.turnId,
-      kind: 'notice', status: 'done', playlistId: list.id,
-      content: `[${bits.join('，')}]`,
-    });
-  } catch (err) { console.warn('[listen] 歌单没放成:', err.message || err); }
+    messages.update(note.id, { content: `[${bits.join('，')}]` });
+  })().catch(err => console.warn('[listen] 歌单没放成:', err.message || err));
 }
 
 export function materialize(part, base, char) {

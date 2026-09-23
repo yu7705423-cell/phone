@@ -2,6 +2,7 @@ import { html, useState } from '../../../lib.js';
 import { phone, useImage, useThumb } from '../../../sdk/index.js';
 import { Avatar, Icon, Sheet, confirm, toast } from '../../../ui/index.js';
 import { relTime } from '../helpers.js';
+import { SongCard } from './SongCard.js';
 
 const { db, ai } = phone;
 
@@ -25,6 +26,13 @@ export async function removeMoment(mo) {
   (mo.images || []).forEach(id => db.images.remove(id));
   db.moments.remove(mo.id);
   return true;
+}
+
+/** 动态里带的那首歌。角色的那首还在找时显示「正在找」，找不到就不显示 */
+export function MomentSong({ mo, cls = '' }) {
+  if (!mo.songId && mo.songState !== 'pending') return null;
+  return html`<${SongCard} songId=${mo.songId} query=${mo.songQuery} state=${mo.songState}
+    cls=${`mo-song ${cls}`}/>`;
 }
 
 export function CommentList({ comments }) {
@@ -58,7 +66,8 @@ export function MomentCard({ mo, onComment, onOpen }) {
       <${Avatar} src=${avatar} name=${author?.name} size=${40} radius=${8}/>
       <div class="mo-main">
         <div class="mo-name">${author?.name || '已删除'}</div>
-        <div class=${`mo-text${open ? ' press' : ''}`} onClick=${open}>${mo.text}</div>
+        ${mo.text ? html`<div class=${`mo-text${open ? ' press' : ''}`} onClick=${open}>${mo.text}</div>` : null}
+        <${MomentSong} mo=${mo}/>
         ${mo.imagePending ? html`
           <div class="mo-genning"><span class="spinner"></span>正在配图</div>` : null}
         ${mo.imageError ? html`<div class="mo-genfail">配图没生成出来：${mo.imageError}</div>` : null}

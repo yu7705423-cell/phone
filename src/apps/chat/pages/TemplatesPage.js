@@ -88,6 +88,7 @@ const LABELS = {
   'task.face-describe': '任务 · 读取角色外貌',
   'task.asr-tone': '任务 · 语音转写与语气',
   'task.moment-create': '任务 · 发朋友圈',
+  'task.moment-song': '任务 · 动态附带歌曲',
   'task.moment-comment': '任务 · 评论动态',
   'task.moment-reply': '任务 · 回复评论',
   'task.scenario-seeds': '任务 · 生成近况',

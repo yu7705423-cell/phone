@@ -73,10 +73,11 @@ export function collect(charId, { history = true } = {}) {
   const reviewRows = history ? reviews.where(r => castIds.has(r.charId)) : none;
   const noteRows = history ? readnotes.where(r => castIds.has(r.authorId)) : none;
   const todoRows = history ? todos.where(t => castIds.has(t.charId)) : none;
-  // 角色自己的歌单，以及歌单里、会话里分享过的那几首（曲库里那一行，音频与封面另算）
+  // 角色自己的歌单，以及歌单里、会话里分享过的、动态里带的那几首（曲库里那一行，音频与封面另算）
   const listRows = history ? playlists.where(p => castIds.has(p.owner)) : none;
   const songIds = new Set(listRows.flatMap(p => p.trackIds || []));
   msgRows.forEach(m => { if (m.kind === 'song' && m.songId) songIds.add(m.songId); });
+  momentRows.forEach(m => { if (m.songId) songIds.add(m.songId); });
   const songRows = [...songIds].map(id => songs.get(id)).filter(Boolean);
 
   // 要跟着走的图片与音频

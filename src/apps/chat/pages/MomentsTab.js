@@ -2,6 +2,7 @@ import { html, useState, useRef } from '../../../lib.js';
 import { phone, useStore, useImage } from '../../../sdk/index.js';
 import { Avatar, Button, Icon, EmptyState, Sheet, Textarea, toast } from '../../../ui/index.js';
 import { Photo, MomentCard, CommentSheet } from './MomentBits.js';
+import { SongCard, SongPicker } from './SongCard.js';
 import { PHOTO_MAX } from '../../../system/db/images.js';
 
 const { db, nav, ai } = phone;
@@ -49,6 +50,8 @@ export function MomentsTab() {
   const [text, setText] = useState('');
   const [imgs, setImgs] = useState([]);
   const [target, setTarget] = useState(null);
+  const [song, setSong] = useState(null);         // 这条动态要带的那首
+  const [picking, setPicking] = useState(false);
   const [busy, setBusy] = useState(false);
   const fileRef = useRef(null);
 
@@ -69,11 +72,12 @@ export function MomentsTab() {
   };
 
   const post = () => {
-    if (!text.trim() && !imgs.length) return;
+    if (!text.trim() && !imgs.length && !song) return;
     db.moments.create({
       authorId: 'me', text: text.trim(), images: imgs, likes: [], comments: [],
+      ...(song ? { songId: song.id } : {}),
     });
-    setText(''); setImgs([]); setComposing(false);
+    setText(''); setImgs([]); setSong(null); setComposing(false);
   };
 
   const genMoment = async () => {
@@ -114,8 +118,18 @@ export function MomentsTab() {
         </div>
         <input type="file" accept="image/*" multiple ref=${fileRef}
           onChange=${addPhotos} style="display:none"/>
-        <${Button} full onClick=${post} disabled=${!text.trim() && !imgs.length}>发布<//>
+        ${song ? html`
+          <div class="mo-song-pick">
+            <${SongCard} songId=${song.id} cls="mo-song"/>
+            <button class="icon-btn press" aria-label="移除歌曲" onClick=${() => setSong(null)}>
+              <${Icon} name="close" size=${16}/></button>
+          </div>` : html`
+          <div class="mo-song-pick">
+            <${Button} variant="ghost" size="sm" icon="music" onClick=${() => setPicking(true)}>分享音乐<//>
+          </div>`}
+        <${Button} full onClick=${post} disabled=${!text.trim() && !imgs.length && !song}>发布<//>
       <//>
+      <${SongPicker} open=${picking} onClose=${() => setPicking(false)} onPick=${setSong}/>
 
       <${CommentSheet} target=${target} onClose=${() => setTarget(null)}/>
     </div>`;

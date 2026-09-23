@@ -1,5 +1,6 @@
 import { html, useState, useRef, useEffect } from '../../../lib.js';
 import { phone, useStore, useImage } from '../../../sdk/index.js';
+import { SongCard } from './SongCard.js';
 import { Sheet, Field, Input, Button, Icon, List, ListItem, Switch, Segmented, toast } from '../../../ui/index.js';
 
 const { db, transfer, currency, place, call, gift, listen, music, watch, subtitle,
@@ -244,35 +245,8 @@ export function ListenBubble({ msg, onOpen }) {
 // 歌是落卡片之后才去找的（曲库，再网易云），找的那一两秒写「正在找」，
 // 两处都没有就照实写，不假装能放
 export function SongBubble({ msg }) {
-  useStore(db.songs.store);
-  const song = msg.songId ? db.songs.get(msg.songId) : null;
-  const local = useImage(song?.coverId);
-  const [bad, setBad] = useState(false);
-  const pic = !bad && (song?.cover || local);
-  const q = music.splitQuery(msg.songQuery || '');
-  const title = song?.title || q.title || '一首歌';
-  const sub = song ? (song.artist || '分享歌曲')
-    : msg.songState === 'pending' ? '正在找这首歌'
-    : phone.netease.ready() ? '曲库与网易云里都没有找到这首歌'
-    : '曲库里没有这首歌。配置音乐服务后可从网易云找到';
-  const play = () => {
-    if (!song) return;
-    phone.player.play([song], 0);
-    phone.intent.open('music', { route: '/now', back: true });
-  };
-  return html`
-    <button class=${`bubble bubble-song press${song ? '' : ' is-off'}`} onClick=${play}
-      aria-label=${song ? `播放 ${title}` : title}>
-      <span class="song-cover">
-        ${pic ? html`<img src=${pic} alt="" referrerpolicy="no-referrer" onError=${() => setBad(true)}/>`
-          : html`<${Icon} name="music" size=${20}/>`}
-      </span>
-      <span class="song-main">
-        <span class="song-title ellipsis">${title}</span>
-        <span class="song-sub ellipsis">${sub}</span>
-      </span>
-      ${song ? html`<${Icon} name="play" size=${18} class="song-play"/>` : null}
-    </button>`;
+  return html`<${SongCard} songId=${msg.songId} query=${msg.songQuery} state=${msg.songState}
+    cls="bubble bubble-song"/>`;
 }
 
 // 一起看的记录。和一起听同构，只是这一条不列曲目，列的是看到哪儿。

@@ -1,4 +1,4 @@
-import { moments, characters, persona, images } from '../../db/index.js';
+import { moments, characters, persona, images, songs } from '../../db/index.js';
 import * as imageSvc from '../image.js';
 import * as imgPrompt from '../imageprompt.js';
 import { template, runJSONTask } from '../engine.js';
@@ -6,6 +6,17 @@ import { notify } from '../../notify.js';
 import * as extras from '../../extras.js';
 import { fillTemplate } from '../templates.js';
 import { listFor } from '../context/memory.js';
+import { neteaseReady } from '../services.js';
+import * as music from '../../music.js';
+
+// 该角色能不能带歌：和聊天里「一起听」那一项同一个条件（capabilities.js 的 listen）
+const canSong = char => char.canListen !== false && (music.allSongs().length > 0 || neteaseReady());
+
+// 动态里带的那首歌，写成一句给评论、回复的人看。方括号标记与聊天里分享歌曲那一条同形
+function songLine(mo) {
+  const s = mo.songId ? songs.get(mo.songId) : null;
+  return s ? `\n[分享歌曲：${s.title}${s.artist ? ` - ${s.artist}` : ''}]` : '';
+}
 
 function charContext(char) {
   const mems = listFor(char.id)
@@ -18,9 +29,11 @@ function charContext(char) {
 export async function createMoment(charId) {
   const char = characters.get(charId);
   if (!char) throw new Error('角色不存在');
+  const withSong = canSong(char);
   const system = fillTemplate(template('task.moment-create'), {
     charName: char.name,
-  }) + `\n\n## Your own settings\n${charContext(char)}`;
+  }) + (withSong ? `\n\n${template('task.moment-song')}` : '')
+    + `\n\n## Your own settings\n${charContext(char)}`;
 
   const r = await runJSONTask('moment.create', { system, key: `moment-create:${charId}`, maxTokens: 500 });
   if (!r?.text) throw new Error('模型没有返回动态内容');
@@ -28,6 +41,16 @@ export async function createMoment(charId) {
     authorId: charId, text: String(r.text).trim(), mood: r.mood || '',
     images: [], likes: [], comments: [],
   });
+
+  // 带了歌：先挂上「正在找」，再去曲库、网易云找。找不到就摘掉 ——
+  // 动态上挂一张放不出来的卡片没有意义，正文照样成立
+  const q = withSong && typeof r.song === 'string' ? r.song.trim() : '';
+  if (q && q !== 'null') {
+    moments.update(mo.id, { songQuery: q, songState: 'pending' });
+    music.resolveSong(q)
+      .then(song => moments.update(mo.id, song ? { songId: song.id, songState: 'done' } : { songQuery: '', songState: '' }))
+      .catch(() => moments.update(mo.id, { songQuery: '', songState: '' }));
+  }
 
   // 模型给了画面描述且配了生图接口，就顺带配一张图
   const prompt = (r.imagePrompt || '').trim();
@@ -62,7 +85,7 @@ export async function commentMoment(momentId, charId) {
   const author = mo.authorId === 'me' ? persona.get().name : characters.get(mo.authorId)?.name;
 
   const system = fillTemplate(template('task.moment-comment'), {
-    charName: char.name, authorName: author || '对方', momentText: mo.text,
+    charName: char.name, authorName: author || '对方', momentText: mo.text + songLine(mo),
   }) + `\n\n## Your own settings\n${charContext(char)}`;
 
   const r = await runJSONTask('moment.comment', { system, key: `moment-comment:${momentId}:${charId}`, maxTokens: 300 });
@@ -77,7 +100,7 @@ export async function replyComment(momentId, charId, commentText) {
 
   const system = fillTemplate(template('task.moment-reply'), {
     charName: char.name, userName: persona.get().name,
-    momentText: mo.text, commentText,
+    momentText: mo.text + songLine(mo), commentText,
   }) + `\n\n## Your own settings\n${charContext(char)}`;
 
   const r = await runJSONTask('moment.reply', { system, key: `moment-reply:${momentId}`, maxTokens: 300 });
