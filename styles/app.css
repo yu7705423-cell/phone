@@ -2857,4 +2857,8 @@ button.search-bar { width: 100%; border: none; }
 .song-title { font-size: var(--fs-14); font-weight: var(--fw-semi); }
 .song-sub { font-size: var(--fs-12); color: var(--text-3); }
 .song-play { flex: none; color: var(--text-2); }
+/* 自己发的那张在强调色底上：副标题、播放键跟着前景色走，封面底子与位置卡片同一个做法 */
+.msg.is-mine .bubble-song .song-sub,
+.msg.is-mine .bubble-song .song-play { color: inherit; opacity: .72; }
+.msg.is-mine .bubble-song .song-cover { background: rgba(255, 255, 255, .16); color: inherit; }
 button.conv-notice { background: none; border: 0; font: inherit; cursor: pointer; }

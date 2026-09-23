@@ -18,6 +18,7 @@ export const ITEMS = [
   { id: 'gift', icon: 'gift', label: '礼物' },
   { id: 'location', icon: 'map', label: '位置' },
   { id: 'listen', icon: 'music', label: '一起听' },
+  { id: 'song', icon: 'disc', label: '分享音乐' },
   { id: 'watch', icon: 'film', label: '一起看' },
   { id: 'takeout', icon: 'cup', label: '点外卖' },
   { id: 'request', icon: 'users', label: '申请' },

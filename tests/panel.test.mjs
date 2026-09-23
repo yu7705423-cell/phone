@@ -216,7 +216,7 @@ ok('外卖在会话里有气泡', await page.locator('.bubble-meal').count()>=1,
 await page.locator('.composer-side').first().click();
 await page.waitForTimeout(500);
 const cells = await page.locator('.panel-item').count();
-ok('面板上是用户排的那几格加一个更多', cells===11, cells);
+ok('面板上是用户排的那几格加一个更多', cells===12, cells);
 const labels = await page.locator('.panel-item').allInnerTexts();
 ok('最后一格是更多', labels[labels.length-1].includes('更多'), labels.join('/'));
 ok('默认收起来的那几格不在面板上', !labels.join('').includes('骰子'), labels.join('/'));

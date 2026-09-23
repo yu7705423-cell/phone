@@ -1,4 +1,4 @@
-import { songs, playlists, files, images } from './db/index.js';
+import { songs, playlists, files, images, messages, chats } from './db/index.js';
 
 // 曲库与歌单。
 //
@@ -141,6 +141,22 @@ export async function resolveSong(query) {
   const rows = await ne.search(artist ? `${title} ${artist}` : title, 5).catch(() => []);
   const pick = rows.find(r => r.title === title) || rows[0];
   return pick ? fromNetease(pick) : null;
+}
+
+/**
+ * 在会话里分享一首歌。正文写成和角色分享时同一个标记，角色读历史时看到的是
+ * 「[分享歌曲：晚风 - 林晚]」，知道是哪一首。
+ */
+export function share({ chatId, song, role = 'user', authorId = 'me' }) {
+  if (!song) throw new Error('没有选择歌曲');
+  const q = song.artist ? `${song.title} - ${song.artist}` : song.title;
+  const msg = messages.create({
+    chatId, role, authorId, kind: 'song', status: 'done',
+    songId: song.id, songState: 'done', songQuery: q,
+    content: `[分享歌曲：${q}]`,
+  });
+  chats.update(chatId, { lastMessageAt: Date.now() });
+  return msg;
 }
 
 /** 某人名下叫这个名字的歌单。没有就建一个 */

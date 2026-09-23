@@ -13,6 +13,7 @@ import { DiceBubble, InnerVoice, DiceSheet } from './ExtrasBits.js';
 import { TakeoutBubble, TakeoutSheet, MealSettleSheet, ShareSheet, MoreSheet } from './MealBits.js';
 import { TripBubble, TripSettleSheet } from './TripBits.js';
 import { PhotoSource } from './PhotoSource.js';
+import { SongPicker } from './SongCard.js';
 import { TransferBubble, NoticeLine, TransferSheet, SettleSheet,
          LocationBubble, LocationSheet, CallBubble, CallLogSheet,
          GiftBubble, GiftSheet, UnwrapSheet,
@@ -346,6 +347,7 @@ export function Conversation({ chatId, focusId = '' }) {
   const [clipText, setClipText] = useState('');   // 骰子面板开着
   const [ordering, setOrdering] = useState(false);  // 点外卖面板开着
   const [sharing, setSharing] = useState(false);    // 共享位置面板开着
+  const [songing, setSonging] = useState(false);    // 挑一首歌分享出去
   const [more, setMore] = useState(false);          // 面板的「更多」开着
   const [meal, setMeal] = useState(null);           // 正在处理的那一单
   const [going, setGoing] = useState(null);         // 正在回应的那次出行
@@ -1125,6 +1127,7 @@ export function Conversation({ chatId, focusId = '' }) {
     gift: () => setGifting(true),
     location: () => setPlacing(true),
     listen: () => nav.push(`/listen/${chatId}`),
+    song: () => setSonging(true),
     watch: () => phone.intent.open('theater', { route: `/watch/${chatId}` }),
     takeout: () => setOrdering(true),
     request: () => setAsking(true),
@@ -1149,7 +1152,7 @@ export function Conversation({ chatId, focusId = '' }) {
     },
   };
   // 群里说得通的那几格。转账、礼物、通话、一起听这些都是对着一个人的
-  const GROUP_TAPS = new Set(['photo', 'voice', 'dice', 'makeclip']);
+  const GROUP_TAPS = new Set(['photo', 'voice', 'dice', 'makeclip', 'song']);
   const runTap = id => {
     if (isGroup && !GROUP_TAPS.has(id)) { toast('群聊中不可用'); return; }
     (TAP[id] || (() => toast('这一项尚未实现')))();
@@ -1372,6 +1375,8 @@ export function Conversation({ chatId, focusId = '' }) {
       <//>
       <${TakeoutSheet} open=${ordering} chatId=${chatId} onClose=${() => setOrdering(false)}/>
       <${ShareSheet} open=${sharing} chatId=${chatId} onClose=${() => setSharing(false)}/>
+      <${SongPicker} open=${songing} onClose=${() => setSonging(false)}
+        onPick=${song => { try { phone.music.share({ chatId, song }); } catch (err) { toast(String(err.message || err), 'error'); } }}/>
       <${MealSettleSheet} msg=${meal} onClose=${() => setMeal(null)}/>
       <${TripSettleSheet} msg=${going} onClose=${() => setGoing(null)}/>
       <${MoreSheet} open=${more} onClose=${() => setMore(false)} onTap=${runTap}/>

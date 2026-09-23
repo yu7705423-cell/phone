@@ -56,6 +56,7 @@ export const PATHS = {
   power:    '<path d="M12 3v9"/><path d="M6.6 6.6a9 9 0 1010.8 0"/>',
 
   // 装饰用
+  disc:     '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.5"/><path d="M16.6 8.2a6 6 0 011.6 3"/>',
   music:    '<circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/><path d="M9 18V5l12-2v13"/><path d="M9 9l12-2"/>',
   play:     '<path d="M7 4.8v14.4l12-7.2z"/>',
   pause:    '<path d="M9 5v14M15 5v14"/>',
