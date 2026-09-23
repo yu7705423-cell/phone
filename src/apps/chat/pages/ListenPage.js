@@ -56,6 +56,14 @@ export function ListenPage({ chatId }) {
     <${Page} title="一起听" onBack=${nav.pop}
       right=${html`<button class="nav-text press" onClick=${openLib}>曲库</button>`}>
 
+      ${live && listen.current() ? html`
+        <${List} title="正在播放">
+          <${ListItem} title=${listen.current().title} arrow
+            subtitle=${[listen.current().artist, s.playing ? '播放中' : '已暂停'].filter(Boolean).join(' · ')}
+            left=${html`<${Icon} name="music" size=${18}/>`}
+            onClick=${() => phone.intent.open('music', { route: '/now/listen', back: true })}/>
+        <//>` : null}
+
       <${List} title="一起听了多久">
         <${ListItem} title="累积" multiline
           subtitle=${total.count

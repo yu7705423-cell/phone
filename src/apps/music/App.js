@@ -38,6 +38,7 @@ function Tabs() {
 export default function MusicApp({ route }) {
   if (route === '/library') return html`<${LibraryPage}/>`;
   if (route === '/now') return html`<${NowPage}/>`;
+  if (route === '/now/listen') return html`<${NowPage} from="listen"/>`;
   const list = route?.match(/^\/list\/(.+)$/);
   if (list) return html`<${PlaylistPage} id=${list[1]}/>`;
   return html`<${Tabs}/>`;

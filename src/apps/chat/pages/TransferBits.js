@@ -311,6 +311,7 @@ export function WatchBar({ chatId }) {
     </div>`;
 }
 
+// 点中间那一块进「正在播放」看大封面与歌词（和音乐 app 同一页）；歌单在那一页右上角
 export function ListenBar({ chatId }) {
   const s = useStore(listen.listen);
   useStore(db.songs.store);
@@ -323,7 +324,7 @@ export function ListenBar({ chatId }) {
       <button class="listen-key press" aria-label=${s.playing ? '暂停' : '播放'}
         onClick=${listen.toggle}>
         <${Icon} name=${s.playing ? 'minus' : 'chevronRight'} size=${16}/></button>
-      <div class="listen-main" onClick=${() => phone.nav.push(`/listen/${chatId}`)}>
+      <div class="listen-main" onClick=${() => phone.intent.open('music', { route: '/now/listen', back: true })}>
         <div class="listen-title ellipsis">${music.label(song) || '一起听'}</div>
         <div class="listen-sub ellipsis">
           ${s.error || line || `${listen.clock(s.at)} · 本次 ${listen.fmt(s.seconds)}`}

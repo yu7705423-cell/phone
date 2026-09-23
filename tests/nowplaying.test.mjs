@@ -109,6 +109,40 @@ await page.waitForTimeout(400);
 txt = await page.locator('.mu-lyrics').innerText();
 ok('下一首没收录歌词：写「暂无歌词」', /暂无歌词/.test(txt) && /无/.test(await page.locator('.page').last().innerText()), txt);
 
+// ---- 五、会话里的「一起听」：点顶上那一条，进同一个「正在播放」 ----
+await page.evaluate(async () => (await import('/src/system/player.js')).stop());
+const lid = await page.evaluate(async w => {
+  const db = await import('/src/system/db/index.js');
+  const acc = await import('/src/system/accounts.js');
+  const music = await import('/src/system/music.js');
+  const listen = await import('/src/system/listen.js');
+  const c = db.characters.create({ name: '林晚', persona: 'x' });
+  const chat = db.chats.create({ characterIds: [c.id], personaId: acc.current().id });
+  const song = music.addSong({ title: '晚风', artist: '林晚', url: w, seconds: 8,
+    lyric: '[00:00.00]第一句\n[00:02.00]第二句\n[00:04.00]第三句' });
+  listen.start({ chatId: chat.id, songId: song.id });
+  const n = await import('/src/system/nav.js'); n.goHome(); n.openApp('chat', `/chat/${chat.id}`);
+  return { chat: chat.id };
+}, wav);
+await page.waitForTimeout(1200);
+await page.locator('.listen-main').tap();
+await page.waitForTimeout(900);
+txt = await page.locator('.page').last().innerText();
+ok('一起听：点会话顶上那一条，进「正在播放」，是同一个大封面', await page.locator('.mu-now').count() === 1
+  && /晚风/.test(txt) && await page.locator('.mu-now-face .mu-cover').count() === 1, txt.slice(0, 200));
+await page.locator('.mu-now-face').tap();
+await page.waitForTimeout(400);
+ok('一起听：歌词是曲库里那一份', (await page.locator('.mu-ly').allInnerTexts()).join('/') === '第一句/第二句/第三句');
+await page.locator('.mu-ly', { hasText: '第三句' }).tap();
+await page.waitForTimeout(500);
+const lpos = await page.evaluate(async () => (await import('/src/system/listen.js')).position());
+ok('一起听：点一句从那一句放', lpos >= 4, lpos);
+await page.locator('[aria-label="一起听的歌单"]').tap();
+await page.waitForTimeout(800);
+const where = await page.evaluate(async () => (await import('/src/system/nav.js')).currentRoute());
+ok('一起听：右上角回到一起听的歌单页', where === `/listen/${lid.chat}`, where);
+await page.evaluate(async () => (await import('/src/system/listen.js')).stop());
+
 ok('全程没有运行时报错', errs.length === 0, errs.join(' | '));
 await page.evaluate(async () => (await import('/src/system/player.js')).stop());
 await browser.close();

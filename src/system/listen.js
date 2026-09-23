@@ -153,6 +153,25 @@ export function prev() {
   if (i > 0) load(q[i - 1]);
 }
 
+/**
+ * 精确到小数的位置。「正在播放」那一页逐句高亮歌词用 ——
+ * at 一秒才更新一次还取了整，拿它对歌词每句都慢半拍
+ */
+export function position() { return audio ? audio.currentTime : listen.get().at; }
+
+/** 这一首多长。音频读得出来的优先，读不出来用曲库里记的 */
+export function duration() {
+  const d = audio?.duration;
+  return Number.isFinite(d) && d > 0 ? d : (current()?.seconds || 0);
+}
+
+/** 跳到第几秒。拖进度条、点一句歌词都走这里 */
+export function seek(sec) {
+  if (!audio) return;
+  audio.currentTime = Math.max(0, Math.min(sec, audio.duration || sec));
+  listen.set({ at: Math.round(audio.currentTime) });
+}
+
 export function toggle() {
   if (!audio) return;
   if (audio.paused) { audio.play().catch(() => {}); listen.set({ playing: true }); }
