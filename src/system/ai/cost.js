@@ -92,7 +92,8 @@ export const EXTRA_CALLS = [
     id: 'callSummary',
     label: '打完电话自动总结',
     setting: 'callSummary', off: false,
-    on: s => s.callSummary === true,
+    // 默认开着：没写过这一项的按开着算（例外见 check-calls.mjs 的 ALLOW_ON）
+    on: s => s.callSummary !== false,
     when: '每通接通过的电话挂断时一次（走副用接口）',
   },
   {

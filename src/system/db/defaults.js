@@ -9,9 +9,10 @@ export const DEFAULT_SETTINGS = {
   // **一律默认关着**（第 15 条）：开一个就等于那一条多一次接口调用
   // 内置生图预设开了哪几个，存 id 清单。默认一个都不开，见 ai/imageprompt.js
   imageStyles: [],
-  // 打完电话自动写一段总结。默认关着（第 15 条）：一通电话多一次调用。
-  // 通话记录里另有手动生成的按钮，不受这一项影响
-  callSummary: false,
+  // 打完电话自动写一段总结。**默认开着** —— 这是第 15 条的一个例外，
+  // 用户明确要求的，登记在 scripts/check-calls.mjs 的 ALLOW_ON 里。
+  // 一通电话多一次调用，「用量与上限」照样算账、照样能关
+  callSummary: true,
   writeImagePrompt: false,
   writeVideoPrompt: false,
   writeVoicePrompt: false,

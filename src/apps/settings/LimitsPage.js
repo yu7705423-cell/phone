@@ -95,11 +95,11 @@ export function LimitsPage() {
             right=${html`<${NumberInput} value=${Number(s.failoverMax) || 0} min=${0}
               onChange=${v => set({ failoverMax: v })}/>`}/>` : null}
         <${ListItem} title="打完电话自动总结" multiline
-          subtitle=${s.callSummary !== true
+          subtitle=${s.callSummary === false
             ? '已关闭。挂断后不生成总结，可在通话记录中手动生成。'
             : '每通接通过的电话挂断时，额外调用一次接口，把通话内容整理为一段总结，'
               + '显示在通话记录中。未接通的不生成。走副用接口。'}
-          right=${html`<${Switch} checked=${s.callSummary === true}
+          right=${html`<${Switch} checked=${s.callSummary !== false}
             onChange=${v => set({ callSummary: v })}/>`}/>
         <${ListItem} title="生图前先写一遍提示词" multiline
           subtitle=${s.writeImagePrompt !== true

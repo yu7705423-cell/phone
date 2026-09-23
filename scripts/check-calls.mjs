@@ -14,6 +14,20 @@ import { read, rel, report, sources } from './lib.mjs';
 // 查不出来的那一层仍然要自己把关：**新加了会多打接口的东西却没往
 // EXTRA_CALLS 里登记**。漏登记的后果是安静的，所以加功能时先加那一行。
 
+/**
+ * 用户点名默认打开的那几项，一行一个理由。
+ *
+ * 第 15 条是「默认关着」，但项目是用户的：他明确说某一项要默认打开，就打开。
+ * **不是把这道闸拆了**，是在闸上登记一个例外 —— 没登记的新项照样拦下来，
+ * 登记了的一眼看得出是谁、为什么放行的。和 check-dead 的 KEEP 同一个做法。
+ *
+ * 放行的只是「默认值」。它仍然在 EXTRA_CALLS 里，「用量与上限」照样把它
+ * 算进账里、照样能关。
+ */
+const ALLOW_ON = new Map([
+  ['callSummary', '用户明确要求默认开启（每通接通过的电话挂断时一次）'],
+]);
+
 const COST = 'src/system/ai/cost.js';
 const DEFAULTS = 'src/system/db/defaults.js';
 const CAP = 3;
@@ -49,6 +63,7 @@ export function check() {
   }
 
   for (const { key, off } of rows) {
+    if (ALLOW_ON.has(key)) continue;
     const got = defaultOf(defSrc, key);
     if (got === undefined) {
       problems.push(`${DEFAULTS}  EXTRA_CALLS 登记了 ${key}，但 DEFAULT_SETTINGS 里没有这一项`);

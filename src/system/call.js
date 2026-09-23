@@ -480,7 +480,7 @@ function finish(outcome) {
     lastMsgId = msg.id;
     chats.update(chatId, { lastMessageAt: Date.now() });
     // 打完就总结。默认关着（第 15 条）：一通电话多一次调用
-    if (outcome === 'done' && log.length && settings.get().callSummary === true) {
+    if (outcome === 'done' && log.length && settings.get().callSummary !== false) {
       summarize(msg.id).catch(err => console.warn('[call] 总结没生成:', err.message || err));
     }
   }
@@ -531,8 +531,8 @@ async function transLine(chat, idx, text) {
 
 // ---- 总结 ----
 //
-// 打完电话写一段总结。自动的那一档默认关着（第 15 条，登记在 cost.js 的
-// callSummary）；通话记录里另有一个按钮，随时手动生成一次。
+// 打完电话写一段总结。自动的那一档**默认开着**（用户明确要求，是第 15 条的
+// 例外，登记在 check-calls.mjs 的 ALLOW_ON）；通话记录里另有一个按钮，随时手动生成一次。
 //
 // 总结写成**这段对话设置的翻译语言**，没设就跟通话本身同一种语言 ——
 // 那是写给人看的，而人已经在这段对话里说过自己要看什么语言了。
