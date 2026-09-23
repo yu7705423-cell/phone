@@ -117,6 +117,15 @@ await page.addInitScript(b => { window.BASE = b; }, BASE);
 const errs = []; page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message));
 await page.goto(`${BASE}/index.html`, { waitUntil: 'domcontentloaded' });
 await page.waitForTimeout(1500);
+// 打开一个 app 并退回它的首页。app 已经在后台时 openApp(id, '/') 回到它原来那一页
+const toRoot = async id => {
+  await page.evaluate(async a => {
+    const n = await import('/src/system/nav.js');
+    n.goHome(); n.openApp(a, '/');
+    for (let i = 0; i < 6 && n.currentRoute() !== '/'; i++) n.pop();
+  }, id);
+  await page.waitForTimeout(600);
+};
 const R = []; const ok = (n, c, e) => { R.push({ n, pass: !!c }); console.log(`${c ? '  ok  ' : '  FAIL'} ${n}${c ? '' : '   << ' + (e ?? '')}`); };
 
 const ids = await page.evaluate(async () => {
@@ -132,10 +141,13 @@ const ids = await page.evaluate(async () => {
 });
 
 // ---- 一、设置页：添加、连接、关掉一个工具 ----
-await page.evaluate(async () => { const n = await import('/src/system/nav.js'); n.unlock(); n.openApp('settings', '/'); });
+await page.evaluate(async () => { const n = await import('/src/system/nav.js'); n.unlock(); n.goHome(); });
 await page.waitForTimeout(700);
-await page.locator('.list-item', { hasText: 'MCP 工具' }).tap();
-await page.waitForTimeout(500);
+// 新 app 由主屏自己找空位摆上，可能在第二页，所以查整张主屏而不是只看眼前这一页
+const icon = await page.evaluate(() => [...document.querySelectorAll('.app-name')].map(e => e.textContent.trim()));
+ok('主屏上有 MCP 这个 app', icon.includes('MCP'), JSON.stringify(icon));
+await page.evaluate(async () => (await import('/src/system/nav.js')).openApp('mcp', '/'));
+await page.waitForTimeout(700);
 await page.locator('.nav-text', { hasText: '添加' }).tap();
 await page.waitForTimeout(500);
 const field = label => page.locator('.field', { hasText: label }).locator('input, textarea').first();
@@ -293,6 +305,49 @@ await page.evaluate(async () => {
 await page.waitForTimeout(600);
 txt = await page.locator('.msg-row', { hasText: '林晚' }).first().innerText();
 ok('会话列表预览：[工具] 名字', /\[工具\] send_note/.test(txt), txt + row);
+
+// ---- 八、MCP app：调用记录、试用 ----
+await page.evaluate(async o => {
+  const db = await import('/src/system/db/index.js');
+  const r = await import('/src/system/ai/reply.js');
+  await r.renderTurn({ chat: db.chats.get(o.chat), char: db.characters.get(o.char), turnId: 't4', instant: true,
+    raw: '[调用：send_note {"text": "等你点头"}]' });
+}, ids);
+await toRoot('mcp');
+await page.locator('.tab', { hasText: '调用记录' }).tap();
+await page.waitForTimeout(500);
+txt = await page.locator('.page').last().innerText();
+ok('调用记录：等待允许的排在最前，其余按时间列出', /等待允许 · 1/.test(txt) && txt.indexOf('等待允许 · 1') < txt.indexOf('全部')
+  && /林晚 · weather/.test(txt) && /已拒绝/.test(txt) && /失败/.test(txt), txt.slice(0, 500));
+await page.screenshot({ path: `${OUT}/mcp-calls.png` });
+await page.locator('.list-item', { hasText: '等待允许' }).first().tap();
+await page.waitForTimeout(800);
+let where = await page.evaluate(async () => { const n = await import('/src/system/nav.js'); return `${n.nav.get().appId} ${n.currentRoute()}`; });
+ok('点一条：回到那段会话', where === `chat /chat/${ids.chat}`, where);
+await toRoot('mcp');
+await page.locator('.tab', { hasText: '服务器' }).tap();
+await page.waitForTimeout(400);
+await page.locator('.list-item', { hasText: '天气' }).first().tap();
+await page.waitForTimeout(500);
+await page.locator('.list-item', { hasText: 'weather' }).locator('.nav-text', { hasText: '试用' }).tap();
+await page.waitForTimeout(500);
+const pre = await page.locator('.mcp-tool textarea').inputValue();
+ok('试用页：按参数说明先填好一个样子', /"city": ""/.test(pre) && /"days": \[\]/.test(pre), pre);
+await page.locator('.mcp-tool textarea').fill('{"city": "杭州", "days": [3]}');
+const before = await page.evaluate(async () => (await import('/src/system/db/index.js')).messages.all().filter(m => m.kind === 'tool').length);
+await page.locator('.mcp-tool .btn', { hasText: '调用' }).tap();
+await page.waitForTimeout(800);
+txt = await page.locator('.mcp-tool').innerText();
+const afterN = await page.evaluate(async () => (await import('/src/system/db/index.js')).messages.all().filter(m => m.kind === 'tool').length);
+ok('试用：直接调一次，看得到结果，不写进任何会话', /杭州 晴 3/.test(txt) && /结果 · \d+ 毫秒/.test(txt) && afterN === before, txt.slice(0, 300));
+await page.screenshot({ path: `${OUT}/mcp-try.png` });
+await page.locator('.mcp-tool textarea').fill('{"city": ');
+await page.locator('.mcp-tool .btn', { hasText: '调用' }).tap();
+await page.waitForTimeout(400);
+ok('参数写坏了：不发出去，提示不是合法的 JSON', /不是合法的 JSON/.test(await page.locator('body').innerText()));
+await toRoot('settings');
+const settingsTxt = await page.locator('.page').last().innerText();
+ok('设置里不再有 MCP 那一行（入口只留一个）', !/MCP 工具/.test(settingsTxt), settingsTxt.slice(0, 200));
 
 ok('全程没有运行时报错', errs.length === 0, errs.join(' | '));
 await browser.close();

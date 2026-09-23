@@ -20,7 +20,6 @@ import { MusicPage } from './MusicPage.js';
 import { LimitsPage } from './LimitsPage.js';
 import { BanPage } from './BanPage.js';
 import { SearchApiPage } from './SearchApiPage.js';
-import { McpPage, McpServerPage } from './McpPage.js';
 import { TranslateApiPage } from './TranslateApiPage.js';
 import { MemoryApiPage } from './MemoryApiPage.js';
 import { BUILD } from '../../version.js';
@@ -74,9 +73,6 @@ function Home() {
   const trVal = svc.translateMode() === 'api' ? '单独接口' : tr.mode === 'api' ? '未填全' : '随回复写出';
   const trDesc = svc.translateMode() === 'api' ? tr.model : '';
 
-  const mcpList = svc.mcpServers().filter(x => x.url);
-  const mcpDesc = mcpList.length ? `${mcpList.length} 台服务器` : '';
-
   const sc = svc.searchConfig();
   const searchDesc = svc.searchReady() ? sc.model : '';
 
@@ -111,7 +107,6 @@ function Home() {
         ${svcRow({ title: '向量', icon: 'brain', route: '/embed', desc: embDesc, value: embOk ? '' : OFF })}
         ${svcRow({ title: '重排', icon: 'filter', route: '/rerank', desc: rerankDesc, value: rerankVal })}
         ${svcRow({ title: '联网搜索', icon: 'compass', route: '/search', desc: searchDesc, value: searchDesc ? '' : OFF })}
-        ${svcRow({ title: 'MCP 工具', icon: 'grid', route: '/mcp', desc: mcpDesc, value: mcpDesc ? '' : OFF })}
       <//>
 
       <${List} title="识别你发送的内容">
@@ -209,9 +204,6 @@ export default function SettingsApp({ route }) {
   if (route === '/limits') return html`<${LimitsPage}/>`;
   if (route === '/ban') return html`<${BanPage}/>`;
   if (route === '/search') return html`<${SearchApiPage}/>`;
-  if (route === '/mcp') return html`<${McpPage}/>`;
-  const mcpOne = route?.match(/^\/mcp\/(.+)$/);
-  if (mcpOne) return html`<${McpServerPage} id=${mcpOne[1]}/>`;
   if (route === '/translate') return html`<${TranslateApiPage}/>`;
   if (route === '/memoryapi') return html`<${MemoryApiPage}/>`;
   if (route === '/voice') return html`<${VoicePage}/>`;

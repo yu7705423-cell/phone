@@ -72,6 +72,25 @@ export async function refresh(id) {
 
 export const forget = id => mcp.forget(id);
 
+/**
+ * 在 MCP app 里手动调一次。不经过角色、不落消息 —— 用来看这台服务器、这个工具通不通，
+ * 参数写对了会回来什么
+ */
+export async function tryTool(id, name, args = {}) {
+  const server = svc.mcpServer(id);
+  if (!server) throw new Error('这台服务器已删除');
+  const t0 = Date.now();
+  const r = await mcp.callTool(server, name, args);
+  return { text: mcp.resultText(r), isError: !!r?.isError, ms: Date.now() - t0 };
+}
+
+/** 所有会话里的工具调用，新的在前。MCP app 的「调用记录」 */
+export function calls() {
+  return messages.all().filter(m => m.kind === 'tool').sort((a, b) => b.createdAt - a.createdAt);
+}
+
+export const STATE_TEXT = { ask: '等待允许', running: '正在调用', done: '已完成', error: '失败', denied: '已拒绝' };
+
 // ---- 调用 ----
 
 const running = new Map();   // 消息 id -> AbortController

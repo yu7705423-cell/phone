@@ -17,9 +17,10 @@ import { manifest as travelApp } from './travel/manifest.js';
 import { manifest as theirsApp } from './theirs/manifest.js';
 import { manifest as usApp } from './us/manifest.js';
 import { manifest as skinApp } from './skin/manifest.js';
+import { manifest as mcpApp } from './mcp/manifest.js';
 import { manifest as settingsApp } from './settings/manifest.js';
 
 export function registerApps() {
   [chat, contact, lorebook, memory, space, daily, todoApp, music, bill, theater,
-    healthApp, albumApp, travelApp, theirsApp, usApp, skinApp, settingsApp].forEach(registerApp);
+    healthApp, albumApp, travelApp, theirsApp, usApp, skinApp, mcpApp, settingsApp].forEach(registerApp);
 }

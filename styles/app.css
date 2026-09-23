@@ -2925,3 +2925,14 @@ button.conv-notice { background: none; border: 0; font: inherit; cursor: pointer
   background: var(--surface-2); border-radius: var(--r-sm); padding: var(--sp-2);
 }
 
+/* MCP app 的「试用」页（apps/mcp/ServersPage.js 的 ToolPage） */
+.mcp-tool { display: flex; flex-direction: column; gap: var(--sp-2); }
+.mcp-tool-meta { font-size: var(--fs-12); color: var(--text-3); }
+.mcp-tool-desc { font-size: var(--fs-14); line-height: 1.6; }
+.mcp-tool-k { font-size: var(--fs-11); color: var(--text-3); margin-top: var(--sp-3); }
+.mcp-pre {
+  margin: 0; white-space: pre-wrap; word-break: break-word; font-size: var(--fs-12);
+  background: var(--surface-2); border-radius: var(--r-sm); padding: var(--sp-2);
+}
+.mcp-pre.is-error { color: var(--danger); }
+

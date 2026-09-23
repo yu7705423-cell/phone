@@ -260,15 +260,15 @@ export function CharacterEdit({ id }) {
           const n = (sv.tools || []).length - (sv.toolsOff || []).length;
           return html`
             <${ListItem} key=${sv.id} title=${sv.name || '未命名'} multiline
-              subtitle=${sv.error ? `连接失败：${sv.error}` : sv.checkedAt ? `${n} 个工具` : '尚未连接，请先在设置中连接'}
+              subtitle=${sv.error ? `连接失败：${sv.error}` : sv.checkedAt ? `${n} 个工具` : '尚未连接，请先在「MCP」中连接'}
               right=${html`<${Switch} checked=${on} onChange=${v => patch({
                 mcpServers: v ? [...new Set([...(char.mcpServers || []), sv.id])]
                   : (char.mcpServers || []).filter(x => x !== sv.id),
               })}/>`}/>`;
         }) : html`
           <${ListItem} title="尚未添加 MCP 服务器" arrow multiline
-            subtitle="在「设置 - MCP 工具」中添加服务器后，可在此选择该角色能够调用哪几台"
-            onClick=${() => phone.intent.open('settings', { route: '/mcp', back: true })}/>`}
+            subtitle="在「MCP」中添加服务器后，可在此选择该角色能够调用哪几台"
+            onClick=${() => phone.intent.open('mcp', { route: '/', back: true })}/>`}
       <//>
       ${(char.mcpServers || []).length ? html`
         <div class="settings-foot">

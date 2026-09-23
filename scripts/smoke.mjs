@@ -37,6 +37,7 @@ const ROUTES = {
     '/lock/:char', '/lock/nope', '/make/nope',
     '/home/nope', '/shelf/nope', '/body/nope', '/day/nope'],
   travel: ['/', '/new', '/trip/:trip', '/trip/nope', '/tickets/:trip', '/tickets/nope', '/grab/:trip/nope', '/grab/nope/nope', '/plan/:trip', '/plan/nope'],
+  mcp: ['/', '/server/none', '/server/none/tool/x'],
   music: ['/', '/library', '/list/1', '/local/none', '/now', '/now/listen'],
   bill: ['/', '/books', '/accounts', '/rules', '/spend'],
   theater: ['/', '/videos', '/books', '/settings', '/watch/:chat', '/book/:ebook',
@@ -48,7 +49,7 @@ const ROUTES = {
   skin: ['/', '/one/:skin', '/one/nope', '/contract', '/gen/:skin', '/gen/nope'],
   us: ['/', `/chat/:chat`, '/work/:work', '/work/:work/edit', '/work/nope',
     '/chapter/:chapter', '/chapter/nope', '/read/:chapter', '/read/nope'],
-  settings: ['/', '/mcp', '/mcp/none', '/api', '/voice', '/image', '/embed', '/notify', '/music',
+  settings: ['/', '/api', '/voice', '/image', '/embed', '/notify', '/music',
     '/appearance', '/storage', '/storage/files', '/trace', '/vision', '/asr', '/limits', '/search', '/translate', '/memoryapi', '/rerank', '/ban', '/github', '/background'],
 };
 
