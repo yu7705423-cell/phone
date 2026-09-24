@@ -341,7 +341,7 @@ export function HomeScreen() {
       <${FolderEdit} open=${!!editFolder} cell=${editFolder}
         onClose=${() => setEditFolder(null)}/>
       <${WidgetEditor} cell=${editingWidget} onClose=${() => setEditingWidget(null)}/>
-      <${CellEditor} cell=${editingCell} pageIdx=${idx}
+      <${CellEditor} cell=${editingCell} pageIdx=${idx} onEditWidget=${setEditingWidget}
         onClose=${() => setEditingCell(null)}
         onSwapFrom=${id => setPicked({ type: 'cell', id, page: idx })}/>
     </div>`;

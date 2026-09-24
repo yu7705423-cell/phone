@@ -12,6 +12,7 @@ import { nav } from './system/nav.js';
 import { forceUpdate } from './system/refresh.js';
 import { BUILD } from './version.js';
 import './screens/home/widgets.js';
+import './screens/home/insWidgets.js';
 
 const mount = document.getElementById('app');
 

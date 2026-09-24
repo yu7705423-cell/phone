@@ -21,6 +21,15 @@
   --danger:      #000000;
   --danger-weak: #ECECEC;
 
+  /* ins 风小组件：拍立得的相纸与胶片。深浅两套主题都一样 ——
+     相纸就是白的、底片就是黑的，和应用图标深色下仍是白底同一个道理 */
+  --paper:       #FFFFFF;
+  --on-paper:    #000000;
+  --on-paper-2:  rgba(0, 0, 0, .45);
+  --film:        #000000;
+  --on-film:     #FFFFFF;
+  --on-film-2:   rgba(255, 255, 255, .55);
+
   /* 应用图标：纯白底 + 黑色 SVG。颜色与阴影可在主题设置里改 */
   --tile-bg:     #FFFFFF;
   --icon-color:  #000000;
@@ -70,6 +79,7 @@
   --sp-8: 32px;
 
   /* 字号 */
+  --fs-9: 9px;
   --fs-11: 11px;
   --fs-12: 12px;
   --fs-13: 13px;
@@ -79,6 +89,7 @@
   --fs-20: 20px;
   --fs-24: 24px;
   --fs-28: 28px;
+  --fs-40: 40px;
   --fs-56: 56px;
 
   /* 字重 */
@@ -168,6 +179,13 @@
 
   --danger:      #FFFFFF;
   --danger-weak: #1E1E1E;
+
+  --paper:       #FFFFFF;
+  --on-paper:    #000000;
+  --on-paper-2:  rgba(0, 0, 0, .45);
+  --film:        #000000;
+  --on-film:     #FFFFFF;
+  --on-film-2:   rgba(255, 255, 255, .55);
 
   /* 图标在深色下仍是白底黑图，与浅色一致 */
   --tile-bg:     #FFFFFF;

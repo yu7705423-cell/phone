@@ -1,6 +1,6 @@
 import { html, useState } from '../../lib.js';
 import { Sheet, List, ListItem, Icon, Button, Input, Field, toast } from '../../ui/index.js';
-import { listWidgets } from '../../system/registry.js';
+import { listWidgets, getWidget } from '../../system/registry.js';
 import { listAppLooks } from '../../system/look.js';
 import { layout } from '../../system/db/index.js';
 import { placeAt, placeAtXY, clearCell, putInFolder, takeOut } from './layout.js';
@@ -8,6 +8,9 @@ import { IconSheet } from './IconSheet.js';
 import { FolderEdit } from './FolderEdit.js';
 
 const sizeLabel = (w, h) => `${w} x ${h}`;
+
+// 小组件分组。没写 group 的归「基础」
+const WIDGET_GROUPS = [{ id: 'base', label: '基础' }, { id: 'ins', label: 'ins 风' }];
 
 // 这一页上现有的文件夹，供「装进文件夹」挑
 function foldersNow() {
@@ -19,7 +22,7 @@ function foldersNow() {
 }
 
 // 整理模式下点任意位置：换内容、交换、移除
-export function CellEditor({ cell, pageIdx, onClose, onSwapFrom }) {
+export function CellEditor({ cell, pageIdx, onClose, onSwapFrom, onEditWidget }) {
   const [tab, setTab] = useState('root');
   const [folderEdit, setFolderEdit] = useState(null);   // { cell } | { at, preset }
   const [editingIcon, setEditingIcon] = useState(null);
@@ -54,13 +57,17 @@ export function CellEditor({ cell, pageIdx, onClose, onSwapFrom }) {
 
   const body =
     tab === 'widget' ? html`
-      <${List} inset=${false}>
-        ${widgets.flatMap(w => (w.sizes || [[2, 2]]).map(([ww, hh]) => html`
-          <${ListItem} key=${`${w.id}-${ww}x${hh}`} title=${w.label}
-            subtitle=${sizeLabel(ww, hh)} arrow
-            left=${html`<${Icon} name="grid" size=${18}/>`}
-            onClick=${() => put({ kind: 'widget', ref: w.id, w: ww, h: hh })}/>`))}
-      <//>`
+      ${WIDGET_GROUPS.map(g => {
+        const list = widgets.filter(w => (w.group || 'base') === g.id);
+        return list.length ? html`
+          <${List} key=${g.id} title=${g.label} inset=${false}>
+            ${list.flatMap(w => (w.sizes || [[2, 2]]).map(([ww, hh]) => html`
+              <${ListItem} key=${`${w.id}-${ww}x${hh}`} title=${w.label} multiline
+                subtitle=${[sizeLabel(ww, hh), w.desc].filter(Boolean).join(' · ')} arrow
+                left=${html`<${Icon} name="grid" size=${18}/>`}
+                onClick=${() => put({ kind: 'widget', ref: w.id, w: ww, h: hh })}/>`))}
+          <//>` : null;
+      })}`
     : tab === 'app' ? html`
       <${List} inset=${false}>
         ${apps.map(a => html`
@@ -94,7 +101,7 @@ export function CellEditor({ cell, pageIdx, onClose, onSwapFrom }) {
           <${ListItem} title="取出一个应用" subtitle="取出后放回主界面的空位上" arrow multiline
             left=${html`<${Icon} name="layers" size=${18}/>`} onClick=${() => setTab('out')}/>
         ` : html`
-          <${ListItem} title="放一个小组件" subtitle="文字块、图片块、播放器横条、Love 日历、自定义组件…" arrow multiline
+          <${ListItem} title="放一个小组件" subtitle="文字块、图片块、Love 日历、拍立得、胶片、快拍、九宫格…" arrow multiline
             left=${html`<${Icon} name="grid" size=${18}/>`} onClick=${() => setTab('widget')}/>
           <${ListItem} title="放一个应用" arrow
             left=${html`<${Icon} name="layers" size=${18}/>`} onClick=${() => setTab('app')}/>
@@ -106,6 +113,10 @@ export function CellEditor({ cell, pageIdx, onClose, onSwapFrom }) {
               left=${html`<${Icon} name="folder" size=${18}/>`} onClick=${openFolderNew}/>` : null}
         `}
         ${!isSlot ? html`
+          ${cell.kind === 'widget' && getWidget(cell.ref)?.editable && onEditWidget ? html`
+            <${ListItem} title="编辑内容" subtitle="更换照片、文字、角色等" arrow multiline
+              left=${html`<${Icon} name="edit" size=${18}/>`}
+              onClick=${() => { close(); onEditWidget(cell); }}/>` : null}
           ${cell.kind === 'app' ? html`
             <${ListItem} title="图标与名称" subtitle="换一个线条图标或一张图片，也可以改名" arrow multiline
               left=${html`<${Icon} name="edit" size=${18}/>`}
