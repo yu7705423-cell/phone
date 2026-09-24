@@ -1,6 +1,6 @@
 import { html, useState, useRef } from '../../../lib.js';
 import { phone, useStore, useImage } from '../../../sdk/index.js';
-import { Avatar, Button, Icon, EmptyState, Sheet, Textarea, toast } from '../../../ui/index.js';
+import { Avatar, Button, Icon, EmptyState, Sheet, Textarea, Segmented, toast } from '../../../ui/index.js';
 import { Photo, MomentCard, CommentSheet } from './MomentBits.js';
 import { SongCard, SongPicker } from './SongCard.js';
 import { PHOTO_MAX } from '../../../system/db/images.js';
@@ -53,6 +53,9 @@ export function MomentsTab() {
   const [song, setSong] = useState(null);         // 这条动态要带的那首
   const [picking, setPicking] = useState(false);
   const [busy, setBusy] = useState(false);
+  // 谁可以看：all 所有角色 / some 选定的几位 / none 仅自己。上一次的选择记着，下一条照用
+  const [vis, setVis] = useState(() => db.settings.get().momentVisibility || 'all');
+  const [who, setWho] = useState(() => new Set(db.settings.get().momentVisibleIds || []));
   const fileRef = useRef(null);
 
   const list = db.moments.all().sort((a, b) => b.createdAt - a.createdAt);
@@ -71,13 +74,30 @@ export function MomentsTab() {
     } catch (err) { toast('图片处理失败：' + err.message, 'error'); }
   };
 
+  const picked = chars.filter(c => who.has(c.id));
+  const viewers = vis === 'all' ? chars : vis === 'some' ? picked : [];
+  const toggleWho = id => setWho(prev => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
+
   const post = () => {
     if (!text.trim() && !imgs.length && !song) return;
-    db.moments.create({
+    if (vis === 'some' && !picked.length) { toast('请选择可以看到的角色'); return; }
+    const mo = db.moments.create({
       authorId: 'me', text: text.trim(), images: imgs, likes: [], comments: [],
+      visibleTo: vis === 'all' ? 'all' : vis === 'some' ? picked.map(c => c.id) : [],
       ...(song ? { songId: song.id } : {}),
     });
+    db.settings.set({ momentVisibility: vis, momentVisibleIds: [...who] });
     setText(''); setImgs([]); setSong(null); setComposing(false);
+    // 看得见的角色逐个来评论。在后台跑，评论一条出现一条
+    if (viewers.length && ai.isConfigured()) {
+      ai.moments.reactToMine(mo.id).then(r => {
+        if (r.failed.length) toast(`${r.failed.length} 位角色的评论没有生成：${r.failed[0].error}`, 'error', 5000);
+      });
+    }
   };
 
   const genMoment = async () => {
@@ -127,6 +147,22 @@ export function MomentsTab() {
           <div class="mo-song-pick">
             <${Button} variant="ghost" size="sm" icon="music" onClick=${() => setPicking(true)}>分享音乐<//>
           </div>`}
+        <div class="mo-vis">
+          <div class="mo-vis-title">谁可以看</div>
+          <${Segmented} value=${vis} onChange=${setVis}
+            items=${[{ value: 'all', label: '所有角色' }, { value: 'some', label: '选择角色' }, { value: 'none', label: '仅自己' }]}/>
+          ${vis === 'some' ? html`
+            <div class="btn-row is-chips pad-t">
+              ${chars.map(c => html`
+                <${Button} key=${c.id} size="sm" variant=${who.has(c.id) ? 'primary' : 'ghost'}
+                  onClick=${() => toggleWho(c.id)}>${c.name}<//>`)}
+            </div>` : null}
+          <div class="mo-vis-desc">
+            ${viewers.length
+              ? `发布后，可以看到的 ${viewers.length} 位角色各写一条评论并点赞，共调用 ${viewers.length} 次接口。聊天时这些角色知道你发了这条动态。`
+              : vis === 'some' ? '尚未选择角色。' : '角色看不到这条动态，也不会评论。'}
+          </div>
+        </div>
         <${Button} full onClick=${post} disabled=${!text.trim() && !imgs.length && !song}>发布<//>
       <//>
       <${SongPicker} open=${picking} onClose=${() => setPicking(false)} onPick=${setSong}/>

@@ -14,6 +14,9 @@
 /* 底下没有页签栏时，滚动区一直铺到屏幕底，最后一行会压在 Home Indicator 下面。
    有页签栏的那些不加 —— 页签栏自己已经把安全区让出来了。 */
 .page > .page-body:last-child { padding-bottom: var(--safe-bottom); }
+/* 底栏自己已经把安全区算进去的（会话的输入栏、美化生成面板），这里不再让一次 ——
+   两处都让，iPhone 上输入栏下面就平白空出 34 像素 */
+.page > .page-body:last-child:has(.composer-bar, .gen-panel) { padding-bottom: 0; }
 
 .navbar {
   flex: none; height: var(--navbar-h);

@@ -103,6 +103,39 @@ export async function commentMoment(momentId, charId) {
   return c;
 }
 
+/**
+ * 用户自己那条动态，哪些角色看得见。
+ *   visibleTo 'all'（或没有这个字段的老动态）  所有角色
+ *   visibleTo [id, …]                         只有这几位
+ *   visibleTo []                              仅自己
+ * 角色自己发的动态不走这里。
+ */
+export function canSee(mo, charId) {
+  if (!mo || mo.authorId !== 'me') return true;
+  const v = mo.visibleTo;
+  if (v === undefined || v === null || v === 'all') return true;
+  return Array.isArray(v) && v.includes(charId);
+}
+export const viewersOf = mo => characters.all().filter(c => canSee(mo, c.id)).map(c => c.id);
+
+/**
+ * 发布之后：看得见的角色逐个来看，各写一条评论并点赞。一位一次接口调用，
+ * 发布时的可见范围就是用户点头的范围（发布页上写明了共几次）。
+ * 一位失败不拦着后面的；给回失败的那几位。
+ */
+export async function reactToMine(momentId) {
+  const mo = moments.get(momentId);
+  if (!mo || mo.authorId !== 'me') return { done: 0, failed: [] };
+  let done = 0;
+  const failed = [];
+  for (const id of viewersOf(mo)) {
+    if (!moments.get(momentId)) break;            // 发完就删了
+    try { await commentMoment(momentId, id); done += 1; }
+    catch (err) { failed.push({ id, error: String(err.message || err) }); }
+  }
+  return { done, failed };
+}
+
 export async function replyComment(momentId, charId, commentText) {
   const mo = moments.get(momentId);
   const char = characters.get(charId);

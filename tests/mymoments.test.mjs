@@ -92,6 +92,59 @@ await page.locator('.mo-card', { hasText: '角色自己的动态' }).first().loc
 await page.waitForTimeout(400);
 ok('角色的动态上没有「请角色评论」', !/请角色评论/.test(await page.locator('.sheet').last().innerText()));
 
+// ---- 三、发布时选可见范围，发出后看得见的角色各评论一条 ----
+await page.locator('.overlay').first().click({ position: { x: 200, y: 8 } }).catch(() => {});
+await page.waitForTimeout(300);
+const two = await page.evaluate(async () => {
+  const { db } = await import('/src/system/db/index.js');
+  const b = db.characters.create({ name: '小林' });
+  return b.id;
+});
+const postWith = async (text, vis, pick = []) => {
+  await page.locator('[aria-label="发布"]').click();
+  await page.waitForTimeout(400);
+  const sheet = page.locator('.sheet', { hasText: '发布动态' }).last();
+  await sheet.locator('textarea').fill(text);
+  await sheet.locator('.segmented .seg-item', { hasText: vis }).click();
+  await page.waitForTimeout(200);
+  for (const name of pick) await sheet.locator('.mo-vis .btn', { hasText: name }).click();
+  const desc = await sheet.locator('.mo-vis-desc').innerText();
+  await sheet.locator('.btn', { hasText: /^发布$/ }).click();
+  for (let i = 0; i < 30; i++) {
+    const m = await page.evaluate(async t => (await import('/src/system/db/index.js')).db.moments.all().find(x => x.text === t), text);
+    if (m && (m.comments || []).length >= (vis === '仅自己' ? 0 : 1)) break;
+    await page.waitForTimeout(200);
+  }
+  await page.waitForTimeout(600);
+  const mo = await page.evaluate(async t => (await import('/src/system/db/index.js')).db.moments.all().find(x => x.text === t), text);
+  return { mo, desc };
+};
+
+let r3 = await postWith('只给阿岚看', '选择角色', ['阿岚']);
+ok('选择角色：发布页写明几位、几次调用', /1 位角色.*共调用 1 次接口/.test(r3.desc), r3.desc);
+ok('选择角色：存下了可见范围', JSON.stringify(r3.mo?.visibleTo) === JSON.stringify([ids.char]), JSON.stringify(r3.mo?.visibleTo));
+ok('选择角色：只有选中的阿岚评论', r3.mo.comments.length === 1 && r3.mo.comments[0].authorId === ids.char, JSON.stringify(r3.mo.comments));
+const sysOf = cid => page.evaluate(async ({ chat, cid }) => {
+  const { db } = await import('/src/system/db/index.js');
+  const engine = await import('/src/system/ai/engine.js');
+  const { system, volatile } = engine.buildChatSystem(db.chats.get(chat), db.characters.get(cid), db.messagesOf(chat));
+  return system + (volatile || '');
+}, { chat: ids.chat, cid });
+ok('没被选中的小林：聊天时看不到这条', !/只给阿岚看/.test(await sysOf(two)));
+ok('被选中的阿岚：聊天时看得到', /只给阿岚看/.test(await sysOf(ids.char)));
+
+r3 = await postWith('谁都不给看', '仅自己');
+ok('仅自己：没有人评论', (r3.mo.comments || []).length === 0 && Array.isArray(r3.mo.visibleTo) && r3.mo.visibleTo.length === 0);
+ok('仅自己：发布页写明角色看不到', /角色看不到这条动态/.test(r3.desc), r3.desc);
+ok('仅自己：谁的聊天里都没有', !/谁都不给看/.test(await sysOf(ids.char)) && !/谁都不给看/.test(await sysOf(two)));
+
+r3 = await postWith('大家都来看', '所有角色');
+for (let i = 0; i < 20 && (r3.mo.comments || []).length < 2; i++) {
+  await page.waitForTimeout(300);
+  r3.mo = await page.evaluate(async () => (await import('/src/system/db/index.js')).db.moments.all().find(x => x.text === '大家都来看'));
+}
+ok('所有角色：两位角色各评论一条并点赞', r3.mo.comments.length === 2 && (r3.mo.likes || []).length === 2, JSON.stringify(r3.mo.comments));
+
 ok('全程没有运行时报错', errs.length === 0, errs.join(' | '));
 await browser.close();
 const bad = R.filter(x => !x.pass).length;

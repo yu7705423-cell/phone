@@ -2952,3 +2952,8 @@ button.conv-notice { background: none; border: 0; font: inherit; cursor: pointer
 .mo-ask { padding: var(--sp-3) 0; border-top: 1px solid var(--border); margin-top: var(--sp-2); }
 .mo-ask-title { font-size: var(--fs-13); color: var(--text); font-weight: var(--fw-medium); }
 .mo-ask-desc { font-size: var(--fs-12); color: var(--text-3); line-height: 1.5; margin: var(--sp-1) 0 var(--sp-2); }
+
+/* 发布动态：谁可以看 */
+.mo-vis { margin: var(--sp-3) 0; display: flex; flex-direction: column; gap: var(--sp-2); }
+.mo-vis-title { font-size: var(--fs-13); color: var(--text-2); }
+.mo-vis-desc { font-size: var(--fs-12); color: var(--text-3); line-height: 1.5; }

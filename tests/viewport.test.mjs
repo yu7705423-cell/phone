@@ -61,6 +61,40 @@ const statusbar = async init => {
 ok('手机浏览器里：不画状态栏（系统自己有）', (await statusbar(null)) === 0);
 ok('安卓安装包（系统状态栏藏起来了）：自己画一条', (await statusbar(() => { window.phoneFullscreen = true; })) === 1);
 
+// ---- iPhone：安全区（上 59 下 34）----
+const IPHONE_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1';
+{
+  const c = await browser.newContext({ viewport: { width: 430, height: 932 }, isMobile: true, hasTouch: true, userAgent: IPHONE_UA });
+  const p = await c.newPage();
+  p.on('pageerror', e => errs.push('PAGEERROR: ' + e.message));
+  // Chromium 里 env(safe-area-inset-*) 是 0，照 iPhone 的数值垫上
+  await p.addInitScript(() => document.addEventListener('DOMContentLoaded', () => {
+    const st = document.createElement('style');
+    st.textContent = '.root{--safe-top:59px !important;--safe-bottom:34px !important}';
+    document.head.appendChild(st);
+  }));
+  // 连安卓安装包那个标记也一并带上：苹果设备上照样不画
+  await p.addInitScript(() => { window.phoneFullscreen = true; });
+  await p.goto(`${BASE}/index.html`, { waitUntil: 'domcontentloaded' });
+  await p.waitForTimeout(1500);
+  await p.evaluate(async () => {
+    const { db } = await import('/src/system/db/index.js');
+    const ch = db.characters.create({ name: '乃木' });
+    const chat = db.chats.create({ characterIds: [ch.id], lastMessageAt: Date.now() });
+    const n = await import('/src/system/nav.js'); n.unlock(); n.openApp('chat', `/chat/${chat.id}`);
+  });
+  await p.waitForTimeout(900);
+  const m = await p.evaluate(() => {
+    const r = s => document.querySelector(s)?.getBoundingClientRect();
+    return { nav: Math.round(r('.navbar').top), bar: Math.round(r('.composer-bar').bottom), h: innerHeight,
+      sb: document.querySelectorAll('.statusbar').length };
+  });
+  ok('iPhone：不画网页自己的状态栏（系统的一直都在）', m.sb === 0, m.sb);
+  ok('iPhone：顶栏紧贴安全区下沿（59），上面不多出一条', m.nav === 59, m.nav);
+  ok('iPhone：输入栏一直铺到屏幕底边，安全区只让一次', m.bar === m.h, `${m.bar} / ${m.h}`);
+  await c.close();
+}
+
 ok('全程没有运行时报错', errs.length === 0, errs.join(' | '));
 await browser.close();
 const bad = R.filter(x => !x.pass).length;

@@ -16,12 +16,19 @@ export const meta = {
   desc: '你最近发的几条朋友圈。条数在「用量与上限」里，填 0 为全给',
 };
 
+const visible = (m, char) => {
+  const v = m.visibleTo;
+  if (v === undefined || v === null || v === 'all') return true;
+  return !!char && Array.isArray(v) && v.includes(char.id);
+};
+
 const limit = () => Math.max(0, Math.round(Number(settings.get().momentsCount ?? 3) || 0));
 
 export function build({ char, persona }) {
   const n = limit();
   const rows = moments.all()
-    .filter(m => m.authorId === 'me')
+    // 只给这个角色看得见的那几条（发布时选的可见范围，没选过的老动态算所有人可见）
+    .filter(m => m.authorId === 'me' && visible(m, char))
     .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
     .slice(0, n || Infinity);
   if (!rows.length) return '';

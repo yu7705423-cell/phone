@@ -76,7 +76,8 @@ export function MomentCard({ mo, onComment, onOpen }) {
             ${mo.images.slice(0, 9).map(id => html`<${Photo} key=${id} id=${id}/>`)}
           </div>` : null}
         <div class="mo-foot">
-          <span class="mo-time">${relTime(mo.createdAt)}</span>
+          <span class="mo-time">${relTime(mo.createdAt)}${isMe && Array.isArray(mo.visibleTo)
+            ? (mo.visibleTo.length ? ` · ${mo.visibleTo.length} 位角色可见` : ' · 仅自己可见') : ''}</span>
           <div class="mo-actions">
             <button class=${`mo-act press${liked ? ' is-on' : ''}`}
               onClick=${() => ai.moments.toggleLike(mo.id)}>
