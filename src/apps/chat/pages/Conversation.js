@@ -127,6 +127,18 @@ const contOf = (prev, cur) => TALK(prev) && TALK(cur)
 
 // 记忆化：流式回复时只有最后那条在变，别的几百条没必要跟着重画。
 // 下面传给它的函数属性都是稳定身份的，见 Conversation 里的 stable。
+// 这一条头像点下去，该展开哪一条的心声。
+//
+// 心声只挂在一轮里的**一条**上（多半是最后一条），可这一轮每条都有头像。
+// 从前只认自己身上那一份，点到同一轮别的几条的头像什么都不出来 ——
+// 一轮三到五条，多半点到的就是空的那几个，看上去就是「点头像没有心声」
+function innerOf(msg) {
+  if (msg.inner) return msg.id;
+  if (!msg.turnId) return '';
+  const hit = db.messagesOf(msg.chatId).filter(m => m.turnId === msg.turnId && m.inner).pop();
+  return hit ? hit.id : '';
+}
+
 export const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, onSwipe, onHold, onBind,
                   selecting, selected, onToggle, transOpen, onSettle, onOpenLog, onUnwrap,
                   onPat, innerStyle, fold, foldCount, onScene, who = '', cont = false,
@@ -146,6 +158,13 @@ export const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, o
   const [openTrans, setOpenTrans] = useState(false);
   // 心声默认藏着，点头像才展开
   const [openInner, setOpenInner] = useState(false);
+  // 点的是同一轮里别的那一条的头像，也要展开这一条的（见 innerOf）
+  useEffect(() => {
+    if (!msg.inner) return undefined;
+    const on = e => { if (e.detail === msg.id) setOpenInner(v => !v); };
+    window.addEventListener('inner-toggle', on);
+    return () => window.removeEventListener('inner-toggle', on);
+  }, [msg.id, !!msg.inner]);
   // 单击看心声、双击拍一拍，只能等一下才分得清是哪一个
   const tap = useRef(null);
 
@@ -205,7 +224,14 @@ export const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, o
       <div class="msg-face no-callout ph-face"
         onClick=${selecting || frozen ? null : () => {
           if (tap.current) { clearTimeout(tap.current); tap.current = null; onPat && onPat(); return; }
-          tap.current = setTimeout(() => { tap.current = null; setOpenInner(v => !v); }, 260);
+          tap.current = setTimeout(() => {
+            tap.current = null;
+            if (mine) return;
+            const target = innerOf(msg);
+            if (target) { window.dispatchEvent(new CustomEvent('inner-toggle', { detail: target })); return; }
+            toast(extras.innerOn(chat) ? '这一轮没有心声'
+              : '心声未开启，可在会话菜单的「互动」中开启');
+          }, 260);
         }}>
         <${Avatar} src=${avatar} name=${mine ? phone.accounts.current()?.name : char?.name} size=${36} radius=${18}/>
       </div>
