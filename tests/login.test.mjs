@@ -145,8 +145,43 @@ await page.waitForTimeout(1600);
 ok('恢复网络后点「重新连接」：到正常的登录页', await onLogin() && !/连接不上/.test(await page.locator('.login').innerText()));
 await doLogin('小林', lin);
 
+// ---- 七之前：普通账号看不到管理入口 ----
+await page.evaluate(async () => { const n = await import('/src/system/nav.js'); n.unlock(); n.goHome(); n.openApp('settings', '/signin'); });
+await page.waitForTimeout(600);
+ok('普通账号：登录账号页没有「管理账号」', !/管理账号/.test(await page.locator('.page').last().innerText()));
+await page.evaluate(async () => { const n = await import('/src/system/nav.js'); n.push('/signin/admin'); });
+await page.waitForTimeout(600);
+const t7 = await page.locator('.page').last().innerText();
+ok('普通账号直接打开管理页：只看到「仅管理员可用」，没有输密码的框', /仅管理员可用/.test(t7) && await page.getByPlaceholder('管理员密码').count() === 0, t7.slice(0, 200));
+
+// ---- 八、设置里改密码 ----
+await page.evaluate(async () => { const n = await import('/src/system/nav.js'); n.goHome(); n.openApp('settings', '/signin'); });
+await page.waitForTimeout(600);
+await page.locator('.list-item', { hasText: '修改密码' }).click();
+await page.waitForTimeout(300);
+const boxes = page.locator('.sheet').last().locator('input');
+await boxes.nth(0).fill(lin);
+await boxes.nth(1).fill('lin-pass-9');
+await boxes.nth(2).fill('lin-pass-9');
+await page.locator('.sheet .btn', { hasText: /^修改$/ }).click();
+await page.waitForTimeout(1200);
+ok('设置里改密码：新密码能用', !!(await direct('/auth/login', { name: '小林', password: 'lin-pass-9', device: 'y' })).token);
+
+// ---- 九、退出 ----
+await page.locator('.list-item', { hasText: '退出登录' }).click();
+await page.waitForTimeout(300);
+await page.locator('.modal .modal-btn', { hasText: '确定' }).click();
+await page.waitForTimeout(1800);
+ok('退出登录：回到登录页', await onLogin());
+
+// 用 admin 登录
+await doLogin('admin', ADMIN);
+await page.evaluate(async () => { const n = await import('/src/system/nav.js'); n.unlock(); n.goHome(); n.openApp('settings', '/signin'); });
+await page.waitForTimeout(600);
+ok('admin 登录：登录账号页有「管理账号」，没有「修改密码」', /管理账号/.test(await page.locator('.page').last().innerText())
+  && !/修改密码/.test(await page.locator('.page').last().innerText()));
 // ---- 七、管理页 ----
-await page.evaluate(async () => { const n = await import('/src/system/nav.js'); n.unlock(); n.openApp('settings', '/signin/admin'); });
+await page.locator('.list-item', { hasText: '管理账号' }).click();
 await page.waitForTimeout(700);
 await page.getByPlaceholder('管理员密码').fill('not-it');
 await page.locator('.btn', { hasText: '进入' }).click();
@@ -187,25 +222,13 @@ await page.waitForTimeout(900);
 const chk = await direct('/auth/check', { token: login2.token });
 ok('停用：该账号已登录的设备检查不通过', /停用/.test(chk.error || ''), JSON.stringify(chk));
 
-// ---- 八、设置里改密码 ----
+
 await page.evaluate(async () => { const n = await import('/src/system/nav.js'); n.goHome(); n.openApp('settings', '/signin'); });
 await page.waitForTimeout(600);
-await page.locator('.list-item', { hasText: '修改密码' }).click();
-await page.waitForTimeout(300);
-const boxes = page.locator('.sheet').last().locator('input');
-await boxes.nth(0).fill(lin);
-await boxes.nth(1).fill('lin-pass-9');
-await boxes.nth(2).fill('lin-pass-9');
-await page.locator('.sheet .btn', { hasText: /^修改$/ }).click();
-await page.waitForTimeout(1200);
-ok('设置里改密码：新密码能用', !!(await direct('/auth/login', { name: '小林', password: 'lin-pass-9', device: 'y' })).token);
-
-// ---- 九、退出 ----
 await page.locator('.list-item', { hasText: '退出登录' }).click();
 await page.waitForTimeout(300);
 await page.locator('.modal .modal-btn', { hasText: '确定' }).click();
 await page.waitForTimeout(1800);
-ok('退出登录：回到登录页', await onLogin());
 await direct('/auth/admin', { password: ADMIN, op: 'disable', name: '阿岚', on: false });
 await doLogin('阿岚', 'Eira2026');
 await page.locator('.login-retry', { hasText: '以后再说' }).click();

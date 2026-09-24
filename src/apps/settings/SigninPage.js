@@ -45,12 +45,13 @@ export function SigninPage() {
       <div class="settings-foot">
         登录只决定能不能进入本应用。角色卡、聊天记录等数据仍只保存在这台设备上，不随账号同步。
         一个账号最多同时在两台设备上登录，第三台登录时最早登录的那一台会退出。
-        忘记密码时，请联系添加账号的人重置为初始密码。
+        ${auth.isAdmin() ? '' : '忘记密码时，请联系添加账号的人重置为初始密码。'}
       </div>
-      <${List}>
-        <${ListItem} title="管理账号" subtitle="添加、停用账号与重置密码。需要管理员密码" arrow
-          left=${html`<${Icon} name="key" size=${18}/>`} onClick=${() => nav.push('/signin/admin')}/>
-      <//>
+      ${auth.isAdmin() ? html`
+        <${List}>
+          <${ListItem} title="管理账号" subtitle="添加、停用账号与重置密码。需要管理员密码" arrow
+            left=${html`<${Icon} name="key" size=${18}/>`} onClick=${() => nav.push('/signin/admin')}/>
+        <//>` : null}
 
       ${changing ? html`
         <${Sheet} open=${true} onClose=${() => !busy && setChanging(null)} title="修改密码">
@@ -95,6 +96,8 @@ export function AdminPage() {
   const [picked, setPicked] = useState(null);     // 点开的那个账号
 
   const call = (op, extra) => auth.admin(pw, op, extra);
+  // 只有用 admin 登录时才有这一页的入口（见上面的 SigninPage）。直接打开地址的也只看到这一句
+  const allowed = auth.isAdmin();
 
   const load = async (withPw = pw) => {
     setBusy(true);
@@ -108,13 +111,20 @@ export function AdminPage() {
     } finally { setBusy(false); }
   };
 
-  useEffect(() => { if (pw) load(pw).then(ok => { if (!ok) { setPw(''); keepPw(''); } }); }, []);
+  useEffect(() => { if (allowed && pw) load(pw).then(ok => { if (!ok) { setPw(''); keepPw(''); } }); }, []);
 
   const unlock = async () => {
     const v = draft.trim();
     if (!v) return;
     if (await load(v)) { setPw(v); keepPw(v); setDraft(''); }
   };
+
+  if (!allowed) {
+    return html`
+      <${Page} title="管理账号" onBack=${nav.pop}>
+        <${EmptyState} icon="lock" title="仅管理员可用" desc="用管理员账号登录后，才能添加与管理账号。"/>
+      <//>`;
+  }
 
   if (!pw || users === null) {
     return html`
