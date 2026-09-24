@@ -14,7 +14,7 @@ import { SITE } from '../site.js';
 // 离线：有凭证就放行（这时本来也用不了联网的功能），联网后下一次检查再说。
 // 没凭证又连不上账号服务：上一次知道服务端没开账号功能就放行，否则停在登录页，写明连不上。
 
-const KEY = 'eira-auth';          // { name, token }
+const KEY = 'eira-auth';          // { name, token, initial }
 const DEVICE = 'eira-device';
 const OFF = 'eira-auth-off';      // 上一次问到的：服务端没开账号功能
 const NOTE = 'eira-auth-note';    // 被挤下线等原因，重开后在登录页上说一句
@@ -60,6 +60,12 @@ export const currentName = () => saved()?.name || '';
 /** 随请求带给账号服务、网易云转发的凭证 */
 export const token = () => saved()?.token || '';
 
+/** 还在用管理员发的初始密码（没自己改过） */
+export const isInitial = () => saved()?.initial === true;
+
+/** 当前是不是管理员自己（admin 的密码在 Cloudflare 后台改，不在这里） */
+export const isAdmin = () => currentName() === 'admin';
+
 async function post(path, body, ms = 10000) {
   const ctl = new AbortController();
   const t = setTimeout(() => ctl.abort(), ms);
@@ -99,7 +105,7 @@ export async function gate() {
     try {
       const r = await post('/auth/check', { token: s.token }, 8000);
       if (r.status === 200 && r.data.token) {
-        save({ name: r.data.name || s.name, token: r.data.token });
+        save({ name: r.data.name || s.name, token: r.data.token, initial: r.data.initial === true });
         store.set(OFF, null);
         lastCheck = Date.now();
         return { ok: true };
@@ -121,7 +127,7 @@ export async function gate() {
   }
 }
 
-/** 登录。成功给回账号名，失败抛出写给人看的原因 */
+/** 登录。成功给回 { name, initial }，失败抛出写给人看的原因 */
 export async function login(name, password) {
   const n = String(name || '').trim();
   if (!n || !password) throw new Error('请填写账号与密码');
@@ -132,9 +138,26 @@ export async function login(name, password) {
     throw new Error('暂时连接不上账号服务，请检查网络后重试。');
   }
   if (r.status !== 200 || !r.data.token) throw new Error(r.data.error || `登录没有成功（${r.status}）`);
-  save({ name: r.data.name || n, token: r.data.token });
+  const got = { name: r.data.name || n, token: r.data.token, initial: r.data.initial === true };
+  save(got);
   lastCheck = Date.now();
-  return r.data.name || n;
+  return { name: got.name, initial: got.initial };
+}
+
+/** 自己改密码。改完之后别的设备退出，本机不退 */
+export async function changePassword(old, next, again) {
+  if (!old || !next) throw new Error('请填写原密码与新密码');
+  if (again !== undefined && next !== again) throw new Error('两次输入的新密码不一致');
+  let r;
+  try {
+    r = await post('/auth/password', { token: token(), old, password: next });
+  } catch {
+    throw new Error('暂时连接不上账号服务，请检查网络后重试。');
+  }
+  if (r.status !== 200) throw new Error(r.data.error || `修改没有成功（${r.status}）`);
+  const s = saved();
+  if (s) save({ ...s, initial: false });
+  return true;
 }
 
 /** 退出登录。服务端那一步失败也照样在本机退出 */
@@ -157,7 +180,10 @@ export function watch() {
     lastCheck = Date.now();
     try {
       const r = await post('/auth/check', { token: s.token }, 8000);
-      if (r.status === 200 && r.data.token) { save({ name: r.data.name || s.name, token: r.data.token }); return; }
+      if (r.status === 200 && r.data.token) {
+        save({ name: r.data.name || s.name, token: r.data.token, initial: r.data.initial === true });
+        return;
+      }
       if (r.data.relogin) {
         save(null);
         store.set(NOTE, r.data.error || '请重新登录');

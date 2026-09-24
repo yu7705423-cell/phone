@@ -32,11 +32,14 @@ const VERSION = 2;
 const MAX_DEVICES = 2;
 // 登录凭证的有效期。应用每次启动都会换一张新的，天天用的人不会遇到它过期
 const TOKEN_DAYS = 30;
-// 密码哈希的轮数。免费版 Worker 每次请求只有 10 毫秒 CPU，再多就超了；
-// 密码都是随机生成的十位字符，轮数不是这里的主要防线
+// 密码哈希的轮数。免费版 Worker 每次请求只有 10 毫秒 CPU，再多就超了。
+// 这个轮数挡不住有人拿到整个 KV 之后离线猜弱密码，所以 KV 不要给别人看
 const PBKDF2_ITER = 10000;
-// 生成密码与账号名用的字符，去掉了 0O1lI 这些容易看错的
-const PW_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+// 新账号与重置后的初始密码。想换一个就在 Cloudflare 后台加变量 INITIAL_PASSWORD，不必改这里。
+// 用户登录后可以自己改（/auth/password），改过之前管理页上标着「初始密码」
+const INITIAL_PASSWORD = 'Eira2026';
+// 自己改的新密码至少几位
+const MIN_PASSWORD = 6;
 
 // 只认一个看起来像 IPv4 的值，别的当没给
 const isIPv4 = s => /^(\d{1,3})(\.\d{1,3}){3}$/.test(String(s || ''))
@@ -137,7 +140,6 @@ const fromB64u = str => {
   return Uint8Array.from(bin, c => c.charCodeAt(0));
 };
 const randomBytes = n => crypto.getRandomValues(new Uint8Array(n));
-const randomText = (n, chars = PW_CHARS) => Array.from(randomBytes(n), b => chars[b % chars.length]).join('');
 
 // 逐字节比较，不因为前面几位对上了就早早返回
 function sameBytes(a, b) {
@@ -191,7 +193,8 @@ async function getUser(env, name) {
   return raw ? JSON.parse(raw) : null;
 }
 async function putUser(env, name, u) {
-  const metadata = { disabled: !!u.disabled, devices: (u.devices || []).length, note: String(u.note || '').slice(0, 200), createdAt: u.createdAt || 0 };
+  const metadata = { disabled: !!u.disabled, devices: (u.devices || []).length, note: String(u.note || '').slice(0, 200),
+    createdAt: u.createdAt || 0, initial: !!u.initial };
   await env.ACCOUNTS.put(userKey(name), JSON.stringify(u), { metadata });
 }
 
@@ -199,12 +202,13 @@ async function putUser(env, name, u) {
 const cleanName = raw => String(raw || '').trim();
 const nameOk = n => n.length >= 1 && n.length <= 32 && !/[\s/\\]/.test(n);
 
-async function newPassword(u) {
-  const password = randomText(10);
+const initialPassword = env => String(env.INITIAL_PASSWORD || INITIAL_PASSWORD);
+
+async function setPassword(u, password, initial) {
   u.salt = b64u(randomBytes(16));
   u.iter = PBKDF2_ITER;
   u.hash = await hashPassword(password, u.salt, u.iter);
-  return password;
+  u.initial = !!initial;
 }
 
 async function auth(path, request, env, cors) {
@@ -231,7 +235,7 @@ async function auth(path, request, env, cors) {
     u.devices.push({ id: device, label, at: Date.now() });
     u.devices = u.devices.slice(-MAX_DEVICES);
     await putUser(env, name, u);
-    return json({ ok: true, name, token: await makeToken(env, name, device) }, 200, cors);
+    return json({ ok: true, name, initial: !!u.initial, token: await makeToken(env, name, device) }, 200, cors);
   }
 
   if (path === '/auth/check') {
@@ -245,7 +249,29 @@ async function auth(path, request, env, cors) {
     if (!(u.devices || []).some(x => x.id === t.d)) {
       return json({ error: '该账号已在其他设备登录，本设备已退出', relogin: true }, 401, cors);
     }
-    return json({ ok: true, name: t.n, token: await makeToken(env, t.n, t.d) }, 200, cors);
+    return json({ ok: true, name: t.n, initial: !!u.initial, token: await makeToken(env, t.n, t.d) }, 200, cors);
+  }
+
+  // 自己改密码：要凭证、要原密码。改完之后别的设备退出，本机不退
+  if (path === '/auth/password') {
+    const t = await readToken(env, q.token);
+    if (!t) return json({ error: '登录已过期，请重新登录', relogin: true }, 401, cors);
+    if (t.n === ADMIN_NAME) return json({ error: '管理员密码在 Cloudflare 后台修改' }, 400, cors);
+    const u = await getUser(env, t.n);
+    if (!u || u.disabled || !(u.devices || []).some(x => x.id === t.d)) {
+      return json({ error: '登录已失效，请重新登录', relogin: true }, 401, cors);
+    }
+    if (!sameText(await hashPassword(q.old || '', u.salt, u.iter || PBKDF2_ITER), u.hash)) {
+      return json({ error: '原密码不正确' }, 400, cors);
+    }
+    const next = String(q.password || '');
+    if (next.length < MIN_PASSWORD) return json({ error: `新密码至少 ${MIN_PASSWORD} 位` }, 400, cors);
+    if (next.length > 64) return json({ error: '新密码最多 64 位' }, 400, cors);
+    if (next === initialPassword(env)) return json({ error: '新密码不能与初始密码相同' }, 400, cors);
+    await setPassword(u, next, false);
+    u.devices = (u.devices || []).filter(x => x.id === t.d);
+    await putUser(env, t.n, u);
+    return json({ ok: true, name: t.n }, 200, cors);
   }
 
   if (path === '/auth/logout') {
@@ -283,15 +309,14 @@ async function admin(q, env, cors) {
   }
 
   if (q.op === 'create') {
-    let n = name;
-    if (!n) {
-      for (let i = 0; i < 20 && (!n || await getUser(env, n)); i++) n = `u${randomText(6, '0123456789')}`;
-    }
+    const n = name;
+    if (!n) return json({ error: '请填写账号名' }, 400, cors);
     if (!nameOk(n)) return json({ error: '账号名为 1 到 32 个字，不能含空格与斜杠' }, 400, cors);
     if (n === ADMIN_NAME) return json({ error: 'admin 留给管理员自己登录，请换一个账号名' }, 400, cors);
     if (await getUser(env, n)) return json({ error: '这个账号名已经有了' }, 409, cors);
     const u = { note: String(q.note || '').slice(0, 200), createdAt: Date.now(), disabled: false, devices: [] };
-    const password = await newPassword(u);
+    const password = initialPassword(env);
+    await setPassword(u, password, true);
     await putUser(env, n, u);
     return json({ ok: true, name: n, password }, 200, cors);
   }
@@ -299,8 +324,10 @@ async function admin(q, env, cors) {
   const u = name ? await getUser(env, name) : null;
   if (!u) return json({ error: '没有这个账号' }, 404, cors);
 
+  // 重置：回到初始密码
   if (q.op === 'reset') {
-    const password = await newPassword(u);
+    const password = initialPassword(env);
+    await setPassword(u, password, true);
     u.devices = [];            // 改了密码，已登录的设备一并退出
     await putUser(env, name, u);
     return json({ ok: true, name, password }, 200, cors);

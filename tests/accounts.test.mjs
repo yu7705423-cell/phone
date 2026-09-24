@@ -60,13 +60,13 @@ ok('管理员密码少于 12 位：不认，写明原因', r.status === 503 && /
 
 r = await admin('create', { name: '小林', note: '第一批' });
 const pw1 = r.body?.password;
-ok('建号：指定账号名，给回随机十位密码', r.status === 200 && r.body.name === '小林' && /^[A-Za-z2-9]{10}$/.test(pw1 || ''), JSON.stringify(r.body));
+ok('建号：给回统一的初始密码 Eira2026', r.status === 200 && r.body.name === '小林' && pw1 === 'Eira2026', JSON.stringify(r.body));
 ok('密码不以明文存', ![...env.ACCOUNTS.m.values()].some(x => x.v.includes(pw1)));
 r = await admin('create', { name: '小林' });
 ok('重名：409', r.status === 409);
 r = await admin('create', {});
-const auto = r.body?.name;
-ok('不填账号名：自动生成 u 加六位数字', /^u\d{6}$/.test(auto || ''), auto);
+ok('不填账号名：拒绝，账号要手动填', r.status === 400 && /请填写账号名/.test(r.body.error), JSON.stringify(r.body));
+await admin('create', { name: '阿岚' });
 r = await admin('create', { name: 'a b' });
 ok('账号名含空格：拒绝', r.status === 400);
 await admin('create', { name: '第三个' });
@@ -79,7 +79,7 @@ ok('密码错：401，不说是哪一项错', r.status === 401 && r.body.error =
 r = await call(env, '/auth/login', { name: '没有这人', password: pw1, device: 'dev-a' });
 ok('没这个账号：同一句话', r.status === 401 && r.body.error === '账号或密码不正确');
 const loginA = await call(env, '/auth/login', { name: '小林', password: pw1, device: 'dev-a', label: 'iPhone' });
-ok('登录成功，给回凭证', loginA.status === 200 && loginA.body.token && loginA.body.name === '小林', JSON.stringify(loginA.body));
+ok('登录成功，给回凭证，标明还是初始密码', loginA.status === 200 && loginA.body.token && loginA.body.name === '小林' && loginA.body.initial === true, JSON.stringify(loginA.body));
 const tA = loginA.body.token;
 r = await call(env, '/auth/check', { token: tA });
 ok('检查凭证：通过，并换一张新的', r.status === 200 && r.body.token && r.body.name === '小林');
@@ -122,15 +122,35 @@ r = await call(env, '/auth/login', { name: '小林', password: pw1, device: 'dev
 ok('恢复后能登录', r.status === 200);
 const tB2 = r.body.token;
 
+// 先自己改一次，再让管理员重置
+const own = (await call(env, '/auth/login', { name: '小林', password: pw1, device: 'dev-b' })).body.token;
+r = await call(env, '/auth/password', { token: own, old: 'nope', password: 'mine-123' });
+ok('自己改密码：原密码不对，拒绝', r.status === 400 && /原密码/.test(r.body.error));
+r = await call(env, '/auth/password', { token: own, old: pw1, password: '123' });
+ok('自己改密码：太短，拒绝', r.status === 400 && /至少 6 位/.test(r.body.error));
+r = await call(env, '/auth/password', { token: own, old: pw1, password: 'Eira2026' });
+ok('自己改密码：不能改成初始密码', r.status === 400 && /初始密码/.test(r.body.error));
+const other = (await call(env, '/auth/login', { name: '小林', password: pw1, device: 'dev-q' })).body.token;
+r = await call(env, '/auth/password', { token: own, old: pw1, password: 'mine-123' });
+ok('自己改密码：成功', r.status === 200);
+ok('改完：本机照常', (await call(env, '/auth/check', { token: own })).status === 200);
+ok('改完：另一台设备退出', (await call(env, '/auth/check', { token: other })).status === 401);
+r = await call(env, '/auth/login', { name: '小林', password: pw1, device: 'dev-b' });
+ok('改完：初始密码不能再用', r.status === 401);
+r = await call(env, '/auth/login', { name: '小林', password: 'mine-123', device: 'dev-b' });
+ok('改完：新密码能用，不再标初始密码', r.status === 200 && r.body.initial === false);
+r = await admin('list');
+ok('管理页列表：改过的不再标初始密码', r.body.users.find(u => u.name === '小林')?.initial === false);
+
 r = await admin('reset', { name: '小林' });
 const pw2 = r.body?.password;
-ok('重置密码：给回新密码', pw2 && pw2 !== pw1);
+ok('重置密码：回到初始密码', pw2 === 'Eira2026');
 r = await call(env, '/auth/check', { token: tB2 });
 ok('重置后：已登录的设备一并退出', r.status === 401);
-r = await call(env, '/auth/login', { name: '小林', password: pw1, device: 'dev-b' });
-ok('旧密码不能用了', r.status === 401);
+r = await call(env, '/auth/login', { name: '小林', password: 'mine-123', device: 'dev-b' });
+ok('重置后：自己改的密码不能用了', r.status === 401);
 r = await call(env, '/auth/login', { name: '小林', password: pw2, device: 'dev-b' });
-ok('新密码能用', r.status === 200);
+ok('重置后：初始密码能用', r.status === 200 && r.body.initial === true);
 const tB3 = r.body.token;
 
 await admin('kick', { name: '小林' });
