@@ -13,7 +13,7 @@ self.addEventListener('push', event => {
   let data = {};
   try { data = event.data ? event.data.json() : {}; } catch { data = { body: event.data && event.data.text() }; }
 
-  const title = data.title || '小手机';
+  const title = data.title || 'Eira';
   const options = {
     body: data.body || '有新消息',
     icon: data.icon || 'icon-192.png',

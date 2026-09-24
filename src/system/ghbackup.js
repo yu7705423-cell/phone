@@ -119,9 +119,9 @@ async function head(c, branch) {
     await gh(`/repos/${c.repo}/contents/${c.dir}/README.md`, {
       method: 'PUT',
       body: {
-        message: '小手机备份',
+        message: 'Eira 备份',
         branch,
-        content: b64OfText('小手机的备份。backup.json 是数据，images 与 files 是图片与音视频。\n'
+        content: b64OfText('Eira 的备份。backup.json 是数据，images 与 files 是图片与音视频。\n'
           + '在「设置 - 存储与备份 - 备份到 GitHub」里恢复。\n'),
       },
     });

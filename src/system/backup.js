@@ -154,12 +154,12 @@ export async function restore(file, { onProgress } = {}) {
       const names = [...found.keys()].slice(0, 5).join('、');
       throw new Error(names
         ? `包里没有 backup.json。里面是：${names}${found.size > 5 ? ' 等' : ''}`
-        : '这个包里一条记录都读不出来，可能不是小手机的备份');
+        : '这个包里一条记录都读不出来，可能不是 Eira 的备份');
     }
     data = JSON.parse(await json.text());
     media = found;
   }
-  if (data._format !== FORMAT) throw new Error('不是小手机的备份文件');
+  if (data._format !== FORMAT) throw new Error('不是 Eira 的备份文件');
 
   // 备份比本机新：里面的结构这个版本还不认识，灌进来只会坏得更难查。
   // 宁可在这儿停住，也不要恢复出一份半懂不懂的库。

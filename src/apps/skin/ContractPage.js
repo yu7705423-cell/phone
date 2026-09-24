@@ -25,7 +25,7 @@ const scopeLabel = ids => ids
 /** 整份说明的 Markdown。作者拿去贴在自己的仓库里。 */
 function markdown() {
   const L = [];
-  L.push(`# 小手机美化契约 v${skin.CONTRACT_VERSION}`);
+  L.push(`# Eira 美化契约 v${skin.CONTRACT_VERSION}`);
   L.push('');
   L.push('一份美化就是一段 CSS，加上一点说明。下面这些名字一经发布不再改动，');
   L.push('照着写即可。内部类名不在此列，随时会变，不要依赖。');

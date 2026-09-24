@@ -66,7 +66,7 @@ function Banner({ item, onDone }) {
       </div>
       <div class="banner-text">
         <div class="banner-head">
-          <span class="banner-app ellipsis">${app?.name || '小手机'}</span>
+          <span class="banner-app ellipsis">${app?.name || 'Eira'}</span>
           <span class="banner-time">${hh}:${mm}</span>
         </div>
         <div class="banner-title ellipsis">

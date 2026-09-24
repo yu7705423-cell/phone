@@ -11,7 +11,7 @@ function Sample({ id }) {
   const fam = id ? fonts.familyOf(id) : null;
   return html`
     <div class="font-sample" style=${fam ? `font-family:${fam}, var(--font)` : ''}>
-      小手机 Aa 永 132
+      Eira Aa 永 132
     </div>`;
 }
 

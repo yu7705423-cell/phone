@@ -51,7 +51,7 @@ export function StoragePage() {
       const day = new Date().toISOString().slice(0, 10);
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = media ? `小手机备份-${day}.zip` : `小手机备份-${day}.json`;
+      a.download = media ? `Eira备份-${day}.zip` : `Eira备份-${day}.json`;
       a.click();
       setTimeout(() => URL.revokeObjectURL(a.href), 4000);
       phone.safekeep.markBackedUp();

@@ -189,7 +189,7 @@ function Home() {
       <div class="settings-foot">
         我的人设在「聊天」里的「主页」中编辑<br/>
         上下文、记忆与 Prompt 模板在会话右上角的菜单里<br/>
-        小手机 · 本地运行，数据只存在这台设备上<br/>
+        Eira · 本地运行，数据只存在这台设备上<br/>
         构建 ${BUILD}${shell ? ` · 外壳 ${shell}` : ''}
       </div>
     <//>`;

@@ -87,7 +87,7 @@ export async function ask() {
     const got = await callNative('request');
     nativePerm = got.permission || 'default';
     if (nativePerm !== 'granted') {
-      throw new Error('通知被拒了。到系统「设置 - 通知 - 小手机」里重新打开');
+      throw new Error('通知被拒了。到系统「设置 - 通知 - Eira」里重新打开');
     }
     return nativePerm;
   }
@@ -95,7 +95,7 @@ export async function ask() {
   await register();
   const p = await Notification.requestPermission();
   if (p !== 'granted') throw new Error(p === 'denied'
-    ? '通知被拒了。iOS 要到「设置 - 通知 - 小手机」里重新打开'
+    ? '通知被拒了。iOS 要到「设置 - 通知 - Eira」里重新打开'
     : '没有授权');
   return p;
 }
@@ -111,7 +111,7 @@ export async function show({ title, body, route, appId, icon, tag }) {
     return;
   }
   const r = await registration() || await register();
-  await r.showNotification(title || '小手机', {
+  await r.showNotification(title || 'Eira', {
     body: body || '',
     icon: icon || 'icon-192.png',
     badge: 'icon-192.png',

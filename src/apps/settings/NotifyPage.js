@@ -6,7 +6,7 @@ const { db, nav, sound, notify, push } = phone;   // notify 就是 notify()，�
 
 const PERM_TEXT = {
   granted: '已授权',
-  denied: '被拒了。iOS 要到「设置 - 通知 - 小手机」里重新打开',
+  denied: '被拒了。iOS 要到「设置 - 通知 - Eira」里重新打开',
   default: '还没问过',
   unsupported: '这个浏览器不支持',
 };
