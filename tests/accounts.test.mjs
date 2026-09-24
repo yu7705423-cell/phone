@@ -52,6 +52,20 @@ ok('没绑 KV：网易云转发不要登录', r.status === 200 && r.body.status 
 r = await call({}, '/auth/login', { name: 'a', password: 'b', device: 'd' });
 ok('没绑 KV：登录接口说明本站未启用', r.status === 503 && /尚未启用/.test(r.body.error), JSON.stringify(r));
 
+// ---- 后台里的名字不必一字不差 ----
+r = await worker.fetch(new Request('https://w.example.workers.dev/', { method: 'GET' }), { ACCOUNTS: fakeKV() });
+b = await r.json();
+ok('只绑了 KV：报出缺管理员密码', b.accounts === false && b.setup?.kv === '已绑定' && /没有设置 ADMIN_PASSWORD/.test(b.setup?.adminPassword), JSON.stringify(b));
+r = await worker.fetch(new Request('https://w.example.workers.dev/', { method: 'GET' }), { ADMIN_PASSWORD: 'short' });
+b = await r.json();
+ok('没绑 KV、密码太短：两样都报出来', /没有绑定 KV/.test(b.setup?.kv) && /只有 5 位/.test(b.setup?.adminPassword), JSON.stringify(b));
+const odd = { 'eira-accounts': fakeKV(), ' admin_password ': ADMIN };
+r = await worker.fetch(new Request('https://w.example.workers.dev/', { method: 'GET' }), odd);
+b = await r.json();
+ok('KV 绑成别的名字、密码变量名小写带空格：照样认出来', b.accounts === true, JSON.stringify(b));
+r = await call(odd, '/auth/admin', { password: ADMIN, op: 'create', name: '测试' });
+ok('那样绑的也能正常添加账号', r.status === 200 && r.body.password === 'Eira2026', JSON.stringify(r.body));
+
 // ---- 管理员 ----
 r = await call(env, '/auth/admin', { password: 'wrong', op: 'list' });
 ok('管理员密码不对：401', r.status === 401);

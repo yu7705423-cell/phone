@@ -71,7 +71,7 @@ export default {
     const path = new URL(request.url).pathname.replace(/\/+$/, '');
     // 应用用它来认出这是转发 Worker、是哪一版、账号功能开没开
     if (request.method === 'GET') {
-      return json({ ok: true, name: 'mini-phone-netease', version: VERSION, accounts: accountsOn(env) }, 200, cors);
+      return json({ ok: true, name: 'mini-phone-netease', version: VERSION, accounts: accountsOn(env), setup: setupOf(env) }, 200, cors);
     }
     if (request.method !== 'POST') return json({ error: '只接受 POST' }, 405, cors);
     if (path.startsWith('/auth/')) return auth(path, request, env, cors);
@@ -123,8 +123,27 @@ export default {
 // 凭证：{ 账号名, 设备号, 过期时间 } 做 HMAC 签名，密钥由管理员密码推出（见 tokenKey）。
 // 管理员：密码是 Worker 的环境变量 ADMIN_PASSWORD，少于 12 位不认。
 
-const accountsOn = env => !!(env && env.ACCOUNTS && env.ADMIN_PASSWORD);
-const adminPwOk = env => String(env.ADMIN_PASSWORD || '').length >= 12;
+// 后台里的名字不必一字不差：绑了哪个名字的 KV 都认（找第一个长得像 KV 的绑定），
+// 管理员密码与初始密码的变量名不分大小写、不管首尾空格。按名字认不出来的人太多了
+const looksKV = v => v && typeof v.get === 'function' && typeof v.put === 'function' && typeof v.list === 'function';
+const kv = env => (env ? (looksKV(env.ACCOUNTS) ? env.ACCOUNTS : Object.values(env).find(looksKV)) : null) || null;
+const envText = (env, name) => {
+  if (!env) return '';
+  const k = Object.keys(env).find(x => x.trim().toUpperCase() === name);
+  return k && typeof env[k] === 'string' ? env[k] : '';
+};
+const adminPw = env => envText(env, 'ADMIN_PASSWORD');
+const adminPwOk = env => adminPw(env).length >= 12;
+const accountsOn = env => !!(kv(env) && adminPwOk(env));
+
+// 打开 Worker 地址时报的那几项：缺哪样一眼看得出来。只报有没有，不报内容
+function setupOf(env) {
+  const pw = adminPw(env);
+  return {
+    kv: kv(env) ? '已绑定' : '没有绑定 KV',
+    adminPassword: !pw ? '没有设置 ADMIN_PASSWORD' : pw.length < 12 ? `ADMIN_PASSWORD 只有 ${pw.length} 位，至少要 12 位` : '已设置',
+  };
+}
 // 留给管理员自己登录的账号名（见 /auth/login）
 const ADMIN_NAME = 'admin';
 const te = new TextEncoder();
@@ -161,7 +180,7 @@ async function hashPassword(password, salt, iter) {
 let secretKey = null;
 let secretFor = '';
 async function tokenKey(env) {
-  const pw = String(env.ADMIN_PASSWORD || '');
+  const pw = adminPw(env);
   if (secretKey && secretFor === pw) return secretKey;
   const raw = await crypto.subtle.digest('SHA-256', te.encode(`eira-token|${pw}`));
   secretKey = await crypto.subtle.importKey('raw', raw, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign', 'verify']);
@@ -189,20 +208,20 @@ async function readToken(env, token) {
 
 const userKey = name => `user:${name}`;
 async function getUser(env, name) {
-  const raw = await env.ACCOUNTS.get(userKey(name));
+  const raw = await kv(env).get(userKey(name));
   return raw ? JSON.parse(raw) : null;
 }
 async function putUser(env, name, u) {
   const metadata = { disabled: !!u.disabled, devices: (u.devices || []).length, note: String(u.note || '').slice(0, 200),
     createdAt: u.createdAt || 0, initial: !!u.initial };
-  await env.ACCOUNTS.put(userKey(name), JSON.stringify(u), { metadata });
+  await kv(env).put(userKey(name), JSON.stringify(u), { metadata });
 }
 
 // 账号名：去掉首尾空白，1 到 32 个字，不含空白与斜杠
 const cleanName = raw => String(raw || '').trim();
 const nameOk = n => n.length >= 1 && n.length <= 32 && !/[\s/\\]/.test(n);
 
-const initialPassword = env => String(env.INITIAL_PASSWORD || INITIAL_PASSWORD);
+const initialPassword = env => envText(env, 'INITIAL_PASSWORD') || INITIAL_PASSWORD;
 
 async function setPassword(u, password, initial) {
   u.salt = b64u(randomBytes(16));
@@ -212,7 +231,11 @@ async function setPassword(u, password, initial) {
 }
 
 async function auth(path, request, env, cors) {
-  if (!accountsOn(env)) return json({ error: '本站尚未启用账号功能' }, 503, cors);
+  if (!accountsOn(env)) {
+    const st = setupOf(env);
+    const why = [st.kv, st.adminPassword].filter(x => x !== '已绑定' && x !== '已设置').join('；');
+    return json({ error: `本站尚未启用账号功能（${why}）` }, 503, cors);
+  }
   let q;
   try { q = await request.json(); } catch { return json({ error: '请求内容不是 JSON' }, 400, cors); }
 
@@ -223,7 +246,7 @@ async function auth(path, request, env, cors) {
     const bad = () => json({ error: '账号或密码不正确' }, 401, cors);
     // 管理员自己：账号名 admin，密码就是管理员密码。开通之后第一次进应用、发第一个账号靠它
     if (name === ADMIN_NAME) {
-      if (!adminPwOk(env) || !sameText(q.password, env.ADMIN_PASSWORD)) return bad();
+      if (!adminPwOk(env) || !sameText(q.password, adminPw(env))) return bad();
       return json({ ok: true, name, token: await makeToken(env, name, device) }, 200, cors);
     }
     const u = await getUser(env, name);
@@ -291,7 +314,7 @@ async function auth(path, request, env, cors) {
 }
 
 async function admin(q, env, cors) {
-  const real = String(env.ADMIN_PASSWORD || '');
+  const real = adminPw(env);
   if (!adminPwOk(env)) return json({ error: '管理员密码未设置或少于 12 位，请在 Cloudflare 后台重新设置' }, 503, cors);
   if (!sameText(q.password || '', real)) return json({ error: '管理员密码不正确' }, 401, cors);
   const name = cleanName(q.name);
@@ -300,7 +323,7 @@ async function admin(q, env, cors) {
     const users = [];
     let cursor;
     do {
-      const page = await env.ACCOUNTS.list({ prefix: 'user:', cursor });
+      const page = await kv(env).list({ prefix: 'user:', cursor });
       page.keys.forEach(k => users.push({ name: k.name.slice(5), ...(k.metadata || {}) }));
       cursor = page.list_complete ? undefined : page.cursor;
     } while (cursor);
@@ -349,7 +372,7 @@ async function admin(q, env, cors) {
     return json({ ok: true, name }, 200, cors);
   }
   if (q.op === 'remove') {
-    await env.ACCOUNTS.delete(userKey(name));
+    await kv(env).delete(userKey(name));
     return json({ ok: true, name }, 200, cors);
   }
   if (q.op === 'devices') {
