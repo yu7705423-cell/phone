@@ -173,6 +173,7 @@ export function GenPage({ id }) {
                 <button type="button" class="gen-panel-close press"
                   onClick=${() => setOpen('')}>收起</button>
               </div>
+              ${group?.desc ? html`<div class="gen-panel-desc">${group.desc}</div>` : null}
 
               ${clashes.length ? html`
                 <div class="pad-x">

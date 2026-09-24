@@ -106,45 +106,9 @@ await page.evaluate(async (skinId) => {
 }, ids.skinId);
 await page.waitForTimeout(700);
 
-// ---- 类名那一页：每一条命中几处 ----
-await page.locator('.seg-item, .segmented button').filter({hasText:'类名'}).first().click();
-await page.waitForTimeout(900);
-const rows = await page.evaluate(() => [...document.querySelectorAll('.list-item')]
-  .map(el => el.innerText.replace(/\n/g, ' ')).filter(t => t.startsWith('.')));
-// 「.msg.is-mine .bubble」里也有空格，不能按第一个空格切。按前缀找最长的那条
-const pickRow = (list, sel) => list.filter(t => t.startsWith(sel + ' '))
-  .sort((a, b) => a.length - b.length)[0] || '';
-const rowFor = sel => pickRow(rows, sel);
-const table = await page.evaluate(async () => {
-  const skin=await import('/src/system/skin.js');
-  return skin.CLASSES.map(c => ({ sel:c.sel, needs: c.needs || '' }));
-});
-const unconditional = table.filter(c => !c.needs);
-const missed = unconditional.filter(c => !/(样板间|本页)中 \d+ 处/.test(rowFor(c.sel)));
-ok('没有附加条件的每一条，都真的命中了',
-  missed.length === 0, missed.map(c => `${c.sel}: ${rowFor(c.sel)}`).join(' | '));
-ok('表里的条数和页面上列出的一样多', rows.length === table.length, `${rows.length} / ${table.length}`);
-ok('命中不到的那几条说得出需要什么',
-  table.filter(c => c.needs).every(c => /暂不可见，需要/.test(rowFor(c.sel))),
-  table.filter(c => c.needs).map(c => rowFor(c.sel)).join(' | '));
-ok('没有一条被判成「该选择器可能已失效」',
-  !rows.some(t => /可能已失效/.test(t)), rows.filter(t => /可能已失效/.test(t)).join(' | '));
-ok('头像那一块也列进去了', /\.msg-face/.test(rowFor('.msg-face')), rowFor('.msg-face'));
-
-// ---- 打开「消息时刻」，那几条当场从「暂不可见」变成命中 ----
-ok('开之前，消息时刻是暂不可见', /暂不可见/.test(rowFor('.msg-stamp')), rowFor('.msg-stamp'));
-await page.evaluate(async () => {
-  const db=await import('/src/system/db/index.js');
-  db.settings.set({ msgStamp:'side', msgRead:true });
-});
-await page.waitForTimeout(1000);
-const rows2 = await page.evaluate(() => [...document.querySelectorAll('.list-item')]
-  .map(el => el.innerText.replace(/\n/g, ' ')).filter(t => t.startsWith('.')));
-const rowFor2 = sel => pickRow(rows2, sel);
-ok('开了之后，消息时刻命中了', /样板间中 \d+ 处/.test(rowFor2('.msg-stamp')), rowFor2('.msg-stamp'));
-ok('已读回执同样', /样板间中 \d+ 处/.test(rowFor2('.msg-read')), rowFor2('.msg-read'));
-ok('那行小字也出来了', /样板间中 \d+ 处/.test(rowFor2('.msg-meta')), rowFor2('.msg-meta'));
-
+// 从前这里还有一页「类名」，逐条数内部类名（.msg、.bubble……）在样板间里命中几处。
+// 内部类名不对外承诺（CLAUDE.md 第 18 条），那一页与那张表一并去掉；对外的是 ph- 那一套，
+// 在「美化」app 的「写给作者」里，由 stage.mjs 与 contract 两个测试盯着
 await page.screenshot({path:`${OUT}/mounts.png`, fullPage:true});
 ok('全程没有运行时报错', errs.length===0, errs.join(' | '));
 

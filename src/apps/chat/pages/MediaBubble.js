@@ -97,7 +97,7 @@ function VoiceBubble({ msg, char }) {
 
   return html`
     <div class="voice-wrap">
-      <button class="bubble bubble-voice press" onClick=${toggle}>
+      <button class="bubble bubble-voice ph-voice press" onClick=${toggle}>
         <${Icon} name=${playing ? 'close' : 'headphone'} size=${16}/>
         <span class="voice-bars">${[...Array(4)].map((_, i) => html`
           <i key=${i} class=${playing ? 'is-on' : ''} style=${`height:${6 + (i % 3) * 4}px`}></i>`)}</span>
@@ -113,7 +113,7 @@ function VoiceBubble({ msg, char }) {
       ${showText ? html`
         <div class="voice-text">
           ${msg.voiceText || '（没有文字）'}
-          ${msg.translation ? html`<div class="voice-trans">${msg.translation}</div>` : null}
+          ${msg.translation ? html`<div class="voice-trans ph-trans">${msg.translation}</div>` : null}
           ${msg.tone ? html`<div class="voice-tone">听起来${msg.tone}</div>` : null}
         </div>` : null}
     </div>`;

@@ -129,11 +129,8 @@ await page.evaluate(async ({chatId}) => {
 }, ids);
 await page.waitForTimeout(900);
 let t = await page.locator('.page').last().innerText();
-ok('「尺寸」那一页不再有头像框的开关', !/谁戴这个框/.test(t), t.slice(0,300));
-await page.locator('.seg-item, .segmented button').filter({hasText:'尺寸'}).first().click();
-await page.waitForTimeout(600);
-t = await page.locator('.page').last().innerText();
-ok('「尺寸」那一页指路到生成器', /头像框在「生成」/.test(t), t.slice(0,400));
+ok('会话的美化页不再有头像框的开关', !/谁戴这个框/.test(t), t.slice(0,300));
+ok('会话的美化页指路到生成器', /头像框.*在「美化」的生成器/.test(t), t.slice(0,400));
 
 const moved = await page.evaluate(async (skinId) => {
   const skin=await import('/src/system/skin.js');

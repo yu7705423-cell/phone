@@ -1,6 +1,6 @@
 import { html, useState, useRef } from '../../lib.js';
 import { phone, useStore } from '../../sdk/index.js';
-import { Page, List, ListItem, Button, Icon, Switch,
+import { Page, List, ListItem, Button, Icon, Switch, Field, NumberInput, Textarea,
          EmptyState, toast, confirm, prompt } from '../../ui/index.js';
 import { Preview } from './Preview.js';
 import { ContractPage } from './ContractPage.js';
@@ -10,14 +10,61 @@ const { db, nav, skin, intent } = phone;
 
 // 美化库。
 //
-// **这里不改样式。** 调样式要看着真气泡改，而那个样板间用的是 chat 里真的
-// `Bubble` 组件，只在会话里有（第 8 条：app 之间不能互相 import）。
-// 把编辑搬过来等于对着一个假样板调，是退步；两边都能改则违反第 5 条
-// 「同一个开关只能有一个入口」。
+// 分工：**会话里只管「这段会话挂哪一份」**（挂上、换一份、取下、导入，外加头像形状
+// 与显示这两样最常动的），**改一份美化本身都在这里**：生成器、尺寸、自定义 CSS、
+// 复制与导出、改名、删除。改的是这一份，挂着它的每段会话都跟着变，放在某一段会话里
+// 反而让人以为只改了那一段。
 //
-// 所以分工是：**这里管「有哪些」，会话里管「长什么样」。**
-// 这一页填的是从前真正缺的那几件：导入别人的美化包不必先找一段对话、
-// 终于看得到「我所有的美化」、以及删之前知道会影响哪几段会话。
+// 这里的预览是复刻页（system/skin-stage.js），契约钩子那一层和真会话页对得上
+// （stage.mjs 盯着）。要看真气泡，回到挂着它的会话里。
+
+// 尺寸：已经是变量的那几样（skin.TOKENS），逐项可回退
+function SizePage({ id }) {
+  useStore(db.skins.store);
+  const row = skin.get(id);
+  if (!row) return html`<${Page} title="尺寸" onBack=${nav.pop}><${EmptyState} title="这一份已经不在了"/><//>`;
+  const setToken = (k, v) => skin.update(id, { tokens: { ...(row.tokens || {}), [k]: v } });
+  return html`
+    <${Page} title="尺寸" onBack=${nav.pop}>
+      <${Preview} row=${row}/>
+      <div class="pad-x pad-t">
+        ${skin.TOKENS.map(t => html`
+          <${Field} key=${t.id} label=${t.label}
+            desc=${`${t.desc ? t.desc + '。' : ''}留空表示不改，使用默认值 ${t.def}${t.unit}。`}>
+            <${NumberInput} value=${row.tokens?.[t.id] ?? 0} unit=${t.unit}
+              placeholder=${`默认 ${t.def}`} min=${0}
+              onChange=${v => setToken(t.id, v || '')}/>
+          <//>`)}
+        <div class="pad-t">
+          <${Button} variant="ghost" onClick=${() => skin.update(id, { tokens: {} })}>尺寸全部恢复默认<//>
+        </div>
+      </div>
+    <//>`;
+}
+
+// 手写的那一段。排在生成器那一段之后
+function CssPage({ id }) {
+  useStore(db.skins.store);
+  const row = skin.get(id);
+  if (!row) return html`<${Page} title="自定义 CSS" onBack=${nav.pop}><${EmptyState} title="这一份已经不在了"/><//>`;
+  return html`
+    <${Page} title="自定义 CSS" onBack=${nav.pop}>
+      <${Preview} row=${row}/>
+      <div class="pad-x pad-t">
+        <${Field} label="自定义 CSS"
+          desc="挂着这一份的会话打开时生效，离开立即移除。这一段排在生成器那一段之后，要覆盖生成器的样式需要写 !important。可用的类名见「写给作者」。">
+          <${Textarea} rows=${16} value=${row.css || ''}
+            placeholder=".ph-bubble { box-shadow: none; }"
+            onInput=${v => skin.update(id, { css: v })}/>
+        <//>
+      </div>
+      <${List}>
+        <${ListItem} title="写给作者" arrow multiline subtitle="可用的类名与变量"
+          left=${html`<${Icon} name="book" size=${18}/>`}
+          onClick=${() => nav.push('/contract')}/>
+      <//>
+    <//>`;
+}
 
 function ListPage() {
   useStore(db.skins.store);
@@ -84,7 +131,8 @@ function ListPage() {
       <//>
 
       <div class="settings-foot">
-        调整样式请在会话中进行：那里的样板间是真实的气泡组件，改动即时可见。
+        生成器、尺寸与自定义 CSS 在每一份的页面里。会话的美化页用于挂上、切换，
+        并以真实的气泡查看效果。
       </div>
     <//>`;
 }
@@ -118,6 +166,13 @@ function OnePage({ id }) {
   const rename = async () => {
     const v = await prompt({ title: '改名', value: row.name });
     if (v !== null) skin.update(id, { name: v.trim() || '未命名' });
+  };
+
+  const copyCss = async () => {
+    const css = skin.compile(row);
+    if (!css.trim()) { toast('这一份还没有任何样式'); return; }
+    try { await navigator.clipboard.writeText(css); toast(`已复制 ${css.split('\n').length} 行 CSS`, 'ok'); }
+    catch { toast('复制失败，浏览器未允许访问剪贴板', 'error'); }
   };
 
   const copy = () => {
@@ -182,6 +237,21 @@ function OnePage({ id }) {
       <div class="pad">
         <${Button} full icon="edit" onClick=${() => nav.push(`/gen/${id}`)}>打开生成器<//>
       </div>
+      <${List} title="样式">
+        <${ListItem} title="尺寸" arrow multiline subtitle="头像大小、气泡圆角、间距、字号等"
+          onClick=${() => nav.push(`/size/${id}`)}/>
+        <${ListItem} title="自定义 CSS" arrow multiline
+          subtitle=${(row.css || '').trim() ? `已写 ${row.css.trim().split('\n').length} 行` : '尚未填写'}
+          onClick=${() => nav.push(`/css/${id}`)}/>
+        <${ListItem} title="复制 CSS" multiline
+          subtitle="复制这一份最终生效的全部样式（尺寸、生成器与自定义 CSS），可直接粘贴给他人或粘进自定义 CSS"
+          left=${html`<${Icon} name="copy" size=${18}/>`}
+          onClick=${copyCss}/>
+        ${skin.crashed(id) ? html`
+          <${ListItem} title="已暂停注入" multiline
+            subtitle="上次打开挂着它的会话时没能正常显示。确认改好之后点此恢复"
+            onClick=${() => { skin.forgive(); toast('已恢复', 'ok'); }}/>` : null}
+      <//>
       <div class="settings-foot">
         这是静态预览，用于辨认这一份大致是什么样子。
         实时效果请在会话中查看：那里的样板间使用真实的气泡组件。
@@ -194,8 +264,8 @@ function OnePage({ id }) {
             onClick=${() => intent.open('chat', { route: `/skin/${c.id}`, back: true })}/>`)
         : html`<${ListItem} title="尚未用于任何会话" multiline
             subtitle="挂到一段会话上之后，它只在那段会话的页面里生效"/>`}
-        <${ListItem} title="挂到一段会话并前往调整" arrow multiline
-          subtitle="样式在会话中调整，那里可以实时看到效果"
+        <${ListItem} title="挂到一段会话" arrow multiline
+          subtitle="挂上之后在那段会话里生效，可在会话的美化页查看真实气泡的效果"
           left=${html`<${Icon} name="edit" size=${18}/>`}
           onClick=${() => chats.length ? setPicking(true) : toast('还没有任何会话')}/>
       <//>
@@ -242,6 +312,10 @@ function OnePage({ id }) {
 
 export default function SkinApp({ route }) {
   if (route === '/contract') return html`<${ContractPage}/>`;
+  const sz = route?.match(/^\/size\/(.+)$/);
+  if (sz) return html`<${SizePage} id=${sz[1]}/>`;
+  const cs = route?.match(/^\/css\/(.+)$/);
+  if (cs) return html`<${CssPage} id=${cs[1]}/>`;
   const g = route?.match(/^\/gen\/(.+)$/);
   if (g) return html`<${GenPage} id=${g[1]}/>`;
   const one = route?.match(/^\/one\/(.+)$/);

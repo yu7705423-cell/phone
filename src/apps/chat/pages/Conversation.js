@@ -290,7 +290,7 @@ export const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, o
                   ? () => setOpenTrans(v => !v) : null}>
                 ${p}
                 ${trans && i === parts.length - 1 && showTrans ? html`
-                  <div class="bubble-trans">${trans}</div>` : null}
+                  <div class="bubble-trans ph-trans">${trans}</div>` : null}
               </div>`)
           : null}
 

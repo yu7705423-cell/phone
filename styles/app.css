@@ -673,6 +673,11 @@ input[type="range"] {
   background: var(--bg); border-bottom: 1px solid var(--border);
 }
 .gen-panel-title { font-size: var(--fs-14); font-weight: var(--fw-semi); color: var(--text); }
+/* 这一组改的是哪个类名。手写 CSS 的人照着抄 */
+.gen-panel-desc {
+  padding: 0 var(--sp-4) var(--sp-2); font-size: var(--fs-12); color: var(--text-3);
+  font-family: var(--font-mono); user-select: text; -webkit-user-select: text;
+}
 .gen-panel-close {
   border: 0; background: none; color: var(--text-2); font-size: var(--fs-13);
   padding: 2px var(--sp-1);

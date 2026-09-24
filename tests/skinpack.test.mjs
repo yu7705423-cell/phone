@@ -66,14 +66,30 @@ const ids = await page.evaluate(async () => {
   const chat=db.chats.create({ characterIds:[c.id], title:'阿岚' });
   const s=skin.create({ name:'测试皮', tokens:{bubbleR:18}, shape:'soft', css:'.bubble{opacity:.9}' });
   skin.attach(chat.id, s.id);
-  return { chatId: chat.id };
+  return { chatId: chat.id, skinId: s.id };
 });
+// 导出改的是这一份美化本身，在「美化」app 里那一份的页面上；会话里的美化页只管挂哪一份
 await page.evaluate(async ({chatId}) => {
   const n=await import('/src/system/nav.js');
   n.unlock(); n.openApp('chat','/'); n.popToRoot(); n.push(`/skin/${chatId}`);
 }, ids);
 await page.waitForSelector('.page'); await page.waitForTimeout(700);
-ok('详情页出现「导出美化包」', /导出美化包/.test(await page.locator('.page').innerText()));
+const chatSkin = await page.locator('.app-layer').innerText();
+ok('会话里的美化页不再放导出、尺寸、自定义 CSS', !/导出美化包|尺寸|自定义 CSS/.test(chatSkin.replace(/在「美化」中编辑尺寸、生成器与自定义 CSS/, '')), chatSkin.slice(0, 400));
+ok('会话里的美化页有头像形状与显示头像', /头像形状/.test(chatSkin) && /显示头像/.test(chatSkin));
+await page.evaluate(async ({skinId}) => {
+  const n=await import('/src/system/nav.js');
+  n.goHome(); n.openApp('skin', `/one/${skinId}`);
+}, ids);
+await page.waitForSelector('.page'); await page.waitForTimeout(700);
+ok('美化 app 里那一份的页面出现「导出美化包」', /导出美化包/.test(await page.locator('.app-layer').innerText()));
+
+// 复制 CSS：尺寸、生成器、自定义 CSS 合在一起的那一整段
+await page.evaluate(() => { window.__clip = ''; navigator.clipboard.writeText = async t => { window.__clip = t; }; });
+await page.locator('.list-item').filter({hasText:'复制 CSS'}).first().click();
+await page.waitForTimeout(300);
+const clip = await page.evaluate(() => window.__clip);
+ok('复制 CSS：拿到的是这一份最终生效的全部样式', /--ph-bubble-r:18px/.test(clip) && /opacity:\.9/.test(clip), clip.slice(0, 200));
 // 记下点下载那一刻 a.download 是什么。
 // **不用 Playwright 的 suggestedFilename()** —— 这个 context 里它稳定回
 // 「download」，而页面明明设对了；测的该是页面的行为，不是它的转述
@@ -101,14 +117,14 @@ if (dl) {
     JSON.stringify(got).slice(0,140));
 }
 
-// ---- 界面：导入 ----
-await page.evaluate(async () => {
+// ---- 界面：导入（会话里的美化页） ----
+await page.evaluate(async ({chatId}) => {
   const skin=await import('/src/system/skin.js');
-  const db=await import('/src/system/db/index.js');
-  const chat=db.chats.all()[0];
-  skin.detach(chat.id);          // 回到选择页
-});
-await page.waitForTimeout(600);
+  skin.detach(chatId);          // 回到选择页
+  const n=await import('/src/system/nav.js');
+  n.goHome(); n.openApp('chat','/'); n.popToRoot(); n.push(`/skin/${chatId}`);
+}, ids);
+await page.waitForTimeout(800);
 ok('选择页出现「导入美化包」', /导入美化包/.test(await page.locator('.page').innerText()),
   (await page.locator('.page').innerText()).slice(0,200));
 const pack = JSON.stringify({ kind:'phone-skin', version:1, name:'别人给的',

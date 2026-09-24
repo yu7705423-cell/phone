@@ -88,6 +88,19 @@ export const HOOKS = [
   { hook: 'read', label: '已读回执', on: ['chat'], since: 1, needs: '开启已读回执' },
   { hook: 'time-sep', label: '消息之间居中的那行时间', on: ['chat'], since: 2,
     needs: '消息时刻为「按间隔」，且两条消息相隔五分钟以上' },
+  { hook: 'trans', label: '气泡里的译文', on: ['chat'], since: 2,
+    needs: '这段会话开启了翻译，并已展开译文',
+    note: '文字气泡与语音转写下面的译文共用它' },
+
+  // ---- 会话：各类卡片气泡 ----
+  { hook: 'transfer', label: '转账卡片', on: ['chat'], since: 2, needs: '会话中出现转账',
+    note: '已收款、已退还时另带内部类名 is-done' },
+  { hook: 'voice', label: '语音气泡', on: ['chat'], since: 2, needs: '会话中出现语音消息' },
+  { hook: 'call', label: '通话结束后的那条记录', on: ['chat'], since: 2, needs: '会话中有过通话',
+    note: '未接通时另带内部类名 is-miss' },
+  { hook: 'location', label: '位置卡片', on: ['chat'], since: 2, needs: '会话中出现位置' },
+  { hook: 'gift', label: '礼物卡片', on: ['chat'], since: 2, needs: '会话中出现礼物',
+    note: '拆开之后另带内部类名 is-done' },
 
   // ---- 会话：底栏 ----
   { hook: 'composer', label: '底栏', on: ['chat'], since: 1 },

@@ -47,6 +47,44 @@ export const WHICH = [
   { id: 'last', label: '只有最后一个' },
 ];
 
+/** 哪一边显示头像。不显示的那一边连位置一起收掉，气泡贴着屏幕边。 */
+export const FACE_SHOW = [
+  { id: 'both', label: '双方' },
+  { id: 'theirs', label: '仅角色' },
+  { id: 'mine', label: '仅自己' },
+  { id: 'none', label: '都不显示' },
+];
+
+/** 卡片那几组改哪一边。和气泡那一组的 SIDES 同义，只是前面挂的是整行 */
+export const CARD_SIDES = [
+  { id: 'all', label: '双方', pre: '' },
+  { id: 'theirs', label: '角色', pre: '.ph-msg-theirs ' },
+  { id: 'mine', label: '自己', pre: '.ph-msg-mine ' },
+];
+
+/**
+ * 转账、语音、通话、位置、礼物、译文、引用：一样的几个旋钮。
+ * 类名写在分组的 desc 里，照着手写 CSS 的人不必再去翻「写给作者」
+ */
+const cardItems = ({ size = false } = {}) => [
+  { id: 'side', label: '改哪一边', type: 'pick', options: CARD_SIDES, def: 'all' },
+  { id: 'bg', label: '底色', type: 'color', def: '' },
+  { id: 'fg', label: '文字与图标颜色', type: 'color', def: '' },
+  ...(size ? [{ id: 'fs', label: '字号', type: 'num', unit: 'px', def: '', min: 9, max: 24 }] : []),
+  { id: 'r', label: '圆角', type: 'num', unit: 'px', def: '', min: 0, max: 40 },
+  { id: 'bw', label: '描边粗细', type: 'num', unit: 'px', def: '', min: 0, max: 8 },
+  { id: 'bc', label: '描边颜色', type: 'color', def: '', when: v => v.bw > 0 },
+];
+const CARD_GROUPS = [
+  { id: 'trans', label: '译文', short: '译文', icon: 'translate', sel: '.ph-trans', size: true },
+  { id: 'quote', label: '引用条', short: '引用', icon: 'reply', sel: '.ph-quote', size: true },
+  { id: 'voice', label: '语音', short: '语音', icon: 'headphone', sel: '.ph-voice' },
+  { id: 'transfer', label: '转账', short: '转账', icon: 'wallet', sel: '.ph-transfer' },
+  { id: 'gift', label: '礼物', short: '礼物', icon: 'gift', sel: '.ph-gift' },
+  { id: 'location', label: '位置', short: '位置', icon: 'map', sel: '.ph-location' },
+  { id: 'call', label: '通话记录', short: '通话', icon: 'phone', sel: '.ph-call' },
+];
+
 /** 贴图挂在哪个元素上。位置有限，所以要选。 */
 export const HOSTS = [
   { id: 'bubble', label: '气泡' },
@@ -187,7 +225,10 @@ export const GROUPS = [
   },
   {
     id: 'avatar', label: '头像', short: '头像', icon: 'user', focus: '.ph-face',
+    desc: '类名 .ph-face（头像那一块）  .ph-avatar（头像本体）',
     items: [
+      { id: 'show', label: '显示头像', type: 'pick', options: FACE_SHOW, def: 'both',
+        desc: '不显示的那一边连位置一起收起，气泡贴着屏幕边缘。点头像看心声、双击拍一拍随之不可用' },
       { id: 'size', label: '大小', type: 'num', unit: 'px', def: '', min: 16, max: 120 },
       { id: 'round', label: '圆角', type: 'num', unit: '%', def: '', min: 0, max: 50,
         desc: '50 是正圆，0 表示不改' },
@@ -230,6 +271,7 @@ export const GROUPS = [
   },
   {
     id: 'meta', label: '时刻与已读', short: '时刻', icon: 'clock', focus: '.ph-meta',
+    desc: '类名 .ph-meta（那一行）  .ph-stamp（时刻）  .ph-read（已读）  .ph-time-sep（居中那行时间）',
     items: [
       { id: 'pos', label: '摆在哪儿', type: 'pick', options: METAPOS, def: 'side' },
       { id: 'color', label: '颜色', type: 'color', def: '' },
@@ -241,6 +283,12 @@ export const GROUPS = [
         desc: '留空表示不改。填了之后原来的字不显示，换成这里写的' },
       { id: 'readColor', label: '已读的颜色', type: 'color', def: '' },
       { id: 'hideRead', label: '隐藏已读', type: 'switch', def: false },
+      { id: 'sepColor', label: '居中那行时间的颜色', type: 'color', def: '',
+        desc: '消息时刻为「按间隔」时，两条消息之间居中的那一行（.ph-time-sep）' },
+      { id: 'sepSize', label: '居中那行时间的字号', type: 'num', unit: 'px', def: '', min: 8, max: 20 },
+      { id: 'sepBg', label: '居中那行时间的底色', type: 'color', def: '' },
+      { id: 'sepR', label: '居中那行时间的圆角', type: 'num', unit: 'px', def: '', min: 0, max: 20,
+        when: v => v.sepBg },
     ],
   },
   {
@@ -285,6 +333,10 @@ export const GROUPS = [
         when: v => v.shadow > 0 },
     ],
   },
+  ...CARD_GROUPS.map(c => ({
+    id: c.id, label: c.label, short: c.short, icon: c.icon, focus: c.sel,
+    desc: `类名 ${c.sel}`, items: cardItems({ size: c.size }),
+  })),
   { id: 'deco1', label: '贴图一', short: '贴图一', icon: 'star', focus: '.ph-bubble-theirs', items: decoItems(1) },
   { id: 'deco2', label: '贴图二', short: '贴图二', icon: 'star', focus: '.ph-bubble-theirs', items: decoItems(2) },
   {
@@ -566,6 +618,15 @@ function avatarBlocks(gen) {
   if (set(v.bw)) av.push(`border: ${num(v.bw)}px solid ${has(v.bc) ? v.bc : 'currentColor'}`);
   if (av.length) out.push(`${note('头像')}\n${rule('.ph-face .ph-avatar', av)}`);
 
+  // 整边不显示：去掉盒子，气泡贴边（和下面「连着的几条」那种留位置的隐藏不是一回事）
+  if (v.show && v.show !== 'both') {
+    const sides = { theirs: ['.ph-msg-mine'], mine: ['.ph-msg-theirs'], none: ['.ph-msg-theirs', '.ph-msg-mine'] }[v.show] || [];
+    if (sides.length) {
+      out.push(`${note(`头像：${(FACE_SHOW.find(x => x.id === v.show) || {}).label}`)}\n`
+        + rule(sides.map(x => `${x} .ph-face`).join(', '), ['display: none']));
+    }
+  }
+
   const box = [];
   const mv = move(v.x, v.y);
   if (mv) box.push(mv);
@@ -675,7 +736,31 @@ function metaBlocks(gen) {
   } else if (has(v.readColor)) {
     out.push(`${note('已读的颜色')}\n${rule('.ph-read', [`color: ${v.readColor}`])}`);
   }
+
+  const sep = [];
+  if (has(v.sepColor)) sep.push(`color: ${v.sepColor}`);
+  if (set(v.sepSize)) sep.push(`font-size: ${num(v.sepSize)}px`);
+  if (has(v.sepBg)) sep.push(`background: ${v.sepBg}`, 'padding: 2px 10px');
+  if (has(v.sepBg) && set(v.sepR)) sep.push(`border-radius: ${num(v.sepR)}px`);
+  if (sep.length) out.push(`${note('两条消息之间居中的那行时间')}\n${rule('.ph-time-sep', sep)}`);
   return out;
+}
+
+function cardBlocks(gen) {
+  return CARD_GROUPS.map(c => {
+    const v = groupValues(gen, c.id);
+    const decls = [];
+    if (has(v.bg)) decls.push(`background: ${v.bg}`);
+    if (has(v.fg)) decls.push(`color: ${v.fg}`);
+    if (c.size && set(v.fs)) decls.push(`font-size: ${num(v.fs)}px`);
+    if (set(v.r)) decls.push(`border-radius: ${num(v.r)}px`);
+    if (set(v.bw)) decls.push(num(v.bw) > 0 ? `border: ${num(v.bw)}px solid ${has(v.bc) ? v.bc : 'currentColor'}` : 'border: none');
+    if (!decls.length) return '';
+    const pre = (CARD_SIDES.find(x => x.id === v.side) || CARD_SIDES[0]).pre;
+    // 图标是内联 svg，画线用 currentColor，跟着文字颜色走；卡片里几行小字各有颜色，一并改
+    const inner = has(v.fg) ? '\n' + rule(`${pre}${c.sel} *`, [`color: ${v.fg}`]) : '';
+    return `${note(c.label)}\n${rule(pre + c.sel, decls)}${inner}`;
+  });
 }
 
 function bubbleBlocks(gen) {
@@ -825,7 +910,7 @@ export function emit(gen) {
   const blocks = [
     ...navBlocks(gen), navDecoBlock(gen),
     ...msgBlocks(gen), ...avatarBlocks(gen), tailBlock(gen), ...metaBlocks(gen),
-    ...bubbleBlocks(gen), ...composerBlocks(gen),
+    ...bubbleBlocks(gen), ...cardBlocks(gen), ...composerBlocks(gen),
   ].filter(Boolean);
   if (!blocks.length) return '';
   return [HEAD, ...blocks, TAIL].join('\n\n');

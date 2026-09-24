@@ -73,7 +73,12 @@ const report = r => {
   results.push(r);
   const skipped = /跳过：找不到 playwright/.test(r.out);
   console.log(`  ${r.code === 0 ? (skipped ? 'skip' : 'ok  ') : 'FAIL'} ${r.file.replace('.test.mjs', '').padEnd(22)} ${r.secs}s`);
-  if (r.code !== 0) console.log(r.out.split('\n').filter(l => /FAIL|Error|错误/.test(l)).slice(0, 8).map(l => '       ' + l.trim()).join('\n'));
+  if (r.code !== 0) {
+    // TEST_VERBOSE=1 时把失败那个的输出整个打出来：超时这类错只看 FAIL 行看不出卡在哪一步
+    const lines = r.out.split('\n');
+    const shown = process.env.TEST_VERBOSE ? lines.slice(-40) : lines.filter(l => /FAIL|Error|错误/.test(l)).slice(0, 8);
+    console.log(shown.map(l => '       ' + l.trim()).join('\n'));
+  }
 };
 let next = 0;
 await Promise.all(Array.from({ length: jobs }, async () => {

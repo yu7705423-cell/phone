@@ -12,7 +12,7 @@ export function TransferBubble({ msg, onSettle }) {
   const pending = msg.transfer === transfer.PENDING;
   const actionable = pending && !mine && onSettle;
   return html`
-    <div class=${`bubble bubble-transfer${pending ? '' : ' is-done'}`}
+    <div class=${`bubble bubble-transfer ph-transfer${pending ? '' : ' is-done'}`}
       onClick=${actionable ? () => onSettle(msg) : null}>
       <div class="tr-top">
         <${Icon} name="wallet" size=${20}/>
@@ -158,7 +158,7 @@ export function GiftBubble({ msg, onOpen }) {
   const actionable = pending && msg.role !== 'user' && onOpen;
   const twist = opened && msg.inner && msg.inner !== msg.cover;
   return html`
-    <div class=${`bubble bubble-gift${pending ? '' : ' is-done'}`}
+    <div class=${`bubble bubble-gift ph-gift${pending ? '' : ' is-done'}`}
       onClick=${actionable ? () => onOpen(msg) : null}>
       <div class="tr-top">
         <${Icon} name="gift" size=${20}/>
@@ -355,7 +355,7 @@ export function ListenBar({ chatId }) {
 // 位置气泡。虚拟定位，不读设备 GPS，也不查地图接口，就是一个地点名加一行地址。
 export function LocationBubble({ msg }) {
   return html`
-    <div class="bubble bubble-location">
+    <div class="bubble bubble-location ph-location">
       <div class="loc-body">
         <div class="loc-name ellipsis">${msg.place}</div>
         ${msg.address ? html`<div class="loc-addr ellipsis">${msg.address}</div>` : null}
@@ -368,7 +368,7 @@ export function LocationBubble({ msg }) {
 export function CallBubble({ msg, onOpen }) {
   const done = msg.outcome === 'done';
   return html`
-    <div class=${`bubble bubble-call${done ? '' : ' is-miss'}`}
+    <div class=${`bubble bubble-call ph-call${done ? '' : ' is-miss'}`}
       onClick=${done && onOpen ? () => onOpen(msg) : null}>
       <${Icon} name=${msg.callKind === 'video' ? 'film' : 'phone'} size=${18}/>
       <span>${call.label(msg.direction, msg.outcome, msg.seconds, msg.callKind === 'video')}</span>

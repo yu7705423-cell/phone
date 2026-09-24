@@ -45,11 +45,14 @@ const face = (name, mine) => `<div class="msg-face ph-face">`
  *   meta    带时刻与已读
  *   sticker 这一行是表情
  */
-function row({ mine, name, parts, quote, stamp, read, sticker }) {
+function row({ mine, name, parts, quote, stamp, read, sticker, card, trans }) {
   const bubbles = sticker
     ? `<div class="bubble-sticker ph-sticker">${icon('heart', 48)}</div>`
-    : parts.map(t => `<div class="bubble ph-bubble `
-      + `${mine ? 'ph-bubble-mine' : 'ph-bubble-theirs'}">${esc(t)}</div>`).join('');
+    : card ? CARDS[card]
+    : parts.map((t, i) => `<div class="bubble ph-bubble `
+      + `${mine ? 'ph-bubble-mine' : 'ph-bubble-theirs'}${trans && i === parts.length - 1 ? ' has-trans' : ''}">${esc(t)}`
+      + (trans && i === parts.length - 1 ? `<div class="bubble-trans ph-trans">${esc(trans)}</div>` : '')
+      + '</div>').join('');
   const q = quote
     ? `<button class="quote-ref ph-quote"><span class="quote-name">${esc(quote.name)}</span>`
       + `<span class="quote-text ellipsis">${esc(quote.text)}</span></button>`
@@ -66,6 +69,26 @@ function row({ mine, name, parts, quote, stamp, read, sticker }) {
 }
 
 /**
+ * 几种卡片气泡。结构照着真组件抄（TransferBits.js、MediaBubble.js），
+ * 契约钩子那一层由 stage.mjs 盯着，内部类名跟着抄是为了预览里长得像。
+ */
+const CARDS = {
+  transfer: `<div class="bubble bubble-transfer ph-transfer"><div class="tr-top">${icon('wallet')}`
+    + `<div class="tr-body"><div class="tr-amount">¥52.00</div><div class="tr-note ellipsis">奶茶钱</div></div></div>`
+    + `<div class="tr-foot">待收款</div></div>`,
+  gift: `<div class="bubble bubble-gift ph-gift"><div class="tr-top">${icon('gift')}`
+    + `<div class="tr-body"><div class="gift-cover ellipsis">一个小盒子</div></div></div>`
+    + `<div class="tr-foot">未拆开</div></div>`,
+  voice: `<div class="voice-wrap"><button class="bubble bubble-voice ph-voice press">${icon('headphone', 16)}`
+    + `<span class="voice-bars">${[6, 10, 14, 6].map(h => `<i style="height:${h}px"></i>`).join('')}</span>`
+    + `<span class="voice-len">4"</span></button></div>`,
+  call: `<div class="bubble bubble-call ph-call">${icon('phone', 18)}<span>通话时长 03:12</span></div>`,
+  location: `<div class="bubble bubble-location ph-location"><div class="loc-body">`
+    + `<div class="loc-name ellipsis">海边</div><div class="loc-addr ellipsis">滨海路 1 号</div></div>`
+    + `<div class="loc-map">${icon('map', 22)}</div></div>`,
+};
+
+/**
  * 摆出来的那一屏。**连发三条是故意的** —— 「只有第一条带头像」
  * 这类规则要有连着的几条才看得出来。
  */
@@ -80,6 +103,13 @@ export const SAMPLE = {
     { mine: true, name: '我', parts: ['带引用的一条。'],
       quote: { name: '阿岚', text: '连着的第三条' } },
     { mine: false, name: '阿岚', sticker: true },
+    { sep: '昨天 21:30' },
+    { mine: false, name: '阿岚', parts: ['带译文的一条。'], trans: 'A line with a translation.' },
+    { mine: false, name: '阿岚', card: 'voice' },
+    { mine: true, name: '我', card: 'transfer' },
+    { mine: false, name: '阿岚', card: 'gift' },
+    { mine: false, name: '阿岚', card: 'location' },
+    { mine: true, name: '我', card: 'call' },
   ],
 };
 
@@ -126,7 +156,7 @@ export function buildStage(sample = SAMPLE) {
     + navbar(sample.title)
     + `<div class="conv ph-chat">`
     + `<div class="conv-main"><div class="conv-body ph-chat-body">`
-    + sample.rows.map(row).join('')
+    + sample.rows.map(r => (r.sep ? `<div class="time-sep ph-time-sep">${esc(r.sep)}</div>` : row(r))).join('')
     + `</div></div>`
     + composer()
     + '</div></div>';
