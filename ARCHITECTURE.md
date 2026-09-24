@@ -3186,7 +3186,11 @@ Avatar / Badge / Toast / EmptyState / Spinner / Skeleton
   至少和系统的一样高(`--cutout-top`,即浏览器报的顶部安全区原值),时间和电量落在摄像头那一行,
   页面从它下面开始。全屏期间不要在 resize 里改 viewport:改完会再触发 resize,整屏一直闪。
   唯一的例外:进全屏后量出可视区比屏幕矮一截(Chrome 没把页面画进摄像头那一行,那一行留白),
-  把 viewport-fit 换成 auto 再换回 cover,让 Chrome 重新决定;每进一次全屏最多换两次
+  把 viewport-fit 换成 auto 再换回 cover,让 Chrome 重新决定;连着最多换两次,换的过程中来的
+  resize 不理,量到铺满才重新计数
+- 加到主屏幕、以全屏打开(`display-mode: fullscreen`)与上面请求来的全屏同一个处境,
+  安全区清零、状态栏加高、留白重排三样照做(`fullscreen.js` 的 `drawsBars`)。状态栏划出来
+  几秒后自己收回去,所以 resize 之后等 3.5 秒再量
 - 地址加 `?diag` 时屏幕中间显示布局读数(`system/diag.js`),排查真机上空出来的那一条
 
 ### 9.4 图标

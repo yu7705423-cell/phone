@@ -140,6 +140,50 @@ const tapBlank = p => p.touchscreen.tap(206, 700);
   await c.close();
 }
 
+// ---- 加到主屏幕、以全屏打开（display-mode: fullscreen）----
+// 和上面请求来的全屏一个处境：系统状态栏划出来过一次之后，Chrome 报的安全区停在 40 多不回去。
+// 从前只对请求来的全屏清零，这一种照样在自己的状态栏上面再空一条
+const installed = (extra = {}) => open({ isMobile: true, hasTouch: true, userAgent: ANDROID_UA, ...extra,
+  init: () => {
+    const real = window.matchMedia.bind(window);
+    window.matchMedia = q => /display-mode:\s*fullscreen/.test(q)
+      ? { matches: true, media: q, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {} }
+      : real(q);
+    document.addEventListener('DOMContentLoaded', () => {
+      const st = document.createElement('style');
+      st.textContent = '.root{--safe-top:40px;--safe-bottom:30px;--cutout-top:47px}';
+      document.head.appendChild(st);
+      window.__vp = [];
+      new MutationObserver(() => window.__vp.push(document.querySelector('meta[name="viewport"]').content))
+        .observe(document.querySelector('meta[name="viewport"]'), { attributes: true });
+    });
+  } });
+{
+  const { c, p } = await installed();
+  const m = await p.evaluate(() => {
+    const bar = document.querySelector('.statusbar')?.getBoundingClientRect();
+    return { attr: document.documentElement.hasAttribute('data-browser-full'),
+      top: Math.round(bar?.top ?? -1), h: Math.round(bar?.height ?? -1),
+      pad: getComputedStyle(document.querySelector('.root')).paddingTop };
+  });
+  ok('桌面全屏版：不用点，直接按全屏处理', m.attr);
+  ok('桌面全屏版：状态栏贴着顶边，上面不再空一条（不照卡住的安全区让）', m.top === 0 && m.pad === '0px', JSON.stringify(m));
+  ok('桌面全屏版：状态栏和系统的一样高（47）', m.h === 47, m.h);
+  await c.close();
+}
+{
+  // 可视区比屏幕矮一截（Chrome 没画进摄像头那一行）：重排，但有限次
+  const { c, p } = await installed({ viewport: { width: 412, height: 885 }, screen: { width: 412, height: 932 } });
+  await p.waitForTimeout(1500);
+  for (let i = 0; i < 3; i++) { await p.evaluate(() => window.dispatchEvent(new Event('resize'))); await p.waitForTimeout(1500); }
+  await p.waitForTimeout(3000);
+  const seq = await p.evaluate(() => window.__vp);
+  const autos = seq.filter(v => /viewport-fit=auto/.test(v)).length;
+  ok('桌面全屏版矮一截：重排过，但最多两次，尺寸再变也不一直换', autos >= 1 && autos <= 2, JSON.stringify(seq.length));
+  ok('桌面全屏版：换完最后仍是 cover', /viewport-fit=cover/.test(await p.evaluate(() => document.querySelector('meta[name="viewport"]').content)));
+  await c.close();
+}
+
 // ---- 排查读数：地址加 ?diag 才有 ----
 {
   const { c, p } = await open({ isMobile: true, hasTouch: true, userAgent: ANDROID_UA, query: '?diag' });

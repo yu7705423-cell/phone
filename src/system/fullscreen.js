@@ -8,10 +8,14 @@
 // 每次触摸屏幕都看一眼：不在全屏就请求一次。退出全屏（安卓的返回手势）之后，
 // 下一次触摸会再进去。
 //
-// 不做的地方：
+// 不请求全屏的地方：
 //   iPhone、iPad    系统状态栏一直都在，iPhone 上也没有这个接口
 //   加到主屏幕       manifest 里已经是 fullscreen，本来就铺满
 //   安卓安装包       外壳自己藏了系统状态栏（window.phoneFullscreen）
+//
+// 但「加到主屏幕」那一种和这里请求来的全屏是同一个处境（系统栏藏着、网页自己画状态栏、
+// 状态栏划出来过一次之后 Chrome 报的安全区不回去），所以下面的安全区清零、留白重排
+// 两样对它一样做（drawsBars）。
 import { createStore } from './store.js';
 import { settings } from './db/index.js';
 
@@ -43,23 +47,43 @@ export function enter() {
     .finally(() => { asking = false; });
 }
 
-// 进全屏时系统状态栏若先闪一下，安卓 Chrome 有时不把页面画进摄像头那一行：
-// 页面从那一行下面开始（innerHeight 比 screen.height 矮一截），那一行留成白的。
-// 这时把 viewport-fit 换成 auto 再换回 cover，Chrome 会重新决定画不画进去。
+// 系统栏藏着、网页自己画状态栏的两种：这里请求来的全屏，和加到主屏幕、以全屏打开的
+const installedFull = () => mq('(display-mode: fullscreen)') && !isFull();
+const drawsBars = () => isFull() || installedFull();
+
+// 系统状态栏闪过一下之后（进全屏那一下，或者从顶上划出来又收回去），安卓 Chrome 有时
+// 不再把页面画进摄像头那一行：页面从那一行下面开始（innerHeight 比 screen.height 矮一截），
+// 那一行留成白的。这时把 viewport-fit 换成 auto 再换回 cover，Chrome 会重新决定画不画进去。
 //
-// **只在量出来确实少了一截时换，每进一次全屏最多换两次。** build .117 在每次 resize
-// 都换，而换本身又触发 resize，自己追着自己跑，整屏上下跳个不停
+// 三道闸，缺一道就会像 build .117 那样整屏上下跳个不停（换本身会触发 resize）：
+//   只在量出来确实矮一截时换
+//   换的过程中来的 resize 一律不理
+//   连着换两次还是矮，就不再换，直到哪一次量出来已经铺满了才重新计数
 const REFIT_MAX = 2;
 let refits = 0;
-const shortOfScreen = () => isFull() && screen.height - innerHeight > 8;
+let flipping = false;
+const shortOfScreen = () => drawsBars() && screen.height - innerHeight > 8;
 function refit() {
-  if (!shortOfScreen() || refits >= REFIT_MAX) return;
+  if (flipping) return;
+  if (!shortOfScreen()) { refits = 0; return; }
+  if (refits >= REFIT_MAX) return;
   const m = document.querySelector('meta[name="viewport"]');
   if (!m || !/viewport-fit=cover/.test(m.content)) return;
   refits++;
+  flipping = true;
   const was = m.content;
   m.content = was.replace('viewport-fit=cover', 'viewport-fit=auto');
   requestAnimationFrame(() => requestAnimationFrame(() => { m.content = was; }));
+  setTimeout(() => { flipping = false; }, 800);
+}
+// 划出来的状态栏几秒后自己收回去，收回去之后再量；量早了它还在，矮一截是对的
+let refitTimer = 0;
+const refitLater = ms => { clearTimeout(refitTimer); refitTimer = setTimeout(refit, ms); };
+
+function mark() {
+  // 样式靠这个属性把安全区清零、把状态栏加高（base.css）
+  document.documentElement.toggleAttribute('data-browser-full', drawsBars());
+  fullStore.set({ full: isFull() });
 }
 
 // 电脑上点一下就全屏太突兀，自动的那一档只在触摸屏上
@@ -67,13 +91,15 @@ const wanted = () => settings.get().autoFullscreen !== false && mq('(pointer: co
 
 export function install() {
   if (typeof document === 'undefined') return;
-  // 样式靠这个属性把安全区清零（base.css）
+  mark();
+  window.matchMedia('(display-mode: fullscreen)').addEventListener?.('change', mark);
   document.addEventListener('fullscreenchange', () => {
-    document.documentElement.toggleAttribute('data-browser-full', isFull());
-    fullStore.set({ full: isFull() });
+    mark();
     // 状态栏闪完、收回去之后再量
     if (isFull()) { refits = 0; setTimeout(refit, 500); setTimeout(refit, 1500); }
   });
+  if (installedFull()) setTimeout(refit, 1500);
+  window.addEventListener('resize', () => { if (!flipping && drawsBars()) refitLater(3500); });
 
   // pointerup（触摸）与 click 都算一次点按，浏览器认它做进全屏的理由。
   // 只认「点」，不认「划」：边缘右滑返回这种由页面自己接住的滑动，浏览器不发
