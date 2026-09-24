@@ -100,6 +100,7 @@ export function MomentCard({ mo, onComment, onOpen }) {
 /** 评论那张底部表。target 是要评论的那条，null 表示关着。 */
 export function CommentSheet({ target, onClose }) {
   const [text, setText] = useState('');
+  const [asking, setAsking] = useState('');     // 正在写评论的那个角色
   const mo = target ? db.moments.get(target.id) : null;
   const send = async () => {
     const t = text.trim();
@@ -107,10 +108,33 @@ export function CommentSheet({ target, onClose }) {
     setText('');
     await sendComment(mo, t);
   };
+  // 自己发的动态：请某个角色来看。点一位调一次接口，由该角色写一条评论并点赞。
+  // 不在发布时自动叫所有角色 —— 那是用户没点头的花费（CLAUDE.md 第 15 条）
+  const ask = async char => {
+    if (asking) return;
+    if (!ai.isConfigured()) { toast('尚未配置模型接口', 'error'); return; }
+    setAsking(char.id);
+    try { await ai.moments.commentMoment(mo.id, char.id); }
+    catch (err) { toast(String(err.message || err), 'error', 4000); }
+    finally { setAsking(''); }
+  };
+  const chars = mo?.authorId === 'me' ? db.characters.all() : [];
   return html`
     <${Sheet} open=${!!target} onClose=${onClose} title="评论">
       ${mo ? html`
         <${CommentList} comments=${mo.comments}/>
+        ${chars.length ? html`
+          <div class="mo-ask">
+            <div class="mo-ask-title">请角色评论</div>
+            <div class="mo-ask-desc">点一位角色，调用一次接口，由该角色看过这条动态后写一条评论并点赞。</div>
+            <div class="btn-row is-chips">
+              ${chars.map(c => html`
+                <button key=${c.id} class=${`btn btn-sm btn-ghost press${asking === c.id ? ' is-busy' : ''}`}
+                  disabled=${!!asking} onClick=${() => ask(c)}>
+                  ${asking === c.id ? '正在评论' : c.name}
+                </button>`)}
+            </div>
+          </div>` : null}
         <div class="composer composer-inline">
           <textarea rows="1" value=${text} placeholder="写下评论"
             onInput=${e => setText(e.target.value)}></textarea>

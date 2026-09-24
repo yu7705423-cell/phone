@@ -13,6 +13,7 @@ import * as healthBlock from './health.js';
 import * as bridgeBlock from './bridge.js';
 import * as planBlock from './plan.js';
 import * as badgesBlock from './badges.js';
+import * as momentsBlock from './moments.js';
 
 export const BLOCKS = {
   character,
@@ -45,9 +46,11 @@ export const BLOCKS = {
   plan: { meta: planBlock.meta, build: planBlock.build },
   // 互动标识。这段对话开了「让角色知道」才有内容
   badges: { meta: badgesBlock.meta, build: badgesBlock.build },
+  // 用户自己发的朋友圈。从前角色一条都看不到
+  moments: { meta: momentsBlock.meta, build: momentsBlock.build },
 };
 
-export const DEFAULT_ORDER = ['lorebook', 'bond', 'pinned', 'recent', 'character', 'loreAfter', 'user', 'time', 'day', 'avatar', 'geo', 'music', 'watch', 'trip', 'bill', 'health', 'memory', 'space', 'plan', 'bridge', 'badges'];
+export const DEFAULT_ORDER = ['lorebook', 'bond', 'pinned', 'recent', 'character', 'loreAfter', 'user', 'time', 'day', 'avatar', 'geo', 'music', 'watch', 'trip', 'bill', 'health', 'memory', 'space', 'plan', 'moments', 'bridge', 'badges'];
 
 // 读出一份干净的顺序:丢掉不认识的 id,补上配置里缺失的。
 // 没有这一步,以后每新增一个区块,老用户配置里就少一项,该区块永远不注入,
@@ -89,6 +92,7 @@ export const VOLATILE = new Set([
   'bridge',   // 对面刚发生的事，每一条消息、每一段正文都在变
   'plan',     // 勾掉一条就少一条，到点了措辞也变
   'badges',   // 每天都在变，解锁了就多一行
+  'moments',  // 「多久以前」每天都在变，发一条、评一句也变
   'recent',   // 一提取就换一批，而且「多久以前」每天都在变
 ]);
 

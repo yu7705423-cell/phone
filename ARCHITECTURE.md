@@ -7940,6 +7940,26 @@ OpenAI 兼容的接口编辑页可改回「原样 system」（`preset.midSystem`
 这个数同时截断对话历史（`takeLatestWithin`），设置页从前只写「世界书与记忆」，现在写全。
 不限之后历史仍按条数（默认 20 轮）或轮数取，不会无限增长。测试：`budget`（旧代码 12 条只进 4 条）。
 
+### 4.196 整页被推开后归位；安卓全屏；角色看得见用户的朋友圈
+
+**整页归位（`system/viewport.js`）。** 手机浏览器点输入框时会自己把整页往上推（overflow: hidden 拦不住），
+键盘收起后常常不推回来：聊天页上面少一截、下面空一大片。现在没有输入框激活时，整页一旦不在原位
+（`scroll`、`focusout`、`visualViewport` 的 `resize`、转屏）就归位；正在输入时不动。
+外壳那一串 100vh 与 iOS 的 `black-translucent` 都不动（4.x 的两次踩坑：灰带与底部白边）。
+
+**安卓全屏。** 加到主屏幕时 standalone 模式下系统状态栏用主题色填死，壁纸画不上去。manifest 改为
+`display: fullscreen`（`display_override` 退回 standalone；iOS 不受影响，它看 apple 那条 meta）。
+安卓安装包同样藏起系统状态栏、注入 `window.phoneFullscreen`；安卓 15 退出强制铺到系统栏底下
+（`values-v35` 的 `windowOptOutEdgeToEdgeEnforcement`），免得底部导航条盖住输入框。
+这两种情况下 `StatusBar` 的「自动」改为显示网页自己画的那条，否则看不到时间与电量。
+
+**用户的朋友圈（`context/moments.js`）。** 从前发布只存进库，没有任何区块读它，角色一条都看不到。
+现在带上最近 `momentsCount` 条（默认 3，0 为全给，在「用量与上限」）：时间、文字、几张图、配的歌、
+这个角色点过赞与评论过什么。图片本身不给。自己的动态上，评论弹窗里可「请角色评论」：
+点一位调一次接口，写一条评论并点赞；不在发布时自动叫所有角色（第 15 条）。
+
+测试：`viewport`（旧代码：整页停在推上去的位置，顶栏在 -200）、`mymoments`。
+
 ### 13.2 接下来
 
 按「用户能不能感觉到」排序，不按实现难度。

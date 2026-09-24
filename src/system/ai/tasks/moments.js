@@ -97,7 +97,10 @@ export async function commentMoment(momentId, charId) {
 
   const r = await runJSONTask('moment.comment', { system, key: `moment-comment:${momentId}:${charId}`, maxTokens: 300 });
   if (!r?.text) throw new Error('模型没有返回评论');
-  return addComment(momentId, charId, String(r.text).trim());
+  const c = addComment(momentId, charId, String(r.text).trim());
+  // 看过、评论了，也顺手点个赞（不另调接口）
+  if (!(moments.get(momentId)?.likes || []).includes(charId)) toggleLike(momentId, charId);
+  return c;
 }
 
 export async function replyComment(momentId, charId, commentText) {

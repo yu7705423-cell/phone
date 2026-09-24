@@ -40,6 +40,8 @@
   // 返回交给安卓的返回键与系统手势（见 shell/goback.js），网页自己那套边缘手势让开
   window.phoneNativeBack = true;
   window.phoneAppVersion = 'Android ' + N.version();
+  // 系统状态栏藏起来了（MainActivity），网页自己画一条（见 shell/StatusBar.js）
+  window.phoneFullscreen = true;
 
   // ---- 下载 ----
   var CHUNK = 512 * 1024;

@@ -268,6 +268,13 @@ export function LimitsPage() {
             onChange=${v => set({ planCount: v })}/>
         <//>
 
+        <${Field} label="带上你最近几条朋友圈"
+          desc="每次请求带上你自己发的最近这么多条朋友圈：时间、文字、几张图、配的歌，以及这个角色点过赞、评论过什么。
+            图片本身不发送，只说明张数。填 0 表示全部带上。">
+          <${NumberInput} value=${s.momentsCount ?? 3} unit="条" placeholder="全部"
+            onChange=${v => set({ momentsCount: v })}/>
+        <//>
+
         <${Field} label="线下带上手机里最近几条"
           desc="线下的每次请求带上这段会话里最近这么多条消息的原文。
             气泡很短，二十条也只有几百字，所以带的是原文而不是摘要。

@@ -5,9 +5,13 @@ import { settings } from '../system/db/index.js';
 
 // 移动端浏览器本身就有状态栏,再画一条就是双份。
 // auto = 触摸设备自动隐藏;on / off 手动覆盖。
+//
+// 例外是**系统状态栏被藏起来了**的时候：安卓上加到主屏幕走的是全屏显示（manifest 的 display），
+// 安卓安装包也藏了系统状态栏（外壳注入 window.phoneFullscreen）。那时不画就看不到时间和电量。
 export function shouldShow(mode) {
   if (mode === 'on') return true;
   if (mode === 'off') return false;
+  if (window.phoneFullscreen || window.matchMedia('(display-mode: fullscreen)').matches) return true;
   return !window.matchMedia('(pointer: coarse)').matches;
 }
 

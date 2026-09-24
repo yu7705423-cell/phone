@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 安卓 15 起默认强制内容画到系统栏底下，而 WebView 不一定报告安全区：
+         底部导航条会盖住页面最下面的输入框。这里退出强制，底部导航条单独占一条 -->
+    <style name="Theme.Eira" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/shell_bg</item>
+        <item name="android:statusBarColor">@color/shell_bg</item>
+        <item name="android:navigationBarColor">@color/shell_bg</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
+        <item name="android:windowOptOutEdgeToEdgeEnforcement">true</item>
+    </style>
+</resources>

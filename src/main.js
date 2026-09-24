@@ -13,10 +13,13 @@ import { forceUpdate } from './system/refresh.js';
 import { BUILD } from './version.js';
 import { gate, watch as watchAuth } from './system/auth.js';
 import { Login } from './shell/Login.js';
+import { install as holdViewport } from './system/viewport.js';
 import './screens/home/widgets.js';
 import './screens/home/insWidgets.js';
 
 const mount = document.getElementById('app');
+// 键盘收起后把整页推回原位（见 system/viewport.js）。登录页也要，所以放在最前
+holdViewport();
 
 render(html`<div class="boot"><span class="spinner"></span></div>`, mount);
 
