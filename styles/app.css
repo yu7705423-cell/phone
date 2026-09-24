@@ -3040,3 +3040,26 @@ button.conv-notice { background: none; border: 0; font: inherit; cursor: pointer
 .look-bg-acts { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
 /* 一组列表里，某一行下面自己带一排东西（颜色块）时的那行小标题 */
 .list-sub-title { font-size: var(--fs-14); padding: var(--sp-3) var(--sp-4) 0; }
+
+/* 输入栏那一组（会话页底部）。平时就是按顺序叠着，和从前一样 */
+.conv-foot { flex: none; display: flex; flex-direction: column; }
+
+/* ---- 栏浮在消息列表上（聊天背景里栏不是实色，system/chatlook.js）----
+   消息从栏底下滚过去，半透明、毛玻璃才透得出东西。
+   顶栏高度是定的，直接算；输入栏那一组会变高，会话页量出来挂成 --foot-h */
+.page.float-top > .navbar {
+  position: relative; z-index: 3;
+  margin-bottom: calc(-1 * (var(--navbar-h) + var(--top-inset)));
+}
+/* 会话顶上那几条（一起听、一起看、节奏）照旧排在顶栏下面；没有它们时，列表一直伸到顶栏底下 */
+.page.float-top .conv { padding-top: calc(var(--navbar-h) + var(--top-inset)); }
+.page.float-top .conv > .conv-main:first-child { margin-top: calc(-1 * (var(--navbar-h) + var(--top-inset))); }
+.page.float-top .conv > .conv-main:first-child > .conv-body {
+  padding-top: calc(var(--navbar-h) + var(--top-inset) + var(--sp-4));
+}
+.page.float-bottom .conv-foot {
+  position: relative; z-index: 3;
+  margin-top: calc(-1 * var(--foot-h, 0px));
+}
+.page.float-bottom .conv-body { padding-bottom: calc(var(--foot-h, 0px) + var(--sp-4)); }
+.page.float-bottom .to-bottom { bottom: calc(var(--foot-h, 0px) + var(--sp-3)); }

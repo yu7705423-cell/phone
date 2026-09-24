@@ -127,6 +127,8 @@ export function pageOf(chat, bgUrl) {
     if (!barSet(b)) continue;
     cls.push(`look-${side}`);
     if (b.fg) cls.push(`look-${side}-${b.fg}`);
+    // 半透明、毛玻璃：栏浮在消息列表上，消息从底下滚过去。实色照旧排在列表外面
+    if (b.style !== 'solid') cls.push(`float-${side}`);
     vars.push(...barVars(b, side));
   }
   // 网页自己画状态栏的时候（安卓全屏、安卓安装包、电脑），状态栏那一行在 .page 外面，

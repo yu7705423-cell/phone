@@ -140,7 +140,7 @@ export function ChatLookSheet({ chatId, onClose }) {
       : html`
         <${Bar} title="顶栏与输入栏" bar=${l.top} onChange=${p => look.setLook(chatId, { top: p })}/>`}
       <div class="settings-foot">
-        实色为应用默认样式。半透明与毛玻璃在设置了背景图时效果明显。
+        实色为应用默认样式。半透明与毛玻璃时，栏浮在消息上方，消息从栏下经过。
         输入栏包括其上方的引用、待办与表情联想，以及展开的面板。
       </div>
 

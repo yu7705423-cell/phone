@@ -585,6 +585,30 @@ export function Conversation({ chatId, focusId = '' }) {
     return () => ro.disconnect();
   }, [chatId, !!chat]);
 
+  // 输入栏那一组浮在消息列表上的时候（聊天背景里下面那一栏不是实色），列表底下要留出
+  // 同样高的一段，最新那条才不被压在栏后面。那一组的高度会变（输入框长高、面板展开、
+  // 引用条出现），量出来挂成 --foot-h；本来贴着底部看的，高度一变跟着贴住 ——
+  // 这时列表本身没有变矮，上面那个观察器不会来
+  const convRef = useRef(null);
+  const footRef = useRef(null);
+  const floatBottom = /\bfloat-bottom\b/.test(pageLook.cls);
+  useLayoutEffect(() => {
+    const conv = convRef.current, foot = footRef.current, body = bodyRef.current;
+    if (!conv) return undefined;
+    if (!floatBottom || !foot || typeof ResizeObserver === 'undefined') {
+      conv.style.removeProperty('--foot-h');
+      return undefined;
+    }
+    const apply = () => {
+      conv.style.setProperty('--foot-h', `${foot.offsetHeight}px`);
+      if (body && bottomRef.current) body.scrollTop = body.scrollHeight;
+    };
+    apply();
+    const ro = new ResizeObserver(apply);
+    ro.observe(foot);
+    return () => { ro.disconnect(); conv.style.removeProperty('--foot-h'); };
+  }, [floatBottom, chatId, !!chat]);
+
   const last = msgs[msgs.length - 1];
   useEffect(() => {
     // 多选时别乱滚，正挑着消息呢
@@ -1249,7 +1273,7 @@ export function Conversation({ chatId, focusId = '' }) {
       right=${selecting
         ? html`<button class="nav-text press" onClick=${() => setPicked(view.map(m => m.id))}>全选</button>`
         : html`<${IconButton} name="more" onClick=${() => setMenu(true)} label="更多" cls="ph-nav-action"/>`}>
-      <div class="conv ph-chat">
+      <div class="conv ph-chat" ref=${convRef}>
         <${UnlockToast} chatId=${chatId}/>
         <${ListenBar} chatId=${chatId}/>
         <${WatchBar} chatId=${chatId}/>
@@ -1314,6 +1338,7 @@ export function Conversation({ chatId, focusId = '' }) {
           </button>` : null}
         </div>
 
+        <div class="conv-foot" ref=${footRef}>
         ${recSec >= 0 ? html`
           <div class="select-bar ph-toolbar">
             <button class="nav-text press" onClick=${cancelRec}>取消</button>
@@ -1384,6 +1409,7 @@ export function Conversation({ chatId, focusId = '' }) {
                   </div>`
                 : html`<${StickerPanel} onSend=${sendSticker}/>`}
             </div>` : null}`}
+        </div>
       </div>
 
       <input type="file" accept="image/*" ref=${imgRef}
