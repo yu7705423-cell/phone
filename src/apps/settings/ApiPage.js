@@ -177,6 +177,20 @@ export function ApiPage() {
         ${chat.activeId ? null : html`
           <div class="settings-foot">未指定主用接口，对话无法发送。</div>`}
 
+        <${List} title="回复的获取方式">
+          <${ListItem} title="流式接收" multiline
+            subtitle=${s.streamMode === 'once'
+              ? '当前为一次性接收完整回复。部分接口不支持流式返回，此时应保持关闭。'
+              : '边生成边接收。消息仍然在整段生成完毕后一次显示，'
+                + '此项只影响与接口之间的传输方式，不影响界面。'}
+            right=${html`<${Switch} checked=${s.streamMode !== 'once'}
+              onChange=${v => db.settings.set({ streamMode: v ? 'stream' : 'once' })}/>`}/>
+        <//>
+        <div class="settings-foot">
+          生成期间，会话标题显示为「正在输入」，不再插入占位气泡。
+          两种接收方式发出的请求内容与费用完全相同。
+        </div>
+
         <${List} title="副用" cap>
           ${presets.map(p => html`
             <${ListItem} key=${p.id} title=${p.name}

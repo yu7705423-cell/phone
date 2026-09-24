@@ -83,12 +83,20 @@ const on = await page.evaluate(async ({charId}) => {
 ok('开关真的落库了', on);
 
 // ---- 界面 ----
+// 流式开关在「设置 - 接口」里（从前藏在会话的上下文页里，找不到）。同一个开关只有一个入口
 await page.evaluate(async () => {
   const nav=await import('/src/system/nav.js'); nav.openApp('chat','/context');
 });
 await page.waitForTimeout(700);
+ok('上下文页不再有流式开关（只留一个入口）', !(await page.locator('.app-layer').innerText()).includes('流式接收'));
+await page.evaluate(async () => {
+  const svc=await import('/src/system/ai/services.js');
+  if (!svc.services().chat.presets.length) svc.setActiveChat(svc.newChatPreset({ name:'中转', provider:'openai', baseUrl:'https://relay.example.com/v1', apiKey:'sk', model:'m' }).id);
+  const nav=await import('/src/system/nav.js'); nav.goHome(); nav.openApp('settings','/api');
+});
+await page.waitForTimeout(700);
 const ctx = await page.locator('.app-layer').innerText();
-ok('上下文页有流式开关', ctx.includes('流式接收'), ctx.slice(0,600));
+ok('设置 - 接口页有流式开关', ctx.includes('流式接收'), ctx.slice(0,600));
 ok('说明了两种方式费用相同', ctx.includes('费用完全相同'), ctx.slice(0,1200));
 // 一次性接收那一档的说明里才写「不支持流式返回时保持关闭」，先切过去再看
 await page.evaluate(async () => {
