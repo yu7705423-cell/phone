@@ -3192,6 +3192,9 @@ Avatar / Badge / Toast / EmptyState / Spinner / Skeleton
   唯一的例外:进全屏后量出可视区比屏幕矮一截(Chrome 没把页面画进摄像头那一行,那一行留白),
   把 viewport-fit 换成 auto 再换回 cover,让 Chrome 重新决定;连着最多换两次,换的过程中来的
   resize 不理,量到铺满才重新计数
+- **苹果设备不走这一套**(`drawsBars` 先排除苹果):苹果把加到主屏幕的应用也报成
+  `display-mode: fullscreen`,但系统状态栏一直都在。.120 到 .130 没排除,iPhone 上安全区被清零,
+  主页钻进状态栏底下、悬浮返回键点不到。`viewport.mjs` 里有一段专门模拟这个情形
 - 加到主屏幕、以全屏打开(`display-mode: fullscreen`)与上面请求来的全屏同一个处境,
   安全区清零、状态栏加高、留白重排三样照做(`fullscreen.js` 的 `drawsBars`)。状态栏划出来
   几秒后自己收回去,所以 resize 之后等 3.5 秒再量。桌面全屏版启动时与从后台切回来时,
