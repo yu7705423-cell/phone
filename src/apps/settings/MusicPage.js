@@ -44,7 +44,7 @@ export function MusicPage() {
     setTesting(true);
     setRows([]);
     try {
-      await netease.probe(cfg.baseUrl, (_, all) => setRows([...all]));
+      await netease.probe(svc.neteaseBase(), (_, all) => setRows([...all]));
     } catch (err) {
       toast(String(err.message || err), 'error', 4000);
       setRows(null);
@@ -60,22 +60,27 @@ export function MusicPage() {
     <${Page} title="音乐服务" onBack=${nav.pop}>
       <div class="pad">
         <${Field} label="接口地址"
-          desc=${`指向一个 NeteaseCloudMusicApi 服务，填写至端口为止。`
-            + `可以自行部署，也可以填写他人公开的实例。后者不需要维护，`
-            + `但随时可能停止服务或限流。填写后请先测试。`}>
-          <${Input} value=${cfg.baseUrl} placeholder="https://music.example.com"
-            onInput=${v => { svc.setNetease({ baseUrl: v }); setRows(null); }}/>
+          desc=${svc.siteNeteaseApi()
+            ? `本站已提供接口，留空即使用它，无需任何设置。也可以改填自己部署的 NeteaseCloudMusicApi 地址，`
+              + `填写后以填写的为准，清空即恢复使用本站提供的接口。`
+            : `指向一个 NeteaseCloudMusicApi 服务，填写至端口为止。`
+              + `可以自行部署，也可以填写他人公开的实例。后者不需要维护，`
+              + `但随时可能停止服务或限流。填写后请先测试。`}>
+          <${Input} value=${cfg.baseUrl} placeholder=${svc.siteNeteaseApi() || 'https://music.example.com'}
+            onInput=${v => { svc.setNetease({ baseUrl: v.trim() }); setRows(null); }}/>
         <//>
+        ${svc.neteaseFromSite() ? html`
+          <div class="settings-foot">当前使用本站提供的接口。</div>` : null}
         <${Field} label="来源地址 realIP"
           desc=${`随每次请求发送给上面的接口，由接口转交网易云作为请求来源地址。`
             + `网易云对境外地址常返回「请完成验证操作」（code -462），`
             + `此时填写一个中国大陆 IP 可使请求正常返回。留空则不发送此参数。`}>
-          <${Input} value=${cfg.realIP} placeholder="116.25.146.177"
+          <${Input} value=${cfg.realIP} placeholder=${svc.neteaseIP() || '116.25.146.177'}
             onInput=${v => { svc.setNetease({ realIP: v.trim() }); setRows(null); }}/>
         <//>
       </div>
 
-      ${cfg.baseUrl ? html`
+      ${svc.neteaseReady() ? html`
         <${List} title="这个地址能不能用">
           <${ListItem} title=${testing ? '测试中' : '测试这个地址'} multiline
             subtitle=${testing
@@ -94,7 +99,7 @@ export function MusicPage() {
             <br/>公共实例由他人运行，其可用性不受本项目控制。
           </div>` : null}` : null}
 
-      ${cfg.baseUrl ? html`
+      ${svc.neteaseReady() ? html`
         <${List} title="我的账号">
           ${cfg.cookie ? html`
             <${ListItem} title=${cfg.nickname || '已登录'} subtitle=${`UID ${cfg.uid}`}
@@ -108,13 +113,12 @@ export function MusicPage() {
             </div>`}
         <//>
         <div class="settings-foot">
-          登录后得到的 cookie 等同于账号权限，会随每次请求发送给上面填写的接口地址。
+          登录后得到的 cookie 等同于账号权限，会随每次请求发送给${svc.neteaseFromSite() ? '本站提供的接口' : '上面填写的接口地址'}。
           填写的是他人运行的公共实例时，该实例可以读取你的歌单与播放记录，
           也可以以你的名义进行操作。<br/>
           搜索、播放、一起听均不需要登录。登录仅用于个人主页、听歌排行与歌单同步。<br/>
-          网易云对机房地址的匿名请求常返回「请完成验证操作」（code -462），
-          扫码的三个接口也在其中。此时可从已登录网易云的浏览器中取出 MUSIC_U 填入，
-          登录后的请求通常不受该限制。已保存的 cookie 会一并用于上方的地址测试。
+          网易云对机房地址的匿名请求常返回「请完成验证操作」（code -462）。扫码登录被拦下时会自动换用游客身份再试，
+          仍不通过时可在上方填写 realIP，或从已登录网易云的浏览器中取出 MUSIC_U 填入。
         </div>
 
         <${List} title="一起听">

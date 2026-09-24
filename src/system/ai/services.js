@@ -1,5 +1,6 @@
 import { settings } from '../db/index.js';
 import { uid } from '../store.js';
+import { SITE } from '../../site.js';
 
 // 服务配置。聊天与生图都是「预设列表 + 当前选中」，其余各只有一份。
 export const EMPTY_SERVICES = {
@@ -297,8 +298,15 @@ export function searchReady() {
 
 export function neteaseConfig() { return services().netease; }
 export function setNetease(patch) { write({ netease: { ...services().netease, ...patch } }); }
-export function neteaseReady() { return !!services().netease.baseUrl; }
-export function neteaseLoggedIn() { const n = services().netease; return !!(n.baseUrl && n.cookie); }
+// 实际生效的接口地址与来源 IP：用户自己填了就用自己的，没填就用本站提供的（src/site.js）。
+// neteaseConfig() 给的仍是用户自己填的那一份（设置页的输入框绑的是它）
+export function neteaseBase() { return services().netease.baseUrl || SITE.neteaseApi || ''; }
+export function neteaseIP() { return services().netease.realIP || SITE.neteaseRealIP || ''; }
+/** 当前用的是不是本站提供的那一个 */
+export function neteaseFromSite() { return !services().netease.baseUrl && !!SITE.neteaseApi; }
+export const siteNeteaseApi = () => SITE.neteaseApi || '';
+export function neteaseReady() { return !!neteaseBase(); }
+export function neteaseLoggedIn() { return !!(neteaseBase() && services().netease.cookie); }
 
 // ---- 记忆整理。单独配一套，不配就跟着副用走 ----
 export function memoryConfig() { return resolved(services().memory); }

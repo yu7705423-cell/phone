@@ -25,7 +25,7 @@ export function SearchTab() {
     }
   };
 
-  const gate = NeedLogin({ ready: !!cfg.baseUrl, logged: true });
+  const gate = NeedLogin({ ready: svc.neteaseReady(), logged: true });
   if (gate) return gate;
 
   return html`

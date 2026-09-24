@@ -1,5 +1,5 @@
 import { baseOf } from './ai/url.js';
-import { neteaseConfig, setNetease, neteaseReady } from './ai/services.js';
+import { neteaseConfig, setNetease, neteaseReady, neteaseBase, neteaseIP } from './ai/services.js';
 import { characters } from './db/index.js';
 
 // 网易云。接的是**自己部署的** NeteaseCloudMusicApi，地址在设置里填。
@@ -21,7 +21,7 @@ import { characters } from './db/index.js';
 
 
 function base() {
-  const b = baseOf(neteaseConfig().baseUrl);
+  const b = baseOf(neteaseBase());
   if (!b) throw new Error('还没有填写音乐接口地址');
   return b;
 }
@@ -36,7 +36,7 @@ async function callRaw(path, params = {}, cookie = '') {
   url.searchParams.set('timestamp', String(Date.now()));
   if (cookie) url.searchParams.set('cookie', cookie);
   // 境外地址会被网易云要求先过验证（code -462），realIP 转交上去可以绕开
-  const ip = neteaseConfig().realIP;
+  const ip = neteaseIP();
   if (ip) url.searchParams.set('realIP', ip);
 
   const res = await fetch(url.toString(), { method: 'GET' });
@@ -281,7 +281,7 @@ const CHECKS = [
  * 逐项探一遍。onStep 每测完一项回调一次，界面可以一行一行地显示出来。
  * 不抛错：某一项挂了就是那一项的结果，别的照测。
  */
-export async function probe(baseUrl, onStep, realIP = neteaseConfig().realIP) {
+export async function probe(baseUrl, onStep, realIP = neteaseIP()) {
   const b = baseOf(baseUrl);
   if (!b) throw new Error('请先填写地址');
   const ck = cookieOf();

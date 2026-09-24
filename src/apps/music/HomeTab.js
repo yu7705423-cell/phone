@@ -22,7 +22,7 @@ export function HomeTab() {
   const lists = useRemote(
     () => (logged ? netease.playlistsOf('') : Promise.resolve([])), [logged]);
 
-  const gate = NeedLogin({ ready: !!cfg.baseUrl, logged });
+  const gate = NeedLogin({ ready: svc.neteaseReady(), logged });
   if (gate) return gate;
 
   if (recent.loading && lists.loading) {

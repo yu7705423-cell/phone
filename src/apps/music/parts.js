@@ -90,7 +90,7 @@ export function NeedLogin({ ready, logged }) {
   if (!ready) {
     return html`
       <${EmptyState} icon="music" title="尚未配置音乐接口"
-        desc="该应用的数据来自你自己部署的网易云音乐接口。请先在设置中填写接口地址并登录。"
+        desc="该应用的数据来自网易云音乐接口。本站未提供默认接口，请先在设置中填写接口地址。"
         action=${html`<${Button} size="sm" icon="settings"
           onClick=${() => phone.intent.open('settings', { route: '/music', back: true })}>前往设置<//>`}/>`;
   }

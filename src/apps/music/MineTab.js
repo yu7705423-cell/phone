@@ -29,7 +29,7 @@ export function MineTab() {
     [logged, scope]);
   const lists = useRemote(() => (logged ? netease.playlistsOf('') : Promise.resolve([])), [logged]);
 
-  const gate = NeedLogin({ ready: !!cfg.baseUrl, logged });
+  const gate = NeedLogin({ ready: svc.neteaseReady(), logged });
   if (gate) return gate;
   if (me.loading) return html`<div class="mu-wait"><${Spinner}/></div>`;
   if (me.err) return html`<${Failed} err=${me.err} onRetry=${me.reload}/>`;

@@ -60,8 +60,8 @@ function Home() {
   const videoVal = vidActive ? '' : svc.videoPresets().length ? '未填全' : OFF;
 
   const ne = svc.neteaseConfig();
-  const musicVal = !ne.baseUrl ? OFF : svc.neteaseLoggedIn() ? '' : '未登录';
-  const musicDesc = ne.baseUrl && svc.neteaseLoggedIn() ? `${ne.nickname}${ne.sync ? ' · 同步歌单' : ''}` : '';
+  const musicVal = !svc.neteaseReady() ? OFF : svc.neteaseLoggedIn() ? '' : '未登录';
+  const musicDesc = svc.neteaseLoggedIn() ? `${ne.nickname}${ne.sync ? ' · 同步歌单' : ''}` : '';
 
   const emb = svc.embedConfig();
   const rrk = svc.rerankConfig();
