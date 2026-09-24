@@ -12,9 +12,10 @@ const errs = [];
 const ANDROID_UA = 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Mobile Safari/537.36';
 const IPHONE_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1';
 
-const open = async opts => {
+const open = async ({ init, ...opts }) => {
   const c = await browser.newContext({ viewport: { width: 412, height: 915 }, ...opts });
   const p = await c.newPage();
+  if (init) await p.addInitScript(init);
   p.on('pageerror', e => errs.push('PAGEERROR: ' + e.message));
   await p.goto(`${BASE}/index.html`, { waitUntil: 'domcontentloaded' });
   await p.waitForTimeout(1500);
@@ -29,17 +30,30 @@ const tapBlank = p => p.touchscreen.tap(206, 700);
 
 // ---- 安卓 Chrome ----
 {
-  const { c, p } = await open({ isMobile: true, hasTouch: true, userAgent: ANDROID_UA });
+  // 安卓 Chrome 全屏时，系统状态栏临时滑出来过一次之后，报上来的安全区停在状态栏的高度不回去。
+  // Chromium 里 env() 是 0，照那个数垫上
+  const { c, p } = await open({ isMobile: true, hasTouch: true, userAgent: ANDROID_UA,
+    init: () => document.addEventListener('DOMContentLoaded', () => {
+      const st = document.createElement('style');
+      st.textContent = '.root{--safe-top:40px;--safe-bottom:30px}';
+      document.head.appendChild(st);
+    }) });
   ok('打开时：不在全屏，也不画状态栏（浏览器自己有）', !(await full(p)) && (await bars(p)) === 0);
 
   await tapBlank(p);
   await p.waitForTimeout(500);
   ok('触摸一下：进入全屏', await full(p));
   ok('全屏后：网页自己画一条状态栏', (await bars(p)) === 1, await bars(p));
+  const top = await p.evaluate(() => Math.round(document.querySelector('.statusbar').getBoundingClientRect().top));
+  ok('全屏后：状态栏贴着屏幕顶边，上面不空出一条（不照浏览器报的安全区让）', top === 0, top);
+  const sb = await p.evaluate(() => getComputedStyle(document.querySelector('.root')).getPropertyValue('--safe-bottom').trim());
+  ok('全屏后：底下也不再让出导航条的位置', sb === '0px', sb);
 
   await p.evaluate(() => document.exitFullscreen());
   await p.waitForTimeout(400);
   ok('退出全屏后：状态栏跟着撤掉', (await bars(p)) === 0, await bars(p));
+  const back = await p.evaluate(() => getComputedStyle(document.querySelector('.root')).getPropertyValue('--safe-top').trim());
+  ok('退出全屏后：安全区照浏览器报的恢复', back === '40px', back);
   await tapBlank(p);
   await p.waitForTimeout(500);
   ok('再触摸一下：重新进入全屏', await full(p));

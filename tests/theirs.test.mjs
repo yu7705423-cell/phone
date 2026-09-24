@@ -115,7 +115,9 @@ check(/4 位密码/.test(body), '写着几位');
 check(!/设定密码/.test(body) && !/密码位数/.test(body), '没有那一页「先设定一个密码」');
 check(await page.evaluate(() => !document.querySelector('.navbar')),
   '锁屏没有导航栏，整屏就是一块锁屏');
-check(!/\d\d:\d\d/.test(body), '锁屏上没有时刻与星期，只剩一张头像');
+// 只看 app 那一层：外壳自己的状态栏（全屏时会画）上本来就有时刻
+check(!/\d\d:\d\d/.test(await page.evaluate(() => document.querySelector('.app-layer').innerText)),
+  '锁屏上没有时刻与星期，只剩一张头像');
 const lockAv = await page.evaluate(() => {
   const el = document.querySelector('.tp-lock-top .avatar');
   return { tag: el?.tagName, src: el?.getAttribute('src') || '' };

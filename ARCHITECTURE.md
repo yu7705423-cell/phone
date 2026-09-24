@@ -3180,7 +3180,9 @@ Avatar / Badge / Toast / EmptyState / Spinner / Skeleton
 - 浏览器标签页(安卓 Chrome 这一类)里网页盖不到地址栏和系统状态栏。`system/fullscreen.js`
   在触摸时请求 Fullscreen API,两样一起藏掉,网页自己画状态栏;开关在「主题 - 浏览器中全屏」,
   默认开,只在触摸屏、非苹果设备、没加到主屏幕时出现。`theme-color` 跟着应用自己的 `--bg`
-  (`system/look.js` 的 `syncThemeColor`),不按系统深浅色分
+  (`system/look.js` 的 `syncThemeColor`),不按系统深浅色分。全屏期间 `html[data-browser-full]`
+  把 `--safe-top` / `--safe-bottom` 清零:安卓 Chrome 全屏时系统状态栏临时滑出来一次,
+  报上来的安全区就停在状态栏高度不回去,照它让会在顶上留一条空白
 
 ### 9.4 图标
 

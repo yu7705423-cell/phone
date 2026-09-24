@@ -48,7 +48,11 @@ const wanted = () => settings.get().autoFullscreen !== false && mq('(pointer: co
 
 export function install() {
   if (typeof document === 'undefined') return;
-  document.addEventListener('fullscreenchange', () => fullStore.set({ full: isFull() }));
+  // 样式靠这个属性把安全区清零（base.css）
+  document.addEventListener('fullscreenchange', () => {
+    document.documentElement.toggleAttribute('data-browser-full', isFull());
+    fullStore.set({ full: isFull() });
+  });
   // pointerup（触摸）与 click 都算一次点按，浏览器认它做进全屏的理由。
   // 滑动滚动时浏览器发的是 pointercancel，不会在划一下的时候进全屏
   const tap = e => {

@@ -68,6 +68,13 @@ svg { display: block; flex: none; }
    统一让的话，那一条永远是 .root 的底色，和顶栏颜色接不上。
    画了状态栏的（安卓安装包）照旧由 .root 让，状态栏本身就在那一条下面。 */
 .root:not(:has(> .statusbar)) { padding-top: 0; --top-inset: var(--safe-top); }
+/* 浏览器标签页里的全屏（system/fullscreen.js）：系统状态栏和导航条都藏起来了，
+   网页自己画状态栏，从屏幕顶边开始，上下都不再让。
+   不照 env() 让：安卓 Chrome 全屏时从顶上划一下，系统状态栏会临时滑出来，
+   它报上来的安全区跟着变成状态栏的高度，状态栏收回去之后却不改回来 ——
+   顶上就一直空着一条状态栏那么高的空白。挖孔摄像头那一行正好是自己画的状态栏，
+   和真机的状态栏同一个位置。 */
+:root[data-browser-full] .root { --safe-top: 0px; --safe-bottom: 0px; }
 
 .scroll {
   overflow-y: auto;
