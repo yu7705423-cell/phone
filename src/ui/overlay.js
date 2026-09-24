@@ -1,4 +1,4 @@
-import { html, render, useEffect } from '../lib.js';
+import { html, render, useEffect, useLayoutEffect, useRef } from '../lib.js';
 import { Icon } from '../icons/Icon.js';
 import { Page } from './page.js';
 
@@ -38,17 +38,42 @@ function useCloser(open, onClose) {
 }
 
 // cls 挂在遮罩那一层上。is-preview：遮罩不压暗，底下的页面照原样看得见（边调边看的那种）
+// ---- 浮层挂到哪儿 ----
+//
+// 浮层是在页面里面写的（哪个组件要弹就在哪儿写一个 <Sheet>），可它**不能留在页面里面画**：
+// iPhone 上可滚动的那一块自成一层，里面的东西 z-index 写得再高也盖不过它后面的兄弟 ——
+// 朋友圈的评论表就被底部标签栏的图标压在了输入框上。电脑上的浏览器没有这回事，
+// 所以一直没发现。
+//
+// 所以原地只留一个看不见的占位，真正的内容渲染到所在那一层（应用层、主界面层）的最后面：
+// 那里没有滚动容器挡着，后开的浮层自然叠在先开的上面。
+const HOSTS = '.app-layer, .home-layer, .screen';
+function Portal({ children }) {
+  const spot = useRef(null);
+  const box = useRef(null);
+  useLayoutEffect(() => {
+    const el = document.createElement('div');
+    el.className = 'sheet-host';
+    (spot.current?.closest(HOSTS) || document.querySelector('.screen') || document.body).appendChild(el);
+    box.current = el;
+    return () => { render(null, el); el.remove(); box.current = null; };
+  }, []);
+  // 每次重画都把最新的内容交过去。同一个容器里 render 是比对着改，里面的组件状态不丢
+  useLayoutEffect(() => { if (box.current) render(children, box.current); });
+  return html`<span class="overlay-spot" ref=${spot} hidden></span>`;
+}
+
 export const Sheet = ({ open, onClose, title, children, height, cls }) => {
   useCloser(open, onClose);
   if (!open) return null;
-  return html`
+  return html`<${Portal}>
     <div class=${`overlay${cls ? ' ' + cls : ''}`} onClick=${onClose}>
       <div class="sheet ph-sheet" style=${height ? `--sheet-h:${height}` : ''} onClick=${e => e.stopPropagation()}>
         <div class="sheet-grip"></div>
         ${title ? html`<div class="sheet-title">${title}</div>` : null}
         <div class="sheet-body scroll">${children}</div>
       </div>
-    </div>`;
+    </div><//>`;
 };
 
 // 整屏浮层。盖住当前应用页，自带返回栏，从右边推进来。
@@ -56,10 +81,10 @@ export const Sheet = ({ open, onClose, title, children, height, cls }) => {
 export const FullSheet = ({ open, onClose, title, right, children }) => {
   useCloser(open, onClose);
   if (!open) return null;
-  return html`
+  return html`<${Portal}>
     <div class="fullsheet">
       <${Page} title=${title} onBack=${onClose} right=${right}>${children}<//>
-    </div>`;
+    </div><//>`;
 };
 
 // ---- 命令式浮层。挂在独立根节点,不干扰应用树 ----

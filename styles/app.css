@@ -3096,3 +3096,7 @@ button.conv-notice { background: none; border: 0; font: inherit; cursor: pointer
 .pola-sign { font-family: var(--font-hand); font-size: var(--fs-24); color: var(--text); line-height: 1.35; word-break: break-word; }
 .pola-at { font-size: var(--fs-11); color: var(--text-3); margin-top: var(--sp-2); text-align: right; letter-spacing: .5px; }
 .hand-sample { font-family: var(--hand), var(--font-hand-base); font-size: var(--fs-20); color: var(--text); }
+
+/* 朋友圈评论表：输入框在最上面（MomentBits.js 的 CommentSheet），键盘只盖得住下半截 */
+.mo-comment-input { padding: 0 0 var(--sp-3); border-bottom: 1px solid var(--border); }
+.mo-comment-list { padding-top: var(--sp-3); }

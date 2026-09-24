@@ -120,10 +120,17 @@ export function CommentSheet({ target, onClose }) {
     finally { setAsking(''); }
   };
   const chars = mo?.authorId === 'me' ? db.characters.all() : [];
+  // 输入框放在最上面，表占大半屏。从前输入框在表的最底下，键盘一起来就压在它上面、
+  // 和底栏叠在一起写不了字；放在上半屏，键盘只盖得住下半截
   return html`
-    <${Sheet} open=${!!target} onClose=${onClose} title="评论">
+    <${Sheet} open=${!!target} onClose=${onClose} title="评论" height="72%">
       ${mo ? html`
-        <${CommentList} comments=${mo.comments}/>
+        <div class="composer composer-inline mo-comment-input">
+          <textarea rows="2" value=${text} placeholder="写下评论"
+            onInput=${e => setText(e.target.value)}></textarea>
+          <button class="send-btn press" disabled=${!text.trim()} onClick=${send}>
+            <${Icon} name="send" size=${16}/></button>
+        </div>
         ${chars.length ? html`
           <div class="mo-ask">
             <div class="mo-ask-title">请角色评论</div>
@@ -136,11 +143,8 @@ export function CommentSheet({ target, onClose }) {
                 </button>`)}
             </div>
           </div>` : null}
-        <div class="composer composer-inline">
-          <textarea rows="1" value=${text} placeholder="写下评论"
-            onInput=${e => setText(e.target.value)}></textarea>
-          <button class="send-btn press" disabled=${!text.trim()} onClick=${send}>
-            <${Icon} name="send" size=${16}/></button>
-        </div>` : null}
+        ${(mo.comments || []).length ? html`
+          <div class="mo-comment-list"><${CommentList} comments=${mo.comments}/></div>`
+        : html`<div class="settings-foot">暂无评论。</div>`}` : null}
     <//>`;
 }
