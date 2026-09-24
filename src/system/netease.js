@@ -27,7 +27,8 @@ function base() {
 }
 
 // 每次都带 timestamp，否则接口那边会给缓存过的结果（登录状态尤其怕这个）
-async function call(path, params = {}, cookie = '') {
+// 不抛错的那一版：给回 { status, body }，由调用方自己看业务码（登录那几步要分辨风控）
+async function callRaw(path, params = {}, cookie = '') {
   const url = new URL(base() + path);
   Object.entries(params).forEach(([k, v]) => {
     if (v !== undefined && v !== null && v !== '') url.searchParams.set(k, String(v));
@@ -41,10 +42,15 @@ async function call(path, params = {}, cookie = '') {
   const res = await fetch(url.toString(), { method: 'GET' });
   let body = null;
   try { body = await res.json(); } catch { /* 有些错误页不是 JSON */ }
-  if (!res.ok) {
-    throw new Error(`音乐接口 ${res.status}: ${body?.message || body?.msg || res.statusText}`);
+  return { status: res.status, ok: res.ok, statusText: res.statusText, body: body || {} };
+}
+
+async function call(path, params = {}, cookie = '') {
+  const r = await callRaw(path, params, cookie);
+  if (!r.ok) {
+    throw new Error(`音乐接口 ${r.status}: ${r.body?.message || r.body?.msg || r.statusText}`);
   }
-  return body || {};
+  return r.body;
 }
 
 // 封面、头像一律走这里取。
@@ -151,6 +157,18 @@ function riskNote(r) {
   return hit ? `${hit}（code ${c}）` : '';
 }
 
+// 扫码那两步的探测：先不带身份，被风控拦下就要一个游客身份再来一遍 —— 和 qrStart 同一个路子，
+// 探出来的结果才和真正登录时一致
+async function qrProbe(b, ip, once) {
+  const r = await once('');
+  if (!riskNote(r)) return r;
+  const g = await probeOne(withIP(`${b}/register/anonimous?timestamp=${Date.now()}`, ip));
+  const ck = g.body?.cookie;
+  if (!ck) return r;
+  const again = await once(ck);
+  return riskNote(again) ? again : { ...again, guest: true };
+}
+
 const CHECKS = [
   {
     id: 'reach', label: '连得上',
@@ -187,29 +205,28 @@ const CHECKS = [
   },
   {
     id: 'qrkey', label: '取登录用的 key',
-    desc: '扫码登录的第一步。这一步不通，登录整条路都走不了',
-    path: '/login/qr/key',
+    desc: '扫码登录的第一步。被风控拦下时会自动换用游客身份再试，和真正登录时一样',
+    run: async (b, ip) => qrProbe(b, ip, async (ck) => probeOne(withIP(withCookie(`${b}/login/qr/key?timestamp=${Date.now()}`, ck), ip))),
     judge: r => (r.status === 0 ? [false, r.err]
-      : r.body?.data?.unikey ? [true, '拿得到']
-      : riskNote(r) ? [false, riskNote(r)]
+      : r.body?.data?.unikey ? [true, r.guest ? '换用游客身份后拿得到' : '拿得到']
+      : riskNote(r) ? [false, `${riskNote(r)}，换用游客身份也没有通过`]
       : [false, `返回 ${r.status}${said(r) ? `：${said(r)}` : ''}`]),
   },
   {
     id: 'qrimg', label: '生成二维码',
     desc: '第二步。有的实例有 key 却生成不出图，那样扫不了码',
     // key 现取一个：用假 key 去要图，有的实例会直接拒绝
-    path: null,
-    run: async (b, ip) => {
-      const k = await probeOne(withIP(`${b}/login/qr/key?timestamp=${Date.now()}`, ip));
+    run: async (b, ip) => qrProbe(b, ip, async (ck) => {
+      const k = await probeOne(withIP(withCookie(`${b}/login/qr/key?timestamp=${Date.now()}`, ck), ip));
       const key = k.body?.data?.unikey;
-      if (!key) return { status: 0, err: riskNote(k) || '前一步没拿到 key' };
-      return probeOne(withIP(`${b}/login/qr/create?qrimg=true&key=${encodeURIComponent(key)}`, ip));
-    },
+      if (!key) return riskNote(k) ? k : { status: 0, err: '前一步没拿到 key' };
+      return probeOne(withIP(withCookie(`${b}/login/qr/create?qrimg=true&key=${encodeURIComponent(key)}`, ck), ip));
+    }),
     judge: r => {
       if (r.status === 0) return [false, r.err];
-      if (riskNote(r)) return [false, riskNote(r)];
+      if (riskNote(r)) return [false, `${riskNote(r)}，换用游客身份也没有通过`];
       const img = r.body?.data?.qrimg;
-      return img && String(img).startsWith('data:') ? [true, '拿得到图']
+      return img && String(img).startsWith('data:') ? [true, r.guest ? '换用游客身份后拿得到图' : '拿得到图']
         : [false, `返回 ${r.status}${said(r) ? `：${said(r)}` : '，没有图'}`];
     },
   },
@@ -285,59 +302,78 @@ export async function probe(baseUrl, onStep, realIP = neteaseConfig().realIP) {
 
 // ---- 登录 ----
 //
-// 扫码要一台装着网易云的手机。没有的人从前只剩「自己去开发者工具里找 MUSIC_U」，
-// 这对多数人太难。**网页替你从 music.163.com 把 cookie 读出来是做不到的**：
-// 别家网站的 cookie 浏览器不给读，MUSIC_U 还是 HttpOnly，嵌网页、书签脚本都拿不到。
+// **扫码不该要先有一个 cookie。** 从前扫码的第一步（取 key、生成二维码）常被网易云风控拦下
+// （code -462：接口所在服务器的出口 IP 在名单上），于是只能先去浏览器里找一个已登录的 cookie
+// 粘进来才走得通 —— 为了登录，先得已经登录，本末倒置。
 //
-// 但自己部署的那个接口本来就会登录：短信验证码、手机号或邮箱加密码，
-// 登成了直接把 cookie 交回来，不用人去找。于是加上这两条：
+// 现在第一步被拦时，自动去接口要一个**游客身份**（/register/anonimous，不需要任何账号），
+// 带着它重新取 key、生成二维码、查扫码状态。人什么都不用找。游客身份只在内存里，
+// 不是任何人的账号凭据，页面关了就没了。游客身份也过不去时，写明是出口 IP 的问题，
+// 该填 realIP 或换一份自己部署在国内的接口。
 //
-//   短信验证码  和扫码同一个信任级别：交出去的只是一次性的码
-//   密码        密码会经过填写的接口地址。原文不出这台设备（先算 MD5），
-//               也不进网址（POST），但拿到 MD5 照样能登 —— 界面上照实写明，只建议在
-//               自己部署的接口上用
+// 网页替人从 music.163.com 读 cookie 做不到：别家网站的 cookie 浏览器不给读，
+// MUSIC_U 还是 HttpOnly。
 //
-// 网易云对这两条都有风控：短信发得太勤会被限，密码登录常被要求行为验证（8821），
-// 那时只能换扫码、短信或粘贴 cookie，错误里写明。
+// 另有短信验证码一条（和扫码同一个信任级别，交出去的只是一次性的码）。
+// **不做密码登录**：密码哪怕先转成 MD5，接口一方拿到也照样能登，而且泄露了收不回来 ——
+// 扫码与短信泄露的只是会话，退出或改密码就失效。
 
-// 登录那几个请求走 POST，参数放在表单里：密码（哪怕是 MD5）不该出现在网址与访问日志里。
-// 表单编码是「简单请求」，不触发跨域预检
-async function post(path, params = {}) {
-  const url = new URL(base() + path);
-  url.searchParams.set('timestamp', String(Date.now()));
-  const body = new URLSearchParams();
-  Object.entries(params).forEach(([k, v]) => {
-    if (v !== undefined && v !== null && v !== '') body.set(k, String(v));
-  });
-  const ip = neteaseConfig().realIP;
-  if (ip) body.set('realIP', ip);
-  const res = await fetch(url.toString(), { method: 'POST', body });
-  let data = null;
-  try { data = await res.json(); } catch { /* 有些错误页不是 JSON */ }
-  return { status: res.status, body: data || {} };
+// 网易云因为出口 IP 拦下的那几个码。碰到它们才值得换游客身份再试
+const RISKY = new Set([-462, -460]);
+const risky = r => RISKY.has(Number(r?.body?.code));
+
+let guest = '';
+/** 游客身份。要一次记在内存里；force 为真时重新要一个 */
+async function guestCookie(force = false) {
+  if (guest && !force) return guest;
+  const r = await callRaw('/register/anonimous');
+  const ck = r.body?.cookie || '';
+  if (!ck) throw new Error(`接口没有给出游客身份${r.body?.message ? `：${r.body.message}` : ''}`);
+  guest = ck;
+  return guest;
 }
 
-// 登录失败时网易云回的那几个码，翻成能照着做的话
-const LOGIN_WHY = {
-  8821: '网易云要求先完成行为验证，这种方式暂时登不上。请改用短信验证码、扫码或粘贴 cookie',
-  503: '验证码不对，或者已经过期',
-  502: '密码不对',
-  501: '这个账号不存在',
-  400: '参数有误，请检查手机号或邮箱',
-  '-462': '网易云要求先完成验证：接口所在的出口 IP 在风控名单上。可在上方填写中国大陆 IP 后重试',
-  405: '操作太频繁，请稍后再试',
-};
+// 被风控拦下时写给人看的那句
+const RISK_HELP = '网易云拦下了接口所在服务器的请求（出口 IP 在风控名单上），换用游客身份也没有通过。'
+  + '请在上方「来源地址 realIP」填写一个中国大陆 IP 后重试；部署在国内服务器上的接口一般没有这个问题。';
+
+/**
+ * 先不带任何身份问一次；被风控拦下就换游客身份再问。给回 { r, cookie }，
+ * cookie 是这一步最后用的身份，后面几步要接着用同一个
+ */
+async function viaGuest(path, params, cookie = '') {
+  let r = await callRaw(path, params, cookie);
+  if (!cookie && risky(r)) {
+    cookie = await guestCookie();
+    r = await callRaw(path, params, cookie);
+    // 记着的游客身份可能过期了，要一个新的再试一次
+    if (risky(r)) { cookie = await guestCookie(true); r = await callRaw(path, params, cookie); }
+  }
+  if (risky(r)) throw new Error(RISK_HELP);
+  return { r, cookie };
+}
+
 const loginError = r => {
   const code = r.body?.code ?? r.status;
-  return new Error(LOGIN_WHY[code] || r.body?.message || r.body?.msg || `登录失败（code ${code}）`);
+  const WHY = {
+    503: '验证码不对，或者已经过期',
+    400: '参数有误，请检查手机号',
+    405: '操作太频繁，请稍后再试',
+    8821: '网易云要求先完成行为验证，这种方式暂时登不上，请改用扫码',
+  };
+  return new Error(WHY[code] || r.body?.message || r.body?.msg || `登录失败（code ${code}）`);
 };
+
+// 同一次登录里用的身份：发验证码时用了游客身份，登录那一步也得是它
+const smsGuest = new Map();   // 手机号 -> cookie
 
 /** 发短信验证码。ctcode 是国家区号，中国大陆为 86 */
 export async function smsSend(phone, ctcode = '86') {
   const p = String(phone || '').replace(/\s+/g, '');
   if (!/^\d{5,15}$/.test(p)) throw new Error('请填写手机号');
-  const r = await post('/captcha/sent', { phone: p, ctcode: ctcode || '86' });
+  const { r, cookie } = await viaGuest('/captcha/sent', { phone: p, ctcode: ctcode || '86' });
   if (r.body?.code !== 200) throw loginError(r);
+  smsGuest.set(p, cookie);
   return true;
 }
 
@@ -346,36 +382,32 @@ export async function smsLogin(phone, captcha, ctcode = '86') {
   const p = String(phone || '').replace(/\s+/g, '');
   const c = String(captcha || '').trim();
   if (!p || !c) throw new Error('请填写手机号与验证码');
-  const r = await post('/login/cellphone', { phone: p, captcha: c, countrycode: ctcode || '86' });
+  const { r } = await viaGuest('/login/cellphone', { phone: p, captcha: c, countrycode: ctcode || '86' }, smsGuest.get(p) || '');
   if (r.body?.code !== 200 || !r.body?.cookie) throw loginError(r);
+  smsGuest.delete(p);
   return r.body.cookie;
 }
 
-/** 手机号或邮箱加密码登录，给回 cookie。密码先算 MD5，原文不外传 */
-export async function passwordLogin(account, password, ctcode = '86') {
-  const a = String(account || '').trim();
-  if (!a || !password) throw new Error('请填写账号与密码');
-  const { md5 } = await import('./md5.js');
-  const hashed = md5(password);
-  const r = a.includes('@')
-    ? await post('/login', { email: a, md5_password: hashed })
-    : await post('/login/cellphone', { phone: a.replace(/\s+/g, ''), md5_password: hashed, countrycode: ctcode || '86' });
-  if (r.body?.code !== 200 || !r.body?.cookie) throw loginError(r);
-  return r.body.cookie;
-}
+// 扫码。一张二维码从取 key 到扫完，全程用同一个身份（不带，或者游客身份）
+const qrGuest = new Map();    // key -> cookie
 
-// 扫码
 export async function qrStart() {
-  const key = (await call('/login/qr/key')).data?.unikey;
-  if (!key) throw new Error('接口没有返回二维码 key');
-  const made = await call('/login/qr/create', { key, qrimg: true });
-  return { key, img: made.data?.qrimg || '', url: made.data?.qrurl || '' };
+  const { r, cookie } = await viaGuest('/login/qr/key', {});
+  const key = r.body?.data?.unikey;
+  if (!key) throw new Error(`接口没有返回二维码 key${r.body?.message ? `：${r.body.message}` : ''}`);
+  const made = await callRaw('/login/qr/create', { key, qrimg: true }, cookie);
+  if (risky(made)) throw new Error(RISK_HELP);
+  if (!made.body?.data?.qrimg) throw new Error('接口没有生成二维码图片');
+  qrGuest.set(key, cookie);
+  return { key, img: made.body.data.qrimg, url: made.body.data.qrurl || '', guest: !!cookie };
 }
 
 // 800 过期 · 801 等待扫码 · 802 已扫待确认 · 803 成功
 export async function qrCheck(key) {
-  const r = await call('/login/qr/check', { key });
-  return { code: r.code, message: r.message || '', cookie: r.cookie || '' };
+  const { r } = await viaGuest('/login/qr/check', { key }, qrGuest.get(key) || '');
+  const out = { code: r.body?.code, message: r.body?.message || '', cookie: r.body?.cookie || '' };
+  if (out.code === 800 || out.code === 803) qrGuest.delete(key);
+  return out;
 }
 
 export async function accountOf(cookie) {

@@ -1,7 +1,7 @@
 import { html, useState } from '../../lib.js';
 import { phone, useStore } from '../../sdk/index.js';
 import { Page, List, ListItem, Field, Input, NumberInput, Switch, Icon, Spinner,
-  QrLogin, CookiePaste, AccountLogin, confirm, toast } from '../../ui/index.js';
+  QrLogin, CookiePaste, SmsLogin, confirm, toast } from '../../ui/index.js';
 
 const { db, nav, netease } = phone;
 const svc = phone.ai.services;
@@ -26,9 +26,8 @@ function verdict(rows, cfg) {
     return cfg.cookie
       ? '地址与跨域均正常，未通过的项目是网易云拒绝了这个实例的出口 IP。'
         + '已保存的 cookie 未能解除该限制，请改用另一个公开实例。'
-      : '地址与跨域均正常，未通过的项目是网易云拒绝了这个实例的出口 IP。'
-        + '可在上方填写一个中国大陆 IP 作为来源地址，'
-        + '或在下方填写已登录账号的 cookie，然后重新测试。';
+      : '地址与跨域均正常，未通过的项目是网易云拒绝了这个实例的出口 IP，扫码登录已自动换用游客身份仍未通过。'
+        + '可在上方填写一个中国大陆 IP 作为来源地址后重新测试。';
   }
   return '部分项目不可用。未通过的功能会自动退回或显示为不可用，其余功能照常。';
 }
@@ -102,8 +101,8 @@ export function MusicPage() {
               right=${html`<button class="nav-text press" onClick=${quit}>退出</button>`}/>`
           : html`<div class="pad">
               <${QrLogin} service=${netease} hint="请使用网易云音乐扫描二维码"/>
-              <div class="acct-sep">没有手机扫码时，用账号登录</div>
-              <${AccountLogin} service=${netease}/>
+              <div class="acct-sep">扫码不方便时，用短信验证码登录</div>
+              <${SmsLogin} service=${netease}/>
               <div class="acct-sep">以上方式都不可用时</div>
               <${CookiePaste} service=${netease}/>
             </div>`}

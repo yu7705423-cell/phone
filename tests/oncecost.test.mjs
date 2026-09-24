@@ -77,10 +77,16 @@ const send = async (chatId, text) => {
   const before = await page.evaluate(async id => (await import('/src/system/db/index.js')).messagesOf(id).length, chatId);
   await page.locator('.composer-input').fill(text);
   await page.locator('.send-btn[aria-label="发送"]').tap();
-  await page.waitForFunction(async ([id, n]) => {
-    const list = (await import('/src/system/db/index.js')).messagesOf(id);
-    return list.length >= n + 2 && !document.querySelector('.conv-typing');
-  }, [chatId, before], { timeout: 15000 }).catch(() => {});
+  // 等这一轮落下：自己的那条加角色的回复（或报错那一条），且「正在输入」已经消失。
+  // 不用 waitForFunction —— 它不认 async 判断，返回的 Promise 本身就算真，等于没等
+  for (let i = 0; i < 60; i++) {
+    const done = await page.evaluate(async ([id, n]) => {
+      const list = (await import('/src/system/db/index.js')).messagesOf(id);
+      return list.length >= n + 2 && !document.querySelector('.conv-typing');
+    }, [chatId, before]);
+    if (done) break;
+    await page.waitForTimeout(250);
+  }
   await page.waitForTimeout(400);
 };
 const count = () => ({ chat: hits.filter(x => x === 'chat').length, day: hits.filter(x => x === 'day').length,
