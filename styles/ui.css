@@ -201,6 +201,8 @@ a.btn { text-decoration: none; }
   animation: fade-in var(--dur-fast) var(--ease);
 }
 .overlay-center { align-items: center; justify-content: center; padding: var(--sp-5); }
+.overlay.is-preview { background: transparent; }
+.overlay.is-preview .sheet { box-shadow: var(--shadow-3); }
 
 .sheet {
   /* 高度由调用方给，但走变量而不是内联样式：契约钩子上写内联样式，

@@ -2957,3 +2957,86 @@ button.conv-notice { background: none; border: 0; font: inherit; cursor: pointer
 .mo-vis { margin: var(--sp-3) 0; display: flex; flex-direction: column; gap: var(--sp-2); }
 .mo-vis-title { font-size: var(--fs-13); color: var(--text-2); }
 .mo-vis-desc { font-size: var(--fs-12); color: var(--text-3); line-height: 1.5; }
+
+/* ---- 聊天背景与上下栏（system/chatlook.js，ARCHITECTURE 4.198）----
+   值由会话页以 --ph-* 挂在 .page 上；没设过的那一栏不挂类名，保持应用本来的样子。
+   背景画在整页上（顶栏、输入栏底下也是它），遮罩朝当前主题的底色淡过去，
+   浅色主题上是一层白、深色主题上是一层黑，气泡外那些灰字都还看得清 */
+.page.has-chat-bg {
+  background:
+    linear-gradient(color-mix(in srgb, var(--bg) var(--ph-chat-veil, 0%), transparent),
+                    color-mix(in srgb, var(--bg) var(--ph-chat-veil, 0%), transparent)),
+    var(--ph-chat-bg, none) center / cover no-repeat,
+    var(--bg);
+}
+/* 压在图上、不在气泡里的那几行字，垫一块底 */
+.has-chat-bg .time-sep,
+.has-chat-bg .conv-hint,
+.has-chat-bg .conv-notice {
+  background: color-mix(in srgb, var(--bg) 78%, transparent);
+  border-radius: var(--r-full); padding-inline: var(--sp-3);
+}
+.has-chat-bg .conv-notice {
+  width: fit-content; max-width: 86%; margin-inline: auto; border-radius: var(--r-md);
+}
+
+/* 上下两栏。下面那一栏是输入框连同压在它上面的那几条（引用、待办、表情联想、@ 成员）
+   以及展开的面板、多选栏 —— 看上去是同一块，一起换 */
+.page.look-top > .navbar {
+  background: var(--ph-bar-top, var(--bg));
+  -webkit-backdrop-filter: blur(var(--ph-bar-top-blur, 0px));
+  backdrop-filter: blur(var(--ph-bar-top-blur, 0px));
+}
+.page.look-bottom :is(.composer-bar, .composer-panel, .select-bar, .quote-bar,
+                      .todo-bar, .stk-suggest, .mention-bar) {
+  background: var(--ph-bar-bottom, var(--bg));
+  -webkit-backdrop-filter: blur(var(--ph-bar-bottom-blur, 0px));
+  backdrop-filter: blur(var(--ph-bar-bottom-blur, 0px));
+}
+/* 字色。深色的栏配浅字：栏里用到的几档字色与输入框底色就地换掉，
+   里面的元素照旧读 --text 那几个，不必一个个改 */
+.page.look-top-light > .navbar,
+.page.look-bottom-light :is(.composer-bar, .composer-panel, .select-bar, .quote-bar,
+                            .todo-bar, .stk-suggest, .mention-bar) {
+  --text: var(--on-scrim);
+  --text-2: color-mix(in srgb, var(--on-scrim) 78%, transparent);
+  --text-3: color-mix(in srgb, var(--on-scrim) 58%, transparent);
+  --surface-2: color-mix(in srgb, var(--on-scrim) 14%, transparent);
+  --border: color-mix(in srgb, var(--on-scrim) 22%, transparent);
+  color: var(--text);
+}
+.page.look-top-dark > .navbar,
+.page.look-bottom-dark :is(.composer-bar, .composer-panel, .select-bar, .quote-bar,
+                           .todo-bar, .stk-suggest, .mention-bar) {
+  --text: var(--on-scrim-fill);
+  --text-2: color-mix(in srgb, var(--on-scrim-fill) 72%, transparent);
+  --text-3: color-mix(in srgb, var(--on-scrim-fill) 50%, transparent);
+  --surface-2: color-mix(in srgb, var(--on-scrim-fill) 6%, transparent);
+  --border: color-mix(in srgb, var(--on-scrim-fill) 14%, transparent);
+  color: var(--text);
+}
+
+/* 调节面板 */
+.look-colors { display: flex; flex-wrap: wrap; gap: var(--sp-2); padding: var(--sp-2) var(--sp-4) var(--sp-3); }
+.look-color {
+  width: 30px; height: 30px; border-radius: var(--r-full);
+  border: 1px solid var(--border-2); background: var(--c, var(--bg));
+  position: relative;
+}
+.look-color.is-on { outline: 2px solid var(--accent); outline-offset: 2px; }
+.look-color.is-theme::after {
+  content: ''; position: absolute; inset: 6px; border-radius: var(--r-full);
+  border: 1px dashed var(--text-3);
+}
+.look-color input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.look-bg {
+  display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-3) var(--sp-4);
+}
+.look-bg-thumb {
+  width: 56px; height: 84px; flex: none; border-radius: var(--r-sm);
+  background: var(--surface-2) center / cover no-repeat; background-image: var(--thumb, none);
+  display: flex; align-items: center; justify-content: center; color: var(--text-3);
+}
+.look-bg-acts { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+/* 一组列表里，某一行下面自己带一排东西（颜色块）时的那行小标题 */
+.list-sub-title { font-size: var(--fs-14); padding: var(--sp-3) var(--sp-4) 0; }

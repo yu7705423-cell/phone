@@ -198,8 +198,8 @@ export function usedImageIds() {
     (p.highlights || []).forEach(h => add(h?.imageId));
   });
   stickers.all().forEach(st => add(st.imageId));
-  // 群头像（自己上传的那张）
-  chats.all().forEach(c => add(c.avatar));
+  // 群头像（自己上传的那张）、会话自己换的聊天背景（chatlook.js）
+  chats.all().forEach(c => { add(c.avatar); add(c.look?.bg); });
 
   const s = settings.get();
   Object.values(s.appIcons || {}).forEach(v => add(v?.imageId));

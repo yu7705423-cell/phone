@@ -15,7 +15,9 @@
   flex: none; height: var(--statusbar-h); padding: 0 var(--sp-4);
   display: flex; align-items: center; justify-content: space-between;
   font-size: var(--fs-12); font-weight: var(--fw-medium);
-  color: var(--text); background: transparent;
+  color: var(--text);
+  /* 会话换了顶栏颜色时跟着换（system/chatlook.js），平时透明 */
+  background: var(--look-status-bg, transparent);
 }
 .sb-icons { display: flex; align-items: center; gap: var(--sp-1); }
 .sb-level { font-size: var(--fs-11); color: var(--text-2); }
@@ -317,6 +319,10 @@
   display: flex; align-items: center; justify-content: center;
   color: var(--text);
 }
+/* 页面把顶栏换成了深色或浅色（聊天背景里的「顶栏字色」）：悬浮键跟着换，
+   不然深色顶栏上压着一个深色箭头 */
+:root[data-statusbar="light"] .navback { color: var(--on-scrim); }
+:root[data-statusbar="dark"] .navback { color: var(--on-paper); }
 /* 开了悬浮键就没有底部横条，页面自己那个返回箭头也让位 —— 同一个位置
    不放两个返回。用 visibility 不用 display：导航栏是三列网格，
    左边那一格塌掉标题就不居中了 */

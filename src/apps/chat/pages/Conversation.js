@@ -22,6 +22,7 @@ import { TransferBubble, NoticeLine, TransferSheet, SettleSheet,
          ListenBubble, ListenLogSheet, ListenBar, SongBubble, WatchBubble, ReadBubble, ExcerptBubble,
          WatchBar, RequestBubble, RequestSheet, VoteSheet } from './TransferBits.js';
 import { SceneBlock, LookFloat } from './SceneInline.js';
+import { ChatLookSheet } from './ChatLook.js';
 import { MentionBar } from './GroupBits.js';
 import { AwardBubble, StreakMark, UnlockToast } from './BadgeBits.js';
 
@@ -386,6 +387,7 @@ export function Conversation({ chatId, focusId = '' }) {
   // 发的是正文不是消息，回的走线下那条链路
   const live = chatId ? sceneApi.openInline(chatId) : null;
   const [look, setLook] = useState(false);
+  const [bgOpen, setBgOpen] = useState(false);   // 聊天背景面板开着
   // 线下正在写的那一段。放在这儿而不是块里 —— 那个块是 memo 过的，
   // 每个 delta 都往里传会把整屏气泡一起重画
   const [sceneDraft, setSceneDraft] = useState('');
@@ -402,6 +404,15 @@ export function Conversation({ chatId, focusId = '' }) {
   }, [mySkin && mySkin.id, mySkin && mySkin.updatedAt]);
 
   const chat = db.chats.get(chatId);
+  // 聊天背景与上下栏（system/chatlook.js）。图要先取地址，所以放在提前返回之前
+  const bgUrl = useImage(phone.chatLook.lookOf(chat).bg || null);
+  const pageLook = phone.chatLook.pageOf(chat, bgUrl);
+  useEffect(() => {
+    if (!pageLook.status) return undefined;
+    const root = document.documentElement.style;
+    root.setProperty('--look-status-bg', pageLook.status);
+    return () => root.removeProperty('--look-status-bg');
+  }, [pageLook.status]);
   const char = db.characters.get((chat?.characterIds || [])[0]);
   // 群聊：每条消息是谁说的看 authorId，头像与名字按它取。char 仍是第一个成员 ——
   // 只给那几处「这段会话属于谁」的兜底用（见 ARCHITECTURE 4.162）
@@ -1208,6 +1219,7 @@ export function Conversation({ chatId, focusId = '' }) {
       : isGroup ? html`${phone.group.titleOf(chat)}（${members.length}）<${StreakMark} chat=${chat}/>`
       : html`${char.name}<${StreakMark} chat=${chat}/>`}
       onBack=${selecting ? () => setPicked(null) : nav.pop} noScroll
+      cls=${pageLook.cls} vars=${pageLook.vars} statusBarStyle=${pageLook.fg || undefined}
       right=${selecting
         ? html`<button class="nav-text press" onClick=${() => setPicked(view.map(m => m.id))}>全选</button>`
         : html`<${IconButton} name="more" onClick=${() => setMenu(true)} label="更多" cls="ph-nav-action"/>`}>
@@ -1498,6 +1510,10 @@ export function Conversation({ chatId, focusId = '' }) {
             })()}
             left=${html`<${Icon} name="clock" size=${18}/>`}
             onClick=${() => { setMenu(false); nav.push(`/pace/${chatId}`); }}/>
+          <${ListItem} title="聊天背景" arrow
+            right=${phone.chatLook.isSet(chat) ? '已设置' : '默认'}
+            left=${html`<${Icon} name="image" size=${18}/>`}
+            onClick=${() => { setMenu(false); setBgOpen(true); }}/>
           <${ListItem} title="美化" arrow
             right=${mySkin ? mySkin.name : '未设置'}
             left=${html`<${Icon} name="sparkle" size=${18}/>`}
@@ -1563,5 +1579,6 @@ export function Conversation({ chatId, focusId = '' }) {
         <//>
       <//>
     ${look ? html`<${LookFloat} sceneId=${live?.id || ''} onClose=${() => setLook(false)}/>` : null}
+    ${bgOpen ? html`<${ChatLookSheet} chatId=${chatId} onClose=${() => setBgOpen(false)}/>` : null}
     <//>`;
 }

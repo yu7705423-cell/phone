@@ -7,6 +7,7 @@ import * as soundApi from '../system/sound.js';
 import * as pushApi from '../system/push.js';
 import * as looksApi from '../system/looks.js';
 import * as fullApi from '../system/fullscreen.js';
+import * as chatLookApi from '../system/chatlook.js';
 import * as fontsApi from '../system/fonts.js';
 import * as clockApi from '../system/time.js';
 import * as bus from '../system/bus.js';
@@ -353,6 +354,9 @@ export const phone = {
   bus: { on: bus.on, emit: bus.emit, EVENTS: bus.EVENTS },
 
   ui: { toast, confirm, prompt },
+
+  // 聊天背景与上下栏样式（存在会话记录上）
+  chatLook: chatLookApi,
 
   // 浏览器标签页里的全屏。外观页上那个开关要知道这台设备有没有这回事
   fullscreen: { supported: fullApi.supported, enter: fullApi.enter, store: fullApi.fullStore },

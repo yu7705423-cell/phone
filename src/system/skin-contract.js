@@ -173,6 +173,18 @@ export const VARS = [
   { name: 'ph-composer-h', label: '底栏按钮大小', unit: 'px', def: 38, on: ['chat'], since: 1,
     note: '输入框的最小高度也是它' },
   { name: 'ph-composer-pad', label: '底栏内边距', unit: 'px', def: 8, on: ['chat'], since: 1 },
+  // 会话自己的「聊天背景」挂在 .ph-page 上的几项（system/chatlook.js）。作者也能写，
+  // 但同一段会话里用户自己设了的那一项以用户的为准
+  { name: 'ph-chat-bg', label: '聊天背景图', unit: '', def: 'none', on: ['chat'], since: 2,
+    note: '写 url(...)。只在页面带 .has-chat-bg 时画' },
+  { name: 'ph-chat-veil', label: '背景遮罩', unit: '', def: '0%', on: ['chat'], since: 2,
+    note: '朝主题底色淡过去的比例，写百分数' },
+  { name: 'ph-bar-top', label: '顶栏底色', unit: '', def: 'var(--bg)', on: ['chat'], since: 2,
+    note: '只在页面带 .look-top 时生效' },
+  { name: 'ph-bar-top-blur', label: '顶栏模糊', unit: 'px', def: 0, on: ['chat'], since: 2 },
+  { name: 'ph-bar-bottom', label: '输入栏底色', unit: '', def: 'var(--bg)', on: ['chat'], since: 2,
+    note: '只在页面带 .look-bottom 时生效' },
+  { name: 'ph-bar-bottom-blur', label: '输入栏模糊', unit: 'px', def: 0, on: ['chat'], since: 2 },
 ];
 
 /** 这个钩子在这一档 scope 下够不够得着。 */

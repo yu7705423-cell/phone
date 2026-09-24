@@ -100,6 +100,8 @@ export function collect(charId, { history = true } = {}) {
     if (m.kind === 'call') (m.callLog || []).forEach(l => (l?.audio || []).forEach(id => id && fileIds.add(id)));
   });
   momentRows.forEach(m => (m.images || []).forEach(id => id && imgIds.add(id)));
+  // 会话自己换的聊天背景（chatlook.js）
+  chatRows.forEach(c => c.look?.bg && imgIds.add(c.look.bg));
   songRows.forEach(x => { if (x.coverId) imgIds.add(x.coverId); if (x.audioId) fileIds.add(x.audioId); });
   // 那台手机上的三处图：相册、壁纸、换过的应用图标
   phoneRows.forEach(row => {

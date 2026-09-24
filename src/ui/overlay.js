@@ -37,11 +37,12 @@ function useCloser(open, onClose) {
   }, [open, onClose]);
 }
 
-export const Sheet = ({ open, onClose, title, children, height }) => {
+// cls 挂在遮罩那一层上。is-preview：遮罩不压暗，底下的页面照原样看得见（边调边看的那种）
+export const Sheet = ({ open, onClose, title, children, height, cls }) => {
   useCloser(open, onClose);
   if (!open) return null;
   return html`
-    <div class="overlay" onClick=${onClose}>
+    <div class=${`overlay${cls ? ' ' + cls : ''}`} onClick=${onClose}>
       <div class="sheet ph-sheet" style=${height ? `--sheet-h:${height}` : ''} onClick=${e => e.stopPropagation()}>
         <div class="sheet-grip"></div>
         ${title ? html`<div class="sheet-title">${title}</div>` : null}
