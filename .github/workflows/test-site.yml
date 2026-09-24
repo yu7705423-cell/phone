@@ -1,0 +1,67 @@
+name: 部署测试版
+
+# 开发分支每推一次，把网页传到 Cloudflare Pages 的测试版（*.pages.dev）。见 CLAUDE.md 第 19 条。
+#
+# 不用 Cloudflare 后台里「连接 GitHub」那条路：在手机上授权完跳不回 Cloudflare，连不上。
+# 这里反过来由 GitHub 往 Cloudflare 推，只要两样东西，放在仓库的
+# Settings → Secrets and variables → Actions：
+#
+#   CLOUDFLARE_API_TOKEN   Cloudflare 的 API 令牌，权限只要「账户 - Cloudflare Pages - 编辑」
+#   CLOUDFLARE_ACCOUNT_ID  Cloudflare 的账户 ID（Workers 和 Pages 页面右下角 Account details 里）
+#
+# 两样没填齐时这一步直接跳过，不报红。
+#
+# 只传网页要用的那几样：安卓、iOS 外壳、Worker、测试、脚本都不是网页的一部分。
+on:
+  push:
+    branches:
+      - claude/mini-phone-architecture-tqzvig
+  workflow_dispatch:
+
+concurrency:
+  group: test-site
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      PROJECT: eira-test
+    steps:
+      - name: 检查密钥
+        id: keys
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::notice::没有填 CLOUDFLARE_API_TOKEN 或 CLOUDFLARE_ACCOUNT_ID，跳过测试版部署"
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.keys.outputs.ok == 'true'
+
+      - uses: actions/setup-node@v4
+        if: steps.keys.outputs.ok == 'true'
+        with:
+          node-version: 20
+
+      - name: 收拢网页文件
+        if: steps.keys.outputs.ok == 'true'
+        run: |
+          mkdir _site
+          cp index.html manifest.webmanifest sw.js icon-192.png icon-512.png icon-maskable-512.png apple-touch-icon.png _site/
+          cp -r src styles vendor _site/
+
+      - name: 建项目（已有则跳过）
+        if: steps.keys.outputs.ok == 'true'
+        run: npx -y wrangler@3 pages project create "$PROJECT" --production-branch=main || true
+
+      - name: 部署
+        if: steps.keys.outputs.ok == 'true'
+        run: npx -y wrangler@3 pages deploy _site --project-name="$PROJECT" --branch=main --commit-dirty=true

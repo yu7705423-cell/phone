@@ -436,7 +436,7 @@ style=${`width:${size}px`}
 | | 分支 | 发布到 | 谁在用 |
 |---|---|---|---|
 | 正式版 | `release` | GitHub Pages（`yu7705423-cell.github.io/phone/`） | 用户 |
-| 测试版 | `claude/mini-phone-architecture-tqzvig` | Cloudflare Pages（`*.pages.dev`） | 只有维护者 |
+| 测试版 | `claude/mini-phone-architecture-tqzvig` | Cloudflare Pages（`*.pages.dev`），由 `.github/workflows/test-site.yml` 推上去 | 只有维护者 |
 
 - **日常改动只推开发分支。** 测试版随之自动更新，正式版不动。
 - **只有用户明确说「推正式版」，才把开发分支合进 `release`。** 合之前全部回归测试、

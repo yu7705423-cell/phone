@@ -8143,7 +8143,12 @@ Bar:  { style: solid | clear | glass, color: '' | '#rrggbb', alpha: 不透明度
 
 已经有用户在用，每推一次都直接落到他们手上。分成两份（规则见 CLAUDE.md 第 19 条）：
 正式版是 `release` 分支，GitHub Pages 从它发布，网址不变；测试版是开发分支，
-Cloudflare Pages 连着仓库自动部署到 `*.pages.dev`。只有维护者说「推正式版」才合进 `release`。
+每推一次由 `.github/workflows/test-site.yml` 用 wrangler 传到 Cloudflare Pages（项目 `eira-test`，
+`*.pages.dev`）。只有维护者说「推正式版」才合进 `release`。
+
+不走 Cloudflare 后台「连接 GitHub」：在手机上授权完跳不回 Cloudflare，连不上。改成 GitHub 往 Cloudflare 推，
+只要仓库里两个 Secret（`CLOUDFLARE_API_TOKEN`、`CLOUDFLARE_ACCOUNT_ID`），没填齐时这一步跳过不报红。
+只传网页那几样（`index.html`、清单、`sw.js`、图标、`src`、`styles`、`vendor`），外壳、Worker、测试不传。
 
 测试版不放在 `github.io` 下另一个路径，是因为那和正式版同一个域名，同一台手机上共用
 IndexedDB 与 localStorage：测试版的数据迁移会改掉正式数据，`DB_VERSION` 被测试版升上去之后，
