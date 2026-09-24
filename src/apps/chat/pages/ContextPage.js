@@ -234,12 +234,14 @@ export function ContextPage() {
       </div>
 
       <${List}>
-        <${ListItem} title="注入预算" subtitle="世界书与记忆合计占用的 token 上限"
+        <${ListItem} title="注入预算" subtitle="世界书、记忆与对话历史的 token 上限"
           right=${html`<span>${s.contextBudget || '不限'}</span>`}/>
       <//>
       <div class="pad-x pad-b">
-        <${Field} desc="按粗估的 token 数截断。填 0 表示不截断，命中的条目全部注入，
-          请求体与费用随之增长。">
+        <${Field} desc="按粗估的 token 数截断。填了数字时，世界书最多占其中四成、记忆三成五，
+          超出的条目按优先级从低到高跳过；对话历史从最近一条往前取，取满为止。
+          填 0 表示不截断：命中的世界书与召回的记忆全部注入，对话历史只按上面的条数或轮数取，
+          请求体与费用随条目增多而增长。">
           <${NumberInput} value=${s.contextBudget} unit="token" placeholder="不限"
             onChange=${v => db.settings.set({ contextBudget: v })}/>
         <//>

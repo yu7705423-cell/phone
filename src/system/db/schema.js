@@ -31,7 +31,7 @@ export const KV = {
 
 // 业务层数据迁移。与 IndexedDB 的版本升级分开:
 // 这里处理的是记录内部结构的变化,而不是仓库的增删。
-export const DATA_VERSION = 10;
+export const DATA_VERSION = 11;
 
 export const MIGRATIONS = {
   // 1: 初始结构,无需迁移
@@ -162,6 +162,12 @@ export const MIGRATIONS = {
   //     分不出谁是自己选的，一律挪过去；想要横条的在「设置 - 外观 - 返回方式」换回来
   10({ settings }) {
     if (settings.get().navStyle !== 'back') settings.set({ navStyle: 'back' });
+  },
+
+  // 11: 注入预算默认从 6000 改成不限。6000 时世界书只能用约 2400 token，条目一多就被悄悄跳过。
+  //     和 8、9 同一个道理：老默认值已经落在库里。仍是 6000 的改成 0；自己填过别的数的不动
+  11({ settings }) {
+    if (settings.get().contextBudget === 6000) settings.set({ contextBudget: 0 });
   },
 };
 

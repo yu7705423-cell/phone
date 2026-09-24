@@ -141,7 +141,9 @@ export const DEFAULT_SETTINGS = {
   historyLimit: 20,               // 按条数时取最近多少条
   historyTurns: 10,               // 按轮次时取最近多少轮。一轮 = 用户发言 + 角色回复
   scanWindow: 6,                  // 世界书与 B 级记忆的扫描窗口(条)
-  contextBudget: 6000,            // 注入内容的 token 预算(粗估)
+  // token 预算（粗估）。填了数字时：世界书最多占四成、记忆三成五，对话历史从最近往前按这个数截断。
+  // 默认 0 = 不限：命中的世界书、召回的记忆全部注入，历史只按上面的条数或轮数取
+  contextBudget: 0,
 
   // ---- 线下（见 ARCHITECTURE 4.107）----
   //
