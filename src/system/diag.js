@@ -3,6 +3,7 @@
 // 空出来的那一条是谁留的，只有在出问题的那台真机上才看得到：浏览器报的安全区、
 // 100vh 实际多高、外壳从哪儿开始画、页面有没有被推开。一张截图把这几样都带上。
 // 读数放在屏幕中间，不挡住顶上和底下要看的那两条。
+import { BUILD } from '../version.js';
 
 const px = v => Math.round(v * 10) / 10;
 
@@ -25,6 +26,7 @@ function read(env) {
   const mode = ['fullscreen', 'standalone', 'minimal-ui', 'browser']
     .find(m => matchMedia(`(display-mode: ${m})`).matches);
   return [
+    `build ${BUILD}`,
     `full ${document.fullscreenElement ? 'yes' : 'no'}  mode ${mode}  dpr ${devicePixelRatio}`,
     `screen ${screen.width}x${screen.height}  inner ${innerWidth}x${innerHeight}  outer ${outerWidth}x${outerHeight}`,
     `vv h ${px(vv?.height ?? 0)} top ${px(vv?.offsetTop ?? 0)} pageTop ${px(vv?.pageTop ?? 0)}`,

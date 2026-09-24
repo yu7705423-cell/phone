@@ -43,6 +43,25 @@ export function enter() {
     .finally(() => { asking = false; });
 }
 
+// 进全屏时系统状态栏若先闪一下，安卓 Chrome 有时不把页面画进摄像头那一行：
+// 页面从那一行下面开始（innerHeight 比 screen.height 矮一截），那一行留成白的。
+// 这时把 viewport-fit 换成 auto 再换回 cover，Chrome 会重新决定画不画进去。
+//
+// **只在量出来确实少了一截时换，每进一次全屏最多换两次。** build .117 在每次 resize
+// 都换，而换本身又触发 resize，自己追着自己跑，整屏上下跳个不停
+const REFIT_MAX = 2;
+let refits = 0;
+const shortOfScreen = () => isFull() && screen.height - innerHeight > 8;
+function refit() {
+  if (!shortOfScreen() || refits >= REFIT_MAX) return;
+  const m = document.querySelector('meta[name="viewport"]');
+  if (!m || !/viewport-fit=cover/.test(m.content)) return;
+  refits++;
+  const was = m.content;
+  m.content = was.replace('viewport-fit=cover', 'viewport-fit=auto');
+  requestAnimationFrame(() => requestAnimationFrame(() => { m.content = was; }));
+}
+
 // 电脑上点一下就全屏太突兀，自动的那一档只在触摸屏上
 const wanted = () => settings.get().autoFullscreen !== false && mq('(pointer: coarse)');
 
@@ -52,9 +71,9 @@ export function install() {
   document.addEventListener('fullscreenchange', () => {
     document.documentElement.toggleAttribute('data-browser-full', isFull());
     fullStore.set({ full: isFull() });
+    // 状态栏闪完、收回去之后再量
+    if (isFull()) { refits = 0; setTimeout(refit, 500); setTimeout(refit, 1500); }
   });
-  // 不要在这里接 resize 去改 viewport 之类的东西：改 viewport 会再触发一次 resize，
-  // 自己追着自己跑，整屏一直闪（build .117 就是这么闪的）
 
   // pointerup（触摸）与 click 都算一次点按，浏览器认它做进全屏的理由。
   // 只认「点」，不认「划」：边缘右滑返回这种由页面自己接住的滑动，浏览器不发

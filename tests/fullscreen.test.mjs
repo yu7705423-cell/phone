@@ -117,6 +117,29 @@ const tapBlank = p => p.touchscreen.tap(206, 700);
   await c.close();
 }
 
+// ---- Chrome 没把页面画进摄像头那一行：可视区比屏幕矮 47 ----
+// 这时把 viewport-fit 换一下再换回来，让 Chrome 重新决定。只换有限几次，
+// 尺寸再怎么变也不跟着一直换（.117 那样一直换，整屏上下跳）
+{
+  const { c, p } = await open({ isMobile: true, hasTouch: true, userAgent: ANDROID_UA,
+    viewport: { width: 412, height: 885 }, screen: { width: 412, height: 932 },
+    init: () => document.addEventListener('DOMContentLoaded', () => {
+      window.__vp = [];
+      new MutationObserver(() => window.__vp.push(document.querySelector('meta[name="viewport"]').content))
+        .observe(document.querySelector('meta[name="viewport"]'), { attributes: true });
+    }) });
+  await tapBlank(p);
+  await p.waitForTimeout(400);
+  ok('（矮一截）进入全屏', await full(p));
+  await p.waitForTimeout(1800);
+  for (let i = 0; i < 4; i++) { await p.evaluate(() => window.dispatchEvent(new Event('resize'))); await p.waitForTimeout(300); }
+  const seq = await p.evaluate(() => window.__vp);
+  const autos = seq.filter(v => /viewport-fit=auto/.test(v)).length;
+  ok('矮一截时：换过 viewport-fit，但最多两次，不一直换', autos >= 1 && autos <= 2, JSON.stringify(seq));
+  ok('换完最后仍是 cover', /viewport-fit=cover/.test(await p.evaluate(() => document.querySelector('meta[name="viewport"]').content)));
+  await c.close();
+}
+
 // ---- 排查读数：地址加 ?diag 才有 ----
 {
   const { c, p } = await open({ isMobile: true, hasTouch: true, userAgent: ANDROID_UA, query: '?diag' });
@@ -124,7 +147,7 @@ const tapBlank = p => p.touchscreen.tap(206, 700);
   await p.waitForTimeout(800);
   const d = await p.locator('.diag').innerText().catch(() => '');
   ok('?diag：屏幕上有读数，写着是否全屏、安全区、外壳位置',
-    /full yes/.test(d) && /env top/.test(d) && /root top/.test(d) && /bar top/.test(d), d);
+    /build \d/.test(d) && /full yes/.test(d) && /env top/.test(d) && /root top/.test(d) && /bar top/.test(d), d);
   await c.close();
   const n = await open({ isMobile: true, hasTouch: true, userAgent: ANDROID_UA });
   ok('不加 ?diag：没有读数', (await n.p.locator('.diag').count()) === 0);
