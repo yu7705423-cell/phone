@@ -101,7 +101,7 @@ export function RealPage({ charId, chatId }) {
   };
 
   return html`
-    <${Page} title=${me?.name || '与你'} onBack=${nav.pop}>
+    <${Page} title=${phone.remark.shownToChar(db.chats.get(chatId)) || '与你'} onBack=${nav.pop}>
       ${all.length ? html`
         <div class="tp-talk">
           ${earlier ? html`

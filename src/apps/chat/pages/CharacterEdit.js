@@ -196,6 +196,10 @@ export function CharacterEdit({ id }) {
           subtitle="角色可以主动拍你。你双击角色头像也可以拍它，无论此项开关"
           right=${html`<${Switch} checked=${char.canPat !== false}
             onChange=${v => patch({ canPat: v })}/>`}/>
+        <${ListItem} title="改备注" multiline
+          subtitle="角色可以修改你在它通讯录里的备注，会话中会出现一行提示。查看角色的手机时显示这个备注"
+          right=${html`<${Switch} checked=${char.canRemark !== false}
+            onChange=${v => patch({ canRemark: v })}/>`}/>
         <${ListItem} title="骰子" multiline
           subtitle="角色可以掷骰子。点数由本地随机数决定，角色要到下一轮才知道结果"
           right=${html`<${Switch} checked=${char.canDice !== false}

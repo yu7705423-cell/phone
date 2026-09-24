@@ -49,6 +49,7 @@ const LABELS = {
   'skeleton.inner': '骨架 · 心声（随回复一起）',
   'task.inner': '任务 · 心声（单独生成）',
   'skeleton.pat': '骨架 · 拍一拍',
+  'skeleton.remark': '骨架 · 改备注',
   'skeleton.dice': '骨架 · 骰子',
   'skeleton.takeout': '骨架 · 点外卖',
   'skeleton.avatar': '骨架 · 换头像',

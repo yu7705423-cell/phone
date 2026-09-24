@@ -945,6 +945,13 @@ The result is not knowable this turn. Do not state a result yourself in the
 same turn, and do not write anything like 「我掷到了六」.
 Stop after writing that line.`,
 
+  'skeleton.remark':
+`[备注]
+In your own contacts the other party is saved as: {{current}}.
+To rename them, write a line on its own, [备注：the new name]. The new name
+replaces the old one, and the other party is shown that you changed it.
+In the other party's contacts you are saved as: {{mine}}.`,
+
   'skeleton.avatar':
 `[换头像]
 Avatars available to you: {{names}}.

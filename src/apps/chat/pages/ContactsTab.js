@@ -19,7 +19,7 @@ function Row({ char, onHold }) {
       onContextMenu=${e => { e.preventDefault(); onHold(char); }}>
       <${Avatar} src=${avatar} name=${char.name} size=${42} radius=${21}/>
       <div class="msg-main">
-        <div class="msg-name ellipsis">${char.name}</div>
+        <div class="msg-name ellipsis">${phone.remark.nameOf(char)}</div>
         <div class="msg-preview ellipsis">
           ${char.signature || ''}
         </div>
@@ -36,7 +36,7 @@ export function ContactsTab() {
   const all = db.characters.all();
   const key = q.trim().toLowerCase();
   const matched = key
-    ? all.filter(c => [c.name, c.signature, c.persona, c.group, ...(c.tags || [])]
+    ? all.filter(c => [c.name, c.remark, c.signature, c.persona, c.group, ...(c.tags || [])]
         .filter(Boolean).some(v => String(v).toLowerCase().includes(key)))
     : all;
 

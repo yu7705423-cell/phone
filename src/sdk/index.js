@@ -8,6 +8,7 @@ import * as pushApi from '../system/push.js';
 import * as looksApi from '../system/looks.js';
 import * as fullApi from '../system/fullscreen.js';
 import * as chatLookApi from '../system/chatlook.js';
+import * as remarkApi from '../system/remark.js';
 import { isTest } from '../system/channel.js';
 import * as fontsApi from '../system/fonts.js';
 import * as clockApi from '../system/time.js';
@@ -358,6 +359,9 @@ export const phone = {
 
   // 这一份是不是测试版（见 system/channel.js）
   isTest,
+
+  // 备注：我给角色的、角色给我的（见 system/remark.js）
+  remark: remarkApi,
 
   // 聊天背景与上下栏样式（存在会话记录上）
   chatLook: chatLookApi,

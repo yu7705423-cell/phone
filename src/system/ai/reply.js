@@ -25,6 +25,7 @@ import * as space from '../space.js';
 import * as dayStore from '../day.js';
 import * as extras from '../extras.js';
 import * as avatar from '../avatar.js';
+import * as remark from '../remark.js';
 import * as takeout from '../takeout.js';
 import * as ban from '../ban.js';
 import * as todo from '../todo.js';
@@ -40,7 +41,7 @@ import * as mcpTools from '../mcptools.js';
 // 中英文冒号都认，方括号也认全角。
 // 「约定完成」必须排在「约定」前面 —— 交替是从左往右试的，反过来写
 // 「约定完成：早点睡」会先被「约定」吃掉，剩下「完成：早点睡」当成内容。
-const MARK = /[[【]\s*(图片|照片|image|pic|视频|video|语音|voice|audio|表情|sticker|emoji|转账|transfer|位置|定位|location|礼物|gift|点歌|建歌单|加入歌单|分享歌曲|分享音乐|调用|tool|约定完成|约定|pact|信|letter|事项完成|事项取消|心声|换头像|外卖|请客|代付|申请|亲属卡|旅行|攻略|待办|todo|授予|award)\s*[:：]\s*([^\]】]+)[\]】]/gi;
+const MARK = /[[【]\s*(图片|照片|image|pic|视频|video|语音|voice|audio|表情|sticker|emoji|转账|transfer|位置|定位|location|礼物|gift|点歌|建歌单|加入歌单|分享歌曲|分享音乐|调用|tool|约定完成|约定|pact|信|letter|事项完成|事项取消|心声|换头像|改备注|备注|外卖|请客|代付|申请|亲属卡|旅行|攻略|待办|todo|授予|award)\s*[:：]\s*([^\]】]+)[\]】]/gi;
 
 const IMAGE_KINDS = new Set(['图片', '照片', 'image', 'pic']);
 // 「视频通话」那一格叫 video，这里是会话里那一段片子，两回事。
@@ -61,6 +62,7 @@ const ITEM_DONE_KINDS = new Set(['事项完成']);
 const ITEM_DROP_KINDS = new Set(['事项取消']);
 const INNER_KINDS = new Set(['心声']);
 const WEAR_KINDS = new Set(['换头像']);
+const REMARK_KINDS = new Set(['备注', '改备注']);
 // 三种点法各一个词。谁吃、谁付都写在词里，正文只剩「吃什么 多少钱」
 const TAKEOUT_KINDS = new Map([['外卖', takeout.SELF], ['请客', takeout.TREAT], ['代付', takeout.ASK]]);
 const LIST_KINDS = new Set(['建歌单']);
@@ -653,6 +655,8 @@ export function splitReply(raw) {
         if (prev) prev.inner = body;
       } else if (WEAR_KINDS.has(kind)) {
         push({ type: 'wear', name: body });
+      } else if (REMARK_KINDS.has(kind)) {
+        push({ type: 'remark', name: body });
       } else if (ITEM_DONE_KINDS.has(kind)) {
         push({ type: 'agenda', state: dayStore.DONE, title: body });
       } else if (ITEM_DROP_KINDS.has(kind)) {
@@ -1094,6 +1098,12 @@ export function materialize(part, base, char) {
     // 认不出名字就不换。凭空换成另一张，用户看到的是一个她根本没提过的头像。
     if (base.role === 'char' && char) avatar.wear(char.id, part.name);
     return null;
+  }
+  if (part.type === 'remark') {
+    // 角色改了对你的备注。群里不接：群里那个「你」在谁的通讯录里，说不清
+    if (base.role !== 'char' || !char || char.canRemark === false
+      || (chats.get(base.chatId)?.characterIds || []).length > 1) return null;
+    return remark.setTheirs(base.chatId, part.name, { char, row });
   }
   if (part.type === 'agenda') {
     // 事项是角色自己的事，不落消息 —— 它改的是那一天，不是这段对话。

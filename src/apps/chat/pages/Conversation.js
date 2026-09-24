@@ -1243,7 +1243,7 @@ export function Conversation({ chatId, focusId = '' }) {
     <${Page} title=${selecting ? `已选 ${picked.length} 条`
       : busy ? html`<span class="conv-typing">正在输入</span>`
       : isGroup ? html`${phone.group.titleOf(chat)}（${members.length}）<${StreakMark} chat=${chat}/>`
-      : html`${char.name}<${StreakMark} chat=${chat}/>`}
+      : html`${phone.remark.nameOf(char)}<${StreakMark} chat=${chat}/>`}
       onBack=${selecting ? () => setPicked(null) : nav.pop} noScroll
       cls=${pageLook.cls} vars=${pageLook.vars} statusBarStyle=${pageLook.fg || undefined}
       right=${selecting
@@ -1468,7 +1468,7 @@ export function Conversation({ chatId, focusId = '' }) {
         onDelete=${id => dropMessages([id])}/>
 
       <${FullSheet} open=${menu} onClose=${() => setMenu(false)}
-        title=${isGroup ? phone.group.titleOf(chat) : char.name}>
+        title=${isGroup ? phone.group.titleOf(chat) : phone.remark.nameOf(char)}>
         ${isGroup ? html`
         <${List} title="这个群">
           <${ListItem} title="群资料" arrow
@@ -1485,6 +1485,15 @@ export function Conversation({ chatId, focusId = '' }) {
             subtitle="人设、当日日程与各项能力的开关"
             left=${html`<${Icon} name="user" size=${18}/>`}
             onClick=${() => { setMenu(false); nav.push(`/edit/${char.id}`); }}/>
+          <${ListItem} title="备注" arrow
+            right=${phone.remark.mineOf(char) || '未设置'}
+            left=${html`<${Icon} name="edit" size=${18}/>`}
+            onClick=${async () => {
+              const v = await prompt({ title: '设置备注', value: phone.remark.mineOf(char),
+                placeholder: char.name,
+                message: `会话列表与标题显示备注。角色知道你给它设的备注。留空则显示本名「${char.name}」。` });
+              if (v !== null) phone.remark.setMine(char.id, v);
+            }}/>
           <${ListItem} title="角色主页" arrow
             left=${html`<${Icon} name="camera" size=${18}/>`}
             onClick=${() => { setMenu(false); nav.push(`/profile/${char.id}`); }}/>

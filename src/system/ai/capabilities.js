@@ -16,6 +16,7 @@ import { PACT_OPEN } from '../space.js';
 import * as dayStore from '../day.js';
 import * as extras from '../extras.js';
 import * as avatarLib from '../avatar.js';
+import * as remark from '../remark.js';
 import * as watchStore from '../watch.js';
 import * as trip from '../trip.js';
 import * as ledger from '../ledger.js';
@@ -360,6 +361,19 @@ export const CAPS = [
     line: ({ char }) => 'Change your avatar: write a line on its own, [换头像：name].'
       + ` Available: ${avatarLib.poolNames(char)}`,
     detail: ({ char }) => fillTemplate(template('skeleton.avatar'), { names: avatarLib.poolNames(char) }),
+  },
+  {
+    id: 'remark',
+    label: '改备注',
+    on: ({ char }) => char.canRemark !== false,
+    hot: ({ msgs }) => usedRecently(msgs, /[[【]备注|将你的备注改为/),
+    line: ({ char, chat }) => 'Rename the other party in your own contacts: write a line on its own,'
+      + ` [备注：new name]. Currently: ${remark.theirsOf(chat) || 'no name set'}.`
+      + (remark.mineOf(char) ? ` They have you saved as: ${remark.mineOf(char)}.` : ''),
+    detail: ({ char, chat }) => fillTemplate(template('skeleton.remark'), {
+      current: remark.theirsOf(chat) || 'no name set',
+      mine: remark.mineOf(char) || 'your own name',
+    }),
   },
   {
     id: 'inner',

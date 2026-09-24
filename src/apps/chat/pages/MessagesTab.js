@@ -31,7 +31,7 @@ const Row = memo(function Row({ chat, onHold }) {
     : last.kind === 'notice' ? String(last.content || '').replace(/^\[|\]$/g, '')
     : (splitBubbles(last.content).slice(-1)[0] || last.content);
   const isGroup = phone.group.isGroup(chat);
-  const title = isGroup ? phone.group.titleOf(chat) : (char?.name || '已删除的角色');
+  const title = isGroup ? phone.group.titleOf(chat) : (char ? phone.remark.nameOf(char) : '已删除的角色');
   // 群里的最后一条带上是谁说的
   const who = isGroup && last?.role === 'char' ? `${db.characters.get(last.authorId)?.name || ''}：` : '';
 
@@ -116,7 +116,7 @@ export function MessagesTab() {
 
       <${Sheet} open=${!!held} onClose=${close}
         title=${held ? (phone.group.isGroup(held) ? phone.group.titleOf(held)
-          : (db.characters.get((held.characterIds || [])[0])?.name || '会话')) : ''}>
+          : (phone.remark.nameOf(db.characters.get((held.characterIds || [])[0])) || '会话')) : ''}>
         ${held ? html`
           <${List} inset=${false}>
             <${ListItem} title=${held.pinned ? '取消置顶' : '置顶这个会话'} arrow

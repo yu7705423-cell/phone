@@ -118,7 +118,7 @@ export function ChatsPage({ charId }) {
           ${real.map(c => {
             const me = db.personas.get(c.personaId);
             return html`
-              <${ListItem} key=${c.id} title=${me?.name || '我'} arrow multiline
+              <${ListItem} key=${c.id} title=${phone.remark.shownToChar(c)} arrow multiline
                 subtitle=${previewOf(c)}
                 left=${html`<${CharAvatar} subject=${me} name=${me?.name || '我'} size=${36}/>`}
                 onClick=${() => nav.push(`/real/${charId}/${c.id}`)}/>`;
