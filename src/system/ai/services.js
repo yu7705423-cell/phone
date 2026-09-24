@@ -104,6 +104,8 @@ export function newChatPreset(init = {}) {
     name: init.name || '未命名',
     provider: init.provider || 'anthropic',
     baseUrl: '', apiKey: '', model: '',
+    // 这一套是哪家站点的、去哪儿充值。只用来在失败时给一个能点的链接，不参与请求
+    siteUrl: '', topupUrl: '',
     effort: 'low', temperature: 0.9,
     ...init,
   };
@@ -211,6 +213,28 @@ export function setActiveVideo(id) { write({ video: { ...services().video, activ
 //
 // endpointId 留空就是老样子：这个服务自己填的地址与密钥。
 // 指向的那条被删掉时也退回自己填的，不至于整套服务突然不通。
+
+// 把用户填的网址补成能点开的：没写协议的补 https://，不是 http(s) 的一律不认
+export function linkOf(raw) {
+  const t = String(raw || '').trim();
+  if (!t) return '';
+  const u = /^[a-z][a-z0-9+.-]*:/i.test(t) ? t : `https://${t}`;
+  try {
+    const x = new URL(u);
+    return x.protocol === 'https:' || x.protocol === 'http:' ? x.href : '';
+  } catch { return ''; }
+}
+
+/**
+ * 一套聊天接口的站点与充值链接。充值链接没填就用站点地址。
+ * 给回 { id, name, site, topup }；这一套已经删了给 null
+ */
+export function presetLinks(id) {
+  const p = services().chat.presets.find(x => x.id === id);
+  if (!p) return null;
+  const site = linkOf(p.siteUrl);
+  return { id: p.id, name: p.name || '接口', site, topup: linkOf(p.topupUrl) || site };
+}
 
 export function endpoints() { return services().endpoints; }
 

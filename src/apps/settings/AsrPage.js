@@ -2,6 +2,7 @@ import { html, useState, useRef } from '../../lib.js';
 import { phone, useStore } from '../../sdk/index.js';
 import { Page, List, ListItem, Field, Input, Button, Segmented, toast } from '../../ui/index.js';
 import { ApiSource } from './ApiSource.js';
+import { ModelField } from './ModelPicker.js';
 
 const { db, nav, ai } = phone;
 const svc = ai.services;
@@ -82,12 +83,10 @@ export function AsrPage() {
             placeholder="sk-..."/>
         <//>
         `}
-        <${Field} label="模型"
-          desc=${tone
+        <${ModelField} desc=${tone
             ? '须为能直接接收音频的多模态模型，例如 gpt-4o-audio-preview 或中转站提供的同类模型。填写普通转写模型会报错。'
-            : '转写模型，例如 whisper-1、gpt-4o-transcribe 或中转站提供的同类模型。'}>
-          <${Input} value=${a.model} onInput=${x => set({ model: x })} placeholder="模型名称"/>
-        <//>
+            : '转写模型，例如 whisper-1、gpt-4o-transcribe 或中转站提供的同类模型。'}
+          value=${a.model} onChange=${x => set({ model: x })} conn=${a}/>
       </div>
 
       <${List} title="测试">

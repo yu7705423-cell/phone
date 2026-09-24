@@ -156,12 +156,14 @@ async function runWith(taskId, run) {
   const chain = [a, ...rest];
 
   let last = null;
+  const failed = [];
   for (let i = 0; i < chain.length; i++) {
     try {
       return await run(chain[i]);
     } catch (err) {
       if (isAbort(err)) throw err;
       last = err;
+      failed.push({ id: chain[i].id, balance: isBalanceError(err) });
       if (i + 1 < chain.length) {
         console.warn(`[ai] ${chain[i].name || '接口'} 失败，改用 ${chain[i + 1].name || '下一套'}`,
           err.message);
@@ -173,7 +175,15 @@ async function runWith(taskId, run) {
   last.message = chain.length > 1
     ? `${names} 都失败了。最后一个的报错：${last.message}`
     : `${names}：${last.message}`;
+  // 哪几套失败了、是不是余额不足。会话里那条失败的消息据此给出「去充值」（见 services.presetLinks）
+  last.failedPresets = failed;
   throw last;
+}
+
+// 余额不足。各家写法不一：402，或者报错正文里带这几种说法
+const BALANCE_RE = /insufficient|quota|balance|credit|billing|payment|余额|额度|欠费|充值/i;
+function isBalanceError(err) {
+  return Number(err?.status) === 402 || BALANCE_RE.test(String(err?.message || ''));
 }
 
 const runnerFor = taskId => run => runWith(taskId, run);

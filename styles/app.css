@@ -235,6 +235,12 @@ input[type="range"] {
 .conv-typing { color: var(--text-3); font-weight: var(--fw-normal); }
 
 
+/* 回复失败那一条：报错原文（最多三行）、重试、去充值 */
+.fail-note { display: flex; flex-direction: column; gap: var(--sp-1); max-width: 260px; }
+.fail-text { font-size: var(--fs-11); color: var(--text-3); line-height: 1.5; word-break: break-all;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.fail-acts { display: flex; flex-wrap: wrap; gap: var(--sp-3); }
+.fail-hint { font-size: var(--fs-11); color: var(--text-3); line-height: 1.5; }
 .msg-retry { display: flex; align-items: center; gap: 4px; font-size: var(--fs-11); color: var(--text-2); text-decoration: underline; }
 .swipes { display: flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-11); color: var(--text-3); }
 /* 命中禁写词的记号。低调地摆在气泡下面，不拦着也不弹窗 —— 要不要重掷是用户的事 */

@@ -2,6 +2,7 @@ import { html, useState } from '../../lib.js';
 import { phone, useStore } from '../../sdk/index.js';
 import { Page, List, ListItem, Field, Input, Textarea, Button, Segmented, toast } from '../../ui/index.js';
 import { ApiSource } from './ApiSource.js';
+import { ModelField } from './ModelPicker.js';
 
 const { db, nav, ai } = phone;
 const svc = ai.services;
@@ -119,10 +120,8 @@ export function TranslateApiPage() {
             placeholder="sk-..."/>
         <//>
         `}
-        <${Field} label="模型"
-          desc="翻译不需要长上下文，可以选用比聊天接口更小、更便宜的模型。">
-          <${Input} value=${v.model} onInput=${x => set({ model: x })} placeholder="模型名称"/>
-        <//>
+        <${ModelField} desc="翻译不需要长上下文，可以选用比聊天接口更小、更便宜的模型。"
+          value=${v.model} onChange=${x => set({ model: x })} conn=${v}/>
       </div>
 
       <${List} title="测试">

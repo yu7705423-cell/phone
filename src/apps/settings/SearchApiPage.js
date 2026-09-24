@@ -2,6 +2,7 @@ import { html } from '../../lib.js';
 import { phone, useStore } from '../../sdk/index.js';
 import { Page, Field, Input, Button, toast } from '../../ui/index.js';
 import { ApiSource } from './ApiSource.js';
+import { ModelField } from './ModelPicker.js';
 
 const { db, nav, ai } = phone;
 const svc = ai.services;
@@ -32,10 +33,8 @@ export function SearchApiPage() {
             placeholder="sk-..."/>
         <//>
         `}
-        <${Field} label="模型"
-          desc="须为自身具备联网搜索能力的模型。普通模型只会凭印象作答，写出来的店名可能并不存在。">
-          <${Input} value=${v.model} onInput=${x => set({ model: x })} placeholder="模型名称"/>
-        <//>
+        <${ModelField} desc="须为自身具备联网搜索能力的模型。普通模型只会凭印象作答，写出来的店名可能并不存在。"
+          value=${v.model} onChange=${x => set({ model: x })} conn=${v}/>
 
         <${Button} full variant="ghost"
           onClick=${() => { set({ apiKey: '', model: '', baseUrl: '' }); toast('已清空'); }}>

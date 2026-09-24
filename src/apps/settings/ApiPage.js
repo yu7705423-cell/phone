@@ -20,6 +20,7 @@ function Editor({ id, onClose }) {
   if (!preset) return null;
 
   const set = patch => svc.updateChatPreset(id, patch);
+  const links = svc.presetLinks(id);
 
   const test = async () => {
     setTesting(true);
@@ -61,6 +62,25 @@ function Editor({ id, onClose }) {
         desc="仅保存在本设备的浏览器中。纯前端直连意味着能打开此页面的人均可读取该密钥。">
         <${Input} type="password" value=${preset.apiKey} placeholder="sk-..."
           onInput=${v => set({ apiKey: v })}/>
+      <//>
+
+      <${Field} label="站点地址"
+        desc="这一套接口所在站点的网址，不参与请求。回复失败时，会话里会给出打开它的链接。">
+        <${Input} value=${preset.siteUrl || ''} onInput=${v => set({ siteUrl: v.trim() })}
+          placeholder="https://example.com"/>
+      <//>
+
+      <${Field} label="充值链接"
+        desc="充值页不在上面的站点内时填写，留空则使用站点地址。余额不足导致回复失败时，会话里会给出「去充值」。">
+        <${Input} value=${preset.topupUrl || ''} onInput=${v => set({ topupUrl: v.trim() })}
+          placeholder="https://example.com/topup"/>
+        ${links?.site || links?.topup ? html`
+          <div class="pad-t btn-row is-chips">
+            ${links.site ? html`<a class="btn btn-sm btn-ghost press" target="_blank" rel="noopener noreferrer"
+              href=${links.site}><${Icon} name="link" size=${14}/>打开站点</a>` : null}
+            ${links.topup && links.topup !== links.site ? html`<a class="btn btn-sm btn-ghost press" target="_blank"
+              rel="noopener noreferrer" href=${links.topup}><${Icon} name="wallet" size=${14}/>打开充值页</a>` : null}
+          </div>` : null}
       <//>
 
       <${Field} label="模型" desc="可从接口获取列表后选择，也可直接填写。">

@@ -15,6 +15,7 @@ import { TripBubble, TripSettleSheet } from './TripBits.js';
 import { PhotoSource } from './PhotoSource.js';
 import { SongPicker } from './SongCard.js';
 import { ToolBubble } from './ToolBits.js';
+import { FailNote } from './FailNote.js';
 import { TransferBubble, NoticeLine, TransferSheet, SettleSheet,
          LocationBubble, LocationSheet, CallBubble, CallLogSheet,
          GiftBubble, GiftSheet, UnwrapSheet,
@@ -269,10 +270,7 @@ export const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, o
         ${msg.inner && openInner
           ? html`<${InnerVoice} text=${msg.inner} style=${innerStyle}/>` : null}
 
-        ${msg.status === 'error' ? html`
-          <button class="msg-retry press" onClick=${() => onRetry(msg)}>
-            <${Icon} name="refresh" size=${13}/> 重试
-          </button>` : null}
+        ${msg.status === 'error' ? html`<${FailNote} msg=${msg} onRetry=${onRetry}/>` : null}
 
         ${!mine && msg.ban?.length ? html`
           <div class="msg-ban">命中禁写：${msg.ban.join('、')}</div>` : null}
@@ -644,7 +642,7 @@ export function Conversation({ chatId, focusId = '' }) {
       if (!ai.queue.isAbort(err)) {
         db.messages.create({
           chatId, role: 'char', authorId: members[0]?.id || char.id, kind: 'text',
-          content: '', status: 'error', error: String(err.message || err),
+          content: '', status: 'error', error: String(err.message || err), failedPresets: err.failedPresets || [],
         });
         toast(String(err.message || err), 'error', 4500);
       }
@@ -700,7 +698,7 @@ export function Conversation({ chatId, focusId = '' }) {
       if (!ai.queue.isAbort(err)) {
         db.messages.create({
           chatId, role: 'char', authorId: char.id, kind: 'text',
-          content: '', status: 'error', error: String(err.message || err),
+          content: '', status: 'error', error: String(err.message || err), failedPresets: err.failedPresets || [],
         });
         toast(String(err.message || err), 'error', 4500);
       }

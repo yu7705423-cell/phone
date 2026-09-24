@@ -1,4 +1,5 @@
 import { html, useState } from '../../lib.js';
+import { ModelField } from './ModelPicker.js';
 import { phone, useStore } from '../../sdk/index.js';
 import { Page, List, ListItem, Field, Input, Button, Segmented, Slider, NumberInput,
          Icon, Sheet, EmptyState, toast, confirm } from '../../ui/index.js';
@@ -55,9 +56,10 @@ function Editor({ id, onClose }) {
       <${Field} label="API Key">
         <${Input} value=${p.apiKey} type="password" onInput=${v => set({ apiKey: v })}/>
       <//>
-      <${Field} label="模型" desc=${model ? model.note
-        : vid.modelsFor(p.kind).length ? '下面是常用型号，也可以直接填别的名称。' : '填中转站模型列表里的名称。'}>
-        <${Input} value=${p.model} placeholder="模型名称" onInput=${v => set({ model: v })}/>
+      <${ModelField} desc=${model ? model.note
+        : vid.modelsFor(p.kind).length ? '下面是常用型号，也可以从接口拉取列表或直接填写。' : '可从接口拉取列表，或填写中转站模型列表里的名称。'}
+        value=${p.model} onChange=${v => set({ model: v })}
+        conn=${{ provider: 'openai', baseUrl: p.baseUrl || kind.base || '', apiKey: p.apiKey }}>
         ${vid.modelsFor(p.kind).length ? html`
           <div class="btn-row is-chips pad-t">
             ${vid.modelsFor(p.kind).map(m => html`

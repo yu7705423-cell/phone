@@ -1,6 +1,6 @@
 import { html, useState, useEffect } from '../../lib.js';
 import { phone } from '../../sdk/index.js';
-import { Sheet, Input, Button, Icon, EmptyState, Spinner, toast } from '../../ui/index.js';
+import { Sheet, Field, Input, Button, Icon, EmptyState, Spinner, toast } from '../../ui/index.js';
 
 // 从接口拉模型列表，可搜索。拉不到就还能手填。
 export function ModelPicker({ open, preset, onPick, onClose, initialQuery = '' }) {
@@ -64,4 +64,32 @@ export function ModelPicker({ open, preset, onPick, onClose, initialQuery = '' }
         }}>用输入框里的名字<//>
       </div>
     <//>`;
+}
+
+/**
+ * 「模型」那一栏：输入框，加一个「拉取并选择」。
+ *
+ * 各接口页的模型栏都长这样，一律用它，不要各自再接一遍 ModelPicker ——
+ * 从前有六个页面只有输入框，拉不了列表也搜不了，就是各写各的漏掉的。
+ *
+ *   conn   { provider, baseUrl, apiKey }：拉列表用的那一套（已按「接口来源」解析过的）
+ *   query  打开时预先填进搜索框的词，例如 "rerank"
+ *   children  输入框与拉取按钮之间再放点什么（视频页的常用型号）
+ */
+export function ModelField({ label = '模型', desc, value, onChange, conn, query = '', placeholder = '模型名称', children }) {
+  const [picking, setPicking] = useState(false);
+  const ready = !!String(conn?.apiKey || '').trim();
+  return html`
+    <${Field} label=${label} desc=${desc}>
+      <${Input} value=${value || ''} onInput=${v => onChange(v.trim())} placeholder=${placeholder}/>
+      ${children || null}
+      <div class="pad-t">
+        <${Button} size="sm" variant="ghost" icon="search" disabled=${!ready}
+          onClick=${() => setPicking(true)}>${ready ? '拉取并选择' : '填写密钥后可拉取列表'}<//>
+      </div>
+    <//>
+    <${ModelPicker} open=${picking} initialQuery=${query}
+      preset=${{ provider: conn?.provider === 'anthropic' ? 'anthropic' : 'openai',
+        baseUrl: conn?.baseUrl || '', apiKey: conn?.apiKey || '', model: value || '' }}
+      onPick=${onChange} onClose=${() => setPicking(false)}/>`;
 }

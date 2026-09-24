@@ -67,6 +67,7 @@ export const PATHS = {
   camera:   '<path d="M3 8.5A2.5 2.5 0 015.5 6h1.7l1.2-2h7.2l1.2 2h1.7A2.5 2.5 0 0121 8.5v9A2.5 2.5 0 0118.5 20h-13A2.5 2.5 0 013 17.5z"/><circle cx="12" cy="13" r="3.6"/>',
   mail:     '<rect x="2.5" y="5" width="19" height="14" rx="2.5"/><path d="M3 7l9 6 9-6"/>',
   map:      '<path d="M9 3L3 5.5v15L9 18l6 3 6-2.5v-15L15 6z"/><path d="M9 3v15M15 6v15"/>',
+  link:     '<path d="M10 13.5a4.5 4.5 0 006.4.4l3-3a4.5 4.5 0 00-6.4-6.4l-1.6 1.6"/><path d="M14 10.5a4.5 4.5 0 00-6.4-.4l-3 3a4.5 4.5 0 006.4 6.4l1.6-1.6"/>',
   wallet:   '<path d="M3 7.5A2.5 2.5 0 015.5 5H18v3"/><rect x="3" y="7.5" width="18" height="12.5" rx="2.5"/><circle cx="17" cy="14" r="1.2" fill="currentColor" stroke="none"/>',
   cloud:    '<path d="M7 18a4.5 4.5 0 01-.5-9 6 6 0 0111.4 1.6A3.7 3.7 0 0117 18z"/>',
   headphone:'<path d="M4 16v-4a8 8 0 1116 0v4"/><rect x="2.5" y="14" width="4.5" height="7" rx="2"/><rect x="17" y="14" width="4.5" height="7" rx="2"/>',
