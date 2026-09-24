@@ -158,6 +158,9 @@
   --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
           "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
   --font-serif: "Songti SC", "Times New Roman", Georgia, serif;
+  /* 手写体。拍立得上的签名用它，可在角色卡展示页换成字体库里的一款（system/fonts.js） */
+  --font-hand-base: "Xingkai SC", "STXingkai", "Kaiti SC", "STKaiti", "KaiTi", "BiauKai", cursive;
+  --font-hand: var(--font-hand-base);
   --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 

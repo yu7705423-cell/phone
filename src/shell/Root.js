@@ -70,7 +70,7 @@ export function Root() {
     document.documentElement.dataset.nav = cfg.navStyle === 'back' ? 'back' : 'bar';
   }, [cfg.navStyle]);
 
-  useEffect(() => { applyFonts(cfg); }, [cfg.fontBody, cfg.fontSerif, cfg.fonts]);
+  useEffect(() => { applyFonts(cfg); }, [cfg.fontBody, cfg.fontSerif, cfg.fontHand, cfg.fonts]);
 
   // 铺了壁纸就换成毛玻璃那套底色，避免白板灰板压在壁纸上
   useEffect(() => {

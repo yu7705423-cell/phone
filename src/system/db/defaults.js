@@ -27,6 +27,7 @@ export const DEFAULT_SETTINGS = {
   fonts: [],                      // 自己传的字体，见 system/fonts.js
   fontBody: '',                   // 正文用哪一个，空 = 系统默认
   fontSerif: '',                  // 衬线槽位用哪一个（挂件里的标题会用到）
+  fontHand: '',                   // 手写体槽位（拍立得上的签名）。见 system/fonts.js
   customCSS: '',                  // 用户自定义 CSS，注入到独立 style 节点
   globalSkinId: '',               // 设为全局的那一份美化。空表示没有
   skinOff: false,                 // 总开关。开着就两层都不注入，见 system/skin.js

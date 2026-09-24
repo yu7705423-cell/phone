@@ -62,7 +62,7 @@ export function FontPicker() {
 
   const doRemove = async rec => {
     setHeld(null);
-    const using = s.fontBody === rec.id || s.fontSerif === rec.id;
+    const using = s.fontBody === rec.id || s.fontSerif === rec.id || s.fontHand === rec.id;
     if (!await confirm({
       title: '删掉字体', danger: true, okText: '删掉',
       message: using ? `「${rec.name}」正在使用中，删除后将恢复为系统默认字体。` : `将删除「${rec.name}」。`,
@@ -86,9 +86,10 @@ export function FontPicker() {
             <div class="look-card">
               <div class="look-meta">
                 <div class="look-name ellipsis">${f.name}</div>
-                <div class="look-sub">${fmt(f.bytes || 0)}${
+                <div class="look-sub">${f.css ? '在线字体，需要联网' : fmt(f.bytes || 0)}${
                   s.fontBody === f.id ? ' · 正文在用' : ''}${
-                  s.fontSerif === f.id ? ' · 衬线在用' : ''}</div>
+                  s.fontSerif === f.id ? ' · 衬线在用' : ''}${
+                  s.fontHand === f.id ? ' · 签名在用' : ''}</div>
                 <${Sample} id=${f.id}/>
               </div>
             </div>

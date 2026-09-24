@@ -1,6 +1,6 @@
-import { html, useRef } from '../../../lib.js';
+import { html, useRef, useState, useEffect } from '../../../lib.js';
 import { phone, useStore, useImage } from '../../../sdk/index.js';
-import { Page, List, ListItem, Button, Icon, EmptyState, toast, confirm } from '../../../ui/index.js';
+import { Page, List, ListItem, Button, Icon, EmptyState, Sheet, toast, confirm, prompt } from '../../../ui/index.js';
 
 const { db, nav } = phone;
 
@@ -16,6 +16,8 @@ export function CharCard({ charId }) {
   const char = db.characters.get(charId);
   const photo = useImage(char?.portrait || null);
   const fileRef = useRef(null);
+  const [picking, setPicking] = useState(false);
+  useStore(db.settings.store);
   if (!char) {
     return html`<${Page} title="角色卡" onBack=${nav.pop}><${EmptyState} title="该角色已不存在"/><//>`;
   }
@@ -44,9 +46,8 @@ export function CharCard({ charId }) {
               <span class="pola-hint"><${Icon} name="image" size=${26}/><span>上传形象照</span></span>`}
           </div>
           <div class="pola-foot">
-            <div class="pola-name">${shown}</div>
-            ${shown !== char.name ? html`<div class="pola-real">${char.name}</div>` : null}
-            ${char.signature ? html`<div class="pola-sign">${char.signature}</div>` : null}
+            <div class="pola-sign">${char.signature || shown}</div>
+            ${char.signature ? html`<div class="pola-at">@${shown}</div>` : null}
           </div>
         </button>
       </div>
@@ -59,8 +60,17 @@ export function CharCard({ charId }) {
       </div>
       <div class="settings-foot">
         形象照展示这个角色的样子，与聊天头像、锁脸照片分开保存，不发送给模型。
-        白边上显示名字与签名，签名在编辑资料中填写。
+        白边上以手写体显示个性签名，签名在编辑资料中填写。
       </div>
+
+      <${List}>
+        <${ListItem} title="签名字体" arrow multiline
+          subtitle="所有角色卡共用一种。可从字体库选择，或按网址、按文件添加"
+          right=${phone.fonts.get(db.settings.get().fontHand)?.name || '默认手写体'}
+          left=${html`<${Icon} name="edit" size=${18}/>`}
+          onClick=${() => setPicking(true)}/>
+      <//>
+      ${picking ? html`<${HandFont} sample=${char.signature || shown} onClose=${() => setPicking(false)}/>` : null}
 
       <${List}>
         <${ListItem} title="编辑资料" arrow subtitle="人设、当日日程与各项能力的开关" multiline
@@ -70,5 +80,63 @@ export function CharCard({ charId }) {
           left=${html`<${Icon} name="camera" size=${18}/>`}
           onClick=${() => nav.push(`/profile/${charId}`)}/>
       <//>
+    <//>`;
+}
+
+// 签名用哪种手写体。字体库是全应用共用的一份（设置 - 主题 - 字体），这里只选「手写」那一槽。
+// 预设的几款是 Google Fonts 的中文手写体，点一下按网址加进字体库；需要联网才显示。
+function HandFont({ sample, onClose }) {
+  const s = useStore(db.settings.store);
+  const fileRef = useRef(null);
+  const list = phone.fonts.list();
+  const cur = s.fontHand || '';
+  // 在线字体要先挂上样式表，预览那一行才看得出长什么样
+  useEffect(() => { list.forEach(f => phone.fonts.ensureLoaded(f.id).catch(() => {})); }, [list.length]);
+
+  const choose = id => { db.settings.set({ fontHand: id }); };
+  const run = async job => {
+    try { const rec = await job(); await phone.fonts.ensureLoaded(rec.id).catch(() => {}); choose(rec.id); toast(`已添加 ${rec.name}`, 'ok'); }
+    catch (err) { toast(String(err.message || err), 'error', 6000); }
+  };
+  const byUrl = async () => {
+    const url = await prompt({ title: '按网址添加字体', okText: '添加',
+      message: '字体文件的网址（.woff2 .ttf 等）会下载保存到本机；样式表网址（如 Google Fonts）会保留为在线字体，需要联网才显示。',
+      placeholder: 'https://' });
+    if (url) run(() => phone.fonts.addUrl(url));
+  };
+  const byFile = async e => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (file) run(() => phone.fonts.add(file));
+  };
+  const have = new Set(list.map(f => f.css).filter(Boolean));
+  const presets = phone.fonts.HAND_PRESETS.filter(p => !have.has(p.url));
+  const line = (key, title, fam, on, onTap) => html`
+    <${ListItem} key=${key} title=${title} multiline onClick=${onTap}
+      subtitle=${html`<span class="hand-sample" style=${`--hand:${fam}`}>${sample}</span>`}
+      right=${on ? html`<${Icon} name="check" size=${17}/>` : null}/>`;
+
+  return html`
+    <${Sheet} open=${true} onClose=${onClose} title="签名字体" height="72%">
+      <${List} inset=${false}>
+        ${line('', '默认手写体', 'var(--font-hand-base)', !cur, () => choose(''))}
+        ${list.map(f => line(f.id, f.name, `"${phone.fonts.familyOf(f.id)}"`, cur === f.id, () => choose(f.id)))}
+      <//>
+      ${presets.length ? html`
+        <div class="list-title">常用手写体 · 需要联网</div>
+        <${List} inset=${false}>
+          ${presets.map(p => html`
+            <${ListItem} key=${p.url} title=${p.name} subtitle="添加到字体库并使用" arrow
+              onClick=${() => run(() => phone.fonts.addUrl(p.url, p.name))}/>`)}
+        <//>` : null}
+      <div class="pad btn-row">
+        <${Button} variant="ghost" icon="plus" onClick=${byUrl}>按网址添加<//>
+        <${Button} variant="ghost" icon="upload" onClick=${() => fileRef.current?.click()}>按文件添加<//>
+      </div>
+      <input type="file" accept=${phone.fonts.ACCEPT} ref=${fileRef} onChange=${byFile} style="display:none"/>
+      <div class="settings-foot">
+        默认手写体使用系统自带的楷体或行楷，设备上没有时显示为普通字体。
+        添加的字体进入全应用共用的字体库，可在「设置 - 主题 - 字体」中改名或删除。
+      </div>
     <//>`;
 }

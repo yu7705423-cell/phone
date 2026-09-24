@@ -3085,6 +3085,7 @@ button.conv-notice { background: none; border: 0; font: inherit; cursor: pointer
 }
 .pola-hint { display: flex; flex-direction: column; align-items: center; gap: var(--sp-2); color: var(--text-3); font-size: var(--fs-13); }
 .pola-foot { padding: var(--sp-4) var(--sp-2) var(--sp-5); }
-.pola-name { font-family: var(--font-serif); font-size: var(--fs-20); color: var(--text); }
-.pola-real { font-size: var(--fs-12); color: var(--text-3); margin-top: 2px; }
-.pola-sign { font-family: var(--font-serif); font-size: var(--fs-13); color: var(--text-2); margin-top: var(--sp-2); line-height: 1.6; }
+/* 个性签名用手写体放大写在白边上；下面一行小小的 @名字，像照片背后顺手签的名 */
+.pola-sign { font-family: var(--font-hand); font-size: var(--fs-24); color: var(--text); line-height: 1.35; word-break: break-word; }
+.pola-at { font-size: var(--fs-11); color: var(--text-3); margin-top: var(--sp-2); text-align: right; letter-spacing: .5px; }
+.hand-sample { font-family: var(--hand), var(--font-hand-base); font-size: var(--fs-20); color: var(--text); }
