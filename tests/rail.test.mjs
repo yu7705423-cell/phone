@@ -28,7 +28,8 @@ const rail = await page.evaluate(() => {
     scrollable: el.scrollHeight > el.clientHeight + 1 ? 'yes' : 'no',
     fits: el.scrollHeight <= el.clientHeight + 1 };
 });
-ok('十一组加总样式，一共十二格', rail.n === 12, JSON.stringify(rail.labels));
+// 七种卡片在竖栏上合成一格「卡片」，点进去再选；一种一格的话十九格，一屏装不下
+ok('十一组、卡片、总样式，一共十三格', rail.n === 13, JSON.stringify(rail.labels));
 ok('竖栏很窄，不抢地方', rail.w <= 70, String(rail.w));
 ok('一屏装得下，不用滚就点得到每一组', rail.fits, `scrollHeight 超出：${rail.scrollable}`);
 

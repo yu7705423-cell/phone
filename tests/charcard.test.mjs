@@ -88,17 +88,18 @@ await page.waitForTimeout(400);
 ok('会话菜单里有「更换角色的头像」「更换我的头像」',
   (await page.locator('.fullsheet .list-item', { hasText: '更换角色的头像' }).count()) === 1
   && (await page.locator('.fullsheet .list-item', { hasText: '更换我的头像' }).count()) === 1);
-// 两个文件框在会话页上（菜单里那两行只是点它们）
-const inputs = page.locator('.app-layer > .page input[type=file][accept="image/*"]');
-const n = await inputs.count();
-await inputs.nth(n - 2).setInputFiles(`${OUT}/card-a.png`);
+// 两个文件框跟着菜单一起出现（菜单里那两行只是点它们），换完一张菜单就关上
+const faceInput = i => page.locator('.fullsheet input[type=file][accept="image/*"]').nth(i);
+await faceInput(0).setInputFiles(`${OUT}/card-a.png`);
 await page.waitForTimeout(900);
 c = await charRow();
 ok('换了角色的头像', c.avatar && c.avatar !== oldAvatar, JSON.stringify({ a: c.avatar, old: oldAvatar }));
 ok('换下来的那张留着（avatarBase），换得回去', c.avatarBase === oldAvatar && await has(oldAvatar));
 ok('留着的那张登记在引用表里（清理无引用时不被删）', await used(oldAvatar));
 
-await inputs.nth(n - 1).setInputFiles(`${OUT}/card-b.png`);
+await page.locator('[aria-label="更多"]').click();
+await page.waitForTimeout(400);
+await faceInput(1).setInputFiles(`${OUT}/card-b.png`);
 await page.waitForTimeout(900);
 const me = await page.evaluate(async () => {
   const acc = await import('/src/system/accounts.js');

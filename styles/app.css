@@ -673,6 +673,13 @@ input[type="range"] {
   background: var(--bg); border-bottom: 1px solid var(--border);
 }
 .gen-panel-title { font-size: var(--fs-14); font-weight: var(--fw-semi); color: var(--text); }
+/* 「卡片」那一格里先选改哪一种。动过的那几种右上角一个小点，和竖栏上一样 */
+.gen-card-pick { display: flex; flex-wrap: wrap; gap: var(--sp-2); padding: 0 var(--sp-4) var(--sp-3); }
+.gen-card-pick .chip { position: relative; }
+.gen-card-pick .chip.has-dot::after {
+  content: ''; position: absolute; top: 2px; right: 2px; width: 6px; height: 6px;
+  border-radius: var(--r-full); background: var(--accent);
+}
 /* 这一组改的是哪个类名。手写 CSS 的人照着抄 */
 .gen-panel-desc {
   padding: 0 var(--sp-4) var(--sp-2); font-size: var(--fs-12); color: var(--text-3);

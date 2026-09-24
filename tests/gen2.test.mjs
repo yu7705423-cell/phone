@@ -60,7 +60,8 @@ const lg = await page.evaluate(async (b64) => {
 
 ok('分组顺序是页面从上到下',
   JSON.stringify(lg.groups) === JSON.stringify(['nav','navDeco','msg','avatar','tail','meta',
-    'bubble','border','deco1','deco2','composer']), JSON.stringify(lg.groups));
+    'bubble','border','deco1','deco2','trans','quote','voice','transfer','gift','location','call','composer']),
+  JSON.stringify(lg.groups));
 
 ok('换图标：把 svg 藏起来再给按钮铺图',
   /\.ph-back svg \{[\s\S]*opacity: 0/.test(lg.icon)
@@ -141,8 +142,8 @@ await page.waitForTimeout(700);
 const t = await page.locator('.gen-panel').innerText();
 const railText = await page.locator('.gen-rail').innerText();
 ok('撞车在界面上说出来了', /都挂在同一个位置/.test(t), t.slice(0,300));
-ok('十一组都在竖栏上，一下点得到',
-  ['顶栏','挂图','消息','头像','尾巴','时刻','气泡','边框','贴图一','贴图二','底栏']
+ok('十一组与「卡片」都在竖栏上，一下点得到',
+  ['顶栏','挂图','消息','头像','尾巴','时刻','气泡','边框','贴图一','贴图二','卡片','底栏']
     .every(x => railText.includes(x)), railText.replace(/\n/g,' '));
 ok('总样式也在竖栏上', /总样式/.test(railText), railText.replace(/\n/g,' '));
 

@@ -73,7 +73,9 @@ ok('「都不显示」：真页面上头像全收掉', real.faces.length > 0 && 
 // ---- 生成器里写出类名 ----
 await page.evaluate(async id => { const n = await import('/src/system/nav.js'); n.goHome(); n.openApp('skin', `/gen/${id}`); }, ids.skin);
 await page.waitForTimeout(900);
-await page.locator('.gen-rail-btn', { hasText: '转账' }).click();
+await page.locator('.gen-rail-btn', { hasText: '卡片' }).click();
+await page.waitForTimeout(300);
+await page.locator('.gen-card-pick .chip', { hasText: '转账' }).click();
 await page.waitForTimeout(400);
 ok('生成器转账一组：标题下写出类名', /\.ph-transfer/.test(await page.locator('.gen-panel-desc').innerText().catch(() => '')));
 await page.locator('.gen-rail-btn', { hasText: '时刻' }).click();

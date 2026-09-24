@@ -1429,10 +1429,7 @@ export function Conversation({ chatId, focusId = '' }) {
 
       <input type="file" accept="image/*" ref=${imgRef}
         onChange=${sendImage} style="display:none"/>
-      <input type="file" accept="image/*" ref=${charFaceRef}
-        onChange=${e => changeFace(e, { charId: char.id })} style="display:none"/>
-      <input type="file" accept="image/*" ref=${myFaceRef}
-        onChange=${e => changeFace(e, { personaId: chat.personaId || phone.accounts.current()?.id })} style="display:none"/>
+
       <input type="file" accept="video/*" ref=${clipRef}
         onChange=${sendClip} style="display:none"/>
 
@@ -1527,7 +1524,7 @@ export function Conversation({ chatId, focusId = '' }) {
         <//>` : html`
         <${List} title="这个角色">
           <${ListItem} title="角色卡" arrow
-            subtitle="形象照、资料与各项能力的开关"
+            subtitle="形象照、人设、当日日程与各项能力的开关"
             left=${html`<${Icon} name="user" size=${18}/>`}
             onClick=${() => { setMenu(false); nav.push(`/card/${char.id}`); }}/>
           <${ListItem} title="备注" arrow
@@ -1560,6 +1557,10 @@ export function Conversation({ chatId, focusId = '' }) {
               onClick=${pullMusic}/>` : null}
         <//>`}
 
+        <input type="file" accept="image/*" ref=${charFaceRef}
+          onChange=${e => changeFace(e, { charId: char.id })} style="display:none"/>
+        <input type="file" accept="image/*" ref=${myFaceRef}
+          onChange=${e => changeFace(e, { personaId: chat.personaId || phone.accounts.current()?.id })} style="display:none"/>
         <${List} title="头像">
           ${isGroup ? null : html`
             <${ListItem} title="更换角色的头像" arrow multiline

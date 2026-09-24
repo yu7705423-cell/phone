@@ -333,12 +333,14 @@ export const GROUPS = [
         when: v => v.shadow > 0 },
     ],
   },
-  ...CARD_GROUPS.map(c => ({
-    id: c.id, label: c.label, short: c.short, icon: c.icon, focus: c.sel,
-    desc: `类名 ${c.sel}`, items: cardItems({ size: c.size }),
-  })),
   { id: 'deco1', label: '贴图一', short: '贴图一', icon: 'star', focus: '.ph-bubble-theirs', items: decoItems(1) },
   { id: 'deco2', label: '贴图二', short: '贴图二', icon: 'star', focus: '.ph-bubble-theirs', items: decoItems(2) },
+  // 七种卡片各是一组，存的时候互不相干；生成器竖栏上合成一格「卡片」，点进去再选改哪一种
+  //（card: true）。一种一格的话竖栏十九格，一屏装不下
+  ...CARD_GROUPS.map(c => ({
+    id: c.id, label: c.label, short: c.short, icon: c.icon, focus: c.sel, card: true,
+    desc: `类名 ${c.sel}`, items: cardItems({ size: c.size }),
+  })),
   {
     id: 'composer', label: '底栏', short: '底栏', icon: 'edit', focus: '.ph-composer',
     items: [

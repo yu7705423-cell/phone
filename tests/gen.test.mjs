@@ -97,7 +97,7 @@ await page.evaluate(async ({skinId}) => {
 }, ids);
 await page.waitForSelector('.gen-rail'); await page.waitForTimeout(1000);
 ok('生成器是美化 app 里单独的一页，不必先挂到会话上',
-  (await page.locator('.gen-rail-btn').count()) === 12,
+  (await page.locator('.gen-rail-btn').count()) === 13,
   String(await page.locator('.gen-rail-btn').count()));
 
 const bubbleStyle = () => page.evaluate(() => {

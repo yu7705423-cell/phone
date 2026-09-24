@@ -108,6 +108,8 @@ function Stage({ row, focus, open }) {
 export function GenPage({ id }) {
   useStore(db.skins.store);
   const [open, setOpen] = useState('');
+  // 「卡片」那一格上次看的是哪一种，再点开时接着看它
+  const [lastCard, setLastCard] = useState('');
   const row = skin.get(id);
   if (!row) {
     return html`<${Page} title="生成" onBack=${nav.pop}>
@@ -140,11 +142,17 @@ export function GenPage({ id }) {
   };
 
   // 再点一下当前那一格就收起来。收起之后预览占满整块
-  const tap = key => setOpen(open === key ? '' : key);
+  const cards = gen.GROUPS.filter(g => g.card);
+  const onCard = !!group?.card;
+  const tap = key => {
+    if (key === 'cards') { setOpen(onCard ? '' : (lastCard || cards[0].id)); return; }
+    setOpen(open === key ? '' : key);
+  };
+  const pickCard = id => { setLastCard(id); setOpen(id); };
 
   const railBtn = (key, icon, label, dot) => html`
     <button key=${key} type="button"
-      class=${`gen-rail-btn press${open === key ? ' is-on' : ''}`}
+      class=${`gen-rail-btn press${open === key || (key === 'cards' && onCard) ? ' is-on' : ''}`}
       onClick=${() => tap(key)}>
       <${Icon} name=${icon} size=${19}/>
       <span class="gen-rail-label">${label}</span>
@@ -155,8 +163,11 @@ export function GenPage({ id }) {
     <${Page} title=${row.name} onBack=${nav.pop} noScroll>
       <div class="gen">
         <div class="gen-rail scroll">
-          ${gen.GROUPS.map(g => railBtn(g.id, g.icon, g.short || g.label,
-    gen.changedIn(cur, g.id) > 0))}
+          ${gen.GROUPS.filter(g => !g.card).map(g => [
+    // 卡片那几组在竖栏上合成一格，排在底栏前面
+    g.id === 'composer' ? railBtn('cards', 'layers', '卡片', cards.some(c => gen.changedIn(cur, c.id) > 0)) : null,
+    railBtn(g.id, g.icon, g.short || g.label, gen.changedIn(cur, g.id) > 0),
+  ])}
           <div class="gen-rail-sep"></div>
           ${railBtn('css', 'copy', '总样式', false)}
         </div>
@@ -169,10 +180,17 @@ export function GenPage({ id }) {
           ${open ? html`
             <div class="gen-panel scroll">
               <div class="gen-panel-head">
-                <span class="gen-panel-title">${group ? group.label : '总样式'}</span>
+                <span class="gen-panel-title">${onCard ? '卡片' : group ? group.label : '总样式'}</span>
                 <button type="button" class="gen-panel-close press"
                   onClick=${() => setOpen('')}>收起</button>
               </div>
+              ${onCard ? html`
+                <div class="gen-card-pick">
+                  ${cards.map(c => html`
+                    <button key=${c.id} type="button"
+                      class=${`chip press${c.id === group.id ? ' is-active' : ''}${gen.changedIn(cur, c.id) > 0 ? ' has-dot' : ''}`}
+                      onClick=${() => pickCard(c.id)}>${c.short}</button>`)}
+                </div>` : null}
               ${group?.desc ? html`<div class="gen-panel-desc">${group.desc}</div>` : null}
 
               ${clashes.length ? html`
