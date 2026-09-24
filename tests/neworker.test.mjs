@@ -26,7 +26,7 @@ ok('预检：204，允许这个来源、POST 与 Content-Type', r.status === 204
   && /POST/.test(r.headers.get('access-control-allow-methods')) && /Content-Type/.test(r.headers.get('access-control-allow-headers')));
 r = await call(worker, { method: 'GET' });
 let b = await r.json();
-ok('GET：报出自己是谁、第几版', b.name === 'mini-phone-netease' && b.version === 1, JSON.stringify(b));
+ok('GET：报出自己是谁、第几版', b.name === 'mini-phone-netease' && b.version === 2, JSON.stringify(b));
 
 r = await post(worker, { url: 'https://evil.example.com/steal', body: 'a=1' });
 ok('目标不是网易云：拒绝，一个请求都不发', r.status === 400 && upstream.length === 0, r.status);

@@ -11,6 +11,8 @@ import { migrateFrames } from './system/skin.js';
 import { nav } from './system/nav.js';
 import { forceUpdate } from './system/refresh.js';
 import { BUILD } from './version.js';
+import { gate, watch as watchAuth } from './system/auth.js';
+import { Login } from './shell/Login.js';
 import './screens/home/widgets.js';
 import './screens/home/insWidgets.js';
 
@@ -136,5 +138,12 @@ if (stale && tries < HEAL_MAX) {
   } else if (heal) {
     writeHeal(null);        // 对上了，记号清掉
   }
-  boot();
+  enter();
+}
+
+// 进门：本站开了账号功能就先登录（见 system/auth.js）。没开的话 gate 立刻放行
+async function enter() {
+  const g = await gate();
+  if (g.ok) { watchAuth(); boot(); return; }
+  render(html`<${Login} note=${g.note || ''} offline=${!!g.offline} onDone=${() => { watchAuth(); boot(); }}/>`, mount);
 }

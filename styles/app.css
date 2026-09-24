@@ -2942,3 +2942,8 @@ button.conv-notice { background: none; border: 0; font: inherit; cursor: pointer
 }
 .mcp-pre.is-error { color: var(--danger); }
 
+
+/* 管理页：刚生成的账号与密码，整段可选中复制 */
+.acct-out { font-size: var(--fs-13); line-height: 1.8; white-space: pre-wrap; word-break: break-all;
+  background: var(--surface-2); border-radius: var(--r-sm); padding: var(--sp-3); margin: var(--sp-3) 0;
+  max-height: 320px; overflow-y: auto; }

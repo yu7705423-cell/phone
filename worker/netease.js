@@ -1,4 +1,4 @@
-// 小手机 · 网易云转发（Cloudflare Worker）
+// Eira · 网易云转发与登录账号（Cloudflare Worker）
 //
 // 用法：在 Cloudflare 后台新建一个 Worker，把这整个文件的内容粘进编辑器，保存并部署，
 // 得到的地址（形如 https://xxx.yyy.workers.dev）填进应用的 src/site.js 里的 neteaseWorker。
@@ -11,6 +11,11 @@
 // 为什么非要它：浏览器不许网页直接访问网易云（网易云不允许跨域），也不许网页自己设
 // Cookie、User-Agent 这些请求头。这两件事只能由一个中间的服务器替它做。
 //
+// 它还管登录账号（/auth/ 开头的那些地址）。这一部分要在 Cloudflare 后台多做两步：
+// 绑一个 KV 存储（变量名 ACCOUNTS），加一个管理员密码（变量名 ADMIN_PASSWORD，类型选「密钥」）。
+// 两样都没做时账号功能关着，这个 Worker 只做网易云转发，和从前一样。
+// 两样都做了之后，网易云转发也只给登录了的人用。
+//
 // 安全上的几条：
 //   · 只转发到网易云的那几个域名，别的地址一律拒绝 —— 它不能被拿去当通用代理
 //   · 下面 ALLOW_ORIGINS 填上你们网站的地址，别的网站的网页就用不了它
@@ -21,7 +26,17 @@
 const ALLOW_ORIGINS = [];
 
 const HOSTS = new Set(['music.163.com', 'interface.music.163.com', 'interface3.music.163.com']);
-const VERSION = 1;
+const VERSION = 2;
+
+// 一个账号最多同时在几台设备上登录。第三台登录时，最早登录的那一台被挤下线
+const MAX_DEVICES = 2;
+// 登录凭证的有效期。应用每次启动都会换一张新的，天天用的人不会遇到它过期
+const TOKEN_DAYS = 30;
+// 密码哈希的轮数。免费版 Worker 每次请求只有 10 毫秒 CPU，再多就超了；
+// 密码都是随机生成的十位字符，轮数不是这里的主要防线
+const PBKDF2_ITER = 10000;
+// 生成密码与账号名用的字符，去掉了 0O1lI 这些容易看错的
+const PW_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
 
 // 只认一个看起来像 IPv4 的值，别的当没给
 const isIPv4 = s => /^(\d{1,3})(\.\d{1,3}){3}$/.test(String(s || ''))
@@ -32,7 +47,7 @@ function corsHeaders(origin) {
   return {
     'Access-Control-Allow-Origin': allow,
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Access-Control-Max-Age': '86400',
     Vary: 'Origin',
   };
@@ -43,16 +58,27 @@ const json = (obj, status, headers) => new Response(JSON.stringify(obj), {
 });
 
 export default {
-  async fetch(request) {
+  async fetch(request, env = {}) {
     const origin = request.headers.get('Origin') || '';
     const cors = corsHeaders(origin);
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
     if (ALLOW_ORIGINS.length && origin && !ALLOW_ORIGINS.includes(origin)) {
       return json({ error: '这个网站不在允许名单里' }, 403, cors);
     }
-    // 应用用它来认出这是转发 Worker、是哪一版
-    if (request.method === 'GET') return json({ ok: true, name: 'mini-phone-netease', version: VERSION }, 200, cors);
+    const path = new URL(request.url).pathname.replace(/\/+$/, '');
+    // 应用用它来认出这是转发 Worker、是哪一版、账号功能开没开
+    if (request.method === 'GET') {
+      return json({ ok: true, name: 'mini-phone-netease', version: VERSION, accounts: accountsOn(env) }, 200, cors);
+    }
     if (request.method !== 'POST') return json({ error: '只接受 POST' }, 405, cors);
+    if (path.startsWith('/auth/')) return auth(path, request, env, cors);
+
+    // 账号功能开着时，网易云转发只给登录了的人用。只验凭证的签名与期限，不读存储 ——
+    // 听歌时请求很多，每次都读一遍会很快用完免费额度
+    if (accountsOn(env)) {
+      const who = await readToken(env, (request.headers.get('Authorization') || '').replace(/^Bearer\s+/i, ''));
+      if (!who) return json({ error: '请先登录' }, 401, cors);
+    }
 
     let job;
     try { job = await request.json(); } catch { return json({ error: '请求内容不是 JSON' }, 400, cors); }
@@ -86,3 +112,221 @@ export default {
     return json({ status: res.status, body, cookies }, 200, cors);
   },
 };
+
+// ---- 登录账号 ----
+//
+// 存储：KV 里每个账号一条 user:<账号名>，值是 { hash, salt, iter, disabled, note, createdAt, devices }。
+// 列表页要的几项同时放进这一条的 metadata，列出全部账号时不必逐条读取。
+// 凭证：{ 账号名, 设备号, 过期时间 } 做 HMAC 签名，密钥由管理员密码推出（见 tokenKey）。
+// 管理员：密码是 Worker 的环境变量 ADMIN_PASSWORD，少于 12 位不认。
+
+const accountsOn = env => !!(env && env.ACCOUNTS && env.ADMIN_PASSWORD);
+const adminPwOk = env => String(env.ADMIN_PASSWORD || '').length >= 12;
+// 留给管理员自己登录的账号名（见 /auth/login）
+const ADMIN_NAME = 'admin';
+const te = new TextEncoder();
+
+const b64u = bytes => {
+  let s = '';
+  for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
+  return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+};
+const fromB64u = str => {
+  const t = String(str).replace(/-/g, '+').replace(/_/g, '/');
+  const bin = atob(t + '='.repeat((4 - (t.length % 4)) % 4));
+  return Uint8Array.from(bin, c => c.charCodeAt(0));
+};
+const randomBytes = n => crypto.getRandomValues(new Uint8Array(n));
+const randomText = (n, chars = PW_CHARS) => Array.from(randomBytes(n), b => chars[b % chars.length]).join('');
+
+// 逐字节比较，不因为前面几位对上了就早早返回
+function sameBytes(a, b) {
+  if (a.length !== b.length) return false;
+  let d = 0;
+  for (let i = 0; i < a.length; i++) d |= a[i] ^ b[i];
+  return d === 0;
+}
+const sameText = (a, b) => sameBytes(te.encode(String(a)), te.encode(String(b)));
+
+async function hashPassword(password, salt, iter) {
+  const key = await crypto.subtle.importKey('raw', te.encode(String(password)), 'PBKDF2', false, ['deriveBits']);
+  const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt: fromB64u(salt), iterations: iter }, key, 256);
+  return b64u(new Uint8Array(bits));
+}
+
+// 签名密钥由管理员密码推出，不存储：KV 各地同步有延迟，随机生成再存进去的话，
+// 头一分钟里两个地区可能各生成一把、互相不认。代价是改了管理员密码，所有人要重新登录一次
+let secretKey = null;
+let secretFor = '';
+async function tokenKey(env) {
+  const pw = String(env.ADMIN_PASSWORD || '');
+  if (secretKey && secretFor === pw) return secretKey;
+  const raw = await crypto.subtle.digest('SHA-256', te.encode(`eira-token|${pw}`));
+  secretKey = await crypto.subtle.importKey('raw', raw, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign', 'verify']);
+  secretFor = pw;
+  return secretKey;
+}
+
+async function makeToken(env, name, device) {
+  const body = b64u(te.encode(JSON.stringify({ n: name, d: device, e: Date.now() + TOKEN_DAYS * 86400000 })));
+  const sig = new Uint8Array(await crypto.subtle.sign('HMAC', await tokenKey(env), te.encode(body)));
+  return `${body}.${b64u(sig)}`;
+}
+
+/** 凭证读得出、签名对、没过期：给回 { n, d, e }，否则 null。不读账号本身 */
+async function readToken(env, token) {
+  const [body, sig] = String(token || '').split('.');
+  if (!body || !sig) return null;
+  try {
+    const ok = await crypto.subtle.verify('HMAC', await tokenKey(env), fromB64u(sig), te.encode(body));
+    if (!ok) return null;
+    const p = JSON.parse(new TextDecoder().decode(fromB64u(body)));
+    return p && p.n && p.d && p.e > Date.now() ? p : null;
+  } catch { return null; }
+}
+
+const userKey = name => `user:${name}`;
+async function getUser(env, name) {
+  const raw = await env.ACCOUNTS.get(userKey(name));
+  return raw ? JSON.parse(raw) : null;
+}
+async function putUser(env, name, u) {
+  const metadata = { disabled: !!u.disabled, devices: (u.devices || []).length, note: String(u.note || '').slice(0, 200), createdAt: u.createdAt || 0 };
+  await env.ACCOUNTS.put(userKey(name), JSON.stringify(u), { metadata });
+}
+
+// 账号名：去掉首尾空白，1 到 32 个字，不含空白与斜杠
+const cleanName = raw => String(raw || '').trim();
+const nameOk = n => n.length >= 1 && n.length <= 32 && !/[\s/\\]/.test(n);
+
+async function newPassword(u) {
+  const password = randomText(10);
+  u.salt = b64u(randomBytes(16));
+  u.iter = PBKDF2_ITER;
+  u.hash = await hashPassword(password, u.salt, u.iter);
+  return password;
+}
+
+async function auth(path, request, env, cors) {
+  if (!accountsOn(env)) return json({ error: '本站尚未启用账号功能' }, 503, cors);
+  let q;
+  try { q = await request.json(); } catch { return json({ error: '请求内容不是 JSON' }, 400, cors); }
+
+  if (path === '/auth/login') {
+    const name = cleanName(q.name);
+    const device = String(q.device || '').slice(0, 64);
+    if (!name || !q.password || !device) return json({ error: '请填写账号与密码' }, 400, cors);
+    const bad = () => json({ error: '账号或密码不正确' }, 401, cors);
+    // 管理员自己：账号名 admin，密码就是管理员密码。开通之后第一次进应用、发第一个账号靠它
+    if (name === ADMIN_NAME) {
+      if (!adminPwOk(env) || !sameText(q.password, env.ADMIN_PASSWORD)) return bad();
+      return json({ ok: true, name, token: await makeToken(env, name, device) }, 200, cors);
+    }
+    const u = await getUser(env, name);
+    if (!u) return bad();
+    if (!sameText(await hashPassword(q.password, u.salt, u.iter || PBKDF2_ITER), u.hash)) return bad();
+    if (u.disabled) return json({ error: '该账号已停用' }, 403, cors);
+    const label = String(q.label || '').slice(0, 60);
+    u.devices = (u.devices || []).filter(x => x.id !== device);
+    u.devices.push({ id: device, label, at: Date.now() });
+    u.devices = u.devices.slice(-MAX_DEVICES);
+    await putUser(env, name, u);
+    return json({ ok: true, name, token: await makeToken(env, name, device) }, 200, cors);
+  }
+
+  if (path === '/auth/check') {
+    const t = await readToken(env, q.token);
+    if (!t) return json({ error: '登录已过期，请重新登录', relogin: true }, 401, cors);
+    // 管理员的凭证不占设备名额；改了管理员密码，签名密钥跟着变，旧凭证自然失效
+    if (t.n === ADMIN_NAME) return json({ ok: true, name: t.n, token: await makeToken(env, t.n, t.d) }, 200, cors);
+    const u = await getUser(env, t.n);
+    if (!u) return json({ error: '该账号已不存在', relogin: true }, 401, cors);
+    if (u.disabled) return json({ error: '该账号已停用', relogin: true }, 403, cors);
+    if (!(u.devices || []).some(x => x.id === t.d)) {
+      return json({ error: '该账号已在其他设备登录，本设备已退出', relogin: true }, 401, cors);
+    }
+    return json({ ok: true, name: t.n, token: await makeToken(env, t.n, t.d) }, 200, cors);
+  }
+
+  if (path === '/auth/logout') {
+    const t = await readToken(env, q.token);
+    if (t) {
+      const u = await getUser(env, t.n);
+      if (u && (u.devices || []).some(x => x.id === t.d)) {
+        u.devices = u.devices.filter(x => x.id !== t.d);
+        await putUser(env, t.n, u);
+      }
+    }
+    return json({ ok: true }, 200, cors);
+  }
+
+  if (path === '/auth/admin') return admin(q, env, cors);
+  return json({ error: '没有这个地址' }, 404, cors);
+}
+
+async function admin(q, env, cors) {
+  const real = String(env.ADMIN_PASSWORD || '');
+  if (!adminPwOk(env)) return json({ error: '管理员密码未设置或少于 12 位，请在 Cloudflare 后台重新设置' }, 503, cors);
+  if (!sameText(q.password || '', real)) return json({ error: '管理员密码不正确' }, 401, cors);
+  const name = cleanName(q.name);
+
+  if (q.op === 'list') {
+    const users = [];
+    let cursor;
+    do {
+      const page = await env.ACCOUNTS.list({ prefix: 'user:', cursor });
+      page.keys.forEach(k => users.push({ name: k.name.slice(5), ...(k.metadata || {}) }));
+      cursor = page.list_complete ? undefined : page.cursor;
+    } while (cursor);
+    users.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    return json({ ok: true, users, maxDevices: MAX_DEVICES }, 200, cors);
+  }
+
+  if (q.op === 'create') {
+    let n = name;
+    if (!n) {
+      for (let i = 0; i < 20 && (!n || await getUser(env, n)); i++) n = `u${randomText(6, '0123456789')}`;
+    }
+    if (!nameOk(n)) return json({ error: '账号名为 1 到 32 个字，不能含空格与斜杠' }, 400, cors);
+    if (n === ADMIN_NAME) return json({ error: 'admin 留给管理员自己登录，请换一个账号名' }, 400, cors);
+    if (await getUser(env, n)) return json({ error: '这个账号名已经有了' }, 409, cors);
+    const u = { note: String(q.note || '').slice(0, 200), createdAt: Date.now(), disabled: false, devices: [] };
+    const password = await newPassword(u);
+    await putUser(env, n, u);
+    return json({ ok: true, name: n, password }, 200, cors);
+  }
+
+  const u = name ? await getUser(env, name) : null;
+  if (!u) return json({ error: '没有这个账号' }, 404, cors);
+
+  if (q.op === 'reset') {
+    const password = await newPassword(u);
+    u.devices = [];            // 改了密码，已登录的设备一并退出
+    await putUser(env, name, u);
+    return json({ ok: true, name, password }, 200, cors);
+  }
+  if (q.op === 'disable') {
+    u.disabled = q.on !== false;
+    if (u.disabled) u.devices = [];
+    await putUser(env, name, u);
+    return json({ ok: true, name, disabled: u.disabled }, 200, cors);
+  }
+  if (q.op === 'kick') {
+    u.devices = [];
+    await putUser(env, name, u);
+    return json({ ok: true, name }, 200, cors);
+  }
+  if (q.op === 'note') {
+    u.note = String(q.note || '').slice(0, 200);
+    await putUser(env, name, u);
+    return json({ ok: true, name }, 200, cors);
+  }
+  if (q.op === 'remove') {
+    await env.ACCOUNTS.delete(userKey(name));
+    return json({ ok: true, name }, 200, cors);
+  }
+  if (q.op === 'devices') {
+    return json({ ok: true, name, devices: (u.devices || []).map(d => ({ label: d.label, at: d.at })) }, 200, cors);
+  }
+  return json({ error: '不认识的操作' }, 400, cors);
+}

@@ -1,6 +1,7 @@
 import { html } from '../../lib.js';
 import { phone, useStore } from '../../sdk/index.js';
 import { Page, List, ListItem, Icon, Switch, toast } from '../../ui/index.js';
+import { SigninPage, AdminPage } from './SigninPage.js';
 import { ApiPage } from './ApiPage.js';
 import { FilesPage } from './FilesPage.js';
 import { VoicePage } from './VoicePage.js';
@@ -99,6 +100,11 @@ function Home() {
 
   return html`
     <${Page} title="设置">
+      ${phone.auth.serviceUrl() && phone.auth.currentName() ? html`
+        <${List} title="登录">
+          <${ListItem} title=${phone.auth.currentName()} subtitle="退出登录、管理账号" arrow
+            left=${html`<${Icon} name="user" size=${19}/>`} onClick=${() => nav.push('/signin')}/>
+        <//>` : null}
       <${List} title="服务">
         ${svcRow({ title: '接口', icon: 'key', route: '/api', desc: chatDesc, value: active ? '' : OFF })}
         ${svcRow({ title: '语音合成', icon: 'headphone', route: '/voice', desc: voiceDesc, value: voiceDesc ? '' : OFF })}
@@ -197,6 +203,8 @@ function Home() {
 
 export default function SettingsApp({ route }) {
   if (route === '/api') return html`<${ApiPage}/>`;
+  if (route === '/signin') return html`<${SigninPage}/>`;
+  if (route === '/signin/admin') return html`<${AdminPage}/>`;
   if (route === '/notify') return html`<${NotifyPage}/>`;
   if (route === '/embed') return html`<${EmbedPage}/>`;
   if (route === '/rerank') return html`<${RerankPage}/>`;

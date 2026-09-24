@@ -1,4 +1,5 @@
 import { weapi, eapi } from './crypto.js';
+import { token as authToken } from '../auth.js';
 
 // 经由转发 Worker 直接和网易云说话的那一层。照 NeteaseCloudMusicApi（MIT）的 util/request.js 写：
 // 同样的 cookie 补全、同样的请求头、同样的加密选择、同样的状态码处理 —— 这样 routes.js 里
@@ -123,7 +124,8 @@ export function createClient({ worker, device, ip }) {
     try {
       res = await fetch(worker, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        // 本站开了登录时，Worker 只给登录了的人转发（见 system/auth.js）
+        headers: { 'Content-Type': 'application/json', ...(authToken() ? { Authorization: `Bearer ${authToken()}` } : {}) },
         body: JSON.stringify({ url, body: new URLSearchParams(form).toString(), cookie: headerCookie, ua, referer, ip: ip() }),
       });
     } catch (err) {

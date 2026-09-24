@@ -67,6 +67,12 @@ const page = await browser.newPage({ viewport: { width: 430, height: 932 }, isMo
 const errors = [];
 page.on('pageerror', e => errors.push('PAGEERROR: ' + e.message));
 await page.route('**/*', r => r.request().url().startsWith(BASE) ? r.continue() : r.abort());
+// 本站开了登录时先要账号；冒烟不登录，把账号服务的地址抹掉（同 scripts/test.mjs）
+await page.route('**/src/site.js*', async r => {
+  const res = await r.fetch();
+  const text = (await res.text()).replace(/accounts:\s*'[^']*'/, "accounts: ''");
+  await r.fulfill({ response: res, body: text });
+});
 await page.goto(`${BASE}/index.html`, { waitUntil: 'domcontentloaded' });
 await page.waitForTimeout(1500);
 

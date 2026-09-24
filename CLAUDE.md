@@ -499,6 +499,8 @@ SMOKE_PW=... node scripts/test.mjs group badges                         名字�
 ```
 
 测试在 `tests/*.test.mjs`，自己起静态服务器，不用先开 python。
+**单独跑一个也走 `scripts/test.mjs <名字>`**：`src/site.js` 填了登录服务（`accounts`）时，
+直接用 python 起的服务器打开应用会停在登录页；`scripts/test.mjs` 给出 site.js 时会把它抹掉。
 **新写的测试放进 `tests/`，不要放在临时目录** —— 从前一百多个测试都在临时目录里，
 容器一回收全没了。路径一律从 `tests/_env.mjs` 取，不写死 `/tmp`、`/opt`。
 

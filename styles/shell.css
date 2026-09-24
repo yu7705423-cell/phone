@@ -724,3 +724,19 @@
 .ins-weather.is-flat .ins-weather-t { flex: none; font-size: var(--fs-24); }
 .ins-weather.is-flat .ins-weather-meta { flex: 1; }
 
+
+/* ---- 登录页 ---- */
+.login {
+  height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: var(--sp-3); padding: 0 var(--sp-6); max-width: 360px; margin: 0 auto; background: var(--bg);
+}
+.login-icon { width: 76px; height: 76px; border-radius: var(--r-lg); }
+.login-title { font-size: var(--fs-24); font-weight: var(--fw-semi); color: var(--text); margin-bottom: var(--sp-3); }
+.login-note, .login-err { font-size: var(--fs-13); text-align: center; line-height: 1.6; }
+.login-note { color: var(--text-2); }
+.login-err { color: var(--danger); }
+.login-fields { width: 100%; display: flex; flex-direction: column; gap: var(--sp-2); }
+.login-fields input { width: 100%; }
+.login .btn { width: 100%; margin-top: var(--sp-2); }
+.login-hint { font-size: var(--fs-12); color: var(--text-3); text-align: center; line-height: 1.6; margin-top: var(--sp-2); }
+.login-retry { font-size: var(--fs-13); color: var(--text-2); text-decoration: underline; padding: var(--sp-2); }

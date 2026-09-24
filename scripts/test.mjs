@@ -30,7 +30,10 @@ const server = createServer(async (req, res) => {
   const file = join(ROOT, path.endsWith('/') ? path + 'index.html' : path);
   if (!file.startsWith(ROOT)) { res.writeHead(403).end(); return; }
   try {
-    const body = await readFile(file);
+    let body = await readFile(file);
+    // 本站开了登录时，应用一打开先要账号 —— 测试里谁也登不进去。账号服务的地址在这里抹掉，
+    // 应用照没开登录那样直接进门。登录本身另有测试（tests/login.test.mjs 自己模拟 site.js）
+    if (path === '/src/site.js') body = Buffer.from(String(body).replace(/accounts:\s*'[^']*'/, "accounts: ''"));
     res.writeHead(200, { 'content-type': TYPES[extname(file)] || 'application/octet-stream', 'cache-control': 'no-store' });
     res.end(body);
   } catch { res.writeHead(404).end(); }
