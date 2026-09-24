@@ -8,6 +8,7 @@ import * as pushApi from '../system/push.js';
 import * as looksApi from '../system/looks.js';
 import * as fullApi from '../system/fullscreen.js';
 import * as chatLookApi from '../system/chatlook.js';
+import { isTest } from '../system/channel.js';
 import * as fontsApi from '../system/fonts.js';
 import * as clockApi from '../system/time.js';
 import * as bus from '../system/bus.js';
@@ -354,6 +355,9 @@ export const phone = {
   bus: { on: bus.on, emit: bus.emit, EVENTS: bus.EVENTS },
 
   ui: { toast, confirm, prompt },
+
+  // 这一份是不是测试版（见 system/channel.js）
+  isTest,
 
   // 聊天背景与上下栏样式（存在会话记录上）
   chatLook: chatLookApi,

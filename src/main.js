@@ -16,6 +16,7 @@ import { Login } from './shell/Login.js';
 import { install as holdViewport } from './system/viewport.js';
 import { install as installFullscreen } from './system/fullscreen.js';
 import { install as installDiag } from './system/diag.js';
+import { install as markChannel } from './system/channel.js';
 import './screens/home/widgets.js';
 import './screens/home/insWidgets.js';
 
@@ -24,6 +25,8 @@ const mount = document.getElementById('app');
 holdViewport();
 // 地址加 ?diag 时屏幕中间显示几项布局读数，排查真机上空出来的那一条
 installDiag();
+// 测试版挂一枚标记（见 system/channel.js）。登录页也要，所以放在最前
+markChannel();
 
 render(html`<div class="boot"><span class="spinner"></span></div>`, mount);
 

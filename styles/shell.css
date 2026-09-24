@@ -771,3 +771,13 @@
   font: var(--fs-11)/1.5 var(--font-mono); white-space: pre-wrap;
   pointer-events: none;
 }
+
+/* ---- 测试版标记（system/channel.js）。贴在左边缘中间，点不到，不挡边缘返回 ---- */
+.test-tag {
+  position: fixed; left: 0; top: 50%; transform: translateY(-50%);
+  z-index: calc(var(--z-banner) + 20);
+  writing-mode: vertical-rl; letter-spacing: 2px;
+  padding: var(--sp-2) 2px; border-radius: 0 var(--r-xs) var(--r-xs) 0;
+  background: var(--danger); color: var(--on-scrim); font-size: var(--fs-11);
+  opacity: .85; pointer-events: none;
+}

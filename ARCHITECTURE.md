@@ -8138,3 +8138,17 @@ Bar:  { style: solid | clear | glass, color: '' | '#rrggbb', alpha: 不透明度
 **图。** 背景图存 images 域，登记在 `purge.usedImageIds` 与 `charpack.collect`。换图、清除、
 恢复默认都先改会话再 `images.remove` 旧图 —— remove 会按引用表核一遍，另一段会话或相册还在用
 就不删。从相册选的直接引用同一个 id，不另存一份。
+
+### 4.199 正式版与测试版
+
+已经有用户在用，每推一次都直接落到他们手上。分成两份（规则见 CLAUDE.md 第 19 条）：
+正式版是 `release` 分支，GitHub Pages 从它发布，网址不变；测试版是开发分支，
+Cloudflare Pages 连着仓库自动部署到 `*.pages.dev`。只有维护者说「推正式版」才合进 `release`。
+
+测试版不放在 `github.io` 下另一个路径，是因为那和正式版同一个域名，同一台手机上共用
+IndexedDB 与 localStorage：测试版的数据迁移会改掉正式数据，`DB_VERSION` 被测试版升上去之后，
+旧代码的正式版打开同一个库会直接失败。换一个域名，两边天然隔开。代价是测试版一开始是空的，
+要用真实数据测就从正式版导出备份、在测试版导入 —— 数据迁移这类改动恰恰要这样测。
+
+`system/channel.js` 按网址（`*.pages.dev`）认出测试版：左边缘挂一枚「测试版」（点不到，不挡边缘返回）、
+标题改成「Eira 测试版」、设置页构建号后面写明。测试里用 localStorage 的 `eira-channel=test` 代替那个域名。
