@@ -35,7 +35,7 @@ const tapBlank = p => p.touchscreen.tap(206, 700);
   const { c, p } = await open({ isMobile: true, hasTouch: true, userAgent: ANDROID_UA,
     init: () => document.addEventListener('DOMContentLoaded', () => {
       const st = document.createElement('style');
-      st.textContent = '.root{--safe-top:40px;--safe-bottom:30px}';
+      st.textContent = '.root{--safe-top:40px;--safe-bottom:30px;--cutout-top:47px}';
       document.head.appendChild(st);
     }) });
   ok('打开时：不在全屏，也不画状态栏（浏览器自己有）', !(await full(p)) && (await bars(p)) === 0);
@@ -66,10 +66,19 @@ const tapBlank = p => p.touchscreen.tap(206, 700);
   ok('全屏后：网页自己画一条状态栏', (await bars(p)) === 1, await bars(p));
   const top = await p.evaluate(() => Math.round(document.querySelector('.statusbar').getBoundingClientRect().top));
   ok('全屏后：状态栏贴着屏幕顶边，上面不空出一条（不照浏览器报的安全区让）', top === 0, top);
-  // 进全屏后让浏览器把视口重算一遍（viewport-fit 换一下再换回来），算完要回到 cover
-  await p.waitForTimeout(1500);
-  const vp = await p.evaluate(() => document.querySelector('meta[name="viewport"]').content);
-  ok('全屏后重算视口：viewport-fit 最后仍是 cover', /viewport-fit=cover/.test(vp), vp);
+  const barH = await p.evaluate(() => Math.round(document.querySelector('.statusbar').getBoundingClientRect().height));
+  ok('全屏后：状态栏和系统的一样高（摄像头那一行 47），页面从它下面开始', barH === 47, barH);
+
+  // build .117 在 resize 时改 viewport，改完又触发 resize，整屏一直闪。
+  // 全屏期间尺寸变几次，viewport 一次都不许动
+  const flips = await p.evaluate(async () => {
+    const m = document.querySelector('meta[name="viewport"]');
+    let n = 0;
+    new MutationObserver(r => { n += r.length; }).observe(m, { attributes: true });
+    for (let i = 0; i < 3; i++) { window.dispatchEvent(new Event('resize')); await new Promise(r => setTimeout(r, 500)); }
+    return n;
+  });
+  ok('全屏期间尺寸变化：不去改 viewport（改了会自己触发 resize，一直闪）', flips === 0, flips);
   const sb = await p.evaluate(() => getComputedStyle(document.querySelector('.root')).getPropertyValue('--safe-bottom').trim());
   ok('全屏后：底下也不再让出导航条的位置', sb === '0px', sb);
 

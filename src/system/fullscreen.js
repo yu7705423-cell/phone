@@ -46,32 +46,16 @@ export function enter() {
 // 电脑上点一下就全屏太突兀，自动的那一档只在触摸屏上
 const wanted = () => settings.get().autoFullscreen !== false && mq('(pointer: coarse)');
 
-// 进全屏的那一下，系统状态栏常常先闪一下再收起。闪过的话，安卓 Chrome 有时会把
-// 「顶上有一条状态栏」这件事记住：状态栏已经没了，页面仍从它下面开始画，顶上空一条。
-// 等它收完之后让浏览器把视口重新算一遍：viewport-fit 换一下再换回来（刘海区那一层
-// 由它决定），整页归位。尺寸再变（从顶上划出状态栏又收回）时同样再算一遍。
-function settle() {
-  if (!isFull()) return;
-  const m = document.querySelector('meta[name="viewport"]');
-  if (m && /viewport-fit=cover/.test(m.content)) {
-    const was = m.content;
-    m.content = was.replace('viewport-fit=cover', 'viewport-fit=auto');
-    requestAnimationFrame(() => requestAnimationFrame(() => { m.content = was; }));
-  }
-  window.scrollTo(0, 0);
-}
-let settleTimer = 0;
-const settleSoon = (ms = 300) => { clearTimeout(settleTimer); settleTimer = setTimeout(settle, ms); };
-
 export function install() {
   if (typeof document === 'undefined') return;
   // 样式靠这个属性把安全区清零（base.css）
   document.addEventListener('fullscreenchange', () => {
     document.documentElement.toggleAttribute('data-browser-full', isFull());
     fullStore.set({ full: isFull() });
-    if (isFull()) { settleSoon(400); setTimeout(settle, 1200); }
   });
-  window.addEventListener('resize', () => { if (isFull()) settleSoon(); });
+  // 不要在这里接 resize 去改 viewport 之类的东西：改 viewport 会再触发一次 resize，
+  // 自己追着自己跑，整屏一直闪（build .117 就是这么闪的）
+
   // pointerup（触摸）与 click 都算一次点按，浏览器认它做进全屏的理由。
   // 只认「点」，不认「划」：边缘右滑返回这种由页面自己接住的滑动，浏览器不发
   // pointercancel，抬手时照样有 pointerup —— 划一下返回不该顺带进全屏

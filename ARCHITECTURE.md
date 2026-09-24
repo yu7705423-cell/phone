@@ -3182,7 +3182,10 @@ Avatar / Badge / Toast / EmptyState / Spinner / Skeleton
   默认开,只在触摸屏、非苹果设备、没加到主屏幕时出现。`theme-color` 跟着应用自己的 `--bg`
   (`system/look.js` 的 `syncThemeColor`),不按系统深浅色分。全屏期间 `html[data-browser-full]`
   把 `--safe-top` / `--safe-bottom` 清零:安卓 Chrome 全屏时系统状态栏临时滑出来一次,
-  报上来的安全区就停在状态栏高度不回去,照它让会在顶上留一条空白
+  报上来的安全区就停在状态栏高度不回去,照它让会在顶上留一条空白。自己画的状态栏在全屏时
+  至少和系统的一样高(`--cutout-top`,即浏览器报的顶部安全区原值),时间和电量落在摄像头那一行,
+  页面从它下面开始。全屏期间不要在 resize 里改 viewport:改完会再触发 resize,整屏一直闪
+- 地址加 `?diag` 时屏幕中间显示布局读数(`system/diag.js`),排查真机上空出来的那一条
 
 ### 9.4 图标
 
