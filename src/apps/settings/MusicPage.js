@@ -5,6 +5,8 @@ import { Page, List, ListItem, Field, Input, NumberInput, Switch, Icon, Spinner,
 
 const { db, nav, netease } = phone;
 const svc = phone.ai.services;
+// 输入框的灰字：本站提供的是 Worker 时不显示它的地址 —— 那不是一个能填进来的接口地址
+const SITE_API = () => (svc.neteaseWorker() ? '' : svc.siteNeteaseApi());
 
 // 探测结果那一段总结。分开写是因为这里的分支比一行三元式装得下的多：
 // 同样是「有几项没过」，原因是连不上、是被网易云的风控挡住，还是只剩扫码
@@ -12,7 +14,9 @@ const svc = phone.ai.services;
 const QR_ROWS = ['qrkey', 'qrimg'];
 
 function verdict(rows, cfg) {
+  const viaWorker = !!svc.neteaseWorker();
   if (!rows[0].pass) {
+    if (viaWorker) return '本站的音乐转发服务当前无法访问。这不是本机的设置问题，请联系本站的运营方。';
     return '这个地址在本机用不了：服务不通，或它不允许本页面跨域读取。请更换地址，或自行部署一份。';
   }
   const bad = rows.filter(r => !r.pass);
@@ -23,6 +27,10 @@ function verdict(rows, cfg) {
     return '扫码登录不可用，其余项目均正常。已保存的 cookie 可以继续使用，无需扫码。';
   }
   if (bad.some(r => r.risk)) {
+    if (viaWorker) {
+      return '转发服务正常，未通过的项目是网易云拒绝了这次请求的来源地址。'
+        + '可在上方填写另一个中国大陆 IP 作为来源地址后重新测试。';
+    }
     return cfg.cookie
       ? '地址与跨域均正常，未通过的项目是网易云拒绝了这个实例的出口 IP。'
         + '已保存的 cookie 未能解除该限制，请改用另一个公开实例。'
@@ -60,22 +68,28 @@ export function MusicPage() {
     <${Page} title="音乐服务" onBack=${nav.pop}>
       <div class="pad">
         <${Field} label="接口地址"
-          desc=${svc.siteNeteaseApi()
+          desc=${svc.neteaseWorker()
+            ? `本站已提供音乐转发服务，留空即使用它，无需任何设置。也可以改填自己部署的 NeteaseCloudMusicApi 地址，`
+              + `填写后以填写的为准，清空即恢复使用本站提供的服务。`
+            : svc.siteNeteaseApi()
             ? `本站已提供接口，留空即使用它，无需任何设置。也可以改填自己部署的 NeteaseCloudMusicApi 地址，`
               + `填写后以填写的为准，清空即恢复使用本站提供的接口。`
             : `指向一个 NeteaseCloudMusicApi 服务，填写至端口为止。`
               + `可以自行部署，也可以填写他人公开的实例。后者不需要维护，`
               + `但随时可能停止服务或限流。填写后请先测试。`}>
-          <${Input} value=${cfg.baseUrl} placeholder=${svc.siteNeteaseApi() || 'https://music.example.com'}
+          <${Input} value=${cfg.baseUrl} placeholder=${SITE_API() || 'https://music.example.com'}
             onInput=${v => { svc.setNetease({ baseUrl: v.trim() }); setRows(null); }}/>
         <//>
         ${svc.neteaseFromSite() ? html`
           <div class="settings-foot">当前使用本站提供的接口。</div>` : null}
         <${Field} label="来源地址 realIP"
-          desc=${`随每次请求发送给上面的接口，由接口转交网易云作为请求来源地址。`
+          desc=${svc.neteaseWorker()
+            ? `随每次请求交给网易云作为请求来源地址。网易云对境外地址常返回「请完成验证操作」（code -462）。`
+              + `留空时本设备使用一个固定的随机中国大陆 IP；测试未通过时可改填另一个。`
+            : `随每次请求发送给上面的接口，由接口转交网易云作为请求来源地址。`
             + `网易云对境外地址常返回「请完成验证操作」（code -462），`
             + `此时填写一个中国大陆 IP 可使请求正常返回。留空则不发送此参数。`}>
-          <${Input} value=${cfg.realIP} placeholder=${svc.neteaseIP() || '116.25.146.177'}
+          <${Input} value=${cfg.realIP} placeholder=${svc.neteaseIP() || cfg.device?.ip || '116.25.146.177'}
             onInput=${v => { svc.setNetease({ realIP: v.trim() }); setRows(null); }}/>
         <//>
       </div>
@@ -96,7 +110,7 @@ export function MusicPage() {
         ${rows && !testing && rows.length ? html`
           <div class="settings-foot">
             ${verdict(rows, cfg)}
-            <br/>公共实例由他人运行，其可用性不受本项目控制。
+            ${svc.neteaseFromSite() ? null : html`<br/>公共实例由他人运行，其可用性不受本项目控制。`}
           </div>` : null}` : null}
 
       ${svc.neteaseReady() ? html`
@@ -113,9 +127,9 @@ export function MusicPage() {
             </div>`}
         <//>
         <div class="settings-foot">
-          登录后得到的 cookie 等同于账号权限，会随每次请求发送给${svc.neteaseFromSite() ? '本站提供的接口' : '上面填写的接口地址'}。
-          填写的是他人运行的公共实例时，该实例可以读取你的歌单与播放记录，
-          也可以以你的名义进行操作。<br/>
+          登录后得到的 cookie 等同于账号权限，会随每次请求发送给${svc.neteaseWorker() ? '本站的音乐转发服务，由它转交网易云；转发服务不记录、不保存' : svc.neteaseFromSite() ? '本站提供的接口' : '上面填写的接口地址'}。
+          ${svc.neteaseFromSite() ? null : `填写的是他人运行的公共实例时，该实例可以读取你的歌单与播放记录，
+          也可以以你的名义进行操作。`}<br/>
           搜索、播放、一起听均不需要登录。登录仅用于个人主页、听歌排行与歌单同步。<br/>
           网易云对机房地址的匿名请求常返回「请完成验证操作」（code -462）。扫码登录被拦下时会自动换用游客身份再试，
           仍不通过时可在上方填写 realIP，或从已登录网易云的浏览器中取出 MUSIC_U 填入。

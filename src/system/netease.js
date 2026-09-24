@@ -1,8 +1,11 @@
 import { baseOf } from './ai/url.js';
-import { neteaseConfig, setNetease, neteaseReady, neteaseBase, neteaseIP } from './ai/services.js';
+import { neteaseConfig, setNetease, neteaseReady, neteaseBase, neteaseIP, neteaseWorker } from './ai/services.js';
+import { createClient, randomDeviceId, randomCNIP, cookieToJson, isWorker } from './ne/client.js';
+import { route } from './ne/routes.js';
 import { characters } from './db/index.js';
 
-// 网易云。接的是**自己部署的** NeteaseCloudMusicApi，地址在设置里填。
+// 网易云。接的是一份 NeteaseCloudMusicApi，地址在设置里填，或由本站提供（src/site.js）。
+// 本站没有服务器时走 Cloudflare Worker 转发，加密在本机做（见下面「Worker 模式」与 ARCHITECTURE 4.185）。
 //
 // 为什么不内置：那个服务要跑 Node，浏览器里起不来。而且所有人共用一个出口 IP
 // 会被网易云限流 —— 谁想用谁自己部署一份，地址也就只能是个设置项。
@@ -27,8 +30,65 @@ function base() {
 }
 
 // 每次都带 timestamp，否则接口那边会给缓存过的结果（登录状态尤其怕这个）
+// ---- Worker 模式 ----
+//
+// 本站没有接口服务器、只有一个 Cloudflare 转发 Worker 时（src/site.js 的 neteaseWorker），
+// 请求的加密与拼装在本机做（system/ne/），经 Worker 直接发给网易云。回复与接口服务器给的一样，
+// 下面各函数照常用。
+//
+// 这台设备的三样东西存在配置里（services.netease.device），页面重开还是同一套：
+//   deviceId  设备号，网易云按它认设备
+//   ip        一个固定的随机国内 IP，随请求交给 Worker 放进 X-Real-IP（用户或本站填了 realIP 就用那个）
+//   anon      游客身份（MUSIC_A）。没登录的请求带着它，和原项目服务器启动时注册的那一个同一个用处
+function device() {
+  let d = neteaseConfig().device;
+  if (!d?.deviceId || !d?.ip) {
+    d = { deviceId: randomDeviceId(), ip: randomCNIP(), anon: '', ...(d || {}) };
+    if (!d.deviceId) d.deviceId = randomDeviceId();
+    if (!d.ip) d.ip = randomCNIP();
+    setNetease({ device: d });
+  }
+  return d;
+}
+
+let client = null;
+let clientFor = '';
+function workerClient() {
+  const w = neteaseWorker();
+  if (!w) return null;
+  if (clientFor !== w) {
+    client = createClient({ worker: w, device, ip: () => neteaseIP() || device().ip });
+    clientFor = w;
+  }
+  return client;
+}
+
+let anonBusy = null;
+// 没有游客身份就先注册一个。注册失败不拦着：没有它有的接口照样通，不通的会报风控
+async function ensureAnon(c) {
+  if (device().anon) return;
+  if (!anonBusy) {
+    anonBusy = route(c, '/register/anonimous', {}, {}, device().deviceId)
+      .then(r => {
+        const a = cookieToJson(r.body?.cookie || '').MUSIC_A;
+        if (a) setNetease({ device: { ...device(), anon: a } });
+      })
+      .catch(() => {})
+      .finally(() => { anonBusy = null; });
+  }
+  await anonBusy;
+}
+
+async function viaWorker(c, path, params, cookie) {
+  if (path !== '/register/anonimous') await ensureAnon(c);
+  const r = await route(c, path, params, cookieToJson(cookie), device().deviceId);
+  return { status: r.status, ok: r.status >= 200 && r.status < 300, statusText: '', body: r.body || {} };
+}
+
 // 不抛错的那一版：给回 { status, body }，由调用方自己看业务码（登录那几步要分辨风控）
 async function callRaw(path, params = {}, cookie = '') {
+  const wc = workerClient();
+  if (wc) return viaWorker(wc, path, params, cookie);
   const url = new URL(base() + path);
   Object.entries(params).forEach(([k, v]) => {
     if (v !== undefined && v !== null && v !== '') url.searchParams.set(k, String(v));
@@ -282,6 +342,7 @@ const CHECKS = [
  * 不抛错：某一项挂了就是那一项的结果，别的照测。
  */
 export async function probe(baseUrl, onStep, realIP = neteaseIP()) {
+  if (!baseOf(baseUrl) && workerClient()) return probeWorker(onStep);
   const b = baseOf(baseUrl);
   if (!b) throw new Error('请先填写地址');
   const ck = cookieOf();
@@ -295,6 +356,54 @@ export async function probe(baseUrl, onStep, realIP = neteaseIP()) {
     out.push(row);
     if (onStep) onStep(row, out);
     // 第一项就连不上，后面几项只会重复同一个错误，不必再等
+    if (c.id === 'reach' && !pass) break;
+  }
+  return out;
+}
+
+// Worker 模式下的同一套检查：行的 id、判法与上面一致（设置页的总结按 id 认），
+// 只是每一项改为经 callRaw 走本机加密、Worker 转发这条路 —— 和真正用起来时同一条路。
+// cookie 那一项不再是接口支不支持的问题：cookie 在本机拼进请求，恒为可用。
+const WORKER_CHECKS = {
+  reach: {
+    desc: '本站的音乐转发服务可以访问，并允许本页面跨域读取',
+    run: async () => {
+      const w = await isWorker(neteaseWorker());
+      return w ? { ok: true, status: 200, body: w }
+        : { ok: false, status: 0, err: '连不上本站的音乐转发服务，或该地址不是本项目的转发服务' };
+    },
+  },
+  search: { run: () => callRaw('/cloudsearch', { keywords: '晴天', limit: 1 }, cookieOf()) },
+  qrkey: { run: () => callRaw('/login/qr/key', {}) },
+  qrimg: {
+    run: async () => {
+      const k = await callRaw('/login/qr/key', {});
+      const key = k.body?.data?.unikey;
+      if (!key) return riskNote(k) ? k : { status: 0, err: '前一步没拿到 key' };
+      return callRaw('/login/qr/create', { key, qrimg: true });
+    },
+  },
+  qrcheck: { run: () => callRaw('/login/qr/check', { key: 'probe' }) },
+  cookie: {
+    desc: '两个账号的 cookie 在本机逐次附带到请求中，不依赖转发服务的支持',
+    run: async () => ({ ok: true, status: 200, body: {} }),
+    judge: () => [true, '无需检查'],
+  },
+  url: { run: () => callRaw('/song/url/v1', { id: 347230, level: 'standard' }, cookieOf()) },
+};
+
+async function probeWorker(onStep) {
+  const out = [];
+  for (const c of CHECKS) {
+    const w = WORKER_CHECKS[c.id];
+    const at = Date.now();
+    let r;
+    try { r = await w.run(); } catch (err) { r = { ok: false, status: 0, err: String(err.message || err) }; }
+    r = { ...r, ms: Date.now() - at };
+    const [pass, note] = (w.judge || c.judge)(r);
+    const row = { id: c.id, label: c.label, desc: w.desc || c.desc, pass, note, ms: r.ms, risk: !!riskNote(r) };
+    out.push(row);
+    if (onStep) onStep(row, out);
     if (c.id === 'reach' && !pass) break;
   }
   return out;

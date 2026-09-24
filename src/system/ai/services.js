@@ -301,12 +301,14 @@ export function setNetease(patch) { write({ netease: { ...services().netease, ..
 // 实际生效的接口地址与来源 IP：用户自己填了就用自己的，没填就用本站提供的（src/site.js）。
 // neteaseConfig() 给的仍是用户自己填的那一份（设置页的输入框绑的是它）
 export function neteaseBase() { return services().netease.baseUrl || SITE.neteaseApi || ''; }
+/** 本站的转发 Worker。只在没有任何接口地址（用户的、本站的）时用它 */
+export function neteaseWorker() { return neteaseBase() ? '' : (SITE.neteaseWorker || ''); }
 export function neteaseIP() { return services().netease.realIP || SITE.neteaseRealIP || ''; }
 /** 当前用的是不是本站提供的那一个 */
-export function neteaseFromSite() { return !services().netease.baseUrl && !!SITE.neteaseApi; }
-export const siteNeteaseApi = () => SITE.neteaseApi || '';
-export function neteaseReady() { return !!neteaseBase(); }
-export function neteaseLoggedIn() { return !!(neteaseBase() && services().netease.cookie); }
+export function neteaseFromSite() { return !services().netease.baseUrl && !!(SITE.neteaseApi || SITE.neteaseWorker); }
+export const siteNeteaseApi = () => SITE.neteaseApi || SITE.neteaseWorker || '';
+export function neteaseReady() { return !!(neteaseBase() || neteaseWorker()); }
+export function neteaseLoggedIn() { return !!(neteaseReady() && services().netease.cookie); }
 
 // ---- 记忆整理。单独配一套，不配就跟着副用走 ----
 export function memoryConfig() { return resolved(services().memory); }

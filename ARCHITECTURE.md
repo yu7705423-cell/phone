@@ -7754,6 +7754,51 @@ ins 的样子靠留白、发丝线、衬线字与小写英文标注，不靠颜�
    反向代理默认会把整条网址记进日志，那等于把登录过的用户的账号凭据写进了日志文件。
 6. 填 `src/site.js`，同时改构建号（`version.js` 与 `index.html` 两处），用「设置 - 音乐服务 - 测试这个地址」验一遍。
 
+### 4.185 没有服务器：网易云经 Cloudflare Worker 转发（`worker/`、`src/system/ne/`）
+
+4.184 要运营方跑一份 NeteaseCloudMusicApi，那需要一台服务器。没有服务器时，把那份 Node 服务
+拆成两半：**加密与拼参数搬进浏览器**，**只剩「替网页发请求」这一件事留给一个 Cloudflare Worker**。
+
+```
+页面  system/netease.js  callRaw(path, params, cookie)
+        |  SITE.neteaseWorker 有值、用户没填自己的接口
+        v
+      system/ne/routes.js   22 个接口，照原项目 module/ 同名文件：网址、参数、加密方式、回复包装
+      system/ne/client.js   照原项目 util/request.js：cookie 补全、请求头、状态码
+      system/ne/crypto.js   weapi（AES-CBC 两层 + 无填充 RSA）、eapi（AES-ECB），WebCrypto + BigInt
+        |  POST {url, body, cookie, ua, referer, ip}
+        v
+      worker/netease.js     只转发到 music.163.com / interface(3).music.163.com，设上请求头，
+        |                   把回复原文与 Set-Cookie（去掉 Domain）装进 JSON 交回
+        v
+      网易云
+```
+
+回复与接口服务器给的一模一样，所以 `netease.js` 其余部分（搜歌、歌单、扫码、短信、一起听）一行没改。
+加密与原项目逐字节对照过（`tests/necrypto.test.mjs`，夹具由原项目的 crypto-js 与 node-forge 生成）。
+
+与原项目有意不同的几处：
+
+- **游客身份每台设备各注册一个**（`device.anon`），原项目是服务器启动时注册一个给所有人共用。
+- **每台设备固定一个随机国内 IP**（`device.ip`，原项目 `randomCNIP` 的那批网段），随请求放进
+  `X-Real-IP`。几百个用户分散在不同 IP 上，同一个账号又始终是同一个 IP。用户或本站填了 realIP 以那个为准。
+  三样东西存在 `services.netease.device`，随备份走。
+- 二维码在本机生成（`vendor/qrcode-generator.mjs`），不发请求。
+- 扫码状态出错时照实交回（原项目吞掉错误回一个空的成功），否则看不出被风控拦下。
+
+Worker 不懂网易云的业务，网易云改接口时改的是 `system/ne/`，Worker 一般不动。
+部署步骤写给不懂技术的运营方，在 `worker/README.md`。
+
+「设置 - 音乐服务 - 测试这个地址」在 Worker 模式下跑同一套七项（行 id 不变，总结照旧按 id 认），
+每项经 `callRaw` 走真正用起来的那条路；「连得上」改为 GET Worker 看它自报 `mini-phone-netease`。
+「按次传 cookie」在这条路上恒为可用（cookie 在本机拼进请求）。
+
+测试：`necrypto`（加密对照）、`neworker`（Worker 单测）、`neworker-e2e`（页面 -> 真 Worker -> 假网易云，
+假网易云用已知密钥解开 eapi 核对网址与参数；覆盖游客注册一次、设备 IP 重开不变、逐项测试、扫码登录、Worker 不通）。
+
+**这里测不到真的网易云。** Cloudflare 的出口 IP 会不会被网易云拦、`X-Real-IP` 在 Cloudflare 上能不能
+原样送到，只有部署之后用「测试这个地址」才知道。
+
 ### 13.2 接下来
 
 按「用户能不能感觉到」排序，不按实现难度。
