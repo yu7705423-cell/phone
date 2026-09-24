@@ -1,5 +1,5 @@
 import { characters, chats, personas, persona } from './db/index.js';
-import { images } from './db/images.js';
+import { images, AVATAR_MAX, PHOTO_MAX } from './db/images.js';
 
 // 头像联动。
 //
@@ -182,4 +182,48 @@ export function restoreFace(charId) {
   if (!char?.avatarBase || char.avatarBase === char.avatar) return false;
   characters.update(charId, { avatar: char.avatarBase, avatarBase: '' });
   return true;
+}
+
+// ---- 在会话里直接换头像 ----
+//
+// 角色的、自己的，都走这一个。换下来的那张**留着**（avatarBase），原本长什么样找得回来，
+// 和主页上换头像是同一条规矩（见 restoreFace）。自己的换完顺带记一句描述，
+// 角色下一轮看得见「你换了头像」（rememberMine）。
+
+export async function setFace({ charId = '', personaId = '' }, file) {
+  const id = await images.put(file, AVATAR_MAX);
+  if (charId) {
+    const c = characters.get(charId);
+    if (!c) return null;
+    const keep = c.avatarBase || c.avatar || '';
+    characters.update(charId, { avatar: id, ...(keep ? { avatarBase: keep } : {}) });
+  } else if (personaId) {
+    const p = personas.get(personaId);
+    if (!p) return null;
+    const keep = p.avatarBase || p.avatar || '';
+    personas.update(personaId, { avatar: id, ...(keep ? { avatarBase: keep } : {}) });
+    rememberMine(personaId, id).catch(() => {});
+  }
+  return id;
+}
+
+// ---- 形象照 ----
+//
+// 这个角色「长什么样」的那一张，拍立得样式的展示页上用（chat/pages/CharCard.js）。
+// 和头像是两回事：头像是聊天里那个小圆，形象照是整个人。也和锁脸（faceImage）分开：
+// 锁脸是给生图对脸的一张正脸，形象照是给人看的。
+
+export async function setPortrait(charId, file) {
+  const c = characters.get(charId);
+  if (!c) return null;
+  const id = await images.put(file, PHOTO_MAX);
+  characters.update(charId, { portrait: id });
+  if (c.portrait && c.portrait !== id) images.remove(c.portrait);
+  return id;
+}
+export function clearPortrait(charId) {
+  const c = characters.get(charId);
+  if (!c?.portrait) return;
+  characters.update(charId, { portrait: '' });
+  images.remove(c.portrait);
 }

@@ -12,7 +12,7 @@ const BASE = process.env.SMOKE_BASE || 'http://127.0.0.1:8000';
 
 // 每条路由都要在「有数据」的前提下打开，空库跑不出真问题
 const ROUTES = {
-  chat: ['/', '/moments', '/stickers', '/context', '/time', '/templates', '/caps',
+  chat: ['/', '/card/:char', '/card/nope', '/moments', '/stickers', '/context', '/time', '/templates', '/caps',
     '/chat/:chat', '/translate/:chat', '/search', '/search/:chat', '/listen/:chat',
      '/profile/:char', '/edit/:char', '/proactive/:char', '/extras/:chat', '/pace/:chat',
      '/bond/:chat',

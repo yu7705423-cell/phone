@@ -142,7 +142,7 @@ export function dropCharacter(charId) {
   readnotes.removeWhere(r => r.authorId === charId);
   // 角色自己建的歌单。歌本身留在曲库里 —— 那是曲库的东西，别人的歌单也可能放着它
   playlists.removeWhere(p => p.owner === charId);
-  const imgs = [c.avatar, c.cover, c.faceImage, c.callImage,
+  const imgs = [c.avatar, c.cover, c.faceImage, c.callImage, c.portrait, c.avatarBase,
     ...(c.avatarPool || []).map(x => x?.imageId),
     ...(c.shelf || []).map(it => it?.cover)];
   phones.byIndex(charId).slice().forEach(row => {
@@ -186,15 +186,17 @@ export function usedImageIds() {
   const add = id => id && used.add(id);
 
   characters.all().forEach(c => {
-    add(c.avatar); add(c.cover); add(c.faceImage); add(c.callImage);
+    add(c.avatar); add(c.cover); add(c.faceImage); add(c.callImage); add(c.portrait); add(c.avatarBase);
     (c.avatarPool || []).forEach(x => add(x?.imageId));
     (c.highlights || []).forEach(h => add(h?.imageId));   // 主页上那一排精选
   });
   // 聊天记录里的图：用户发的照片、角色按描述生成的图、视频消息的海报
   messages.all().forEach(m => { add(m.imageId); add(m.posterId); });
   moments.all().forEach(m => (m.images || []).forEach(add));
+  // avatarBase 是换头像时留下的原图（见 avatar.js 的 restoreFace）。从前没登记，
+  // 「清理无引用」会把它当成没人用的删掉，之后就换不回原本的头像了
   personas.all().forEach(p => {
-    add(p.avatar); add(p.cover);
+    add(p.avatar); add(p.cover); add(p.avatarBase);
     (p.highlights || []).forEach(h => add(h?.imageId));
   });
   stickers.all().forEach(st => add(st.imageId));

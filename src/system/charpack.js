@@ -84,7 +84,7 @@ export function collect(charId, { history = true } = {}) {
   const imgIds = new Set();
   const fileIds = new Set();
   cast.forEach(c => {
-    [c.avatar, c.cover, c.faceImage, c.callImage].forEach(id => id && imgIds.add(id));
+    [c.avatar, c.cover, c.faceImage, c.callImage, c.portrait, c.avatarBase].forEach(id => id && imgIds.add(id));
     (c.avatarPool || []).forEach(x => x?.imageId && imgIds.add(x.imageId));
     // 主页上那一排精选
     (c.highlights || []).forEach(h => h?.imageId && imgIds.add(h.imageId));

@@ -414,6 +414,9 @@ export function Conversation({ chatId, focusId = '' }) {
   const live = chatId ? sceneApi.openInline(chatId) : null;
   const [look, setLook] = useState(false);
   const [bgOpen, setBgOpen] = useState(false);   // 聊天背景面板开着
+  // 会话菜单里「更换头像」那两行各一个文件框
+  const charFaceRef = useRef(null);
+  const myFaceRef = useRef(null);
   // 线下正在写的那一段。放在这儿而不是块里 —— 那个块是 memo 过的，
   // 每个 delta 都往里传会把整屏气泡一起重画
   const [sceneDraft, setSceneDraft] = useState('');
@@ -1246,6 +1249,18 @@ export function Conversation({ chatId, focusId = '' }) {
     { id: '_more', icon: 'more', label: '更多', onTap: () => setMore(true) },
   ];
 
+  // 在会话里直接换头像，不必进角色卡或主页（system/avatar.js 的 setFace）
+  const changeFace = async (e, who) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      await phone.avatarLink.setFace(who, file);
+      setMenu(false);
+      toast('已更换头像', 'ok');
+    } catch (err) { toast('图片处理失败：' + err.message, 'error'); }
+  };
+
   const quotingRef = quoting ? quoteOf({ quoteId: quoting.id }, { char, chat }) : null;
   // 这段对话里等着确认的第一条。一条一条问，不堆在一起
   const todoAsk = phone.todo.pendingOf(chatId)[0] || null;
@@ -1414,6 +1429,10 @@ export function Conversation({ chatId, focusId = '' }) {
 
       <input type="file" accept="image/*" ref=${imgRef}
         onChange=${sendImage} style="display:none"/>
+      <input type="file" accept="image/*" ref=${charFaceRef}
+        onChange=${e => changeFace(e, { charId: char.id })} style="display:none"/>
+      <input type="file" accept="image/*" ref=${myFaceRef}
+        onChange=${e => changeFace(e, { personaId: chat.personaId || phone.accounts.current()?.id })} style="display:none"/>
       <input type="file" accept="video/*" ref=${clipRef}
         onChange=${sendClip} style="display:none"/>
 
@@ -1508,9 +1527,9 @@ export function Conversation({ chatId, focusId = '' }) {
         <//>` : html`
         <${List} title="这个角色">
           <${ListItem} title="角色卡" arrow
-            subtitle="人设、当日日程与各项能力的开关"
+            subtitle="形象照、资料与各项能力的开关"
             left=${html`<${Icon} name="user" size=${18}/>`}
-            onClick=${() => { setMenu(false); nav.push(`/edit/${char.id}`); }}/>
+            onClick=${() => { setMenu(false); nav.push(`/card/${char.id}`); }}/>
           <${ListItem} title="备注" arrow
             right=${phone.remark.mineOf(char) || '未设置'}
             left=${html`<${Icon} name="edit" size=${18}/>`}
@@ -1540,6 +1559,18 @@ export function Conversation({ chatId, focusId = '' }) {
               left=${html`<${Icon} name="music" size=${18}/>`}
               onClick=${pullMusic}/>` : null}
         <//>`}
+
+        <${List} title="头像">
+          ${isGroup ? null : html`
+            <${ListItem} title="更换角色的头像" arrow multiline
+              subtitle="换下来的那张保留在角色主页，可以换回"
+              left=${html`<${Icon} name="user" size=${18}/>`}
+              onClick=${() => charFaceRef.current?.click()}/>`}
+          <${ListItem} title="更换我的头像" arrow multiline
+            subtitle=${isGroup ? '所有会话中的头像一起更换' : '所有会话中的头像一起更换，角色会注意到'}
+            left=${html`<${Icon} name="camera" size=${18}/>`}
+            onClick=${() => myFaceRef.current?.click()}/>
+        <//>
 
         <${List} title="这段对话">
           <${ListItem} title="搜索聊天记录" arrow

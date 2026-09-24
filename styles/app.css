@@ -3068,3 +3068,23 @@ button.conv-notice { background: none; border: 0; font: inherit; cursor: pointer
 }
 .page.float-bottom .conv-body { padding-bottom: calc(var(--foot-h, 0px) + var(--sp-4)); }
 .page.float-bottom .to-bottom { bottom: calc(var(--foot-h, 0px) + var(--sp-3)); }
+
+/* ---- 角色卡展示页：拍立得（chat/pages/CharCard.js）----
+   相纸是 --surface，深色主题下跟着变深。微微斜一点，像随手放在桌上的一张 */
+.pola-stage { display: flex; justify-content: center; padding: var(--sp-6) var(--sp-5) var(--sp-4); }
+.pola {
+  width: 78%; max-width: 320px; display: block; text-align: center;
+  background: var(--surface); border: 1px solid var(--border);
+  padding: var(--sp-3) var(--sp-3) 0; border-radius: var(--r-xs);
+  box-shadow: var(--shadow-3); transform: rotate(-2deg);
+}
+.pola-photo {
+  aspect-ratio: 4 / 5; width: 100%;
+  background: var(--surface-2) center / cover no-repeat; background-image: var(--pola, none);
+  display: flex; align-items: center; justify-content: center;
+}
+.pola-hint { display: flex; flex-direction: column; align-items: center; gap: var(--sp-2); color: var(--text-3); font-size: var(--fs-13); }
+.pola-foot { padding: var(--sp-4) var(--sp-2) var(--sp-5); }
+.pola-name { font-family: var(--font-serif); font-size: var(--fs-20); color: var(--text); }
+.pola-real { font-size: var(--fs-12); color: var(--text-3); margin-top: 2px; }
+.pola-sign { font-family: var(--font-serif); font-size: var(--fs-13); color: var(--text-2); margin-top: var(--sp-2); line-height: 1.6; }

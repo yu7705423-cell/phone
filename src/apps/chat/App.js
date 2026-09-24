@@ -29,6 +29,7 @@ import { NewGroupPage, GroupPage } from './pages/GroupBits.js';
 import { BadgesPage, YearPage } from './pages/BadgeBits.js';
 import { ChatMorePage } from './pages/ChatMorePage.js';
 import { OnThisDayPage } from './pages/OnThisDay.js';
+import { CharCard } from './pages/CharCard.js';
 
 const { db, nav } = phone;
 
@@ -108,6 +109,8 @@ export default function ChatApp({ route }) {
   const search = route?.match(/^\/search(?:\/(.+))?$/);
   if (search) return html`<${SearchPage} chatId=${search[1] || ''}/>`;
 
+  const card = route?.match(/^\/card\/(.+)$/);
+  if (card) return html`<${CharCard} charId=${card[1]}/>`;
   const prof = route?.match(/^\/profile\/(.+)$/);
   if (prof) return html`<${Profile} subjectId=${prof[1]}/>`;
 
