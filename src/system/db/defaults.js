@@ -34,7 +34,7 @@ export const DEFAULT_SETTINGS = {
   autoFullscreen: true,           // 浏览器标签页里触摸后进全屏。见 system/fullscreen.js
   // 返回怎么做。二选一，不并存：
   //   bar   底部一条横条。点一下回主界面，双击开多任务
-  //   back  左上角一个悬浮返回键，点一下退回上一级，长按回主界面。默认（很多人注意不到横条能回去）
+  //   back  左上角一个悬浮返回键，点一下退回上一级，双击回主界面，长按开多任务。默认（很多人注意不到横条能回去）
   //         开了它就没有底部横条，页面自己那个返回箭头也让位给它
   navStyle: 'back',
   showLockScreen: true,

@@ -138,8 +138,8 @@ export function Root() {
         ${s.screen === 'app' && s.appId ? html`
           <div class="app-layer"><${AppHost} appId=${s.appId} route=${route}/></div>` : null}
         ${s.switcher ? html`<${AppSwitcher}/>` : null}
-        ${s.screen !== 'lock' && cfg.navStyle === 'back'
-          ? html`<${NavBack} screen=${s.screen}/>` : null}
+        ${s.screen === 'app' && cfg.navStyle === 'back'
+          ? html`<${NavBack}/>` : null}
       </div>
       ${s.screen === 'home' ? html`<${Dock}/>` : null}
       ${s.screen !== 'lock' && cfg.navStyle !== 'back' ? html`

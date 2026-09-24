@@ -137,7 +137,7 @@ export function AppearancePage() {
               onChange=${v => { db.settings.set({ autoFullscreen: v }); if (v) phone.fullscreen.enter(); }}/>`}/>` : null}
         <${ListItem} title="返回方式" multiline
           subtitle=${s.navStyle === 'back'
-            ? '左上角一个返回键。点一下退回上一级，长按回到主界面；在主界面点一下打开多任务。'
+            ? '左上角一个返回键。点一下退回上一级，双击回到主界面，长按打开多任务。主界面上不显示。'
               + '没有导航栏的页面（全屏读书、全屏看片）同样有它。底部横条已隐藏。'
             : '底部一条横条。点一下回到主界面，双击打开多任务，返回上一级用页面左上角的箭头。'}
           right=${html`<div style="width:150px"><${Segmented}

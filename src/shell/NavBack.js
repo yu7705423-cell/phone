@@ -14,38 +14,47 @@ import { goBack } from './goback.js';
 // 会把它们连页面一起退掉。见 ui/page.js 里那个返回栈。
 //
 // 底部横条原来还兼着回主界面和多任务，换成这个键之后这两件事也得有地方去：
-//   在应用里  长按回主界面
-//   在主界面  点一下开多任务（主界面本来就没有上一级可退）
+//   点一下  退回上一级
+//   双击    回主界面
+//   长按    打开多任务
+// 主界面上不显示它（Root.js）：主界面没有上一级可退，挂一个按钮只是多一块东西。
+//
+// **单击要等一下再办。** 立刻就退的话，退到主界面这个键就没了，双击的第二下
+// 落在底下的应用图标上，平白打开一个应用。等 DOUBLE 毫秒没有第二下才算单击。
 
 const HOLD = 500;
+const DOUBLE = 240;
 
-export function NavBack({ screen }) {
+export function NavBack() {
   const timer = useRef(null);
   const held = useRef(false);
+  const single = useRef(null);
 
   const start = () => {
     held.current = false;
     clearTimeout(timer.current);
-    timer.current = setTimeout(() => { held.current = true; goHome(); }, HOLD);
+    timer.current = setTimeout(() => { held.current = true; setSwitcher(true); }, HOLD);
   };
   const end = () => { clearTimeout(timer.current); timer.current = null; };
 
   const tap = () => {
     // 长按已经把事办了，抬手那一下不要再办一次
     if (held.current) { held.current = false; return; }
-    // 主界面没有上一级可退，那里这个键管多任务
-    if (screen === 'home') { setSwitcher(true); return; }
+    if (single.current) {
+      clearTimeout(single.current);
+      single.current = null;
+      goHome();
+      return;
+    }
     // 其余一律交给那一份共用的优先级，见 shell/goback.js
-    goBack();
+    single.current = setTimeout(() => { single.current = null; goBack(); }, DOUBLE);
   };
 
-  const home = screen === 'home';
   return html`
     <button class="navback no-callout press" onClick=${tap}
       onMouseDown=${start} onMouseUp=${end} onMouseLeave=${end}
       onTouchStart=${start} onTouchEnd=${end} onTouchMove=${end} onTouchCancel=${end}
-      aria-label=${home ? '多任务' : '返回上一级'}
-      title=${home ? '打开多任务' : '返回上一级。长按回到主界面'}>
-      <${Icon} name=${home ? 'layers' : 'chevronLeft'} size=${22}/>
+      aria-label="返回上一级" title="返回上一级。双击回到主界面，长按打开多任务">
+      <${Icon} name="chevronLeft" size=${22}/>
     </button>`;
 }
