@@ -172,7 +172,8 @@ export const ready = (async function boot() {
   }
 })();
 
-window.addEventListener('pagehide', () => { images.revokeAll(); files.revokeAll(); });
+// 从前这里在 pagehide 时把所有图片、语音的 objectURL 全部 revoke。页面只是被藏起来再回来时，
+// 屏幕上的图全指着作废的地址，头像、图标变白。整页销毁时浏览器自己会收，已删掉（见 blobs.js）。
 
 export const db = {
   characters, lorebooks, memories, chats, messages, moments, stickers, looks, personas,

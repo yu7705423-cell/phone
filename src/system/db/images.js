@@ -1,5 +1,6 @@
 import { idb, write } from './idb.js';
 import { uid } from '../store.js';
+import { registerBlobCache } from './blobs.js';
 
 // 图片一律以 Blob 存 IndexedDB,不存 base64。见 ARCHITECTURE 3.7
 const urls = new Map();       // id -> objectURL（原图）
@@ -47,6 +48,14 @@ export async function compressFit(file, size = ICON_MAX) {
     || await new Promise(res => canvas.toBlob(res, 'image/png'));
   return { blob, w: size, h: size };
 }
+
+// 地址失效后整体换新（见 blobs.js）。不 revoke：失效的本来就作废了，
+// 没失效的可能还画在屏幕上，等 hook 换上新地址自然没人再用
+registerBlobCache({
+  sample: () => urls.values().next().value || thumbUrls.values().next().value || null,
+  owns: u => [...urls.values()].includes(u) || [...thumbUrls.values()].includes(u),
+  reset: () => { urls.clear(); thumbUrls.clear(); },
+});
 
 // 够小的就不另存一张：缩略图和原图一样大，白占一份空间。
 const wantThumb = (w, h) => Math.max(w || 0, h || 0) > THUMB_MAX;
@@ -177,11 +186,4 @@ export const images = {
   count() { return sizes.size; },
   ids() { return [...sizes.keys()]; },
 
-  // 释放所有 objectURL。整页卸载时调用
-  revokeAll() {
-    urls.forEach(u => URL.revokeObjectURL(u));
-    urls.clear();
-    thumbUrls.forEach(u => URL.revokeObjectURL(u));
-    thumbUrls.clear();
-  },
 };

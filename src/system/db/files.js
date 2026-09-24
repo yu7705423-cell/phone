@@ -1,9 +1,15 @@
 import { idb, write } from './idb.js';
 import { uid } from '../store.js';
+import { registerBlobCache } from './blobs.js';
 
 // 任意二进制附件（目前是语音）。图片走 images，那边会压缩，音频不能压。
 const urls = new Map();
 const meta = new Map();
+registerBlobCache({
+  sample: () => urls.values().next().value || null,
+  owns: u => [...urls.values()].includes(u),
+  reset: () => urls.clear(),
+});
 const meta_set = row => meta.set(row.id, { type: row.type, bytes: row.bytes, name: row.name });
 
 export const files = {
@@ -70,7 +76,6 @@ export const files = {
   ids() { return [...meta.keys()]; },
   /** 每个文件一行：id 与那三项。存储页要按大小列出来，光有 ids 不够 */
   list() { return [...meta.entries()].map(([id, m]) => ({ id, ...m })); },
-  revokeAll() { urls.forEach(u => URL.revokeObjectURL(u)); urls.clear(); },
 };
 
 // 让用户把单条语音存到本地
