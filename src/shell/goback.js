@@ -13,11 +13,17 @@ import { topBack } from '../ui/page.js';
 //   这一页有自己的返回  用它 —— 一百多页里有七页的返回是「退出多选」
 //                    「关掉预览」这种页内的事，统一 nav.pop 会把它们连页面一起退掉
 //   都没有          退路由
+//
+// 给回有没有退：已经在桌面或锁屏、无处可退时给 false。安卓外壳据此把应用切到后台，
+// 那是安卓返回键在最外层的惯常行为
 export function goBack() {
-  if (nav.get().switcher) { setSwitcher(false); return; }
-  if (closeTopOverlay()) return;
+  if (nav.get().switcher) { setSwitcher(false); return true; }
+  if (closeTopOverlay()) return true;
   const fn = topBack();
-  if (fn) fn(); else back();
+  if (fn) { fn(); return true; }
+  if (nav.get().screen !== 'app') return false;
+  back();
+  return true;
 }
 
 /**

@@ -1,0 +1,87 @@
+name: 打包 apk
+
+# 手动触发，或者推一个 android-v 开头的标签。产物是可以直接安装的 apk。
+#
+# 签名：仓库的 Settings → Secrets and variables → Actions 里要有 ANDROID_SIGNING（签名钥匙的 base64），
+# 见 android/README.md。**没有它也能打，但每次打出来的签名都不一样**：装新版时系统会拒绝覆盖，
+# 只能先卸载旧版 —— 卸载会清掉应用里的全部聊天记录。正式发给用户之前一定要先设好。
+on:
+  workflow_dispatch:
+    inputs:
+      app_url:
+        description: 网页地址
+        required: false
+        default: https://yu7705423-cell.github.io/phone/
+      version:
+        description: 版本号。留空则按构建序号自动递增
+        required: false
+        default: ''
+  push:
+    tags:
+      - 'android-v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+
+      - name: 定版本号
+        id: meta
+        run: |
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            V="${GITHUB_REF_NAME#android-v}"
+          else
+            V="${{ inputs.version }}"
+          fi
+          echo "version=${V:-1.0.$GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+
+      - name: 签名钥匙
+        env:
+          ANDROID_SIGNING: ${{ secrets.ANDROID_SIGNING }}
+        run: |
+          if [ -n "$ANDROID_SIGNING" ]; then
+            printf '%s' "$ANDROID_SIGNING" | base64 -d > android/release.p12
+            echo "签名      使用仓库里设置的正式签名"
+            echo "SIGNED=1" >> "$GITHUB_ENV"
+          else
+            echo "::warning::没有设置 ANDROID_SIGNING，这次用的是临时签名。装新版前要先卸载旧版，卸载会清空应用里的数据。见 android/README.md"
+            echo "SIGNED=0" >> "$GITHUB_ENV"
+          fi
+
+      - name: 打包
+        working-directory: android
+        run: |
+          gradle assembleRelease --no-daemon --stacktrace \
+            -PsiteUrl="${{ inputs.app_url || 'https://yu7705423-cell.github.io/phone/' }}" \
+            -PappVersion="${{ steps.meta.outputs.version }}" \
+            -PappBuild="${{ github.run_number }}"
+          SUFFIX=""
+          [ "$SIGNED" = "1" ] || SUFFIX="-临时签名"
+          mkdir -p out
+          cp app/build/outputs/apk/release/app-release.apk "out/Eira-${{ steps.meta.outputs.version }}${SUFFIX}.apk"
+          ls -la out
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Eira-apk
+          path: android/out/*.apk
+          if-no-files-found: error
+
+      - name: 发布（仅标签触发）
+        if: github.ref_type == 'tag'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: android/out/*.apk

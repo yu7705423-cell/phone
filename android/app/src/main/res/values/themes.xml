@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 底色与网页、iOS 外壳一致（#F2F3F5），开机那一下不闪白 -->
+    <style name="Theme.Eira" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/shell_bg</item>
+        <item name="android:statusBarColor">@color/shell_bg</item>
+        <item name="android:navigationBarColor">@color/shell_bg</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
+    </style>
+</resources>

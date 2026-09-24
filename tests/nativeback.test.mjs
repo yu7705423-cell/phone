@@ -106,6 +106,14 @@ const go = (page, r) => page.evaluate(([r]) =>
   await page.evaluate(() => window.phoneBack());
   await page.waitForTimeout(400);
   check(!(await state(page)).switcher, 'phoneBack 先关多任务');
+
+  // 给回有没有退（安卓外壳据此决定要不要把应用切到后台）
+  const inApp = await page.evaluate(() => window.phoneBack());
+  check(inApp === true, `在应用里：退了一级，给回 true（${inApp}）`);
+  await page.evaluate(() => import('/src/system/nav.js').then(n => n.goHome()));
+  await page.waitForTimeout(400);
+  const atHome = await page.evaluate(() => window.phoneBack());
+  check(atHome === false, `在桌面：无处可退，给回 false（${atHome}）`);
   await ctx.close();
 }
 

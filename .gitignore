@@ -5,3 +5,11 @@
 !/icon-512.png
 !/icon-maskable-512.png
 !/apple-touch-icon.png
+
+# 安卓：构建产物与签名钥匙（钥匙放在仓库的 Secret 里，见 android/README.md）
+/android/.gradle/
+/android/build/
+/android/app/build/
+/android/out/
+/android/local.properties
+/android/release.p12
