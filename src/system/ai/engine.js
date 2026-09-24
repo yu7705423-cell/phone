@@ -46,12 +46,16 @@ const CACHED_TASKS = new Set(['chat.reply', 'chat.call', 'chat.proactive', 'scen
  */
 function send(taskId, c, payload, kind = 'complete') {
   const cfg = c.cache && !CACHED_TASKS.has(taskId) ? { ...c, cache: false } : c;
+  const provider = getProvider(cfg.provider);
+  // 记的是**真正发出去的样子**：中间的 system 消息各接口会先转一道（providers/midsystem.js），
+  // 按转之前的记，请求记录里看得见的东西模型未必看得见
   const t = trace.begin({
-    taskId, preset: c.name, model: c.model,
-    system: payload.system, messages: payload.messages, stream: kind === 'stream',
+    taskId, preset: c.name, model: c.model, system: payload.system,
+    messages: provider.shape ? provider.shape(cfg, payload.messages) : payload.messages,
+    stream: kind === 'stream',
   });
   noteCall(taskId);
-  return getProvider(cfg.provider)[kind](cfg, payload)
+  return provider[kind](cfg, payload)
     .then(text => { t.done(text); return text; })
     .catch(err => { t.fail(err); throw err; });
 }
@@ -69,6 +73,8 @@ function asConfig(preset) {
     model: (preset.model || '').trim(),
     temperature: preset.temperature,
     effort: preset.effort,
+    // 历史中间的 system 消息怎么发（只 OpenAI 兼容看），见 providers/midsystem.js
+    midSystem: preset.midSystem === 'system' ? 'system' : 'user',
     // 不设回复上限。接口要求必须带 max_tokens，这里给到模型的上限，
     // 不作为「截断长度」暴露给用户。
     maxTokens: MAX_OUTPUT,

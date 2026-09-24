@@ -98,6 +98,14 @@ function Editor({ id, onClose }) {
             items=${[{ value: 'low', label: '低' }, { value: 'medium', label: '中' }, { value: 'high', label: '高' }]}/>
         <//>`
       : html`
+        <${Field} label="对话中插入的设定以什么身份发送"
+          desc=${preset.midSystem === 'system'
+            ? '原样以 system 发送。仅适用于认得对话中途 system 消息的接口（如 OpenAI 官方）。经中转转给 Claude、Gemini 等模型时，这些内容常被丢弃或只保留第一条。'
+            : '设了深度的世界书条目、本轮召回的记忆、时间与状态等插在对话中间的内容，以用户消息发送并用 <context> 标注。各类中转均能正确接收。'}>
+          <${Segmented} value=${preset.midSystem === 'system' ? 'system' : 'user'}
+            onChange=${v => set({ midSystem: v })}
+            items=${[{ value: 'user', label: '用户消息（推荐）' }, { value: 'system', label: '原样 system' }]}/>
+        <//>
         <${Field} label=${`temperature　${preset.temperature ?? 0.9}`} desc="数值越高输出越发散。角色扮演建议 0.8 至 1.0。">
           <input type="range" min="0" max="2" step="0.05" value=${preset.temperature ?? 0.9}
             onInput=${e => set({ temperature: parseFloat(e.target.value) })}/>

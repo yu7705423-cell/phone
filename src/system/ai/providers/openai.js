@@ -1,4 +1,5 @@
 import { sseLines } from '../sse.js';
+import { asUserTurns } from './midsystem.js';
 
 const DEFAULT_BASE = 'https://api.openai.com/v1';
 
@@ -14,8 +15,13 @@ function url(cfg) {
   return /\/v\d+$/.test(base) ? `${base}/chat/completions` : `${base}/v1/chat/completions`;
 }
 
+// 历史中间的 system 消息：默认转成 user 轮（见 midsystem.js）。
+// 接口编辑页可以改回原样发 —— OpenAI 官方这类认中途 system 的接口，原样更贴近本意
+const shape = (cfg, messages) => (cfg.midSystem === 'system' ? messages : asUserTurns(messages));
+
 function buildBody(cfg, { system, messages, maxTokens, stream }) {
-  const msgs = system ? [{ role: 'system', content: system }, ...messages] : messages;
+  const shaped = shape(cfg, messages);
+  const msgs = system ? [{ role: 'system', content: system }, ...shaped] : shaped;
   const body = {
     model: cfg.model,
     // 带图的消息换成内容块数组。图片以 dataURL 内联，不经过任何中转存储。
@@ -53,6 +59,7 @@ export const openai = {
   models: [],
   usesTemperature: true,
   usesEffort: false,
+  shape,
 
   async stream(cfg, { system, messages, maxTokens, signal, onDelta }) {
     const res = await fetch(url(cfg), {

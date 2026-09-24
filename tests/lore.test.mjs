@@ -137,7 +137,9 @@ const all = body.messages;
 const deepIdx = all.findIndex(m=>m.content.includes('不许提起那场火'));
 ok('有深度的那条插进了对话', deepIdx>0, String(deepIdx));
 ok('插在最后一条之前', deepIdx===all.length-2, `${deepIdx} / ${all.length}`);
-ok('它是以 system 身份插的', all[deepIdx]?.role==='system', all[deepIdx]?.role);
+// 中间的设定默认以 user 身份、用 <context> 包着发（见 providers/midsystem.js）：
+// 中转转给 Claude、Gemini 时中途的 system 常被丢掉
+ok('它以 user 身份、用 <context> 包着插入', all[deepIdx]?.role==='user' && all[deepIdx].content.includes('<context>'), all[deepIdx]?.role);
 
 // ---- 位置总览 ----
 await page.evaluate(async () => {

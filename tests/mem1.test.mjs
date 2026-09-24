@@ -146,8 +146,10 @@ const oaRoles = await page.evaluate(async i => {
 }, ids);
 check(oaRoles === true, 'OpenAI 那一档也发得出去');
 const oa = (sent?.messages || []).map(m => m.role);
-check(oa.includes('system') && oa.filter(r => r === 'system').length >= 2,
-  `OpenAI 照旧收 system：一条是设定区，一条是召回（${JSON.stringify(oa)}）`);
+// 召回插在历史中间：默认转成 user 轮、用 <context> 包住（见 providers/midsystem.js），只剩开头设定区那一条 system
+check(oa[0] === 'system' && oa.filter(r => r === 'system').length === 1
+  && (sent?.messages || []).some(m => m.role === 'user' && /<context>/.test(m.content)),
+  `OpenAI 那一档：只有设定区是 system，召回以 user 发出（${JSON.stringify(oa)}）`);
 
 console.log(ok.map(s => '  ok   ' + s).join('\n'));
 if (fail.length) console.log(fail.map(s => '  FAIL ' + s).join('\n'));

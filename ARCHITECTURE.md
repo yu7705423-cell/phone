@@ -7921,6 +7921,18 @@ Worker 不懂网易云的业务，网易云改接口时改的是 `system/ne/`，
 画面横过来时右上角的关闭键转到左上角，被悬浮键盖住。现在全屏时 `onBack` 是 `leaveFull`（`hideBar` 不画导航栏），
 悬浮键在全屏里加半透明深色圆底，页面自己的关闭键在返回键模式下让位。
 
+### 4.194 对话中间的设定：OpenAI 兼容接口上默认转成 user 轮（`providers/midsystem.js`）
+
+设了深度的世界书条目、本轮召回、时间与状态这些每轮都变的块，都以 `role: system` 插在历史中间（`engine.insertLore`）。
+Anthropic 那边早就转成 user（它根本不收）；OpenAI 兼容那边原样发出 —— 中转转给 Claude、Gemini 时
+常被丢掉或只留第一条，于是「请求记录里有，模型没看见」。
+
+现在两边共用 `asUserTurns`：中间的 system 改成 user、`<context>` 包住、合并相邻同角色（带图的不合）。
+OpenAI 兼容的接口编辑页可改回「原样 system」（`preset.midSystem`），给认中途 system 的接口用。
+请求记录（trace）记的是经 `provider.shape` 转过之后、真正发出去的样子。
+
+测试：`midsystem`（旧代码 0/1：中间有 system，时间状态也在其中）。
+
 ### 13.2 接下来
 
 按「用户能不能感觉到」排序，不按实现难度。
