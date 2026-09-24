@@ -86,12 +86,27 @@ const IPHONE_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleW
   await p.waitForTimeout(900);
   const m = await p.evaluate(() => {
     const r = s => document.querySelector(s)?.getBoundingClientRect();
-    return { nav: Math.round(r('.navbar').top), bar: Math.round(r('.composer-bar').bottom), h: innerHeight,
+    // 顶栏里最靠上的那个字或按钮
+    const inner = Math.min(...[...document.querySelectorAll('.navbar .nav-title, .navbar button, .navbar .nav-right > *')]
+      .map(e => e.getBoundingClientRect()).filter(b => b.height > 0).map(b => b.top));
+    return { nav: Math.round(r('.navbar').top), inner: Math.round(inner), back: Math.round(r('.navback')?.top ?? -1),
+      bar: Math.round(r('.composer-bar').bottom), h: innerHeight,
       sb: document.querySelectorAll('.statusbar').length };
   });
   ok('iPhone：不画网页自己的状态栏（系统的一直都在）', m.sb === 0, m.sb);
-  ok('iPhone：顶栏紧贴安全区下沿（59），上面不多出一条', m.nav === 59, m.nav);
+  ok('iPhone：顶栏底色一直铺到屏幕顶边，垫在系统状态栏底下', m.nav === 0, m.nav);
+  ok('iPhone：顶栏里的字和按钮仍在安全区以下（59）', m.inner >= 59, m.inner);
+  ok('iPhone：悬浮返回键和顶栏那一行对齐，不钻进状态栏', m.back === 59, m.back);
   ok('iPhone：输入栏一直铺到屏幕底边，安全区只让一次', m.bar === m.h, `${m.bar} / ${m.h}`);
+
+  // 没有顶栏的那些：整层往下让，内容不钻进状态栏
+  const topOf = sel => p.evaluate(s => Math.round(document.querySelector(s)?.getBoundingClientRect().top ?? -1), sel);
+  await p.evaluate(async () => (await import('/src/system/nav.js')).goHome());
+  await p.waitForTimeout(600);
+  ok('iPhone：主界面的图标在安全区以下', (await topOf('.home-grid')) >= 59, await topOf('.home-grid'));
+  await p.evaluate(async () => (await import('/src/system/nav.js')).lock());
+  await p.waitForTimeout(600);
+  ok('iPhone：锁屏的时钟在安全区以下', (await topOf('.lock-time')) >= 59, await topOf('.lock-time'));
   await c.close();
 }
 

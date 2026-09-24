@@ -3173,6 +3173,10 @@ Avatar / Badge / Toast / EmptyState / Spinner / Skeleton
 - 其余高度由 flex 与 grid 分配,flex 子项记得 `min-height: 0`
 - 安全区用 `env(safe-area-inset-*)` 换算为 `--safe-top` / `--safe-bottom`,
   由根容器统一计算,页面与 app 不自己算
+- 顶部那一条:网页自己画了状态栏时(安卓安装包)由根容器让;没画时(iOS、手机浏览器)
+  根容器不让,改成 `--top-inset` 交给 `.screen` 里各层 —— 主界面、锁屏、没有顶栏的页面
+  整层往下让,有顶栏的页面由顶栏把自己加高这一条,底色铺到屏幕顶边垫在系统状态栏底下,
+  字和按钮仍在安全区以下。悬浮返回键同样下移 `--top-inset`
 
 ### 9.4 图标
 

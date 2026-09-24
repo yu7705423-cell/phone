@@ -60,7 +60,14 @@ svg { display: block; flex: none; }
   overflow: hidden;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --top-inset: 0px;
 }
+/* 网页自己不画状态栏的时候（iOS、手机浏览器），顶上刘海那一条不在 .root 上统一让，
+   交给里面各层自己让（--top-inset，见 shell.css）：这样 app 页面的顶栏底色
+   能一直铺到屏幕顶边、垫在系统状态栏底下，只有顶栏里的字和按钮落在安全区以下。
+   统一让的话，那一条永远是 .root 的底色，和顶栏颜色接不上。
+   画了状态栏的（安卓安装包）照旧由 .root 让，状态栏本身就在那一条下面。 */
+.root:not(:has(> .statusbar)) { padding-top: 0; --top-inset: var(--safe-top); }
 
 .scroll {
   overflow-y: auto;

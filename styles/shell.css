@@ -34,6 +34,14 @@
 .screen { flex: 1; min-height: 0; position: relative; overflow: hidden; z-index: 1; }
 .home-layer, .app-layer { position: absolute; inset: 0; }
 .app-layer { background: var(--bg); animation: fade-in var(--dur-fast) var(--ease); }
+/* 刘海那一条（--top-inset，见 base.css .root）。主界面、没有顶栏的页面整层往下让；
+   有顶栏的页面不让，由顶栏自己把高度加上这一条、底色铺上去，字和按钮仍在安全区以下 */
+.home-layer, .app-layer { padding-top: var(--top-inset); }
+.app-layer:has(> .page > .navbar:first-child) { padding-top: 0; }
+.app-layer > .page > .navbar:first-child {
+  height: calc(var(--navbar-h) + var(--top-inset));
+  padding-top: var(--top-inset);
+}
 
 /* ---- 主界面 ---- */
 .home { height: 100%; display: flex; flex-direction: column; padding: var(--sp-3) var(--sp-5) 0; }
@@ -304,7 +312,7 @@
 /* ---- 左上角那个悬浮返回键。和底部横条二选一，见 shell/NavBack.js ---- */
 .navback {
   position: absolute; z-index: var(--z-call);
-  top: 0; left: var(--sp-1);
+  top: var(--top-inset); left: var(--sp-1);
   width: 48px; height: var(--navbar-h);
   display: flex; align-items: center; justify-content: center;
   color: var(--text);
@@ -318,7 +326,7 @@
    画面是黑的，给它一个半透明的深色圆底才看得见；页面自己那个关闭键让位 ——
    画面横过来时它正好转到左上角，被悬浮键盖住 */
 :root[data-nav="back"]:has(.wt.is-full) .navback {
-  top: var(--sp-3); left: var(--sp-3); width: 34px; height: 34px;
+  top: calc(var(--top-inset) + var(--sp-3)); left: var(--sp-3); width: 34px; height: 34px;
   border-radius: var(--r-full); background: rgba(0, 0, 0, .45); color: var(--on-scrim);
 }
 :root[data-nav="back"] .wt.is-full .wt-exit { display: none; }
@@ -377,7 +385,7 @@
 .lock {
   height: 100%; display: flex; flex-direction: column;
   /* 「上滑解锁」那一行在最底下，不让开安全区就正好压在 Home Indicator 上 */
-  padding: var(--sp-6) var(--sp-4) calc(var(--sp-6) + var(--safe-bottom));
+  padding: calc(var(--sp-6) + var(--top-inset)) var(--sp-4) calc(var(--sp-6) + var(--safe-bottom));
   background: linear-gradient(170deg, var(--surface-2), var(--bg));
 }
 .lock.has-wallpaper { background: none; }
