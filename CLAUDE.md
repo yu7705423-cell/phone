@@ -436,7 +436,7 @@ style=${`width:${size}px`}
 | | 分支 | 发布到 | 谁在用 |
 |---|---|---|---|
 | 正式版 | `release` | GitHub Pages（`yu7705423-cell.github.io/phone/`） | 用户 |
-| 测试版 | `claude/mini-phone-architecture-tqzvig` | Cloudflare Pages（`*.pages.dev`），由 `.github/workflows/test-site.yml` 推上去 | 只有维护者 |
+| 测试版 | `claude/mini-phone-architecture-tqzvig` | Cloudflare Pages（`*.pages.dev`），在 Cloudflare 后台连着仓库自动部署 | 只有维护者 |
 
 - **日常改动只推开发分支。** 测试版随之自动更新，正式版不动。
 - **只有用户明确说「推正式版」，才把开发分支合进 `release`。** 合之前全部回归测试、
@@ -447,6 +447,9 @@ style=${`width:${size}px`}
 `yu7705423-cell.github.io/phone-test/` 和正式版是同一个域名，同一台手机上两边共用一份数据：
 测试版的数据升级会直接改掉正式数据，数据库版本一旦被测试版升上去，正式版在那台手机上打不开。
 测试版在 `*.pages.dev`，天然隔开。它由 `system/channel.js` 按网址认出来，挂一枚「测试版」标记。
+
+**Cloudflare Pages 单个文件上限 25 MB。** 超了整站部署失败，测试版停在上一版。
+大文件要切块放（ffmpeg 的 wasm 就是切成两块的，见 `vendor/ffmpeg/README.md`）。
 
 测试版连的是同一个账号服务，普通账号在那边登录会占一个设备名额（每个账号 2 台，满了挤掉最早那台）。
 测试版上用 `admin` 登录，管理员不占名额。

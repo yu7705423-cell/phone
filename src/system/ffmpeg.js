@@ -10,6 +10,13 @@
 // **三十二兆，按需加载。** 核心文件放在 vendor/ffmpeg 下，平时一个字节都不读，
 // 用户点了才去取。取一次之后浏览器自己会缓存。
 //
+// **wasm 切成了两块。** Cloudflare Pages（测试版，CLAUDE.md 第 19 条）单个文件上限 25 MB，
+// 整个的 30.7 MB 放不上去，整站部署失败。这里把两块取回来拼好，经 wasmBinary 交给核心，
+// 核心就不再自己去取那个整的。
+//
+// **路径从本文件算，不写成 `/vendor/...`。** 正式版挂在 github.io/phone/ 下面，
+// 开头一个斜杠就指到 github.io/vendor/ 去了 —— 线上一直加载失败，而测试在根目录下跑，查不出来
+//
 // **单线程版。** 多线程快一倍，但要 COOP/COEP 两个响应头，而本项目是个静态
 // 目录，加不了（第 9 条）。转封装不重编码，单线程完全够。
 //
@@ -17,7 +24,9 @@
 // 进去一份出来一份，实际能过的比这小得多。超过上限直接说不行，
 // 不要跑到一半崩掉 —— 那时候用户已经等了十分钟。
 
-const CORE = '/vendor/ffmpeg/ffmpeg-core.js';
+const DIR = new URL('../../vendor/ffmpeg/', import.meta.url).href;
+const CORE = DIR + 'ffmpeg-core.js';
+const WASM_PARTS = ['ffmpeg-core.wasm.1', 'ffmpeg-core.wasm.2'];
 const MAX_BYTES = 700 * 1024 * 1024;
 
 let core = null;
@@ -31,9 +40,10 @@ export const isLoaded = () => !!core;
 export function load() {
   if (core) return Promise.resolve(core);
   if (loading) return loading;
-  loading = import(CORE)
-    .then(mod => mod.default({
-      locateFile: name => `/vendor/ffmpeg/${name}`,
+  loading = Promise.all([import(CORE), wasmBytes()])
+    .then(([mod, wasmBinary]) => mod.default({
+      wasmBinary,
+      locateFile: name => DIR + name,
       print: () => {},
       printErr: () => {},
     }))
@@ -43,6 +53,18 @@ export function load() {
       throw new Error('ffmpeg 核心加载失败：' + (err.message || err));
     });
   return loading;
+}
+
+async function wasmBytes() {
+  const parts = await Promise.all(WASM_PARTS.map(async name => {
+    const res = await fetch(DIR + name);
+    if (!res.ok) throw new Error(`${name} ${res.status}`);
+    return new Uint8Array(await res.arrayBuffer());
+  }));
+  const out = new Uint8Array(parts.reduce((n, p) => n + p.length, 0));
+  let at = 0;
+  for (const p of parts) { out.set(p, at); at += p.length; }
+  return out;
 }
 
 // 每次跑之前把上一次的痕迹清掉：MEMFS 是常驻的，留着只会白占内存
