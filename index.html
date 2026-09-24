@@ -7,7 +7,7 @@
 <!-- 构建号。和 src/version.js 里的必须一致，由 scripts/check-build.mjs 拦着。
      HTML 比 js 子资源更容易被浏览器重新验证，所以拿它当「真实版本」，
      启动时和 version.js 一比就知道缓存里的 js 是不是旧的。见 src/main.js -->
-<meta name="build" content="2026-09-24.135">
+<meta name="build" content="2026-09-24.136">
 <meta name="theme-color" content="#F2F3F5" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0D0E10" media="(prefers-color-scheme: dark)">
 <meta name="mobile-web-app-capable" content="yes">
@@ -21,6 +21,8 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" href="icon-192.png">
 <title>Eira</title>
+<!-- 这五个必须留在 head 里：美化、自定义 CSS、字体都是往 head 末尾追加 <style>，
+     靠排在它们后面才压得过。挪进 body 就反过来了（ARCHITECTURE 4.206） -->
 <link rel="stylesheet" href="styles/tokens.css">
 <link rel="stylesheet" href="styles/base.css">
 <link rel="stylesheet" href="styles/ui.css">
@@ -51,6 +53,69 @@
   <span class="grow">浏览器仍在使用旧版本的代码，界面可能显示不正常。</span>
   <button type="button" id="stale-go">彻底刷新</button>
 </div>
+<!-- 启动画面。首次打开要下几十个模块，慢网上白屏好几秒，从前那个小圈圈看着像
+     没反应，有人以为打不开就退了。
+     **写在 HTML 里，不等 js**：慢的是几十个模块，它要赶在它们前面出现。
+     颜色写死，不依赖 tokens.css。主题跟着上一次用的那一套走
+     （main.js 记在 localStorage 里），没记过按默认的浅色。
+     main.js 画出第一屏（锁屏、主界面、登录页或启动失败）之后淡出、摘掉。
+     不接点击：它只是盖着，底下该点的东西一出来就点得到。 -->
+<style>
+#splash {
+  position: fixed; inset: 0; z-index: 99998; pointer-events: none;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: #FFFFFF; color: #000000;
+  transition: opacity .28s ease;
+}
+#splash.is-dark { background: #000000; color: #FFFFFF; }
+#splash.is-gone { opacity: 0; }
+#splash .splash-word {
+  font-family: "Didot", "Bodoni 72", "Iowan Old Style", "Palatino", Georgia, "Times New Roman", serif;
+  font-size: 40px; font-weight: 400; letter-spacing: .14em; line-height: 1;
+  padding-left: .14em;
+}
+#splash .splash-wave {
+  display: flex; align-items: center; gap: 4px;
+  height: 32px; margin-top: 22px;
+}
+#splash .splash-wave i {
+  display: block; width: 3px; height: 100%; border-radius: 2px;
+  background: currentColor; opacity: .55;
+  transform: scaleY(.18);
+  animation: splash-wave 1.2s ease-in-out infinite;
+  animation-delay: calc(var(--i) * -.1s);
+}
+@keyframes splash-wave {
+  0%, 100% { transform: scaleY(.18); }
+  50%      { transform: scaleY(var(--h)); }
+}
+#splash .splash-note {
+  margin-top: 26px; min-height: 18px;
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 12px; opacity: 0;
+  animation: splash-note .4s ease 6s forwards;
+}
+#splash .splash-note.is-now { animation-delay: 0s; }
+@keyframes splash-note { to { opacity: .45; } }
+@media (prefers-reduced-motion: reduce) {
+  #splash .splash-wave i { animation-duration: 2.4s; }
+}
+</style>
+<div id="splash" aria-label="正在载入">
+  <div class="splash-word">Eira</div>
+  <div class="splash-wave" aria-hidden="true">
+    <i style="--i:0;--h:.45"></i><i style="--i:1;--h:.7"></i><i style="--i:2;--h:1"></i>
+    <i style="--i:3;--h:.8"></i><i style="--i:4;--h:.55"></i><i style="--i:5;--h:.9"></i>
+    <i style="--i:6;--h:.65"></i><i style="--i:7;--h:1"></i><i style="--i:8;--h:.75"></i>
+    <i style="--i:9;--h:.5"></i><i style="--i:10;--h:.85"></i><i style="--i:11;--h:.6"></i>
+    <i style="--i:12;--h:.4"></i>
+  </div>
+  <div class="splash-note" id="splash-note">正在载入。网络较慢时，首次打开需要更长时间。</div>
+</div>
+<script>
+try { if (localStorage.getItem('eira-theme') === 'dark') document.getElementById('splash').classList.add('is-dark'); }
+catch (e) { /* 隐私模式会抛 */ }
+</script>
 <div id="app"></div>
 <!-- 点通知那一下可能比 js 早到：外壳（或系统）常常是先把网页重新载入，
      再喊 window.phoneNotifyOpen。那时 push.js 还没挂上去，这一下就丢了，

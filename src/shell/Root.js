@@ -38,6 +38,8 @@ export function Root() {
 
   useEffect(() => {
     document.documentElement.dataset.theme = cfg.theme;
+    // 下一次的启动画面（index.html）用同一套颜色，不先白一下再黑
+    try { localStorage.setItem('eira-theme', cfg.theme); } catch { /* 隐私模式会抛 */ }
   }, [cfg.theme]);
 
   // 全局那一层美化。见 ARCHITECTURE 4.136

@@ -28,7 +28,13 @@ installDiag();
 // 测试版挂一枚标记（见 system/channel.js）。登录页也要，所以放在最前
 markChannel();
 
-render(html`<div class="boot"><span class="spinner"></span></div>`, mount);
+// 启动画面在 index.html 里，第一帧就在（见那边的注释）。画出第一屏之后淡出、摘掉
+function dropSplash() {
+  const el = document.getElementById('splash');
+  if (!el || el.classList.contains('is-gone')) return;
+  el.classList.add('is-gone');
+  setTimeout(() => el.remove(), 320);
+}
 
 function boot() {
   ready.then(() => {
@@ -49,6 +55,7 @@ function boot() {
     installFullscreen();
 
     render(html`<${Root}/>`, mount);
+    dropSplash();
   }).catch(err => {
     console.error('[boot] 启动失败', err);
     render(html`
@@ -57,6 +64,7 @@ function boot() {
         <div class="boot-msg">${String(err.message || err)}</div>
         <div class="boot-hint">若是首次运行，请确认浏览器允许使用 IndexedDB。</div>
       </div>`, mount);
+    dropSplash();
   });
 }
 
@@ -133,11 +141,9 @@ if (stale && tries < HEAL_MAX) {
   console.warn(`[boot] 代码版本对不上：页面声明 ${declared}，实际加载 ${BUILD}。`
     + `正在更新（第 ${tries + 1} 次）`);
   writeHeal({ build: declared, tries: tries + 1 });
-  render(html`
-    <div class="boot">
-      <span class="spinner"></span>
-      <div class="boot-msg">正在更新到最新版本</div>
-    </div>`, mount);
+  // 启动画面留着，底下那行字换成这一句，马上显示
+  const note = document.getElementById('splash-note');
+  if (note) { note.textContent = '正在更新到最新版本'; note.classList.add('is-now'); }
   // 第一次原地重载就够了；还不行说明连文档都在拿缓存，换个地址再来
   forceUpdate().finally(() => {
     if (tries === 0) location.reload();
@@ -158,4 +164,5 @@ async function enter() {
   const g = await gate();
   if (g.ok) { watchAuth(); boot(); return; }
   render(html`<${Login} note=${g.note || ''} offline=${!!g.offline} onDone=${() => { watchAuth(); boot(); }}/>`, mount);
+  dropSplash();
 }
