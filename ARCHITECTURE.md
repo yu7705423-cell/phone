@@ -7897,6 +7897,17 @@ Worker 不懂网易云的业务，网易云改接口时改的是 `system/ne/`，
 
 前端这道门拦得住普通用户，拦不住会改网页代码的人（网页代码是公开的）；真正拦得住的是网易云转发那一层。
 
+### 4.192 安卓外壳（`android/`）
+
+照 `ios/` 写：一个 WebView 从网络地址载入网页。启动页先等网络（同 4.190）；在文档一开始注入 `assets/bridge.js`，
+给出与 iOS 同名的 `window.webkit.messageHandlers.net`（底下接 Kotlin 的 `EiraNative`），网页一行不改。
+导出备份：拦下 `<a download href=blob:>` 的点击（包括不放进页面就 `click()` 的那种），分块交给外壳写进「下载」。
+返回键交给 `window.phoneBack`（`shell/goback.js`，现在给回有没有退），无处可退时把应用切到后台。
+还没有：系统通知、后台保活、健康、系统闹钟。
+
+打包：`.github/workflows/android-apk.yml`，签名钥匙取仓库机密 `ANDROID_SIGNING`（PKCS12 的 base64）。
+没有它就用临时签名，文件名标明 —— 签名一变，装新版要先卸载，卸载即清空数据。
+
 ### 13.2 接下来
 
 按「用户能不能感觉到」排序，不按实现难度。
