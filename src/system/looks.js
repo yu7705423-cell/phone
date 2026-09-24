@@ -26,6 +26,9 @@ export function snapshot() {
   };
 }
 
+/** 挂件配置里的全部字符串值（图片 id 就在其中） */
+export const configStrings = cfg => Object.values(cfg || {}).filter(v => typeof v === 'string' && v);
+
 // 这套预设用到了哪些图片。清理无引用图片时要认得它们，
 // 否则一清理，存好的预设就全成了空壳。
 export function imageIdsOf(item) {
@@ -34,9 +37,10 @@ export function imageIdsOf(item) {
   if (w.home) out.add(w.home);
   if (w.lock) out.add(w.lock);
   Object.values(item?.look?.appIcons || {}).forEach(v => { if (v?.imageId) out.add(v.imageId); });
-  // 挂件里的图片块也存了 imageId
+  // 挂件里的图：图片块存在 imageId，ins 风那一组存在 cover，以后的挂件还会有别的名字。
+  // 不按字段名认，配置里每个字符串都算 —— 多算几个不是图片 id 的字符串无害，漏一个就是删一张
   (item?.layout?.pages || []).forEach(p =>
-    (p.cells || []).forEach(c => { if (c.config?.imageId) out.add(c.config.imageId); }));
+    (p.cells || []).forEach(c => configStrings(c.config).forEach(v => out.add(v))));
   return out;
 }
 

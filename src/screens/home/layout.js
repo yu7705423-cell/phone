@@ -1,5 +1,5 @@
 import { layout } from '../../system/db/index.js';
-import { hasApp, hasWidget, listApps, getWidget } from '../../system/registry.js';
+import { hasApp, listApps, getWidget } from '../../system/registry.js';
 import { GRID_COLS, DOCK_SIZE } from '../../system/db/defaults.js';
 import { uid } from '../../system/store.js';
 
@@ -315,7 +315,10 @@ export function heal(raw) {
         c.w = 1; c.h = 1;
         if (!c.name) c.name = '文件夹';
       } else if (c.kind === 'widget') {
-        if (!hasWidget(c.ref)) continue;
+        // 不认识的挂件留着，不删：它多半是更新一版加的，而此刻跑的是缓存里的旧代码。
+        // 旧代码一删并存回去，新版回来时那个挂件连同它的照片就都没了。
+        // 主界面上它画成「挂件缺失」，长按照样能移走
+        if (!c.ref) continue;
       } else {
         continue;                       // 旧数据里的 placeholder 记录一并清掉
       }

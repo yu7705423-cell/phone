@@ -44,7 +44,6 @@ export const listApps = () => [...apps.values()];
 export const hasApp = id => apps.has(id);
 export const getWidget = id => widgets.get(id) || null;
 export const listWidgets = () => [...widgets.values()];
-export const hasWidget = id => widgets.has(id);
 
 // 懒加载缓存
 const loaded = new Map();

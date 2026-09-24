@@ -2,7 +2,7 @@ import { chats, characters, memories, messages, messagesOf, moments, personas, s
          settings, layout, images, files, videos, songs, ebooks, phones, photos,
          spaceItems, scenes, beats, readnotes, trips, days, meals, health, reviews, todos,
          phoneChats, works, chapters, playlists } from './db/index.js';
-import { allImageIds } from './looks.js';
+import { allImageIds, configStrings } from './looks.js';
 import { forget as forgetSnap } from './ai/tasks/snap.js';
 
 // 把一个角色身上的东西清干净。
@@ -62,7 +62,7 @@ export function releaseImages(ids) {
   if (!list.length) return 0;
   const used = usedImageIds();
   let n = 0;
-  list.forEach(id => { if (!used.has(id)) { images.remove(id); n += 1; } });
+  list.forEach(id => { if (!used.has(id)) { images.destroy(id); n += 1; } });
   return n;
 }
 
@@ -208,7 +208,8 @@ export function usedImageIds() {
   const lay = layout.get();
   const w = lay.wallpaper || {};
   add(w.home); add(w.lock);
-  (lay.pages || []).forEach(p => (p.cells || []).forEach(c => add(c.config?.imageId)));
+  // 挂件里的图不按字段名认（imageId、cover……），理由见 looks.configStrings
+  (lay.pages || []).forEach(p => (p.cells || []).forEach(c => configStrings(c.config).forEach(add)));
 
   // 相册：自己导入的、从聊天存进来的（和消息共用一个 id）、卡片的光栅图
   photos.all().forEach(p => add(p.imageId));
@@ -230,6 +231,9 @@ export function usedImageIds() {
   // 字体存在 files 域，不在这一批里，删字体走「主题」那边
   return used;
 }
+
+// images.remove 删之前照这张单子核一遍（见 images.js）
+images.setUsage(usedImageIds);
 
 /** 没有任何地方引用的那些图片。 */
 export function orphanImageIds() {

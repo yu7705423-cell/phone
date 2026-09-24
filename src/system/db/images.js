@@ -80,6 +80,21 @@ function makeThumb(row) {
   return job;
 }
 
+let usage = null;
+let pending = [];
+let pendingTimer = null;
+function sweep() {
+  const batch = pending;
+  pending = [];
+  pendingTimer = null;
+  let used = null;
+  try { used = usage ? usage() : null; } catch (err) { console.error('[images] 引用表算不出来，这一批不删', err); }
+  batch.forEach(({ id, done }) => {
+    if (!used || used.has(id)) { done(false); return; }
+    images.destroy(id).then(() => done(true), () => done(false));
+  });
+}
+
 export const images = {
   async load() {
     const rows = await idb.all('images');
@@ -172,7 +187,31 @@ export const images = {
     return u;
   },
 
+  /**
+   * 不再用这张图了：**没有别处在用才删**。
+   *
+   * 同一个 id 常被几处共用：外观预设存的是当时的壁纸与图标 id，角色的头像从头像池里挑，
+   * 「保存到相册」存的是消息那一张。从前换一张壁纸就把旧 id 直接删掉，存着它的预设随之成了空壳，
+   * 头像池里被挑中过的那张也跟着没了。
+   *
+   * 所以这里只登记，到下一个宏任务再按引用表（purge.usedImageIds）核一遍：调用方通常先 remove
+   * 旧的、再把新 id 写上去，等这一轮同步代码跑完，引用表才是换过之后的样子。
+   * 同一轮登记的多张一起核，引用表只算一次。不知道谁在用（引用表没登记上）就一张都不删。
+   * 确定要删的（恢复备份前清空、清理无引用）用 destroy。
+   */
   remove(id) {
+    if (!id) return Promise.resolve(false);
+    return new Promise(done => {
+      pending.push({ id, done });
+      if (!pendingTimer) pendingTimer = setTimeout(sweep, 0);
+    });
+  },
+
+  /** 谁在用哪些图。purge.js 在加载时登记，images 这一层不去读各个数据域 */
+  setUsage(fn) { usage = fn; },
+
+  /** 直接删，不看有没有别处在用 */
+  destroy(id) {
     const u = urls.get(id);
     if (u) { URL.revokeObjectURL(u); urls.delete(id); }
     const t = thumbUrls.get(id);

@@ -87,7 +87,7 @@ export function StoragePage() {
     const orphans = phone.purge.orphanImageIds();
     if (!orphans.length) { toast('没有需要清理的图片'); return; }
     if (!await confirm({ title: '清理无引用图片', message: `将删除 ${orphans.length} 张未被引用的图片。`, danger: true })) return;
-    await Promise.all(orphans.map(id => db.images.remove(id)));
+    await Promise.all(orphans.map(id => db.images.destroy(id)));
     toast(`已清理 ${orphans.length} 张图片`);
   };
 
