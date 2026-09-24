@@ -53,7 +53,7 @@ ok('详情页右上角能删（自己发的）', await page.locator('.navbar [ar
 await page.locator('.ig-comments textarea').fill('好看');
 await page.locator('.ig-comments .send-btn').click(); await page.waitForTimeout(400);
 ok('详情页里评论直接追加', /好看/.test(await page.locator('.ig-comments').textContent()));
-await page.locator('.navbar [aria-label="返回"]').click(); await page.waitForTimeout(500);
+await page.locator('.navback').click(); await page.waitForTimeout(500);
 
 // ---- 列表 ----
 await page.locator('.ig-tab').nth(1).click(); await page.waitForTimeout(400);

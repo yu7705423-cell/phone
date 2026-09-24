@@ -31,7 +31,7 @@ export const KV = {
 
 // 业务层数据迁移。与 IndexedDB 的版本升级分开:
 // 这里处理的是记录内部结构的变化,而不是仓库的增删。
-export const DATA_VERSION = 9;
+export const DATA_VERSION = 10;
 
 export const MIGRATIONS = {
   // 1: 初始结构,无需迁移
@@ -155,6 +155,13 @@ export const MIGRATIONS = {
   //    off 的一律挪到新默认；逐条显示的两种是用户自己选的，不动。
   9({ settings }) {
     if (settings.get().msgStamp === 'off') settings.set({ msgStamp: 'gap' });
+  },
+
+  // 10: 返回方式的默认值从底部横条改成左上角的返回键 —— 很多人注意不到横条能回去。
+  //     和 8、9 同一个道理：老默认值 bar 已经落在库里。从前 bar 就是默认，
+  //     分不出谁是自己选的，一律挪过去；想要横条的在「设置 - 外观 - 返回方式」换回来
+  10({ settings }) {
+    if (settings.get().navStyle !== 'back') settings.set({ navStyle: 'back' });
   },
 };
 

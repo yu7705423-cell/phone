@@ -32,10 +32,10 @@ export const DEFAULT_SETTINGS = {
   skinOff: false,                 // 总开关。开着就两层都不注入，见 system/skin.js
   statusBar: 'auto',              // auto | on | off  见 shell/StatusBar.js
   // 返回怎么做。二选一，不并存：
-  //   bar   底部一条横条。点一下回主界面，双击开多任务。默认
-  //   back  左上角一个悬浮返回键，点一下退回上一级，长按回主界面。
+  //   bar   底部一条横条。点一下回主界面，双击开多任务
+  //   back  左上角一个悬浮返回键，点一下退回上一级，长按回主界面。默认（很多人注意不到横条能回去）
   //         开了它就没有底部横条，页面自己那个返回箭头也让位给它
-  navStyle: 'bar',
+  navStyle: 'back',
   showLockScreen: true,
 
   // 保活。循环播放无声音频，换取后台多活一阵，见 system/keepalive.js

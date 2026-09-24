@@ -112,7 +112,7 @@ const where = await page.evaluate(async () => {
   return { app: s.app || s.current || '', text: [...document.querySelectorAll('.page')].pop()?.innerText.slice(0, 80) };
 });
 ok('点主动发起对话，去该角色的主动消息页', /主动/.test(where.text), JSON.stringify(where));
-await page.locator('.navbar .icon-btn').first().click();
+await page.locator('.navback').click();
 await page.waitForTimeout(700);
 ok('返回落回后台任务', /后台任务/.test(await page.locator('.nav-title').last().innerText()));
 

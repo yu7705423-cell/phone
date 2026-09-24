@@ -130,10 +130,10 @@ await page.waitForTimeout(400);
 await page.locator('.list-item', { hasText:'每轮的接口调用' }).first().click();
 await page.waitForTimeout(500);
 ok('从会话里点进了用量', (await title()).includes('用量'), await title());
-await page.locator('.navbar .icon-btn').first().click();
+await page.locator('.navback').click();
 await page.waitForTimeout(500);
 ok('返回落回会话菜单的「更多」', (await title())==='更多', await title());
-await page.locator('.navbar .icon-btn').first().click();
+await page.locator('.navback').click();
 await page.waitForTimeout(500);
 ok('再返回落回那段会话', await page.locator('.composer-bar').count()>0, await title());
 

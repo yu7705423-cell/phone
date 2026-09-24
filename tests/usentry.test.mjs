@@ -39,7 +39,7 @@ await page.screenshot({ path:`${OUT}/ue-open.png` });
 ok('跳到了「我们」', await appId()==='us', await appId());
 ok('开的是这段关系的作品列表', /雨落之前/.test(await text()), (await text()).slice(0,200));
 // 返回应该回到那段会话
-await page.locator('.navbar .icon-btn').first().click().catch(()=>{});
+await page.locator('.navback').click().catch(()=>{});
 await page.waitForTimeout(700);
 ok('返回落回那段会话', await appId()==='chat' && await page.locator('.composer-bar').count()>0, await appId());
 

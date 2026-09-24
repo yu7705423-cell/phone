@@ -56,7 +56,9 @@ await p1.locator('[aria-label="向右转"]').click(); await p1.waitForTimeout(40
 ck('能再转过去', (await box(p1)).rotated);
 ck('转的是另一边', await p1.evaluate(async () =>
   (await import('/src/system/db/index.js')).settings.get().watchRotate === -90));
-await p1.locator('[aria-label="退出全屏"]').click(); await p1.waitForTimeout(400);
+// 返回键模式（默认）下，左上角的悬浮返回键就是「退出全屏」：退出全屏，不离开这一页
+await p1.locator('.navback').click(); await p1.waitForTimeout(400);
+ck('按返回：退出全屏，还在放映页', await p1.locator('.wt-stage').count() === 1);
 ck('退出全屏后不转', !(await box(p1)).rotated);
 ck('退出后顶栏回来', await p1.locator('.navbar').count() > 0);
 

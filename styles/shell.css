@@ -314,6 +314,14 @@
    左边那一格塌掉标题就不居中了 */
 :root[data-nav="back"] .home-indicator { display: none; }
 :root[data-nav="back"] .navbar .nav-left { visibility: hidden; }
+/* 放映厅全屏：悬浮返回键就是「退出全屏」（WatchPage 把 onBack 设成 leaveFull）。
+   画面是黑的，给它一个半透明的深色圆底才看得见；页面自己那个关闭键让位 ——
+   画面横过来时它正好转到左上角，被悬浮键盖住 */
+:root[data-nav="back"]:has(.wt.is-full) .navback {
+  top: var(--sp-3); left: var(--sp-3); width: 34px; height: 34px;
+  border-radius: var(--r-full); background: rgba(0, 0, 0, .45); color: var(--on-scrim);
+}
+:root[data-nav="back"] .wt.is-full .wt-exit { display: none; }
 
 .home-indicator {
   position: relative; z-index: 1;

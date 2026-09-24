@@ -113,7 +113,7 @@ ck('互动层里能说话', await page.locator('.wt-panel input').count() > 0);
 await page.screenshot({ path: `${OUT}/vpanel.png` });
 await page.locator('.wt-video').click({ position: { x: 200, y: 100 } }); await page.waitForTimeout(400);
 ck('再点一下收回去', await page.locator('.wt-panel').count() === 0);
-await page.locator('[aria-label="退出全屏"]').click(); await page.waitForTimeout(400);
+await page.locator('.navback').click(); await page.waitForTimeout(400);  // 返回键模式（默认）下由它退出全屏
 ck('退出全屏顶栏回来', await page.locator('.navbar').count() > 0);
 
 console.log(fail.length ? '失败：\n  ' + fail.join('\n  ') : '影片段评与全屏全部通过');

@@ -186,7 +186,10 @@ function Screen({ chatId, chat, char }) {
   }, [recent.length, busy]);
 
   return html`
-    <${Page} ...${full ? {} : {
+    <${Page} ...${full ? {
+      // 全屏时没有导航栏，但返回仍要先退出全屏：左上角的悬浮返回键与边缘返回都走这一个
+      onBack: leaveFull, hideBar: true,
+    } : {
       title: row?.title || '一起看',
       onBack: nav.pop,
       right: html`<button class="nav-text press" onClick=${finish}>结束</button>`,
