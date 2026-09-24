@@ -289,3 +289,13 @@ input, textarea, [contenteditable="true"], .selectable {
   background: var(--scrim-fill); padding: var(--sp-2);
 }
 .qr-note { font-size: var(--fs-13); color: var(--text-3); text-align: center; line-height: 1.6; }
+
+/* 账号登录（ui/qrlogin.js 的 AccountLogin）：短信验证码或密码，给没有手机扫码的人 */
+.acct-login { display: flex; flex-direction: column; gap: var(--sp-2); margin-top: var(--sp-4); }
+.acct-row { display: flex; gap: var(--sp-2); align-items: center; }
+.acct-row > input { flex: 1; min-width: 0; }
+.acct-row > input.acct-ct { flex: none; width: 4.5em; text-align: center; }
+.acct-row > .btn { flex: none; }
+.acct-note { font-size: var(--fs-12); color: var(--text-3); line-height: 1.6; }
+.acct-note.is-error { color: var(--danger); }
+.acct-sep { font-size: var(--fs-12); color: var(--text-3); text-align: center; margin-top: var(--sp-5); }

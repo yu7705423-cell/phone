@@ -1,7 +1,7 @@
 import { html, useState, useRef } from '../../../lib.js';
 import { phone, useStore, useImage } from '../../../sdk/index.js';
 import { Page, Field, Input, Textarea, Avatar, List, ListItem,
-         Switch, Segmented, Icon, Button, QrLogin, CookiePaste, toast, ZonePicker} from '../../../ui/index.js';
+         Switch, Segmented, Icon, Button, QrLogin, CookiePaste, AccountLogin, toast, ZonePicker} from '../../../ui/index.js';
 import { AvatarPool } from './AvatarPool.js';
 
 const { db, nav, clock, extras, ai } = phone;
@@ -290,6 +290,9 @@ export function CharacterEdit({ id }) {
           <div class="pad">
             <${QrLogin} service=${phone.netease} owner=${id}
               hint="请使用网易云音乐扫描二维码，登录要给这个角色用的那个账号"/>
+            <div class="acct-sep">没有手机扫码时，用账号登录</div>
+            <${AccountLogin} service=${phone.netease} owner=${id}/>
+            <div class="acct-sep">以上方式都不可用时</div>
             <${CookiePaste} service=${phone.netease} owner=${id}
               hint=${`在浏览器中登录要给这个角色用的那个网易云账号，`
                 + `从开发者工具的存储中复制 MUSIC_U 的值。`

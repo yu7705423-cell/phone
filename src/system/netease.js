@@ -283,7 +283,88 @@ export async function probe(baseUrl, onStep, realIP = neteaseConfig().realIP) {
   return out;
 }
 
-// ---- 登录。只做扫码：手机号那条路要用户把密码交出来，不做。 ----
+// ---- 登录 ----
+//
+// 扫码要一台装着网易云的手机。没有的人从前只剩「自己去开发者工具里找 MUSIC_U」，
+// 这对多数人太难。**网页替你从 music.163.com 把 cookie 读出来是做不到的**：
+// 别家网站的 cookie 浏览器不给读，MUSIC_U 还是 HttpOnly，嵌网页、书签脚本都拿不到。
+//
+// 但自己部署的那个接口本来就会登录：短信验证码、手机号或邮箱加密码，
+// 登成了直接把 cookie 交回来，不用人去找。于是加上这两条：
+//
+//   短信验证码  和扫码同一个信任级别：交出去的只是一次性的码
+//   密码        密码会经过填写的接口地址。原文不出这台设备（先算 MD5），
+//               也不进网址（POST），但拿到 MD5 照样能登 —— 界面上照实写明，只建议在
+//               自己部署的接口上用
+//
+// 网易云对这两条都有风控：短信发得太勤会被限，密码登录常被要求行为验证（8821），
+// 那时只能换扫码、短信或粘贴 cookie，错误里写明。
+
+// 登录那几个请求走 POST，参数放在表单里：密码（哪怕是 MD5）不该出现在网址与访问日志里。
+// 表单编码是「简单请求」，不触发跨域预检
+async function post(path, params = {}) {
+  const url = new URL(base() + path);
+  url.searchParams.set('timestamp', String(Date.now()));
+  const body = new URLSearchParams();
+  Object.entries(params).forEach(([k, v]) => {
+    if (v !== undefined && v !== null && v !== '') body.set(k, String(v));
+  });
+  const ip = neteaseConfig().realIP;
+  if (ip) body.set('realIP', ip);
+  const res = await fetch(url.toString(), { method: 'POST', body });
+  let data = null;
+  try { data = await res.json(); } catch { /* 有些错误页不是 JSON */ }
+  return { status: res.status, body: data || {} };
+}
+
+// 登录失败时网易云回的那几个码，翻成能照着做的话
+const LOGIN_WHY = {
+  8821: '网易云要求先完成行为验证，这种方式暂时登不上。请改用短信验证码、扫码或粘贴 cookie',
+  503: '验证码不对，或者已经过期',
+  502: '密码不对',
+  501: '这个账号不存在',
+  400: '参数有误，请检查手机号或邮箱',
+  '-462': '网易云要求先完成验证：接口所在的出口 IP 在风控名单上。可在上方填写中国大陆 IP 后重试',
+  405: '操作太频繁，请稍后再试',
+};
+const loginError = r => {
+  const code = r.body?.code ?? r.status;
+  return new Error(LOGIN_WHY[code] || r.body?.message || r.body?.msg || `登录失败（code ${code}）`);
+};
+
+/** 发短信验证码。ctcode 是国家区号，中国大陆为 86 */
+export async function smsSend(phone, ctcode = '86') {
+  const p = String(phone || '').replace(/\s+/g, '');
+  if (!/^\d{5,15}$/.test(p)) throw new Error('请填写手机号');
+  const r = await post('/captcha/sent', { phone: p, ctcode: ctcode || '86' });
+  if (r.body?.code !== 200) throw loginError(r);
+  return true;
+}
+
+/** 手机号加短信验证码登录，给回 cookie */
+export async function smsLogin(phone, captcha, ctcode = '86') {
+  const p = String(phone || '').replace(/\s+/g, '');
+  const c = String(captcha || '').trim();
+  if (!p || !c) throw new Error('请填写手机号与验证码');
+  const r = await post('/login/cellphone', { phone: p, captcha: c, countrycode: ctcode || '86' });
+  if (r.body?.code !== 200 || !r.body?.cookie) throw loginError(r);
+  return r.body.cookie;
+}
+
+/** 手机号或邮箱加密码登录，给回 cookie。密码先算 MD5，原文不外传 */
+export async function passwordLogin(account, password, ctcode = '86') {
+  const a = String(account || '').trim();
+  if (!a || !password) throw new Error('请填写账号与密码');
+  const { md5 } = await import('./md5.js');
+  const hashed = md5(password);
+  const r = a.includes('@')
+    ? await post('/login', { email: a, md5_password: hashed })
+    : await post('/login/cellphone', { phone: a.replace(/\s+/g, ''), md5_password: hashed, countrycode: ctcode || '86' });
+  if (r.body?.code !== 200 || !r.body?.cookie) throw loginError(r);
+  return r.body.cookie;
+}
+
+// 扫码
 export async function qrStart() {
   const key = (await call('/login/qr/key')).data?.unikey;
   if (!key) throw new Error('接口没有返回二维码 key');

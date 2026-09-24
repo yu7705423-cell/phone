@@ -1,7 +1,7 @@
 import { html, useState } from '../../lib.js';
 import { phone, useStore } from '../../sdk/index.js';
 import { Page, List, ListItem, Field, Input, NumberInput, Switch, Icon, Spinner,
-  QrLogin, CookiePaste, confirm, toast } from '../../ui/index.js';
+  QrLogin, CookiePaste, AccountLogin, confirm, toast } from '../../ui/index.js';
 
 const { db, nav, netease } = phone;
 const svc = phone.ai.services;
@@ -102,6 +102,9 @@ export function MusicPage() {
               right=${html`<button class="nav-text press" onClick=${quit}>退出</button>`}/>`
           : html`<div class="pad">
               <${QrLogin} service=${netease} hint="请使用网易云音乐扫描二维码"/>
+              <div class="acct-sep">没有手机扫码时，用账号登录</div>
+              <${AccountLogin} service=${netease}/>
+              <div class="acct-sep">以上方式都不可用时</div>
               <${CookiePaste} service=${netease}/>
             </div>`}
         <//>
