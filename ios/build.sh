@@ -22,7 +22,7 @@ ROOT="$(cd "$HERE/.." && pwd)"
 
 APP_URL="${APP_URL:-https://yu7705423-cell.github.io/phone/}"
 BUNDLE_ID="${BUNDLE_ID:-com.example.xiaoshouji}"
-DISPLAY_NAME="${DISPLAY_NAME:-小手机}"
+DISPLAY_NAME="${DISPLAY_NAME:-Eira}"
 VERSION="${VERSION:-1.0.0}"
 BUILD_NUM="${BUILD_NUM:-1}"
 MIN_IOS="${MIN_IOS:-15.0}"
@@ -93,7 +93,9 @@ icon AppIcon60x60@2x.png 120
 icon AppIcon60x60@3x.png 180
 icon AppIcon76x76@2x.png 152
 icon AppIcon83.5x83.5@2x.png 167
-echo "已生成    8 个图标"
+# 启动页上那一张（ios/Sources/LaunchView.swift 按 LaunchIcon 取）
+icon LaunchIcon.png 288
+echo "已生成    8 个图标与启动页图标"
 
 # ---- 4. 压成 ipa ----
 # 用 ad-hoc 签名把 entitlements 写进包里（`-s -` 不需要任何证书）。

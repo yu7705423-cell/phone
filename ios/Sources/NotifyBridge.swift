@@ -76,7 +76,7 @@ final class NotifyBridge: NSObject {
     /// 立刻发一条。tag 当标识符：同一个 tag 会顶掉前一条，这一点和网页那边一致。
     private func show(_ body: [String: Any]) async -> [String: Any] {
         let c = UNMutableNotificationContent()
-        c.title = (body["title"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? "小手机"
+        c.title = (body["title"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? "Eira"
         c.body = body["body"] as? String ?? ""
         c.sound = .default
         var info: [String: Any] = [:]

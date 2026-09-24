@@ -1,6 +1,8 @@
 import UIKit
 import WebKit
 import AVFoundation
+import Network
+import CoreTelephony
 
 /// 整只 app 就是一个铺满屏幕的 WKWebView，内容从远端地址取。
 ///
@@ -13,6 +15,23 @@ final class ShellViewController: UIViewController {
 
     private var web: WKWebView!
     private var failure: FailureView?
+    /// 网页画出来之前盖着的那一页（见 LaunchView）
+    private var launch: LaunchView?
+
+    // ---- 等网络 ----
+    // 首次打开时系统正弹着「是否允许使用网络」，此时的请求一律失败。这类失败不报错，
+    // 停在启动页上等：网络状态一变就重试，另外按 1、2、4、8 秒退避着自己重试。
+    // 网络明明是通的却一直连不上（站点被墙、站点挂了），等满 waitLimit 秒再报失败。
+    private let pathMonitor = NWPathMonitor()
+    private var online = true
+    private var waitingNet = false
+    private var waitSince: Date?
+    private var retryWork: DispatchWorkItem?
+    private var retryDelay: TimeInterval = 1
+    private static let waitLimit: TimeInterval = 20
+    /// 国行机型的蜂窝数据权限。被拒绝（restricted）时写明去哪儿打开
+    private let cellular = CTCellularData()
+    private var cellularRestricted = false
     /// 每个下载存到哪儿。Progress 上那个 fileURL 不保证有值，自己记一份稳当些。
     private var downloadPaths: [ObjectIdentifier: URL] = [:]
     /// 读「健康」的那座桥。网页那头是 system/healthkit.js
@@ -76,6 +95,8 @@ final class ShellViewController: UIViewController {
             : UIColor(red: 0xF2 / 255, green: 0xF3 / 255, blue: 0xF5 / 255, alpha: 1) }
         configureAudioSession()
         buildWebView()
+        showLaunch()
+        watchNetwork()
         // 点通知那一下交不出去（页面没了）时由这里重载
         notifyBridge.reload = { [weak self] in self?.load() }
         load()
@@ -284,9 +305,11 @@ final class ShellViewController: UIViewController {
     private func load() {
         hideFailure()
         guard let url = siteURL else {
+            hideLaunch()
             showFailure("尚未设置站点地址。摇动设备打开菜单，选择「设置站点地址」。")
             return
         }
+        showLaunch()
         fetchBuild(url) { [weak self] got in
             DispatchQueue.main.async {
                 guard let self = self else { return }
@@ -390,6 +413,104 @@ final class ShellViewController: UIViewController {
         present(alert, animated: true)
     }
 
+    // MARK: - 启动页与等网络
+
+    private func showLaunch() {
+        if launch != nil { return }
+        let v = LaunchView(frame: view.bounds)
+        v.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        view.addSubview(v)
+        launch = v
+    }
+
+    private func hideLaunch() {
+        guard let v = launch else { return }
+        launch = nil
+        UIView.animate(withDuration: 0.2, animations: { v.alpha = 0 }) { _ in v.removeFromSuperview() }
+    }
+
+    /// 断网、网络权限还没给、切网那一下 —— 这几种等一等就会好
+    private static func isNetworkError(_ e: NSError) -> Bool {
+        guard e.domain == NSURLErrorDomain else { return false }
+        return [NSURLErrorNotConnectedToInternet, NSURLErrorNetworkConnectionLost,
+                NSURLErrorCannotFindHost, NSURLErrorCannotConnectToHost, NSURLErrorDNSLookupFailed,
+                NSURLErrorTimedOut, NSURLErrorInternationalRoamingOff, NSURLErrorCallIsActive,
+                NSURLErrorDataNotAllowed].contains(e.code)
+    }
+
+    private func watchNetwork() {
+        pathMonitor.pathUpdateHandler = { [weak self] path in
+            let ok = path.status == .satisfied
+            DispatchQueue.main.async { self?.networkChanged(ok) }
+        }
+        pathMonitor.start(queue: DispatchQueue.global(qos: .utility))
+        cellular.cellularDataRestrictionDidUpdateNotifier = { [weak self] state in
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                let was = self.cellularRestricted
+                self.cellularRestricted = (state == .restricted)
+                self.updateWaitingText()
+                // 刚在系统设置里打开了权限：马上重试
+                if was && !self.cellularRestricted && self.waitingNet { self.load() }
+            }
+        }
+    }
+
+    private func networkChanged(_ ok: Bool) {
+        let cameBack = ok && !online
+        online = ok
+        updateWaitingText()
+        // 网络刚通（包括刚点了「允许」）：马上重试，不等退避。正在载的那一次不打断
+        if waitingNet && ok && (cameBack || !web.isLoading) {
+            retryWork?.cancel()
+            retryDelay = 1
+            load()
+        }
+    }
+
+    private func waitForNetwork(_ e: NSError) {
+        if !waitingNet { waitingNet = true; waitSince = Date() }
+        // 网络是通的却一直连不上：不是等得好的那种，报出来，给「重新载入」
+        if online && !cellularRestricted,
+           let since = waitSince, Date().timeIntervalSince(since) > Self.waitLimit {
+            stopWaiting()
+            hideLaunch()
+            showFailure("暂时连接不上。请检查网络后重新载入。\n\(e.localizedDescription)")
+            return
+        }
+        showLaunch()
+        updateWaitingText()
+        retryWork?.cancel()
+        let w = DispatchWorkItem { [weak self] in
+            guard let self = self, self.waitingNet else { return }
+            self.load()
+        }
+        retryWork = w
+        DispatchQueue.main.asyncAfter(deadline: .now() + retryDelay, execute: w)
+        retryDelay = min(retryDelay * 2, 8)
+    }
+
+    private func stopWaiting() {
+        waitingNet = false
+        waitSince = nil
+        retryDelay = 1
+        retryWork?.cancel()
+        retryWork = nil
+        launch?.setStatus(nil)
+    }
+
+    private func updateWaitingText() {
+        guard waitingNet else { return }
+        let name = Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ?? "本应用"
+        if cellularRestricted {
+            launch?.setStatus("\(name) 没有使用网络的权限。\n请在系统「设置 - \(name) - 无线数据」中选择「WLAN 与蜂窝网络」。")
+        } else if !online {
+            launch?.setStatus("等待网络连接")
+        } else {
+            launch?.setStatus("正在连接")
+        }
+    }
+
     // MARK: - 失败页
 
     private func showFailure(_ text: String) {
@@ -468,6 +589,8 @@ extension ShellViewController: WKNavigationDelegate {
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         hideFailure()
+        stopWaiting()
+        hideLaunch()
         // 载成了才记下这一版。没载成就记，下一次会以为「版本没变」而一直用旧缓存
         if let b = pendingBuild {
             UserDefaults.standard.set(b, forKey: Self.buildKey)
@@ -496,7 +619,12 @@ extension ShellViewController: WKNavigationDelegate {
         let e = error as NSError
         // 自己发起的取消不算失败：换地址时旧的那次载入就会走到这里
         if e.domain == NSURLErrorDomain && e.code == NSURLErrorCancelled { return }
-        showFailure("无法载入 \(Self.siteURLString)。\n\(e.localizedDescription)")
+        // 网络没好：不报错，停在启动页上等
+        if Self.isNetworkError(e) { waitForNetwork(e); return }
+        stopWaiting()
+        hideLaunch()
+        // 网址不写进正文：看的人多半不懂它，要查的话外壳设置里有
+        showFailure(e.localizedDescription)
     }
 }
 
