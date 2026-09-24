@@ -3,6 +3,7 @@ import * as accounts from '../../accounts.js';
 import * as clock from '../../time.js';
 import * as dayStore from '../../day.js';
 import * as space from '../../space.js';
+import * as weather from '../../weather.js';
 import { fillTemplate, template } from '../templates.js';
 import { runJSONTask } from '../engine.js';
 
@@ -43,7 +44,7 @@ function constraintsOf(charId, date) {
 /**
  * 生成日程。返回的是**还没入库**的 [{ slot, text }]，由调用方决定存不存。
  */
-export async function generatePlan(charId) {
+export async function generatePlan(charId, { forecast = null } = {}) {
   const char = characters.get(charId);
   if (!char) throw new Error('角色不存在');
   const date = dayStore.dateKey(char);
@@ -57,6 +58,7 @@ export async function generatePlan(charId) {
     zone: clock.zoneLabel(clock.charZone(char)),
     slots: dayStore.SLOTS.map(s => `${s.id} = ${s.label} (${s.from}:00 to ${s.to}:00)`).join('\n'),
     constraints: cons ? `## Fixed commitments today\n${cons}` : '',
+    weather: forecast ? `## Weather\n${weather.promptLine(forecast)}` : '',
   });
 
   const out = await runJSONTask('day.plan', {
@@ -95,6 +97,9 @@ export async function makeToday(charId, { force = false, rng } = {}) {
   // **之后每发一条消息都会再排一次**，一条回复两次请求，而且永远不会自己停 ——
   // 失败只写进 console，界面上一个字都没有。已经因此每轮多烧一次接口。
   const local = dayStore.rollLocal(charId, { rng, date });
+  // 天气也不花模型的钱：配了和风天气、角色卡上填了所在地区，就先查当天的预报，
+  // 和本地那几样一起落下，再带进排日程的请求里。查不到是 null，不拦着日程
+  local.weather = await weather.forChar(char, date);
   dayStore.save(charId, { date, items: [], ...local });
 
   // 排新一天的时候顺手把昨天结了。不另调接口 —— 花销是昨天排日程时
@@ -105,7 +110,7 @@ export async function makeToday(charId, { force = false, rng } = {}) {
 
   let items = [];
   try {
-    items = await generatePlan(charId);
+    items = await generatePlan(charId, { forecast: local.weather });
   } catch (err) {
     // 记下来，界面上说明白，并给「重新安排」那个按钮
     dayStore.save(charId, { date, items: [], ...local, planFailed: String(err.message || err) });
@@ -126,4 +131,13 @@ export async function ensureToday(charId) {
   if (dayStore.today(charId)) return null;
   try { return await makeToday(charId); }
   catch (err) { console.warn('[day] 今天的日程没排出来:', err.message || err); return null; }
+}
+
+/** 只重查今天的天气，不重排日程。「日常 - 今天」那一行上的刷新 */
+export async function refreshWeather(charId) {
+  const char = characters.get(charId);
+  const d = char ? dayStore.today(charId) : null;
+  if (!d) throw new Error('今天还没有安排');
+  const w = await weather.forecast(char.region, d.date);
+  return dayStore.save(charId, { ...d, weather: w });
 }

@@ -1,6 +1,6 @@
 import { html, useState } from '../../../lib.js';
 import { phone, useStore } from '../../../sdk/index.js';
-import { Page, List, ListItem, Field, Input, Segmented, Icon, Button, Spinner,
+import { Page, List, ListItem, Field, Input, Segmented, Icon, Button, Spinner, Switch,
          EmptyState, toast, confirm } from '../../../ui/index.js';
 import { PoopField } from '../parts.js';
 
@@ -57,6 +57,17 @@ export function CharPage({ charId }) {
         </div>
         ${!ai.isConfigured() ? html`
           <div class="settings-foot">尚未配置聊天接口，无法生成。</div>` : null}
+        <${List} inset=${false}>
+          <${ListItem} title="每天自动生成" multiline
+            subtitle=${char.healthAuto === true
+              ? '已开启。每天按人设为该角色生成一次当天的身体状态，每天一次接口调用（副用）。'
+                + '当天已有内容（包括手动填写的）时不生成。'
+              : '已关闭。需要时手动点击上方按钮生成。开启后每天一次接口调用。'}
+            right=${html`<${Switch} checked=${char.healthAuto === true}
+              onChange=${v => db.characters.update(charId, { healthAuto: v, healthAutoAt: '' })}/>`}/>
+        <//>
+        ${char.healthAuto === true && char.healthAutoError && char.healthAutoAt === date ? html`
+          <div class="settings-foot is-error">今天的自动生成失败：${char.healthAutoError}。可点击上方按钮重试。</div>` : null}
         ${d.source === 'ai' ? html`
           <div class="settings-foot">当前这一份由模型按人设生成，可以逐项修改。</div>` : null}
         <${Field} label="精力">

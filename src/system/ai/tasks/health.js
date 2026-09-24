@@ -92,3 +92,43 @@ export async function generateDay(charId, date = healthStore.dateKey()) {
   };
   return healthStore.set(charId, date, patch);
 }
+
+// ---- 每天自动生成 ----
+//
+// 开关挂在角色身上（char.healthAuto，健康 app 里那个角色的页面上，第 5 条）。
+// 每天一次模型调用，默认关，登记在 cost.js（第 15 条）。
+//
+// 两个入口：和这个角色聊天之前（这一轮就读得到今天的身体状态），以及全局那个
+// 定时器（不聊天也每天填上，健康 app 里看得到）。
+//
+// **一天只试一次，失败也算试过**（healthAutoAt 记着日期）—— 和当日日程同一个教训：
+// 不记的话，失败之后每发一条消息、每二十秒都再试一次，账单一直涨，界面上一个字都没有。
+// 失败了在那个角色的页面上手动点「按人设生成今天」。
+//
+// **已经有内容的那一天不碰**：手填的那一份是一格一格点出来的，不能被自动的盖掉。
+
+const inFlight = new Set();
+
+const filled = d => !!(d && (d.energy || d.mood || (d.symptoms || []).length
+  || d.sleepMin || (d.poops || []).length || d.note));
+
+export const isAuto = char => !!(char && char.healthAuto === true);
+
+export async function ensureToday(charId) {
+  const char = characters.get(charId);
+  if (!isAuto(char) || inFlight.has(charId)) return null;
+  const date = healthStore.dateKey();
+  if (char.healthAutoAt === date) return null;
+  if (filled(healthStore.dayOf(charId, date))) return null;
+  inFlight.add(charId);
+  characters.update(charId, { healthAutoAt: date, healthAutoError: '' });
+  try {
+    return await generateDay(charId, date);
+  } catch (err) {
+    characters.update(charId, { healthAutoError: String(err.message || err) });
+    console.warn('[health] 今天没自动生成:', err.message || err);
+    return null;
+  } finally {
+    inFlight.delete(charId);
+  }
+}

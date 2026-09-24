@@ -93,6 +93,11 @@ export function TodayPage({ charId }) {
     } finally { setBusy(false); }
   };
 
+  const refreshWeather = async () => {
+    try { await ai.dayTask.refreshWeather(charId); toast('天气已更新', 'ok'); }
+    catch (err) { toast(String(err.message || err), 'error', 5000); }
+  };
+
   const cycle = it => {
     const next = it.state === day.PLAN ? day.DONE : it.state === day.DONE ? day.DROP : day.PLAN;
     day.setState(today.id, it.id, next);
@@ -155,6 +160,22 @@ export function TodayPage({ charId }) {
             还没到的时段，角色只知道自己打算做什么。
           </div>
         </div>
+
+        ${today.weather ? html`
+          <${List} title="天气">
+            <${ListItem} title=${phone.weather.label(today.weather)} multiline
+              subtitle=${[today.weather.humidity != null ? `湿度 ${today.weather.humidity}%` : '',
+                today.weather.windDir ? `${today.weather.windDir} ${today.weather.windScale} 级` : '',
+                '和风天气当天预报，已写入角色的上下文'].filter(Boolean).join(' · ')}
+              left=${html`<${Icon} name="cloud" size=${18}/>`}
+              right=${html`<button class="nav-text press" onClick=${refreshWeather}>刷新</button>`}/>
+          <//>`
+        : ai.services.qweatherReady() ? html`
+          <div class="settings-foot">
+            ${char.region ? html`没有取到「${char.region}」今天的天气。
+              <button class="nav-text press" onClick=${refreshWeather}>重新查询</button>`
+              : '在角色卡中填写「所在地区」后，安排日程时会查询该地当天的天气。'}
+          </div>` : null}
 
         ${today.planFailed ? html`
           <div class="pad-x pad-t">

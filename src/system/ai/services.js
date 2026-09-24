@@ -47,6 +47,10 @@ export const EMPTY_SERVICES = {
   // 只在「连同密钥一起备份」时才进备份。tools 是上次连接时取回来的工具清单，
   // 拼 prompt 要同步读到它，所以存下来，不每轮现取。
   mcp: { servers: [] },
+  // 和风天气。host 是账号专属的 API Host（2026 起公共域名逐步停用，每个账号一个），
+  // key 是 API KEY，放在请求头 X-QW-Api-Key 里。
+  // cities：城市名到和风城市 id 的对照，查过一次就记住，不每天再查
+  qweather: { host: '', key: '', cities: {} },
 };
 
 export function services() {
@@ -67,6 +71,7 @@ export function services() {
     books: { ...EMPTY_SERVICES.books, ...(s?.books || {}) },
     endpoints: Array.isArray(s?.endpoints) ? s.endpoints : [],
     mcp: { servers: Array.isArray(s?.mcp?.servers) ? s.mcp.servers : [] },
+    qweather: { ...EMPTY_SERVICES.qweather, ...(s?.qweather || {}) },
   };
 }
 
@@ -384,3 +389,8 @@ export function updateMcpServer(id, patch) {
 export function removeMcpServer(id) {
   write({ mcp: { servers: mcpServers().filter(x => x.id !== id) } });
 }
+
+// ---- 和风天气 ----
+export function qweatherConfig() { return services().qweather; }
+export function setQweather(patch) { write({ qweather: { ...services().qweather, ...patch } }); }
+export function qweatherReady() { const q = services().qweather; return !!(q.host && q.key); }

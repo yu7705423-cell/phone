@@ -648,6 +648,8 @@ today.
 ## Today
 {{date}} {{weekday}}. The character is in {{zone}}.
 
+{{weather}}
+
 {{constraints}}
 
 ## Time slots

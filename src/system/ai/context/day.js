@@ -1,6 +1,7 @@
 import * as day from '../../day.js';
 import * as events from '../../events.js';
 import * as trip from '../../trip.js';
+import * as weather from '../../weather.js';
 
 // 「你今天」那一段。
 //
@@ -37,6 +38,8 @@ export function build({ char }) {
   if (!b) return '';
 
   const lines = [`Today is ${b.date}. In your time zone it is currently ${b.slot.label}.`];
+  // 当天的天气预报（排日程时一起查的，见 tasks/day.js）。是预报，不是此刻的实况
+  if (b.weather) lines.push(weather.promptLine(b.weather));
   if (b.summary.length) lines.push(...b.summary);
 
   const now = [];

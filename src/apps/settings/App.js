@@ -20,6 +20,7 @@ import { MusicPage } from './MusicPage.js';
 import { LimitsPage } from './LimitsPage.js';
 import { BanPage } from './BanPage.js';
 import { SearchApiPage } from './SearchApiPage.js';
+import { WeatherPage } from './WeatherPage.js';
 import { TranslateApiPage } from './TranslateApiPage.js';
 import { MemoryApiPage } from './MemoryApiPage.js';
 import { BUILD } from '../../version.js';
@@ -107,6 +108,7 @@ function Home() {
         ${svcRow({ title: '向量', icon: 'brain', route: '/embed', desc: embDesc, value: embOk ? '' : OFF })}
         ${svcRow({ title: '重排', icon: 'filter', route: '/rerank', desc: rerankDesc, value: rerankVal })}
         ${svcRow({ title: '联网搜索', icon: 'compass', route: '/search', desc: searchDesc, value: searchDesc ? '' : OFF })}
+        ${svcRow({ title: '和风天气', icon: 'cloud', route: '/weather', desc: svc.qweatherReady() ? '已配置' : '', value: svc.qweatherReady() ? '' : OFF })}
       <//>
 
       <${List} title="识别你发送的内容">
@@ -204,6 +206,7 @@ export default function SettingsApp({ route }) {
   if (route === '/limits') return html`<${LimitsPage}/>`;
   if (route === '/ban') return html`<${BanPage}/>`;
   if (route === '/search') return html`<${SearchApiPage}/>`;
+  if (route === '/weather') return html`<${WeatherPage}/>`;
   if (route === '/translate') return html`<${TranslateApiPage}/>`;
   if (route === '/memoryapi') return html`<${MemoryApiPage}/>`;
   if (route === '/voice') return html`<${VoicePage}/>`;

@@ -205,6 +205,14 @@ export const EXTRA_CALLS = [
     when: '每个开了的角色，每隔设定的天数一次（想拍什么一次，画出来一次）',
   },
   {
+    // 挂在角色身上（健康 app 里那个角色的页面），不是全局设置
+    id: 'healthAuto',
+    label: '角色的身体状态每天自动生成',
+    setting: null,
+    on: () => characters.all().some(c => c.healthAuto === true),
+    when: '每个开了的角色，每天一次（走副用接口）；当天已有内容时不生成',
+  },
+  {
     id: 'dayOn',
     label: '角色的当日日程',
     setting: null,

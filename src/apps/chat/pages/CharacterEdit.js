@@ -313,7 +313,9 @@ export function CharacterEdit({ id }) {
         </div>` : null}
 
       <${Field} label="所在地区"
-        desc="决定这个角色吃到的是哪一批食物。与「日常 - 吃什么」里的地区名写成一样，两边才对得上。留空则只吃不分地区的那一批。">
+        desc=${'决定这个角色吃到的是哪一批食物。与「日常 - 吃什么」里的地区名写成一样，两边才对得上。留空则只吃不分地区的那一批。'
+          + (ai.services.qweatherReady() ? '配置了和风天气时，安排当日日程也按这个城市查询当天的天气，请填写城市名。'
+            : '在「设置 - 和风天气」中配置后，安排当日日程时还会按这个城市查询当天的天气。')}>
         <${Input} value=${char.region || ''} placeholder="例如：成都"
           onInput=${v => patch({ region: v })}/>
       <//>

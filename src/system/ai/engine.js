@@ -922,6 +922,8 @@ export function streamReply({ chat, char, onDelta }) {
     // 那一段要等到下一条消息才出现。开关默认关着，关着就是一句 return。
     // 动态 import：day 那个任务要用本模块，静态引会成环。
     await import('./tasks/day.js').then(m => m.ensureToday(char.id)).catch(() => {});
+    // 身体状态：角色开了「每天自动生成」、今天还空着，就先生成一份（每天一次，见 tasks/health.js）
+    await import('./tasks/health.js').then(m => m.ensureToday(char.id)).catch(() => {});
     // 她在听什么：读角色那个音乐账号的真实播放记录。不调模型，只压自己
     // 部署的那个音乐接口，间隔由用户填，填 0 就只在手动点的时候拉。
     await import('../netease.js').then(m => m.pullIfDue(char.id)).catch(() => {});

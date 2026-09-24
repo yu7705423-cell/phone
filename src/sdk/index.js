@@ -73,6 +73,7 @@ import * as drawApi from '../system/draw.js';
 import * as eventBatch from '../system/ai/tasks/event-batch.js';
 import * as musicApi from '../system/music.js';
 import * as mcpApi from '../system/mcptools.js';
+import * as weatherApi from '../system/weather.js';
 import * as listenApi from '../system/listen.js';
 import * as neteaseApi from '../system/netease.js';
 import * as purgeApi from '../system/purge.js';
@@ -283,6 +284,7 @@ export const phone = {
   draw: drawApi,
   music: musicApi,
   mcp: mcpApi,
+  weather: weatherApi,
   listen: listenApi,
   netease: neteaseApi,
   purge: purgeApi,
