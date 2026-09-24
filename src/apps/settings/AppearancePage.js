@@ -130,6 +130,11 @@ export function AppearancePage() {
           right=${html`<div style="width:150px"><${Segmented}
             value=${s.statusBar} onChange=${v => db.settings.set({ statusBar: v })}
             items=${[{ value: 'auto', label: '自动' }, { value: 'on', label: '显示' }, { value: 'off', label: '隐藏' }]}/></div>`}/>
+        ${phone.fullscreen.supported() ? html`
+          <${ListItem} title="浏览器中全屏" multiline
+            subtitle="在浏览器标签页中运行时，触摸屏幕后进入全屏，隐藏地址栏与系统状态栏，并显示模拟状态栏。退出全屏后，下一次触摸会再次进入。关闭后保留浏览器的地址栏与状态栏。"
+            right=${html`<${Switch} checked=${s.autoFullscreen !== false}
+              onChange=${v => { db.settings.set({ autoFullscreen: v }); if (v) phone.fullscreen.enter(); }}/>`}/>` : null}
         <${ListItem} title="返回方式" multiline
           subtitle=${s.navStyle === 'back'
             ? '左上角一个返回键。点一下退回上一级，长按回到主界面；在主界面点一下打开多任务。'

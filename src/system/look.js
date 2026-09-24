@@ -44,6 +44,19 @@ export function applyCustomCSS(css) {
   styleEl.textContent = css || '';
 }
 
+// 浏览器顶上那一条（地址栏、安卓的系统状态栏）的颜色。
+// index.html 里那两条按系统的深浅色分，可应用里的深色模式是自己切的，两边会对不上：
+// 系统是浅色、应用切到深色时，顶上一条白、底下一片黑。这里改成跟着应用实际的底色走。
+export function syncThemeColor() {
+  const bg = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
+  if (!bg) return;
+  const metas = [...document.querySelectorAll('meta[name="theme-color"]')];
+  metas.slice(1).forEach(m => m.remove());
+  const m = metas[0] || document.head.appendChild(Object.assign(document.createElement('meta'), { name: 'theme-color' }));
+  m.removeAttribute('media');
+  m.content = bg;
+}
+
 
 // ---- 每个 app 的图标与名称 ----
 //

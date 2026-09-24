@@ -2,12 +2,15 @@ import { html, useState, useEffect } from '../lib.js';
 import { Icon } from '../icons/Icon.js';
 import { useStore } from '../system/store.js';
 import { settings } from '../system/db/index.js';
+import { fullStore } from '../system/fullscreen.js';
 
 // 移动端浏览器本身就有状态栏,再画一条就是双份。
 // auto = 触摸设备自动隐藏;on / off 手动覆盖。
 //
 // 例外是**系统状态栏被藏起来了**的时候：安卓上加到主屏幕走的是全屏显示（manifest 的 display），
 // 安卓安装包也藏了系统状态栏（外壳注入 window.phoneFullscreen）。那时不画就看不到时间和电量。
+//
+// 浏览器标签页里进了全屏（system/fullscreen.js）也一样：地址栏和系统状态栏都藏起来了。
 //
 // iPhone、iPad 上系统状态栏一直都在（加到主屏幕、安装包、浏览器里都是），「自动」一律不画 ——
 // 画了就是顶上平白多出 26 像素，开着壁纸时字是白的，看起来就是一条空白
@@ -18,7 +21,8 @@ export function shouldShow(mode) {
   if (mode === 'on') return true;
   if (mode === 'off') return false;
   if (apple() && window.matchMedia('(pointer: coarse)').matches) return false;
-  if (window.phoneFullscreen || window.matchMedia('(display-mode: fullscreen)').matches) return true;
+  if (window.phoneFullscreen || document.fullscreenElement
+    || window.matchMedia('(display-mode: fullscreen)').matches) return true;
   return !window.matchMedia('(pointer: coarse)').matches;
 }
 
@@ -61,6 +65,7 @@ function useBattery() {
 
 export function StatusBar() {
   const s = useStore(settings.store);
+  useStore(fullStore);          // 进出全屏时重新决定画不画
   const now = useClock();
   const level = useBattery();
   if (!shouldShow(s.statusBar)) return null;

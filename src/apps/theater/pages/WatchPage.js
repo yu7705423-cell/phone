@@ -156,9 +156,12 @@ function Screen({ chatId, chat, char }) {
   const land = rot !== 0;
   const turn = v => db.settings.set({ watchRotate: rot === v ? 0 : v });
 
+  // 进来之前已经是全屏（外观里的「浏览器中全屏」）的，退出放映时不把那一层也退掉
+  const hadFull = useRef(false);
   const goFull = async () => {
     setFull(true); setPanel(false);
     if (!land) return;
+    hadFull.current = !!document.fullscreenElement;
     try {
       await document.documentElement.requestFullscreen?.();
       await screen.orientation?.lock?.('landscape');
@@ -168,7 +171,7 @@ function Screen({ chatId, chat, char }) {
   const leaveFull = () => {
     setFull(false); setPanel(false);
     try { screen.orientation?.unlock?.(); } catch { /* 本来就没锁上 */ }
-    if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+    if (document.fullscreenElement && !hadFull.current) document.exitFullscreen?.().catch(() => {});
   };
 
   const finish = async () => {

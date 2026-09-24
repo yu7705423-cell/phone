@@ -14,7 +14,7 @@ import { closeTopOverlay } from '../ui/overlay.js';
 import * as alarm from '../system/alarm.js';
 import { notify } from '../system/notify.js';
 import { useImage } from '../system/db/useImage.js';
-import { applyLook, applyCustomCSS } from '../system/look.js';
+import { applyLook, applyCustomCSS, syncThemeColor } from '../system/look.js';
 import * as skin from '../system/skin.js';
 import { apply as applyFonts } from '../system/fonts.js';
 import { layout } from '../system/db/index.js';
@@ -61,6 +61,9 @@ export function Root() {
     [cfg.iconColor, cfg.iconShadow, cfg.iconLabels, cfg.bottomLift, cfg.glass]);
 
   useEffect(() => { applyCustomCSS(cfg.customCSS); }, [cfg.customCSS]);
+
+  // 放在主题、美化、自定义 CSS 之后：它们都可能改底色
+  useEffect(() => { syncThemeColor(); }, [cfg.theme, gid, gat, cfg.customCSS]);
 
   // 返回怎么做。两套只能有一套：样式里按这个属性藏掉另一套
   useEffect(() => {

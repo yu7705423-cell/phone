@@ -3177,6 +3177,10 @@ Avatar / Badge / Toast / EmptyState / Spinner / Skeleton
   根容器不让,改成 `--top-inset` 交给 `.screen` 里各层 —— 主界面、锁屏、没有顶栏的页面
   整层往下让,有顶栏的页面由顶栏把自己加高这一条,底色铺到屏幕顶边垫在系统状态栏底下,
   字和按钮仍在安全区以下。悬浮返回键同样下移 `--top-inset`
+- 浏览器标签页(安卓 Chrome 这一类)里网页盖不到地址栏和系统状态栏。`system/fullscreen.js`
+  在触摸时请求 Fullscreen API,两样一起藏掉,网页自己画状态栏;开关在「主题 - 浏览器中全屏」,
+  默认开,只在触摸屏、非苹果设备、没加到主屏幕时出现。`theme-color` 跟着应用自己的 `--bg`
+  (`system/look.js` 的 `syncThemeColor`),不按系统深浅色分
 
 ### 9.4 图标
 

@@ -14,6 +14,7 @@ import { BUILD } from './version.js';
 import { gate, watch as watchAuth } from './system/auth.js';
 import { Login } from './shell/Login.js';
 import { install as holdViewport } from './system/viewport.js';
+import { install as installFullscreen } from './system/fullscreen.js';
 import './screens/home/widgets.js';
 import './screens/home/insWidgets.js';
 
@@ -38,6 +39,8 @@ function boot() {
     // 没等完的视频任务接着等。不重新提交，只是接着问那个 task_id
     resumeClips();
     if (!s.showLockScreen) nav.set({ screen: 'home' });
+    // 浏览器标签页里点一下进全屏（见 system/fullscreen.js）
+    installFullscreen();
 
     render(html`<${Root}/>`, mount);
   }).catch(err => {

@@ -31,6 +31,7 @@ export const DEFAULT_SETTINGS = {
   globalSkinId: '',               // 设为全局的那一份美化。空表示没有
   skinOff: false,                 // 总开关。开着就两层都不注入，见 system/skin.js
   statusBar: 'auto',              // auto | on | off  见 shell/StatusBar.js
+  autoFullscreen: true,           // 浏览器标签页里触摸后进全屏。见 system/fullscreen.js
   // 返回怎么做。二选一，不并存：
   //   bar   底部一条横条。点一下回主界面，双击开多任务
   //   back  左上角一个悬浮返回键，点一下退回上一级，长按回主界面。默认（很多人注意不到横条能回去）
