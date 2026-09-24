@@ -2,6 +2,9 @@ import { BASE, OUT, EXE, chromium } from './_env.mjs';
 const browser = await chromium.launch({ executablePath:EXE,
   args:['--no-sandbox','--autoplay-policy=no-user-gesture-required'] });
 const page = await browser.newPage({viewport:{width:430,height:932},isMobile:true,hasTouch:true,deviceScaleFactor:2});
+// 本站没提供音乐服务（src/site.js 空着）时的行为；真实的 site.js 可能已填了本站的 Worker
+await page.route('**/src/site.js*', r => r.fulfill({ status: 200, contentType: 'text/javascript',
+  body: `export const SITE = { neteaseApi: '', neteaseRealIP: '', neteaseWorker: '' };` }));
 // 页面里的代码也用得到 BASE（假接口就挂在同一个地址下）
 await page.addInitScript(b => { window.BASE = b; }, BASE);
 const errs=[]; page.on('pageerror',e=>errs.push('PAGEERROR: '+e.message));

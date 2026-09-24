@@ -25,8 +25,9 @@ const fakeApi = async ctx => {
 const open = async site => {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   await fakeApi(ctx);
-  // 运营方填好的 site.js
-  if (site) {
+  // 运营方填好的 site.js；null 表示本站什么都没提供（真实的 site.js 可能已填了 Worker，一律盖掉）
+  {
+    site = site || { neteaseApi: '', neteaseRealIP: '', neteaseWorker: '' };
     await ctx.route('**/src/site.js*', r => r.fulfill({ status: 200, contentType: 'text/javascript',
       body: `export const SITE = ${JSON.stringify(site)};` }));
   }

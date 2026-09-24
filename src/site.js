@@ -17,5 +17,5 @@ export const SITE = {
   neteaseRealIP: '',
   // 本站的网易云转发 Worker（worker/netease.js 部署到 Cloudflare 之后的地址），例如 https://ne.xxx.workers.dev
   // 没有服务器时用它。和上面的 neteaseApi 二选一，两个都填时用 neteaseApi
-  neteaseWorker: '',
+  neteaseWorker: 'https://phone-netease.yu864249.workers.dev',
 };

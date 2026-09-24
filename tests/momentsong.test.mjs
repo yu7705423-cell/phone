@@ -6,6 +6,9 @@ const browser = await chromium.launch({ executablePath: EXE, args: ['--no-sandbo
 const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
 let reply = '{}';
 const asked = [];
+// 本站先当作没提供音乐服务（真实的 site.js 可能已填了 Worker），网易云由下面各步自己配
+await ctx.route('**/src/site.js*', r => r.fulfill({ status: 200, contentType: 'text/javascript',
+  body: `export const SITE = { neteaseApi: '', neteaseRealIP: '', neteaseWorker: '' };` }));
 await ctx.route('**/relay.example.com/**', async route => {
   const body = JSON.parse(route.request().postData() || '{}');
   asked.push((body.messages || []).map(m => typeof m.content === 'string' ? m.content : '').join('\n'));
