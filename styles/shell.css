@@ -756,3 +756,12 @@
 .login .btn { width: 100%; margin-top: var(--sp-2); }
 .login-hint { font-size: var(--fs-12); color: var(--text-3); text-align: center; line-height: 1.6; margin-top: var(--sp-2); }
 .login-retry { font-size: var(--fs-13); color: var(--text-2); text-decoration: underline; padding: var(--sp-2); }
+
+/* ---- 排查读数（system/diag.js，地址加 ?diag 才有）。放在屏幕中间，不挡上下两条 ---- */
+.diag {
+  position: fixed; left: var(--sp-2); right: var(--sp-2); top: 40%; z-index: calc(var(--z-banner) + 10);
+  margin: 0; padding: var(--sp-2); border-radius: var(--r-md);
+  background: var(--scrim-strong); color: var(--on-scrim);
+  font: var(--fs-11)/1.5 var(--font-mono); white-space: pre-wrap;
+  pointer-events: none;
+}

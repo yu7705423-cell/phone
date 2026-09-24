@@ -15,12 +15,15 @@ import { gate, watch as watchAuth } from './system/auth.js';
 import { Login } from './shell/Login.js';
 import { install as holdViewport } from './system/viewport.js';
 import { install as installFullscreen } from './system/fullscreen.js';
+import { install as installDiag } from './system/diag.js';
 import './screens/home/widgets.js';
 import './screens/home/insWidgets.js';
 
 const mount = document.getElementById('app');
 // 键盘收起后把整页推回原位（见 system/viewport.js）。登录页也要，所以放在最前
 holdViewport();
+// 地址加 ?diag 时屏幕中间显示几项布局读数，排查真机上空出来的那一条
+installDiag();
 
 render(html`<div class="boot"><span class="spinner"></span></div>`, mount);
 
