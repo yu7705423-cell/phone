@@ -49,7 +49,10 @@ export function enter() {
 
 // 系统栏藏着、网页自己画状态栏的两种：这里请求来的全屏，和加到主屏幕、以全屏打开的
 const installedFull = () => mq('(display-mode: fullscreen)') && !isFull();
-const drawsBars = () => isFull() || installedFull();
+// **苹果设备一律不算。** 苹果把加到主屏幕的应用也报成 display-mode: fullscreen，
+// 可它的系统状态栏一直都在：照安卓那样清零安全区，主页就钻进状态栏底下，
+// 左上角的返回键点不到（build .120 到 .130）
+const drawsBars = () => !apple() && (isFull() || installedFull());
 
 // 系统状态栏闪过一下之后（进全屏那一下，或者从顶上划出来又收回去），安卓 Chrome 有时
 // 不再把页面画进摄像头那一行：页面从那一行下面开始（innerHeight 比 screen.height 矮一截），

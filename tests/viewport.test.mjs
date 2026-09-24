@@ -110,6 +110,48 @@ const IPHONE_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleW
   await c.close();
 }
 
+// ---- iPhone 加到主屏幕：苹果把它报成 display-mode: fullscreen ----
+// 那一套「网页自己画状态栏、安全区清零」是给安卓全屏的。苹果的系统状态栏一直都在，
+// 清零之后主页钻进状态栏底下、左上角返回键点不到（build .120 到 .130 都是这样）
+{
+  const c = await browser.newContext({ viewport: { width: 430, height: 932 }, isMobile: true, hasTouch: true, userAgent: IPHONE_UA });
+  const p = await c.newPage();
+  p.on('pageerror', e => errs.push('PAGEERROR: ' + e.message));
+  await p.addInitScript(() => {
+    const real = window.matchMedia.bind(window);
+    window.matchMedia = q => /display-mode:\s*fullscreen/.test(q)
+      ? { matches: true, media: q, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {} }
+      : real(q);
+    document.addEventListener('DOMContentLoaded', () => {
+      const st = document.createElement('style');
+      st.textContent = '.root{--safe-top:59px;--safe-bottom:34px;--cutout-top:59px}';
+      document.head.appendChild(st);
+    });
+  });
+  await p.goto(`${BASE}/index.html`, { waitUntil: 'domcontentloaded' });
+  await p.waitForTimeout(1500);
+  await p.evaluate(async () => (await import('/src/system/nav.js')).unlock());
+  await p.waitForTimeout(600);
+  const home = await p.evaluate(() => ({
+    attr: document.documentElement.hasAttribute('data-browser-full'),
+    safe: getComputedStyle(document.querySelector('.root')).getPropertyValue('--safe-top').trim(),
+    grid: Math.round(document.querySelector('.home-grid')?.getBoundingClientRect().top ?? -1),
+  }));
+  ok('iPhone 主屏幕应用：不按安卓全屏处理', !home.attr, JSON.stringify(home));
+  ok('iPhone 主屏幕应用：安全区照旧（59）', home.safe === '59px', home.safe);
+  ok('iPhone 主屏幕应用：主页在状态栏下面', home.grid >= 59, home.grid);
+  await p.evaluate(async () => {
+    const { db } = await import('/src/system/db/index.js');
+    const ch = db.characters.create({ name: '乃木' });
+    const chat = db.chats.create({ characterIds: [ch.id], lastMessageAt: Date.now() });
+    (await import('/src/system/nav.js')).openApp('chat', `/chat/${chat.id}`);
+  });
+  await p.waitForTimeout(900);
+  const back = await p.evaluate(() => Math.round(document.querySelector('.navback')?.getBoundingClientRect().top ?? -1));
+  ok('iPhone 主屏幕应用：返回键在状态栏下面，点得到', back === 59, back);
+  await c.close();
+}
+
 ok('全程没有运行时报错', errs.length === 0, errs.join(' | '));
 await browser.close();
 const bad = R.filter(x => !x.pass).length;
