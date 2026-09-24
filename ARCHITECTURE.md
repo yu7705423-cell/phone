@@ -3190,7 +3190,11 @@ Avatar / Badge / Toast / EmptyState / Spinner / Skeleton
   resize 不理,量到铺满才重新计数
 - 加到主屏幕、以全屏打开(`display-mode: fullscreen`)与上面请求来的全屏同一个处境,
   安全区清零、状态栏加高、留白重排三样照做(`fullscreen.js` 的 `drawsBars`)。状态栏划出来
-  几秒后自己收回去,所以 resize 之后等 3.5 秒再量
+  几秒后自己收回去,所以 resize 之后等 3.5 秒再量。桌面全屏版启动时与从后台切回来时,
+  系统状态栏先露一下再收起,有的机器量不出矮一截、那一行照样留白:等 2.5 秒无条件重排一次,
+  由计时器触发,只一次
+- `?diag` 打开一次就记在 localStorage(`?diag=off` 关),主屏幕那一份没有地址栏也能看读数;
+  读数里另记刚启动与 3 秒后两组
 - 地址加 `?diag` 时屏幕中间显示布局读数(`system/diag.js`),排查真机上空出来的那一条
 
 ### 9.4 图标

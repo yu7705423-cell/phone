@@ -169,6 +169,10 @@ const installed = (extra = {}) => open({ isMobile: true, hasTouch: true, userAge
   ok('桌面全屏版：不用点，直接按全屏处理', m.attr);
   ok('桌面全屏版：状态栏贴着顶边，上面不再空一条（不照卡住的安全区让）', m.top === 0 && m.pad === '0px', JSON.stringify(m));
   ok('桌面全屏版：状态栏和系统的一样高（47）', m.h === 47, m.h);
+  // 启动时系统状态栏露一下再收起；有的机器量不出矮一截，照样留白。等它收完重排一次，只一次
+  await p.waitForTimeout(3500);
+  const once = await p.evaluate(() => window.__vp.filter(v => /viewport-fit=auto/.test(v)).length);
+  ok('桌面全屏版：启动几秒后重排一次（不看量出来多少），只一次', once === 1, once);
   await c.close();
 }
 {
@@ -179,7 +183,8 @@ const installed = (extra = {}) => open({ isMobile: true, hasTouch: true, userAge
   await p.waitForTimeout(3000);
   const seq = await p.evaluate(() => window.__vp);
   const autos = seq.filter(v => /viewport-fit=auto/.test(v)).length;
-  ok('桌面全屏版矮一截：重排过，但最多两次，尺寸再变也不一直换', autos >= 1 && autos <= 2, JSON.stringify(seq.length));
+  // 启动后那一次 + 量出矮一截的最多两次
+  ok('桌面全屏版矮一截：重排过，但有限几次，尺寸再变也不一直换', autos >= 1 && autos <= 3, autos);
   ok('桌面全屏版：换完最后仍是 cover', /viewport-fit=cover/.test(await p.evaluate(() => document.querySelector('meta[name="viewport"]').content)));
   await c.close();
 }
@@ -192,9 +197,17 @@ const installed = (extra = {}) => open({ isMobile: true, hasTouch: true, userAge
   const d = await p.locator('.diag').innerText().catch(() => '');
   ok('?diag：屏幕上有读数，写着是否全屏、安全区、外壳位置',
     /build \d/.test(d) && /full yes/.test(d) && /env top/.test(d) && /root top/.test(d) && /bar top/.test(d), d);
+  ok('?diag：记下刚启动与 3 秒后的读数', /t0 inner \d+/.test(d), d);
+  // 主屏幕那一份没有地址栏：打开过一次就记住
+  await p.goto(`${BASE}/index.html`, { waitUntil: 'domcontentloaded' });
+  await p.waitForTimeout(1200);
+  ok('打开过一次 ?diag：之后不加也显示（主屏幕那一份用得上）', (await p.locator('.diag').count()) === 1);
+  await p.goto(`${BASE}/index.html?diag=off`, { waitUntil: 'domcontentloaded' });
+  await p.waitForTimeout(1200);
+  ok('?diag=off：关掉', (await p.locator('.diag').count()) === 0);
   await c.close();
   const n = await open({ isMobile: true, hasTouch: true, userAgent: ANDROID_UA });
-  ok('不加 ?diag：没有读数', (await n.p.locator('.diag').count()) === 0);
+  ok('从没开过：没有读数', (await n.p.locator('.diag').count()) === 0);
   await n.c.close();
 }
 

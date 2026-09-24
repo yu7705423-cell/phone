@@ -63,19 +63,27 @@ const REFIT_MAX = 2;
 let refits = 0;
 let flipping = false;
 const shortOfScreen = () => drawsBars() && screen.height - innerHeight > 8;
-function refit() {
-  if (flipping) return;
-  if (!shortOfScreen()) { refits = 0; return; }
-  if (refits >= REFIT_MAX) return;
+function flip() {
   const m = document.querySelector('meta[name="viewport"]');
-  if (!m || !/viewport-fit=cover/.test(m.content)) return;
-  refits++;
+  if (flipping || !m || !/viewport-fit=cover/.test(m.content)) return false;
   flipping = true;
   const was = m.content;
   m.content = was.replace('viewport-fit=cover', 'viewport-fit=auto');
   requestAnimationFrame(() => requestAnimationFrame(() => { m.content = was; }));
   setTimeout(() => { flipping = false; }, 800);
+  return true;
 }
+function refit() {
+  if (flipping) return;
+  if (!shortOfScreen()) { refits = 0; return; }
+  if (refits >= REFIT_MAX) return;
+  if (flip()) refits++;
+}
+// 桌面全屏版启动时（以及从后台切回来时），系统状态栏先露一下再收起。有的机器上
+// 量不出「矮一截」，那一行照样留白。所以等它收完，不看量出来多少，重排一次 ——
+// 只这一次，由计时器触发，不接 resize，不会自己追着自己跑
+const SETTLE_MS = 2500;
+const refitOnce = () => { if (drawsBars()) flip(); };
 // 划出来的状态栏几秒后自己收回去，收回去之后再量；量早了它还在，矮一截是对的
 let refitTimer = 0;
 const refitLater = ms => { clearTimeout(refitTimer); refitTimer = setTimeout(refit, ms); };
@@ -98,7 +106,10 @@ export function install() {
     // 状态栏闪完、收回去之后再量
     if (isFull()) { refits = 0; setTimeout(refit, 500); setTimeout(refit, 1500); }
   });
-  if (installedFull()) setTimeout(refit, 1500);
+  if (installedFull()) setTimeout(refitOnce, SETTLE_MS);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && drawsBars()) setTimeout(refitOnce, SETTLE_MS);
+  });
   window.addEventListener('resize', () => { if (!flipping && drawsBars()) refitLater(3500); });
 
   // pointerup（触摸）与 click 都算一次点按，浏览器认它做进全屏的理由。
