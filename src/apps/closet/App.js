@@ -127,12 +127,12 @@ function Home() {
               subtitle=${on ? '每天从该角色衣帽间已有的衣物与随身物品里选一次今天穿什么、带什么，调用一次接口。已配置和风天气且角色卡填写了所在地区时，严格按当天预报选择，不合气温的衣物不参与挑选。当天已经选过的不再生成。关闭后不再自动选择'
                 : '关闭。开启后每天调用一次接口，从该角色衣帽间已有的东西里选出今天穿什么、带什么；所用接口可在「设置 - 任务用哪套接口」中选择'}
               right=${html`<${Switch} checked=${on}
-                onChange=${v => db.characters.update(owner, { closetDaily: v, closetDailyAt: '', closetDailyError: '' })}/>`}/>
+                onChange=${v => db.characters.update(owner, { closetDaily: v })}/>`}/>
             <${ListItem} title=${dailyBusy ? '正在选择' : '现在选一次'} multiline
               subtitle="按该角色的设定从衣帽间里选出今天穿什么、带什么，调用一次接口。今天已选的几件保留，另外勾上选出的"
               onClick=${dailyBusy ? null : now}/>
           <//>
-          ${failed ? html`<div class="settings-foot is-error">今天的自动选择失败：${char.closetDailyError}</div>` : null}`;
+          ${failed ? html`<div class="settings-foot is-error">今天的自动选择失败：${char.closetDailyError}。今天不再自动重试，明天自动选择一次；可点「现在选一次」手动重试。</div>` : null}`;
       })() : null}
 
       ${borrowed.length ? html`

@@ -10,6 +10,15 @@
 //   六、同一个网址开两个页面：只有一个页面跑后台巡检
 import { BASE, EXE, chromium } from './_env.mjs';
 
+// 这份测试替哪几个自动任务作证（scripts/check-autocost.mjs 核对：自动任务都要有一项，断言名必须真的存在）
+const COVERS = {
+  'due:watch': '一起看：开口失败之后不再每五秒重试（17 秒内只打出去一次）',
+  'memory.extract': '总结失败之后，下一轮不再试（从前这一批之后的积压全算没试过）',
+  'scene.summary': '线下压缩失败之后，下一段不再压（从前每写一段先再压一次）',
+  'chat.face-describe': '读脸图失败过一次：下一张图不再读（每张图各扣一次识图费）',
+};
+void COVERS;
+
 const browser = await chromium.launch({ executablePath: EXE, args: ['--no-sandbox'] });
 const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
 await ctx.route('**/src/site.js*', async r => {

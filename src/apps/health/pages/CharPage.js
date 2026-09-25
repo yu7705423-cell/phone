@@ -64,10 +64,10 @@ export function CharPage({ charId }) {
                 + '当天已有内容（包括手动填写的）时不生成。'
               : '已关闭。需要时手动点击上方按钮生成。开启后每天一次接口调用。'}
             right=${html`<${Switch} checked=${char.healthAuto === true}
-              onChange=${v => db.characters.update(charId, { healthAuto: v, healthAutoAt: '' })}/>`}/>
+              onChange=${v => db.characters.update(charId, { healthAuto: v })}/>`}/>
         <//>
         ${char.healthAuto === true && char.healthAutoError && char.healthAutoAt === date ? html`
-          <div class="settings-foot is-error">今天的自动生成失败：${char.healthAutoError}。可点击上方按钮重试。</div>` : null}
+          <div class="settings-foot is-error">今天的自动生成失败：${char.healthAutoError}。今天不再自动重试，明天自动生成一次；可点击上方按钮手动重试。</div>` : null}
         ${d.source === 'ai' ? html`
           <div class="settings-foot">当前这一份由模型按人设生成，可以逐项修改。</div>` : null}
         <${Field} label="精力">

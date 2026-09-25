@@ -14,6 +14,7 @@ import { runJSONTask } from '../engine.js';
 import * as clock from '../../time.js';
 import * as dayStore from '../../day.js';
 import * as weatherApi from '../../weather.js';
+import * as daily from '../daily.js';
 
 export { isVisionReady, isImageReady };
 
@@ -220,6 +221,8 @@ export async function ensureDaily(charId) {
   const d = today();
   if (char.closetDailyAt === d) return null;
   if (wornToday(charId).length) return null;
+  // 今天已经自动试过（别的页面试的、开关关了又开）：不再试，等明天
+  if (!daily.claim('closet', charId, d)) return null;
   dailyBusy.add(charId);
   characters.update(charId, { closetDailyAt: d, closetDailyError: '' });
   try {

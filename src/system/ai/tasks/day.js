@@ -6,6 +6,7 @@ import * as space from '../../space.js';
 import * as weather from '../../weather.js';
 import { fillTemplate, template } from '../templates.js';
 import { runJSONTask } from '../engine.js';
+import * as daily from '../daily.js';
 
 // 生成角色当天的日程。
 //
@@ -133,6 +134,9 @@ export async function ensureToday(charId) {
   const char = characters.get(charId);
   if (!char || !dayStore.isOn(char) || inFlight.has(charId)) return null;
   if (dayStore.today(charId)) return null;
+  // 今天已经自动排过（别的页面排的、那条记录还没同步过来）：不再排，等明天。
+  // 「重新安排」是手动的，走 makeToday，不经过这里
+  if (!daily.claim('day', charId, dayStore.dateKey(char))) return null;
   inFlight.add(charId);
   try { return await makeToday(charId); }
   catch (err) { console.warn('[day] 今天的日程没排出来:', err.message || err); return null; }

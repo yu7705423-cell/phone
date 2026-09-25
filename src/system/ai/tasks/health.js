@@ -1,4 +1,5 @@
 import { characters } from '../../db/index.js';
+import * as daily from '../daily.js';
 import * as healthStore from '../../health.js';
 import { fillTemplate, template } from '../templates.js';
 import { runJSONTask } from '../engine.js';
@@ -120,6 +121,8 @@ export async function ensureToday(charId) {
   const date = healthStore.dateKey();
   if (char.healthAutoAt === date) return null;
   if (filled(healthStore.dayOf(charId, date))) return null;
+  // 今天已经自动试过（别的页面试的、开关关了又开）：不再试，等明天
+  if (!daily.claim('health', charId, date)) return null;
   inFlight.add(charId);
   characters.update(charId, { healthAutoAt: date, healthAutoError: '' });
   try {

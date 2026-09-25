@@ -13,6 +13,7 @@ import { check as uiTone } from './check-ui-tone.mjs';
 import { check as calls } from './check-calls.mjs';
 import { check as backupAll } from './check-backup.mjs';
 import { check as contract } from './check-contract.mjs';
+import { check as autocost } from './check-autocost.mjs';
 
 console.log('小手机 自检\n');
 let failed = 0;
@@ -26,6 +27,7 @@ failed += report('长按禁选', longpress());
 failed += report('提示词是书面语', promptTone());
 failed += report('界面文案是书面语', uiTone());
 failed += report('接口调用次数', calls());
+failed += report('自动调用有失败测试', autocost());
 failed += report('备份完整性', backupAll());
 failed += report('美化契约', contract());
 failed += report('死导出', dead());

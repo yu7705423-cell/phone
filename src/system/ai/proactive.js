@@ -343,6 +343,9 @@ let healthMod = null;
 import('./tasks/health.js').then(m => { healthMod = m; }).catch(() => {});
 let closetMod = null;
 import('./tasks/closet.js').then(m => { closetMod = m; }).catch(() => {});
+let dailyMod = null;
+import('./daily.js').then(m => { dailyMod = m; }).catch(() => {});
+const localDay = t => { const d = new Date(t); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; };
 const altReady = id => !!altMod && altMod.eligible(id);
 const altRolls = id => !!altMod && altMod.rolls(id);
 
@@ -374,7 +377,9 @@ export async function tick() {
 
     // 自己存照片那一档**不跟着主动消息走**：各有各的开关，
     // 一个只开了存照片、没开主动消息的角色照样该存（见 tasks/snap.js）
-    if (snapMod && !running.has(char.id) && snapMod.due(char, now)) {
+    if (snapMod && !running.has(char.id) && snapMod.due(char, now)
+      // 按天算的自动任务，一天最多自动试一次，失败也等明天（间隔填 0 时从前是每次巡检都来一次）
+      && dailyMod?.claim('snap', char.id, localDay(now))) {
       snapMod.setLastAt(char.id, now);
       running.add(char.id);
       snapMod.takeSnap(char.id)

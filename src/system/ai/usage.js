@@ -65,7 +65,7 @@ export const TASKS = {
   'para.crew':           { label: '段评' },
   'para.readers':        { label: '段评' },
   'para.one':            { label: '段评' },
-  'read.ahead':          { label: '一起读' },
+  'read.ahead':          { label: '一起读', auto: true },
   'watch.outline':       { label: '一起看提纲' },
   'phone.album':         { label: '查看角色手机' },
   'phone.chat':          { label: '查看角色手机' },
