@@ -435,7 +435,7 @@ style=${`width:${size}px`}
 
 | | 分支 | 发布到 | 谁在用 |
 |---|---|---|---|
-| 正式版 | `release` | GitHub Pages（`yu7705423-cell.github.io/phone/`） | 用户 |
+| 正式版 | `release` | `eiraphone.cn`（Cloudflare Pages，连 `release`）；旧网址 GitHub Pages（`yu7705423-cell.github.io/phone/`）保留着，只用来让老用户搬家 | 用户 |
 | 测试版 | `claude/mini-phone-architecture-tqzvig` | Cloudflare Pages（`*.pages.dev`），在 Cloudflare 后台连着仓库自动部署 | 只有维护者 |
 
 - **日常改动只推开发分支。** 测试版随之自动更新，正式版不动。

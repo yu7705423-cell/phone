@@ -1,6 +1,6 @@
 // 这一份是正式版还是测试版。见 CLAUDE.md「正式版与测试版」
 //
-// 按网址认：测试版放在 Cloudflare Pages（*.pages.dev），正式版在 GitHub Pages。
+// 按网址认：测试版放在 Cloudflare Pages（*.pages.dev），正式版在 eiraphone.cn（旧网址 GitHub Pages 留作搬家）。
 // 两边是不同的域名，浏览器里的数据天然分开 —— 这正是测试版不放在同一个
 // github.io 下面的原因（同域名会共用一份数据，测试版的升级会改掉正式数据）。
 //

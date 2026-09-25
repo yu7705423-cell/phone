@@ -26,6 +26,6 @@ export const SITE = {
   //   moveTo:   'https://eira.example.cn/'                   新网址
   // 两个都填了，旧网址上会提示搬家，新网址上可以一键把旧网址的数据搬过来。
   // 浏览器里的数据按网址分开存，不搬的话新网址上是空的。留空表示没有搬家这回事
-  moveFrom: '',
-  moveTo: '',
+  moveFrom: 'https://yu7705423-cell.github.io/phone/',
+  moveTo: 'https://eiraphone.cn/',
 };
