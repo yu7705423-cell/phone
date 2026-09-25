@@ -6,6 +6,7 @@ import * as proactive from './ai/proactive.js';
 import { renderTurn } from './ai/reply.js';
 import { note } from './ai/usage.js';
 import * as remark from './remark.js';
+import { createStore } from './store.js';
 
 // 后台消息：app 关着的时候，角色照样按「主动找你」的时间发消息来（ARCHITECTURE 4.226）。
 //
@@ -225,7 +226,10 @@ export function plan({ away = false } = {}) {
 // 现在：退到后台一律交给服务器；回来之后取回结果（成功失败都算这一次已经用掉）才恢复本机发；
 // 取不回来（服务器连不上）就一直不发，并在「设置 - 通知」写明原因 —— 宁可少发，不能同一次扣两次
 let settling = false;
+// 界面订阅这个（「设置 - 通知」）：原因是取回结果之后才知道的，页面先打开也要跟着刷新
+export const problemStore = createStore({ text: '' });
 let lastProblem = '';
+const setProblem = t => { lastProblem = t; problemStore.set({ text: t }); };
 /** 最近一次和服务器对不上的原因，界面上显示。空字符串表示正常 */
 export const problem = () => lastProblem;
 
@@ -276,7 +280,7 @@ export async function collect() {
   touched.forEach(id => proactive.reschedule(id));
   // 离开期间到点、结果里却没有的（旧版服务器失败时不带角色、封顶没发）：同样归服务器，本机不补
   proactive.rescheduleOverdue();
-  lastProblem = failed.length ? `服务器替角色发送失败 ${failed.length} 次（${failed[0]}）。失败的那一次不补发` : '';
+  setProblem(failed.length ? `服务器替角色发送失败 ${failed.length} 次（${failed[0]}）。失败的那一次不补发` : '');
   return n;
 }
 
@@ -297,7 +301,7 @@ export function install() {
     return collect()
       .then(() => { settling = false; })
       .catch(err => {
-        lastProblem = `连不上后台消息服务器（${err.message || err}）。为避免同一次开口本机与服务器各发一次，恢复连接之前本机不发主动消息`;
+        setProblem(`连不上后台消息服务器（${err.message || err}）。为避免同一次开口本机与服务器各发一次，恢复连接之前本机不发主动消息`);
         console.warn('[bgpush] 取回失败:', err.message || err);
       });
   };

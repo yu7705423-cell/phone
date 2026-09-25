@@ -19,6 +19,8 @@ const PERM_TEXT = {
 
 export function NotifyPage() {
   const s = useStore(db.settings.store);
+  // 后台消息服务器那边的问题：取回结果之后才知道，页面开着也要刷新出来
+  useStore(bgpush.problemStore);
   const cfg = sound.config();
   const [busy, setBusy] = useState(false);
   const [perm, setPerm] = useState(push.permission());

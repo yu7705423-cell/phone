@@ -105,17 +105,20 @@ const tick = page => page.evaluate(async () => (await import('/src/system/ai/pro
   await page.waitForTimeout(1300);
   // 真实的旧版服务器：失败的结果里只有报错，不带是哪个角色（用户部署的服务器不会跟着应用更新）
   state.results = [{ id: 'r2', status: 'failed', error: '接口 500: boom', firedAt: Date.now() }];
+  // 结果晚一点才回来：先把「设置 - 通知」打开，原因到了页面要跟着刷新出来（从前要退出再进才看得到）
+  state.resultsDelay = 2500;
   await vis(page, 'visible');
-  await page.waitForTimeout(1500);
+  await page.evaluate(async () => { const n = await import('/src/system/nav.js'); n.unlock(); n.openApp('settings', '/notify'); });
+  await page.waitForTimeout(300);
+  const before = /服务器替角色发送失败/.test(await page.evaluate(() => document.body.innerText));
+  await page.waitForTimeout(3500);
   await tick(page);
   await page.waitForTimeout(1500);
   ok('服务器替你发失败了：回来之后本机不补发（那一次可能已经扣过）', state.model === 0, `本机发了 ${state.model} 次`);
   const counted = await page.evaluate(async () => (await import('/src/system/ai/usage.js')).since(3600000)
     .filter(x => x.label === '角色主动发消息').reduce((a, x) => a + x.n, 0));
   ok('服务器那次失败记进「后台任务」的账：次数不比实际扣费少', counted === 1 && state.model === 0, `记了 ${counted} 次，本机发了 ${state.model} 次`);
-  await page.evaluate(async () => { const n = await import('/src/system/nav.js'); n.unlock(); n.openApp('settings', '/notify'); });
-  await page.waitForTimeout(700);
-  ok('失败写在「设置 - 通知」里', /服务器替角色发送失败/.test(await page.evaluate(() => document.body.innerText)));
+  ok('失败写在「设置 - 通知」里：页面先开着，结果回来后刷新出来', !before && /服务器替角色发送失败/.test(await page.evaluate(() => document.body.innerText)));
   await ctx.close();
 }
 
