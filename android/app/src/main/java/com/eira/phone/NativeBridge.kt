@@ -14,6 +14,11 @@ import android.util.Base64
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import android.widget.Toast
+import android.app.Activity
+import android.view.ViewGroup
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
@@ -34,6 +39,7 @@ import java.util.concurrent.atomic.AtomicInteger
  *    只做转发，状态码、响应头、响应体原样交回，错误也原样报。
  * 二、把网页导出的文件（备份）写进系统的「下载」。
  * 三、通话的桌面悬浮窗（见 CallFloat 与网页的 src/system/callfloat.js）。
+ * 四、系统状态栏放出来还是藏起来（网页「设置 - 外观 - 全屏显示」，src/system/fullscreen.js）。
  */
 class NativeBridge(private val context: Context, private val web: WebView) {
 
@@ -81,6 +87,36 @@ class NativeBridge(private val context: Context, private val web: WebView) {
     fun setFloat(json: String) {
         val msg = runCatching { JSONObject(json) }.getOrNull() ?: return
         main.post { CallFloat.update(context, msg) }
+    }
+
+    // ---- 系统状态栏 ----
+
+    @Volatile private var barsShown = false
+
+    /**
+     * 网页的「全屏显示」关掉时放出系统状态栏，开着时藏起来（开机默认藏，见 MainActivity.onCreate）。
+     *
+     * 放出来的那一条要把网页往下推：新系统上窗口默认铺到状态栏底下（edge-to-edge），
+     * 不推的话页面顶端压在状态栏下面。按系统报的状态栏高度给网页一个上边距，藏起来时归零
+     */
+    @JavascriptInterface
+    fun setSystemBars(show: Boolean) {
+        val act = context as? Activity ?: return
+        main.post {
+            barsShown = show
+            WindowCompat.getInsetsController(act.window, act.window.decorView).apply {
+                if (show) show(WindowInsetsCompat.Type.statusBars())
+                else hide(WindowInsetsCompat.Type.statusBars())
+            }
+            ViewCompat.setOnApplyWindowInsetsListener(web) { v, insets ->
+                val top = if (barsShown) insets.getInsets(WindowInsetsCompat.Type.statusBars()).top else 0
+                (v.layoutParams as? ViewGroup.MarginLayoutParams)?.let {
+                    if (it.topMargin != top) { it.topMargin = top; v.layoutParams = it }
+                }
+                insets
+            }
+            ViewCompat.requestApplyInsets(web)
+        }
     }
 
     // ---- 发请求 ----

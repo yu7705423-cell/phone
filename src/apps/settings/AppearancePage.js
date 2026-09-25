@@ -130,11 +130,12 @@ export function AppearancePage() {
           right=${html`<div style="width:150px"><${Segmented}
             value=${s.statusBar} onChange=${v => db.settings.set({ statusBar: v })}
             items=${[{ value: 'auto', label: '自动' }, { value: 'on', label: '显示' }, { value: 'off', label: '隐藏' }]}/></div>`}/>
-        ${phone.fullscreen.supported() ? html`
-          <${ListItem} title="浏览器中全屏" multiline
-            subtitle="在浏览器标签页中运行时，触摸屏幕后进入全屏，隐藏地址栏与系统状态栏，并显示模拟状态栏。退出全屏后，下一次触摸会再次进入。关闭后保留浏览器的地址栏与状态栏。"
-            right=${html`<${Switch} checked=${s.autoFullscreen !== false}
-              onChange=${v => { db.settings.set({ autoFullscreen: v }); if (v) phone.fullscreen.enter(); }}/>`}/>` : null}
+        <${ListItem} title="全屏显示" multiline
+          subtitle=${'开启时界面铺满整块屏幕。关闭后，手机上内容从系统状态栏下方开始，'
+            + '安卓浏览器不再自动进入全屏，安卓安装包显示系统状态栏；电脑与平板上以手机宽度居中显示。'
+            + '安卓「添加到主屏幕」的版本由系统在添加时决定，不受此开关影响。'}
+          right=${html`<${Switch} checked=${phone.fullscreen.wantFull()}
+            onChange=${v => phone.fullscreen.setFull(v)}/>`}/>
         <${ListItem} title="返回方式" multiline
           subtitle=${s.navStyle === 'back'
             ? '左上角一个返回键。点一下退回上一级，双击回到主界面，长按打开多任务。主界面上不显示。'

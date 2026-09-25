@@ -2,7 +2,7 @@ import { html, useState, useEffect } from '../lib.js';
 import { Icon } from '../icons/Icon.js';
 import { useStore } from '../system/store.js';
 import { settings } from '../system/db/index.js';
-import { fullStore } from '../system/fullscreen.js';
+import { fullStore, shellHidesBars } from '../system/fullscreen.js';
 
 // 移动端浏览器本身就有状态栏,再画一条就是双份。
 // auto = 触摸设备自动隐藏;on / off 手动覆盖。
@@ -21,7 +21,7 @@ export function shouldShow(mode) {
   if (mode === 'on') return true;
   if (mode === 'off') return false;
   if (apple() && window.matchMedia('(pointer: coarse)').matches) return false;
-  if (window.phoneFullscreen || document.fullscreenElement
+  if (shellHidesBars() || document.fullscreenElement
     || window.matchMedia('(display-mode: fullscreen)').matches) return true;
   return !window.matchMedia('(pointer: coarse)').matches;
 }

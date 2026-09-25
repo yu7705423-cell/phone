@@ -95,7 +95,8 @@ const tapBlank = p => p.touchscreen.tap(206, 700);
   await p.evaluate(() => document.exitFullscreen());
   await p.evaluate(async () => (await import('/src/system/nav.js')).openApp('settings', '/appearance'));
   await p.waitForTimeout(800);
-  ok('外观页里有「浏览器中全屏」', (await p.getByText('浏览器中全屏').count()) === 1);
+  // 老开关「浏览器中全屏」并进了「全屏显示」（ARCHITECTURE 4.232），老的 autoFullscreen 照样认
+  ok('外观页里有「全屏显示」', (await p.getByText('全屏显示', { exact: true }).count()) === 1);
   await p.evaluate(async () => (await import('/src/system/db/index.js')).db.settings.set({ autoFullscreen: false }));
   if (await full(p)) await p.evaluate(() => document.exitFullscreen());
   await p.waitForTimeout(300);
@@ -219,7 +220,8 @@ const installed = (extra = {}) => open({ isMobile: true, hasTouch: true, userAge
   ok('iPhone：触摸不进全屏', !(await full(p)));
   await p.evaluate(async () => (await import('/src/system/nav.js')).openApp('settings', '/appearance'));
   await p.waitForTimeout(800);
-  ok('iPhone：外观页里没有这个开关', (await p.getByText('浏览器中全屏').count()) === 0);
+  // 「全屏显示」在 iPhone 上也有意义（关掉后让出系统状态栏），开关照样在
+  ok('iPhone：外观页里有「全屏显示」', (await p.getByText('全屏显示', { exact: true }).count()) === 1);
   await c.close();
 }
 

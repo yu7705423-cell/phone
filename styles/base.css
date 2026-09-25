@@ -82,6 +82,27 @@ svg { display: block; flex: none; }
    挤在那一行的上半截，下面的页面顶到摄像头上 */
 :root[data-browser-full] .statusbar { height: max(var(--statusbar-h), var(--cutout-top)); }
 
+/* 不全屏（设置 - 外观 - 全屏显示，system/fullscreen.js 的 applyWindowed）。
+   手机上：内容从系统状态栏下面开始，那一条由 .root 统一让出来、垫一块底色，
+   壁纸也从它下面开始。不再交给各层自己让（--top-inset 清零）。
+   高度照旧是 100vh，只是顶上让一条，这一串容器的规矩不变（CLAUDE.md 第 1 条）。 */
+:root[data-windowed] .root { padding-top: var(--safe-top); --top-inset: 0px; }
+:root[data-windowed] .root::before {
+  content: ''; position: absolute; left: 0; right: 0; top: 0; z-index: 60;
+  height: var(--safe-top); background: var(--bg); pointer-events: none;
+}
+:root[data-windowed="dark"] .root::before { background: var(--status-band); }
+:root[data-windowed] .wallpaper { top: var(--safe-top); }
+/* 电脑、平板的宽屏：手机宽度居中。不画机身、刘海、投影（CLAUDE.md 第 3 条），只有两条细边。
+   transform 让里面 position: fixed 的东西（壁纸、底部浮层）以这一栏为准，不铺到两侧留白上 */
+@media (min-width: 600px) {
+  :root[data-windowed] body { background: var(--surface-3); }
+  :root[data-windowed] .root {
+    max-width: 430px; margin: 0 auto; transform: translateZ(0);
+    border-left: 1px solid var(--border); border-right: 1px solid var(--border);
+  }
+}
+
 .scroll {
   overflow-y: auto;
   overflow-x: hidden;

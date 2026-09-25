@@ -16,6 +16,16 @@
 // 但「加到主屏幕」那一种和这里请求来的全屏是同一个处境（系统栏藏着、网页自己画状态栏、
 // 状态栏划出来过一次之后 Chrome 报的安全区不回去），所以下面的安全区清零、留白重排
 // 两样对它一样做（drawsBars）。
+// ---- 可以不全屏（设置 - 外观 - 全屏显示，ARCHITECTURE 4.232）----
+//
+// 一个开关，每种打开方式各自理解「不全屏」：
+//   安卓浏览器标签页   不再自动进全屏，已经在全屏里的当场退出
+//   安卓安装包         外壳把系统状态栏放出来（EiraNative.setSystemBars，旧安装包没有这个接口就照旧）
+//   iPhone、iPad       内容从系统状态栏下面开始，那一条单独垫一块底色，不再让壁纸和页面钻到它底下
+//   电脑、平板的宽屏   以手机宽度居中显示，两侧留白。仍然不画机身、刘海、投影（CLAUDE.md 第 3 条）
+// 安卓上「加到主屏幕」的那种是 manifest 定下的全屏，网页改不了，只能在安装时决定。
+//
+// 老的「浏览器中全屏」（autoFullscreen）并进来：没动过新开关的，照老开关的值。
 import { createStore } from './store.js';
 import { settings } from './db/index.js';
 
@@ -30,7 +40,7 @@ export const isFull = () => !!document.fullscreenElement;
 /** 这台设备、这种打开方式下，「浏览器中全屏」有没有意义 */
 export function supported() {
   if (typeof document === 'undefined' || !document.documentElement.requestFullscreen) return false;
-  if (apple() || window.phoneFullscreen || navigator.standalone === true) return false;
+  if (apple() || shellHidesBars() || navigator.standalone === true) return false;
   if (mq('(display-mode: standalone)')) return false;
   // 加到主屏幕、以全屏方式打开的：display-mode 是 fullscreen，但不是这里请求来的
   if (mq('(display-mode: fullscreen)') && !isFull()) return false;
@@ -97,12 +107,42 @@ function mark() {
   fullStore.set({ full: isFull() });
 }
 
+/** 用户要不要全屏 */
+export function wantFull() {
+  const s = settings.get();
+  return s.fullscreen === undefined ? s.autoFullscreen !== false : s.fullscreen !== false;
+}
+
+/** 安卓安装包藏着系统状态栏、网页要自己画那一条。不全屏且外壳放得出来时就不藏了 */
+export const shellHidesBars = () => !!window.phoneFullscreen
+  && (wantFull() || typeof window.EiraNative?.setSystemBars !== 'function');
+
 // 电脑上点一下就全屏太突兀，自动的那一档只在触摸屏上
-const wanted = () => settings.get().autoFullscreen !== false && mq('(pointer: coarse)');
+const wanted = () => wantFull() && mq('(pointer: coarse)');
+
+/** 按开关把根元素的标记、外壳的系统栏摆好。开机与改开关时各调一次 */
+export function applyWindowed() {
+  const off = !wantFull();
+  const root = document.documentElement;
+  root.toggleAttribute('data-windowed', off);
+  // iPhone 加到主屏幕：状态栏样式是 black-translucent（index.html），字是白的，垫的那条要深色
+  const pwaApple = apple() && navigator.standalone === true && !window.phoneAppVersion;
+  if (off && pwaApple) root.dataset.windowed = 'dark';
+  try { window.EiraNative?.setSystemBars?.(off); } catch { /* 旧外壳 */ }
+  mark();
+}
+
+/** 改开关 */
+export function setFull(on) {
+  settings.set({ fullscreen: !!on });
+  applyWindowed();
+  if (on) enter();
+  else if (isFull()) document.exitFullscreen?.().catch(() => {});
+}
 
 export function install() {
   if (typeof document === 'undefined') return;
-  mark();
+  applyWindowed();
   window.matchMedia('(display-mode: fullscreen)').addEventListener?.('change', mark);
   document.addEventListener('fullscreenchange', () => {
     mark();

@@ -4,6 +4,7 @@
 
 :root {
   --bg:          #FFFFFF;
+  --status-band: #000000;  /* 不全屏时 iPhone 主屏幕版顶上垫的那条：系统状态栏的字是白的 */
   --surface:     #FFFFFF;
   --surface-2:   #F4F4F4;
   --surface-3:   #ECECEC;
@@ -166,6 +167,7 @@
 
 :root[data-theme="dark"] {
   --bg:          #000000;
+  --status-band: #000000;
   --surface:     #0B0B0B;
   --surface-2:   #141414;
   --surface-3:   #1E1E1E;
