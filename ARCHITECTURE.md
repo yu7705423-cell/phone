@@ -8747,3 +8747,14 @@ IndexedDB 与 localStorage：测试版的数据迁移会改掉正式数据，`DB
 同一批顺带：**app 外壳里不提醒搬家**（`move.js` 的 `inShell`）。外壳是一个 WebView，开不出第二个
 窗口，点了「搬家」新网址会被当成站外链接扔给系统浏览器，数据落到浏览器那边。外壳的网址另外换
 （改打包参数重新打），换之前旧网址照常能用。
+
+### 4.224 角色包导入成副本：「已总结」标记跟着换 id
+
+会话上记着总结到了哪一条：`memoryUpTo` 指一条消息，`memoryUpToBeat` 指一段线下正文（两条水位线，
+见 `ai/tasks/memory-extract.js`）。本机已经有这个角色时，导入角色包是副本，会话、消息、正文全换一套
+新 id，而这两条标记从前照抄旧 id —— 在副本里找不到那一条，`after` 落空，整段历史又全算成没总结，
+「总结记忆」一按就是从头再来一遍（也就是再付一遍钱）。
+
+现在 `charpack.install` 在消息与正文都放好之后，按两张 id 表把会话上的 `memoryUpTo`、`memoryUpToBeat`、
+`memoryTriedId` 换到新 id；包里没带那一条（导出时不带聊天记录）就清空。整份备份、GitHub 备份、搬家
+一律原 id 恢复，本来就不受影响。测试 `tests/packmark.test.mjs`。

@@ -363,11 +363,25 @@ export async function install(pack) {
     if (!workId) return;
     chapters.put({ ...c, id: fresh(proseMap, chapters, c, 'cp'), workId });
   });
+  const beatMap = new Map();
   (data.beats || []).forEach(b => {
     const owner = proseMap.get(b.sceneId);
     if (!owner) return;
-    const id = (copied || beats.has(b.id)) ? uid('bt') : b.id;
+    const id = fresh(beatMap, beats, b, 'bt');
     beats.put({ ...b, id, sceneId: owner, authorId: who(b.authorId) });
+  });
+
+  // 「已总结到这儿」的两条水位线指着消息与正文的 id（ai/tasks/memory-extract.js）。
+  // 换了 id 不跟着换的话找不到那一条，整段历史又全算成没总结 —— 导入成副本时就是这样
+  (data.chats || []).forEach(c => {
+    const id = chatMap.get(c.id);
+    if (!id) return;
+    const mark = (map, old) => (old ? (map.get(old) || null) : old);
+    chats.update(id, {
+      memoryUpTo: mark(msgMap, c.memoryUpTo),
+      memoryUpToBeat: mark(beatMap, c.memoryUpToBeat),
+      memoryTriedId: mark(msgMap, c.memoryTriedId),
+    });
   });
   (data.trips || []).forEach(t => {
     const chatId = chatMap.get(t.chatId);
