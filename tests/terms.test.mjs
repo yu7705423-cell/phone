@@ -6,6 +6,7 @@
 //   四、使用须知处不同意：结束页，进不去；「重新阅读」回到开头
 //   五、内测说明第 3 条不同意：结束页写明是内测说明
 //   六、安卓安装包（有 exitApp）：不同意直接关掉应用
+//   七、每页要读够时间才能同意：使用须知 5 秒，内测说明每条 3 秒，按钮上倒数；不同意随时能点
 import { BASE, EXE, chromium } from './_env.mjs';
 
 const browser = await chromium.launch({ executablePath: EXE, args: ['--no-sandbox'] });
@@ -42,8 +43,22 @@ const nope = page => page.locator('.terms-acts button', { hasText: '不同意' }
     return !!el && !!el.closest('.terms-gate');
   });
   ok('挡住了下面的应用：点不到主界面', covered);
+  // 七：倒计时（打开之后已经等了约 2 秒）
+  const btn = () => page.locator('.terms-acts button').nth(1);
+  const early = { dis: await btn().isDisabled(), txt: await btn().innerText() };
+  ok('使用须知：读够 5 秒之前「同意」点不了，按钮上倒数', early.dis && /同意（\d）/.test(early.txt), JSON.stringify(early));
+  ok('「不同意」随时能点', !(await page.locator('.terms-acts button').nth(0).isDisabled()));
+  await page.waitForTimeout(3500);
+  ok('读够 5 秒：可以同意', !(await btn().isDisabled()) && (await btn().innerText()) === '同意');
   await agree(page);
-  await page.waitForTimeout(200);
+  await page.waitForTimeout(300);
+  const e1 = { dis: await btn().isDisabled(), txt: await btn().innerText() };
+  ok('内测说明每一条：重新计时，读够 3 秒之前点不了', e1.dis && /同意（[1-3]）/.test(e1.txt), JSON.stringify(e1));
+  await page.waitForTimeout(1500);
+  ok('不到 3 秒仍然点不了', await btn().isDisabled());
+  await page.waitForTimeout(1500);
+  ok('读够 3 秒：可以同意', !(await btn().isDisabled()));
+  // 回到第一条那一页，接着走一遍（上面这一页不再点，由下面的循环从第 1 条开始）
   const steps = [];
   for (let i = 1; i <= 6; i++) {
     const t = await text(page);

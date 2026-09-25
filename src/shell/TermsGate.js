@@ -1,4 +1,4 @@
-import { html, useState } from '../lib.js';
+import { html, useState, useEffect } from '../lib.js';
 import { useStore } from '../system/store.js';
 import { Button } from '../ui/index.js';
 import { NOTICE, TITLE, BETA, termsStore, accept, decline, restart } from '../system/terms.js';
@@ -7,10 +7,25 @@ import { NOTICE, TITLE, BETA, termsStore, accept, decline, restart } from '../sy
 //
 // 第 0 步是使用须知全文；第 1 到 6 步是内测说明，一条一页。每一步「同意 / 不同意」，
 // 不同意就结束（安卓安装包里关掉应用，别处画结束页）。全部同意才放行，之后不再弹。
+//
+// 每一页要读够时间「同意」才能点（用户要求）：使用须知 5 秒，内测说明每条 3 秒。按钮上倒数。
+// 「不同意」随时能点。
+const READ_FIRST = 5;
+const READ_EACH = 3;
+
 export function TermsGate() {
   const t = useStore(termsStore);
   const [step, setStep] = useState(0);
+  const [wait, setWait] = useState(READ_FIRST);
   const total = BETA.items.length;
+
+  // 每换一页重新计时。结束页上停着不计
+  useEffect(() => {
+    if (t.declined) return undefined;
+    setWait(step === 0 ? READ_FIRST : READ_EACH);
+    const id = setInterval(() => setWait(w => (w > 1 ? w - 1 : (clearInterval(id), 0))), 1000);
+    return () => clearInterval(id);
+  }, [step, t.declined]);
 
   if (t.declined) {
     return html`
@@ -44,7 +59,7 @@ export function TermsGate() {
       </div>
       <div class="terms-acts">
         <${Button} variant="ghost" onClick=${decline}>不同意<//>
-        <${Button} onClick=${next}>同意<//>
+        <${Button} onClick=${next} disabled=${wait > 0}>${wait > 0 ? `同意（${wait}）` : '同意'}<//>
       </div>
     </div>`;
 }
