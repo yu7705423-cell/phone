@@ -51,7 +51,9 @@ const calc = await ev(async () => {
 });
 ok('小类的默认用量：粉底 2 泵、开封后 12 个月', calc.dose === 2 && calc.unit === '泵' && calc.pao === 12, JSON.stringify(calc));
 // 开封日期按那天零点算，今天已经过去的这几个小时也扣，所以是 49% 到 50%
-ok('余量：开封 30 天，按一天半毫升算，剩一半、还能用 30 天', calc.pct >= 49 && calc.pct <= 50 && calc.days >= 29 && calc.days <= 30, JSON.stringify(calc));
+// 开封日期只到「哪一天」，从那天 0 点起算：一天里越晚，多用掉的那不到一天越多。
+// 从前只容许到 49%、29 天，一到晚上（多用掉半天以上）就必然失败，与改动无关
+ok('余量：开封 30 天，按一天半毫升算，剩一半、还能用 30 天', calc.pct >= 48 && calc.pct <= 50 && calc.days >= 28 && calc.days <= 30, JSON.stringify(calc));
 ok('保质期：只有开封日期，按开封加 12 个月', calc.expBasis === 'opened', calc.expBasis);
 ok('保质期：填了保质日期就按填的', calc.expSet === 'set' && calc.setDays >= 9 && calc.setDays <= 10, JSON.stringify(calc));
 ok('保质期：只有购入日期，按未开封 36 个月', calc.boughtBasis === 'bought' && calc.boughtDays > 1000, JSON.stringify(calc));
