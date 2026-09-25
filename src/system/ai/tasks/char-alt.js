@@ -16,7 +16,8 @@ export const DEFAULTS = {
 };
 
 const MIN_MESSAGES = 30;   // 聊得够久才会动这个念头
-export const MAX_ALTS = 2;   // 一个角色最多同时挂两个马甲
+// 从前一个角色最多同时挂两个马甲。那是替用户封顶（CLAUDE.md 第 13 条），用户要求去掉：
+// 开多少个由角色自己、由那个概率决定，总开关与概率都在角色卡上
 
 export function configOf(char) {
   if (!char) return { ...DEFAULTS };
@@ -35,7 +36,6 @@ export function blockedBy(charId, personaId = accounts.currentId()) {
   if (!char) return '该角色已被删除';
   if (char.parentId) return '小号不会再开设小号';
   if (!configOf(char).charAlt) return '该开关未开启';
-  if (altsOf(charId).length >= MAX_ALTS) return `已有 ${MAX_ALTS} 个小号，不会再开设`;
   const chat = chats.all().find(c => (c.characterIds || []).length === 1
     && c.characterIds[0] === charId && c.personaId === personaId);
   const n = chat ? messagesDb.where(m => m.chatId === chat.id).length : 0;
@@ -52,15 +52,65 @@ function contextOf(char, personaId) {
   return [char.persona, mems ? `What you remember:\n${mems}` : ''].filter(Boolean).join('\n\n');
 }
 
+// ---- 开号的由头从哪儿来 ----
+//
+// 从前只给人设和几条重要记忆：没有最近聊了什么，也没有之前开过哪些号。
+// 于是每次想出来的由头都一样 —— 同一份人设、同一批记忆，推出来的当然是同一个理由。
+// 现在把这两样作为**数据**给进去：最近这段对话，和已经开过的每一个号（名字、签名、
+// 当时为什么开、什么时候开的、那边最近聊到哪儿）。怎么用由它自己定（CLAUDE.md 第 16 条）。
+
+const RECENT = 40;       // 本体那段对话最近多少条
+const ALT_TAIL = 6;      // 每个小号那边最近多少条
+
+const pairChat = (charId, personaId) => chats.all().find(c => (c.characterIds || []).length === 1
+  && c.characterIds[0] === charId && (c.personaId || personaId) === personaId);
+
+function lines(chatId, n, charName, userName) {
+  if (!chatId) return '';
+  return messagesDb.where(m => m.chatId === chatId && m.status !== 'error' && m.kind !== 'narration')
+    .sort((a, b) => a.createdAt - b.createdAt).slice(-n)
+    .map(m => `${m.role === 'user' ? userName : charName}：${String(m.content || '').replace(/\s+/g, ' ').slice(0, 200)}`)
+    .join('\n');
+}
+
+const day = t => (t ? new Date(t).toISOString().slice(0, 10) : '');
+
+function recentOf(char, personaId, userName) {
+  return lines(pairChat(char.id, personaId)?.id, RECENT, char.name, userName);
+}
+
+function altsBlock(char, personaId, userName) {
+  const list = altsOf(char.id).sort((a, b) => (a.altOpenedAt || 0) - (b.altOpenedAt || 0));
+  const rows = list.map(a => {
+    const tail = lines(pairChat(a.id, personaId)?.id, ALT_TAIL, a.name, userName);
+    return [
+      `- ${a.name}${a.altOpenedAt ? ` (opened ${day(a.altOpenedAt)})` : ''}`,
+      a.signature ? `  signature: ${a.signature}` : '',
+      a.altReason ? `  why it was opened: ${a.altReason}` : '',
+      tail ? `  latest messages there:\n${tail.split('\n').map(x => `    ${x}`).join('\n')}` : '',
+    ].filter(Boolean).join('\n');
+  });
+  // 开过又删掉的：本体上留着一份记录（altHistory），名字与原因还在
+  const gone = (char.altHistory || []).filter(h => !list.some(a => a.id === h.id))
+    .map(h => [`- ${h.name}${h.at ? ` (opened ${day(h.at)}, since deleted)` : ' (since deleted)'}`,
+      h.reason ? `  why it was opened: ${h.reason}` : ''].filter(Boolean).join('\n'));
+  return [...gone, ...rows].join('\n');
+}
+
 // 真的去开一个。返回新角色和它的会话
 export async function openAlt(charId, personaId = accounts.currentId()) {
   const char = characters.get(charId);
   if (!char) throw new Error('角色不存在');
   const me = accounts.get(personaId);
 
+  const userName = me?.name || '对方';
+  const recent = recentOf(char, personaId, userName);
+  const alts = altsBlock(char, personaId, userName);
   const system = fillTemplate(template('task.char-alt'), {
-    charName: char.name, userName: me?.name || '对方',
-  }) + `\n\n## Your own settings\n${contextOf(char, personaId)}`;
+    charName: char.name, userName,
+  }) + `\n\n## Your own settings\n${contextOf(char, personaId)}`
+    + (recent ? `\n\n## Recent conversation with ${userName}, under your own account\n${recent}` : '')
+    + (alts ? `\n\n## Accounts you have already opened\n${alts}` : '');
 
   const r = await runJSONTask('char.alt', {
     system, key: `char-alt:${charId}:${Date.now()}`, maxTokens: 900,
@@ -84,6 +134,10 @@ export async function openAlt(charId, personaId = accounts.currentId()) {
     proactiveQuietFrom: char.proactiveQuietFrom ?? 0,
     proactiveQuietTo: char.proactiveQuietTo ?? 8,
   });
+
+  // 在本体上记一笔：以后这个号删了，下一次开号时它仍然知道开过、为什么开
+  characters.update(charId, { altHistory: [...(char.altHistory || []),
+    { id: alt.id, name: alt.name, reason: alt.altReason, at: alt.altOpenedAt }] });
 
   const chat = chats.create({
     characterIds: [alt.id], personaId,

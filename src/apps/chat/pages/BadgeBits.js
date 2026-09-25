@@ -336,7 +336,7 @@ export function BadgesPage({ chatId }) {
       <${Sheet} open=${pick} onClose=${() => setPick(false)} title="颁给哪一位">
         <${List}>
           ${members.map(c => html`
-            <${ListItem} key=${c.id} title=${c.name} arrow
+            <${ListItem} key=${c.id} title=${phone.remark.nameOf(c)} arrow
               onClick=${() => { setPick(false); setGiving(c); }}/>`)}
         <//>
       <//>

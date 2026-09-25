@@ -62,7 +62,7 @@ export function ReadAheadSheet({ open, bookId, from, onClose }) {
 
       <${List} title=${s ? '换一个角色' : '让谁来读'}>
         ${para.candidates().map(c => html`
-          <${ListItem} key=${c.id} title=${c.name} arrow
+          <${ListItem} key=${c.id} title=${phone.remark.nameOf(c)} arrow
             subtitle=${c.signature || ''}
             left=${html`<${Avatar} src=${c.avatar} name=${c.name} size=${34}/>`}
             right=${busy ? html`<${Spinner} size=${15}/>` : null}

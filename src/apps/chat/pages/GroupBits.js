@@ -47,7 +47,7 @@ function Picker({ picked, onToggle, exclude = [] }) {
   return html`
     <${List}>
       ${list.map(c => html`
-        <${ListItem} key=${c.id} title=${c.name} subtitle=${c.signature || ''}
+        <${ListItem} key=${c.id} title=${phone.remark.nameOf(c)} subtitle=${c.signature || ''}
           left=${html`<${Face} char=${c} size=${34}/>`}
           right=${html`<span class=${`pick-dot${picked.includes(c.id) ? ' is-on' : ''}`}>
             ${picked.includes(c.id) ? html`<${Icon} name="check" size=${11}/>` : null}</span>`}
@@ -130,7 +130,7 @@ export function GroupPage({ chatId }) {
       toast(`群聊至少需要 ${phone.group.MIN} 名成员`, 'error');
       return;
     }
-    if (!await confirm({ title: `移出 ${c.name}`, message: '已有的消息保留。移出后该角色不再在这个群里发言。' })) return;
+    if (!await confirm({ title: `移出 ${phone.remark.nameOf(c)}`, message: '已有的消息保留。移出后该角色不再在这个群里发言。' })) return;
     phone.group.removeMember(chatId, c.id);
   };
   const remove = async () => {
@@ -166,7 +166,7 @@ export function GroupPage({ chatId }) {
 
       <${List} title=${`成员（${members.length}）`}>
         ${members.map(c => html`
-          <${ListItem} key=${c.id} title=${c.name} subtitle=${c.signature || ''}
+          <${ListItem} key=${c.id} title=${phone.remark.nameOf(c)} subtitle=${c.signature || ''}
             left=${html`<${Face} char=${c} size=${34}/>`}
             right=${html`<button class="nav-text press is-danger" onClick=${e => { e.stopPropagation(); drop(c); }}>移出</button>`}
             onClick=${() => nav.push(`/profile/${c.id}`)}/>`)}
@@ -253,7 +253,7 @@ export function MentionBar({ chat, draft, onPick }) {
   const m = String(draft || '').match(/@([^\s@]*)$/);
   if (!m) return null;
   const key = m[1];
-  const list = phone.group.members(chat).filter(c => !key || (c.name || '').includes(key));
+  const list = phone.group.members(chat).filter(c => !key || (c.name || '').includes(key) || (c.remark || '').includes(key));
   if (!list.length) return null;
   return html`
     <div class="mention-bar chip-row">

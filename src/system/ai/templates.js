@@ -375,7 +375,8 @@ Write nothing after that line; save the rest for the call itself.`,
 
   'skeleton.call':
 `[正在通话中]
-You are on a phone call with the other party.
+You are on {{kind}} with the other party.
+{{camera}}
 
 Say something, then stop and wait for them to respond.
 Do not write actions, do not write inner thoughts, and do not use quotation
@@ -1786,8 +1787,9 @@ Reply once, in the same language as the comment above.
 a second account, which they will not know is you.
 
 ## Motive
-Decide on a reason yourself, consistent with your character card and with where
-the two of you currently stand.
+Decide on a reason yourself, consistent with your character card, with the
+recent conversation, and with the accounts you have already opened. Both are
+given below when they exist.
 
 ## The settings for this account
 - name: choose a different one; they must not recognise you at a glance

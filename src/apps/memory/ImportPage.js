@@ -20,7 +20,7 @@ export function ImportPage() {
   const [off, setOff] = useState(new Set());
 
   const chars = db.characters.all();
-  const owners = chars.map(c => ({ value: c.id, label: c.name }));
+  const owners = chars.map(c => ({ value: c.id, label: phone.remark.nameOf(c) }));
   // 按下之前先把账摆出来：这一段会切成几块，就是几次调用
   const calls = raw.trim() ? imp.callsFor(raw) : 0;
 

@@ -155,7 +155,7 @@ export function MomentsTab() {
             <div class="btn-row is-chips pad-t">
               ${chars.map(c => html`
                 <${Button} key=${c.id} size="sm" variant=${who.has(c.id) ? 'primary' : 'ghost'}
-                  onClick=${() => toggleWho(c.id)}>${c.name}<//>`)}
+                  onClick=${() => toggleWho(c.id)}>${phone.remark.nameOf(c)}<//>`)}
             </div>` : null}
           <div class="mo-vis-desc">
             ${viewers.length

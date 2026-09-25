@@ -265,7 +265,7 @@ function PreviewPage() {
             <div class="chip-row">
               ${chars.map(c => html`
                 <button key=${c.id} class=${`chip${charId === c.id ? ' is-active' : ''}`}
-                  onClick=${() => setCharId(c.id)}>${c.name}</button>`)}
+                  onClick=${() => setCharId(c.id)}>${phone.remark.nameOf(c)}</button>`)}
             </div>`
           : html`<div class="field-desc">还没有角色卡，先去聊天里建一个。</div>`}
         <//>
@@ -370,7 +370,7 @@ function MapPage() {
             <div class="chip-row">
               ${chars.map(c => html`
                 <button key=${c.id} class=${`chip${charId === c.id ? ' is-active' : ''}`}
-                  onClick=${() => setCharId(c.id)}>${c.name}</button>`)}
+                  onClick=${() => setCharId(c.id)}>${phone.remark.nameOf(c)}</button>`)}
             </div>
           <//>` : null}
       </div>

@@ -2,7 +2,7 @@ import { html, useState } from '../../../lib.js';
 import { phone, useStore, useImage } from '../../../sdk/index.js';
 import { Page, Avatar, Icon, IconButton, EmptyState } from '../../../ui/index.js';
 import { relTime } from '../helpers.js';
-import { authorOf, CommentList, sendComment, removeMoment, MomentSong } from './MomentBits.js';
+import { authorOf, shownName, CommentList, sendComment, removeMoment, MomentSong } from './MomentBits.js';
 
 const { db, nav, ai } = phone;
 
@@ -47,7 +47,7 @@ export function MomentPage({ id }) {
       <div class="ig-author press ph-moment-detail-author" onClick=${() => nav.push(`/profile/${mo.authorId}`)}>
         <${Avatar} src=${avatar} name=${author?.name} size=${36} radius=${18}/>
         <div>
-          <div class="ig-author-name ph-moment-detail-name">${author?.name || '已删除'}</div>
+          <div class="ig-author-name ph-moment-detail-name">${shownName(mo.authorId, author)}</div>
           <div class="ig-author-time ph-moment-detail-time">${relTime(mo.createdAt)}</div>
         </div>
       </div>
@@ -62,7 +62,7 @@ export function MomentPage({ id }) {
           </div>` : null}` : null}
       ${mo.imagePending ? html`<div class="mo-genning pad-x"><span class="spinner"></span>正在配图</div>` : null}
 
-      ${gone ? html`<div class="mo-gone-note ph-moment-detail-gone">${author?.name || '对方'}已撤回这条动态。以下是撤回前的内容。</div>` : null}
+      ${gone ? html`<div class="mo-gone-note ph-moment-detail-gone">${author ? shownName(mo.authorId, author) : '对方'}已撤回这条动态。以下是撤回前的内容。</div>` : null}
       <div class="ig-foot ph-moment-detail-foot">
         <button class=${`mo-act press ph-moment-act ph-moment-like${liked ? ' is-on' : ''}`} disabled=${gone}
           onClick=${() => ai.moments.toggleLike(mo.id)}>

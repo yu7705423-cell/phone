@@ -35,10 +35,10 @@ export function Hero({ w }) {
       <div class="wk-hero-art">
         ${url
     ? html`<img src=${url} alt=""/>`
-    : html`<span class="wk-hero-glyph">${String(w.title || c.name || '作').slice(0, 1)}</span>`}
+    : html`<span class="wk-hero-glyph">${String(w.title || phone.remark.nameOf(c) || '作').slice(0, 1)}</span>`}
       </div>
       <div class="wk-hero-title">${w.title || '未命名'}</div>
-      <div class="wk-hero-names">${[c.name, m.name].filter(Boolean).join('　')}</div>
+      <div class="wk-hero-names">${[phone.remark.nameOf(c), m.name].filter(Boolean).join('　')}</div>
       <div class="wk-hero-meta">${meta}</div>
     </div>`;
 }

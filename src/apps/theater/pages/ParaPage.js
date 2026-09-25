@@ -103,7 +103,7 @@ export function ParaPage({ kind, id, at }) {
       <${List} title="让谁来评">
         <${ListItem} title=${isVideo ? '多人同看' : '多人共读'} arrow multiline
           subtitle=${crew.length
-            ? `${crew.map(c => c.name).join('、')} 各写一条 · 本次调用 ${calls} 次`
+            ? `${crew.map(c => phone.remark.nameOf(c)).join('、')} 各写一条 · 本次调用 ${calls} 次`
             : '先选定参与共读的角色，之后每一段点一下即可'}
           left=${busy === 'crew' ? html`<${Spinner} size=${16}/>` : html`<${Icon} name="users" size=${18}/>`}
           onClick=${() => (crew.length
@@ -159,7 +159,7 @@ function CrewSheet({ open, subject, onClose }) {
     <${Sheet} open=${true} onClose=${onClose} title="共读名单" height="80%">
       <${List} inset=${false}>
         ${all.map(c => html`
-          <${ListItem} key=${c.id} title=${c.name} subtitle=${c.signature || ''}
+          <${ListItem} key=${c.id} title=${phone.remark.nameOf(c)} subtitle=${c.signature || ''}
             left=${html`<${Avatar} src=${c.avatar} name=${c.name} size=${34}/>`}
             right=${picked.has(c.id) ? html`<${Icon} name="check" size=${16}/>` : null}
             onClick=${() => toggle(c.id)}/>`)}

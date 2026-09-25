@@ -117,7 +117,7 @@ function Home() {
 
     <${List} title="角色的书架">
       ${shelves.map(c => html`
-        <${ListItem} key=${c.id} title=${`${c.name} 的书架`} arrow multiline
+        <${ListItem} key=${c.id} title=${`${phone.remark.nameOf(c)} 的书架`} arrow multiline
           subtitle=${`${c.count} 本`}
           left=${html`<${Icon} name="book" size=${18}/>`}
           onClick=${() => nav.push(`/shelf/${c.id}`)}/>`)}
@@ -145,7 +145,7 @@ function Home() {
       <${Sheet} open=${picking} onClose=${() => setPicking(false)} title="给谁摆书架" height="70%">
         <${List} inset=${false}>
           ${db.characters.all().filter(c => !c.parentId).map(c => html`
-            <${ListItem} key=${c.id} title=${c.name} arrow
+            <${ListItem} key=${c.id} title=${phone.remark.nameOf(c)} arrow
               subtitle=${`${(c.shelf || []).length} 本`}
               onClick=${() => { setPicking(false); nav.push(`/shelf/${c.id}`); }}/>`)}
           ${db.characters.count() ? null : html`<${ListItem} title="还没有角色" multiline

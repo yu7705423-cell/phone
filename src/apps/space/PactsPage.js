@@ -41,7 +41,7 @@ export function PactsPage({ chatId }) {
 
   const who = m => (m.role === 'user'
     ? (sp?.persona?.name || '我')
-    : (sp?.char?.name || '角色'));
+    : (phone.remark.nameOf(sp?.char) || '角色'));
 
   return html`
     <${Page} title="约定" onBack=${nav.pop}

@@ -205,7 +205,7 @@ export function MsgMenu({ msg, char, onClose, onRegenerate, onQuote, onMultiSele
         imageId: fresh.imageId || phone.db.stickers.get(fresh.stickerId)?.imageId,
         from: {
           chatId: fresh.chatId, charId: fresh.authorId,
-          name: fresh.role === 'user' ? '我' : (char?.name || ''),
+          name: fresh.role === 'user' ? '我' : (phone.remark.nameOf(char) || ''),
           at: fresh.createdAt,
         },
       });
@@ -220,7 +220,7 @@ export function MsgMenu({ msg, char, onClose, onRegenerate, onQuote, onMultiSele
   const keepNote = () => {
     const body = (textOf(fresh) || '').trim();
     if (!body) { toast('这一条没有可记的正文', 'error'); return; }
-    const who = fresh.role === 'user' ? '我' : (char?.name || '对方');
+    const who = fresh.role === 'user' ? '我' : (phone.remark.nameOf(char) || '对方');
     const row = phone.note.add(`${who}：${body}`, {
       from: phone.note.FROM_CHAT,
       chatId: fresh.chatId, charId: fresh.authorId || char?.id || '',

@@ -108,7 +108,7 @@ function BookEditor({ book, onClose }) {
         ${pairs.map(c => {
           const char = db.characters.get(c.characterIds[0]);
           return html`
-            <${ListItem} key=${c.id} title=${char?.name || '未命名'}
+            <${ListItem} key=${c.id} title=${phone.remark.nameOf(char) || '未命名'}
               right=${chatId === c.id ? html`<span class="li-hint">已选</span>` : null}
               onClick=${() => setChatId(c.id)}/>`;
         })}

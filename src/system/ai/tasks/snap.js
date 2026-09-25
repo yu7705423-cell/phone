@@ -5,6 +5,7 @@ import { template, runJSONTask } from '../engine.js';
 import { fillTemplate } from '../templates.js';
 import { notify } from '../../notify.js';
 import * as extras from '../../extras.js';
+import * as remark from '../../remark.js';
 import * as album from '../../album.js';
 import { listFor } from '../context/memory.js';
 
@@ -107,7 +108,7 @@ export async function takeSnap(charId) {
   // 相册本来就是「你想起来才去看」的东西，每张都弹就成了骚扰
   if (extras.isStarred(char)) {
     notify({
-      title: extras.starTitle(char, char.name || '新照片'),
+      title: extras.starTitle(char, remark.nameOf(char) || '新照片'),
       body: photo.note || '存了一张照片',
       icon: 'image', appId: 'album', avatar: char.avatar,
       payload: { route: '/' },

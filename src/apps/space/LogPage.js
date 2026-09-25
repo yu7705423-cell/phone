@@ -58,7 +58,7 @@ export function LogPage({ chatId, kind }) {
 
   const meta = META[kind];
   const sp = space.spaceOf(chatId);
-  const names = { me: sp?.persona?.name || '我', char: sp?.char?.name || '角色' };
+  const names = { me: sp?.persona?.name || '我', char: phone.remark.nameOf(sp?.char) || '角色' };
   const list = meta ? space.recordsOf(chatId, kind).slice().reverse() : [];
 
   if (!meta) {

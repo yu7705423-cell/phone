@@ -113,7 +113,7 @@ export function TimePage() {
         ${away.length ? html`
           <${List} title="与本人存在时差的角色">
             ${away.map(({ c, z }) => html`
-              <${ListItem} key=${c.id} title=${c.name} subtitle=${clock.zoneLabel(z)}
+              <${ListItem} key=${c.id} title=${phone.remark.nameOf(c)} subtitle=${clock.zoneLabel(z)}
                 right=${html`<span class="zone-now">${clock.clockOnly(now, z)}</span>`}
                 arrow onClick=${() => nav.push(`/edit/${c.id}`)}/>`)}
           <//>` : null}

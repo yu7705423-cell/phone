@@ -69,6 +69,8 @@ export function Profile({ subjectId, embedded }) {
   }
 
   const patch = p => (isMe ? db.personas.update(me.id, p) : db.characters.update(subjectId, p));
+  // 角色走备注（没备注就是本名），我自己是身份名
+  const shownName = isMe ? subject.name : phone.remark.nameOf(subject);
 
   const mine = db.moments.all()
     .filter(m => m.authorId === subjectId)
@@ -178,7 +180,7 @@ export function Profile({ subjectId, embedded }) {
       </div>
 
       <div class="ig-bio ph-profile-bio">
-        <div class="ig-name ph-profile-name">${subject.name}</div>
+        <div class="ig-name ph-profile-name">${shownName}</div>
         ${subject.signature ? html`<div class="ig-sign ph-profile-sign">${subject.signature}</div>` : null}
       </div>
 
@@ -229,5 +231,5 @@ export function Profile({ subjectId, embedded }) {
 
   // 作为聊天 app 的一个分区嵌入时不再套一层导航栏，避免出现两条标题栏
   if (embedded) return body;
-  return html`<${Page} title=${subject.name} onBack=${nav.pop}>${body}<//>`;
+  return html`<${Page} title=${shownName} onBack=${nav.pop}>${body}<//>`;
 }

@@ -1636,11 +1636,11 @@ export function Conversation({ chatId, focusId = '' }) {
         ${isGroup ? html`
         <${List} title="这个群">
           <${ListItem} title="群资料" arrow
-            subtitle=${members.map(c => c.name).join('、')}
+            subtitle=${members.map(c => phone.remark.nameOf(c)).join('、')}
             left=${html`<${Icon} name="users" size=${18}/>`}
             onClick=${() => { setMenu(false); nav.push(`/group/${chatId}`); }}/>
           ${members.map(c => html`
-            <${ListItem} key=${c.id} title=${`${c.name} 的角色卡`} arrow
+            <${ListItem} key=${c.id} title=${`${phone.remark.nameOf(c)} 的角色卡`} arrow
               left=${html`<${Icon} name="user" size=${18}/>`}
               onClick=${() => { setMenu(false); nav.push(`/edit/${c.id}`); }}/>`)}
         <//>` : html`

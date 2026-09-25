@@ -120,7 +120,7 @@ function SetupFields({ v, set, cast, chatChars }) {
       <${Field} label="在场角色">
         <${List}>
           ${chatChars.map(c => html`
-            <${ListItem} key=${c.id} title=${c.name}
+            <${ListItem} key=${c.id} title=${phone.remark.nameOf(c)}
               left=${html`<${Avatar} src=${c.avatar} name=${c.name} size=${32}/>`}
               right=${cast.includes(c.id) ? '在场' : '不在'}
               onClick=${() => set({

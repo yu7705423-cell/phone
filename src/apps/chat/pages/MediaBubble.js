@@ -84,7 +84,7 @@ function VoiceBubble({ msg, char }) {
 
   const save = async () => {
     try {
-      await phone.downloadFile(msg.audioId, `${char?.name || '语音'}-${msg.id}.mp3`);
+      await phone.downloadFile(msg.audioId, `${phone.remark.nameOf(char) || '语音'}-${msg.id}.mp3`);
     } catch (err) { toast(String(err.message || err), 'error'); }
   };
 

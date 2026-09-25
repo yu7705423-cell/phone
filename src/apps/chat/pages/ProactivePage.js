@@ -175,7 +175,7 @@ export function ProactivePage({ charId }) {
           <${List} title="角色小号">
             <${ListItem} title="允许角色自行创建小号" multiline
               subtitle=${acfg.charAlt
-                ? (blocked || `轮到她主动时，有 ${Math.round(acfg.charAltChance * 100)}% 的可能她开的不是口，而是一个新号来加你`)
+                ? (blocked || `角色主动发起对话时，有 ${Math.round(acfg.charAltChance * 100)}% 的可能改为开设一个新账号来添加你。已开设的小号数量不设上限`)
                 : '她会换个名字来加你，你不知道那是她。开号的理由和人设都是她自己想的'}
               right=${html`<${Switch} checked=${acfg.charAlt}
                 onChange=${v => db.characters.update(charId, { charAlt: v })}/>`}/>

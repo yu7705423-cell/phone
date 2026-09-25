@@ -276,10 +276,15 @@ export function buildChatSystem(chat, char, msgs, opts = {}) {
     });
   }
 
-  out += '\n\n' + template('skeleton.rules');
-
-  // 各项能力。平时只列一张单子，这一轮真沾边了才给整段细则，见 capabilities.js
-  out += capabilityBlock(ctx);
+  // 通话里不要这两块（opts.call，见 buildCallSystem）：「每轮分几条发」是线上聊天的规则，
+  // 各项能力写的全是方括号标记（发图、转账、表情……），而通话里一个标记都不能写 ——
+  // 从前整份照搬、再在末尾补一句「不要写任何标记」，两套规则在同一份提示词里打架，
+  // 模型两头都要顾，说出来的话就啰嗦
+  if (!opts.call) {
+    out += '\n\n' + template('skeleton.rules');
+    // 各项能力。平时只列一张单子，这一轮真沾边了才给整段细则，见 capabilities.js
+    out += capabilityBlock(ctx);
+  }
 
   // 收尾两件，贴着输出放：核心设定、性别。靠后的位置模型读得最重。
   //
@@ -519,9 +524,10 @@ export function mergeAdjacent(list) {
 //      退回接口本身的上限（见 CLAUDE.md 第 13 条）。
 const callMax = () => settings.get().callMaxTokens || 0;
 
-export async function buildCallSystem(chat, char, { script = false } = {}) {
+export async function buildCallSystem(chat, char, { script = false, video = false } = {}) {
   const msgs = messagesOf(chat.id).filter(m => m.status !== 'error');
-  const { system, volatile: hot } = buildChatSystem(chat, char, msgs, { queryVec: await queryVecFor(msgs) });
+  const { system, volatile: hot } = buildChatSystem(chat, char, msgs,
+    { queryVec: await queryVecFor(msgs), call: true });
   // 语音台本：通话里由角色自己在台词里标停顿与情绪。台词是边说边念的，
   // 另调一次接口写台本来不及，所以不另调。规则是用户的语音世界书，整本给出
   const rules = script ? voiceBookText(char) : '';
@@ -532,7 +538,12 @@ export async function buildCallSystem(chat, char, { script = false } = {}) {
     : '';
   // 通话没有 buildHistory 那条路，下沉的那几块只能接回来。
   // 这里也不必为缓存操心：整通电话只拼一次 system，本来就复用。
-  return [system, hot, template('skeleton.call'), scriptPart].filter(Boolean).join('\n\n');
+  // 视频通话要说一句是视频：画面挂在对方的话上（streamCall 的 image），不说它不知道那是摄像头
+  const callPart = fillTemplate(template('skeleton.call'), {
+    kind: video ? 'a video call' : 'a phone call',
+    camera: video ? 'Images attached to their turns are frames from their camera.' : '',
+  }).replace(/\n{3,}/g, '\n\n');
+  return [system, hot, callPart, scriptPart].filter(Boolean).join('\n\n');
 }
 
 export const callKey = chatId => `call:${chatId}`;

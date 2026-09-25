@@ -13,7 +13,7 @@ const blank = () => ({
 });
 
 function Row({ w }) {
-  const names = work.castOf(w).map(c => c.name).join('、');
+  const names = work.castOf(w).map(c => phone.remark.nameOf(c)).join('、');
   const st = work.statsOf(w.id);
   const meta = [names, st.chapters
     ? `${st.chapters} ${w.kind === work.SAGA ? '章' : '则'} · ${st.chars} 字`

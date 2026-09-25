@@ -13,6 +13,7 @@ import { configOf, inQuiet } from './ai/proactive.js';
 import { notify } from './notify.js';
 import * as camera from './camera.js';
 import * as extras from './extras.js';
+import * as remark from './remark.js';
 import { visionMode } from './ai/services.js';
 
 // 通话。
@@ -271,7 +272,7 @@ export function ring(chatId, { video = false } = {}) {
   framedAt = 0;
 
   notify({
-    title: extras.starTitle(char, char.name || '来电'),
+    title: extras.starTitle(char, remark.nameOf(char) || '来电'),
     body: video ? '视频通话' : '语音通话', icon: 'phone',
     appId: 'chat', avatar: char.avatar, payload: { route: `/chat/${chatId}` },
   });
@@ -338,7 +339,7 @@ async function connect() {
   const chat = chats.get(chatId);
   const char = characters.get(charId);
   try {
-    systemPrompt = await buildCallSystem(plain(chat), char, { script: scriptOn() });
+    systemPrompt = await buildCallSystem(plain(chat), char, { script: scriptOn(), video: !!call.get().video });
   } catch (err) {
     call.set({ error: '准备通话内容时出错：' + (err.message || err) });
   }
@@ -352,7 +353,8 @@ async function connect() {
 
   // 接通之后由角色先开口 —— 拨过去的那一方喊「喂」，打进来的那一方有话要说
   turn(fillTemplate(template('task.call-open'), {
-    origin: direction === 'out' ? '，是对方打给你的' : '，是你打给对方的',
+    // 进 prompt 的句子一律英文（CLAUDE.md 第 14 条）
+    origin: direction === 'out' ? '; they called you' : '; you called them',
   }));
 }
 
@@ -566,6 +568,8 @@ let lastMsgId = '';
 
 async function transLine(chat, idx, text) {
   if (!chat?.translateTo || !text) return;
+  // 已经是目标语言：不翻，不显示第二行（中译中）
+  if (translate.alreadyIn(text, chat.translateTo)) return;
   let tr = '';
   try {
     [tr] = await translate.runAny([text], {
@@ -575,7 +579,7 @@ async function transLine(chat, idx, text) {
     console.warn('[call] 这一句没翻出来:', err.message || err);
     return;
   }
-  if (!tr) return;
+  if (!tr || translate.sameText(tr, text)) return;
   // 电话还在打：写回字幕
   const cur = call.get().lines;
   if (call.get().chatId === chat.id && cur[idx] && cur[idx].text === text) {

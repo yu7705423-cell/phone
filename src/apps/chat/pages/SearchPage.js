@@ -23,7 +23,7 @@ const HitRow = memo(function Hit({ id, q, scoped, onOpen }) {
   const char = chat ? db.characters.get(inGroup && msg?.role === 'char'
     ? msg.authorId : (chat.characterIds || [])[0]) : null;
   const mine = msg?.role === 'user';
-  const charName = char?.name || '已删除的角色';
+  const charName = phone.remark.nameOf(char) || '已删除的角色';
   const speaker = mine ? (me?.name || '我') : charName;
   const title = scoped ? speaker : inGroup ? phone.group.titleOf(chat) : charName;
   const face = scoped && mine ? me?.avatar : char?.avatar;
@@ -113,7 +113,7 @@ export function SearchPage({ chatId }) {
   };
 
   const query = q.trim();
-  const title = scoped ? `在「${char?.name || '这段对话'}」中搜索` : '搜索全部对话';
+  const title = scoped ? `在「${phone.remark.nameOf(char) || '这段对话'}」中搜索` : '搜索全部对话';
   const empty = state === 'done' && !hits.length;
 
   return html`

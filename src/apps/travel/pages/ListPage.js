@@ -47,7 +47,7 @@ export function ListPage() {
   const nameOf = row => {
     const chat = db.chats.get(row.chatId);
     const char = chat && db.characters.get((chat.characterIds || [])[0]);
-    return char?.name || '';
+    return phone.remark.nameOf(char) || '';
   };
 
   const add = html`<button class="nav-text press"

@@ -34,7 +34,7 @@ function Picker({ chatId, char }) {
       <${List} title="一起看了多久">
         <${ListItem} title="累积" multiline
           subtitle=${total.count
-            ? `和${char?.name || '对方'}一共看了 ${watch.fmt(total.seconds)}，${total.count} 次`
+            ? `和${phone.remark.nameOf(char) || '对方'}一共看了 ${watch.fmt(total.seconds)}，${total.count} 次`
             : '还没有一起看过'}/>
       <//>
 

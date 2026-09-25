@@ -143,7 +143,7 @@ function Today() {
               (cd.symptoms || []).map(x => health.symptomOf(x)?.label).filter(Boolean).join('、')]
               .filter(Boolean).join(' · ');
             return html`
-              <${ListItem} key=${c.id} title=${c.name} arrow multiline
+              <${ListItem} key=${c.id} title=${phone.remark.nameOf(c)} arrow multiline
                 subtitle=${bits || '今天还没有设定'}
                 left=${html`<${Icon} name="user" size=${18}/>`}
                 onClick=${() => nav.push(`/char/${c.id}`)}/>`;

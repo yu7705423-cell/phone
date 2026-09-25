@@ -5,6 +5,7 @@ import { prepareTextTask, isConfigured } from './ai/engine.js';
 import * as proactive from './ai/proactive.js';
 import { renderTurn } from './ai/reply.js';
 import { note } from './ai/usage.js';
+import * as remark from './remark.js';
 
 // 后台消息：app 关着的时候，角色照样按「主动找你」的时间发消息来（ARCHITECTURE 4.226）。
 //
@@ -188,7 +189,7 @@ export async function jobsNow(now = Date.now()) {
     let request;
     try { request = prepareTextTask('chat.proactive', payload); } catch { continue; }
     out.push({
-      due: times, chatId: chat.id, charId: char.id, title: char.name || 'Eira',
+      due: times, chatId: chat.id, charId: char.id, title: remark.nameOf(char) || 'Eira',
       lastAt, tz: timeZone(), closing: proactive.PROACTIVE_CLOSING, request,
     });
   }

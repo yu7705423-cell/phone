@@ -46,7 +46,7 @@ export function TripSettleSheet({ msg, onClose }) {
   const act = join => { trip.settle(msg.id, join); onClose(); };
   return html`
     <${Sheet} open=${!!msg} onClose=${onClose}
-      title=${`${char?.name || '对方'}提议一起去${msg.where}`}>
+      title=${`${phone.remark.nameOf(char) || '对方'}提议一起去${msg.where}`}>
       ${msg.when ? html`<div class="settings-foot">提出的时间：${msg.when}</div>` : null}
       <${List} inset=${false}>
         <${ListItem} title="同行" arrow

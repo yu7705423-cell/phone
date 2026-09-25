@@ -7,6 +7,7 @@ import * as accounts from '../system/accounts.js';
 import * as camera from '../system/camera.js';
 import * as float from '../system/callfloat.js';
 import { Avatar, Icon, toast } from '../ui/index.js';
+import { nameOf as shown } from '../system/remark.js';
 
 // 通话界面。挂在外壳上而不是聊天 app 里 —— 电话要能盖住任何页面，
 // 在主界面、在别的 app、在锁屏上接到都是同一回事。
@@ -165,8 +166,8 @@ export function CallLayer() {
   // 桌面悬浮窗要的那几样随时备好（画中画必须在点击那一刻同步进去，见 system/callfloat.js）
   useEffect(() => {
     if (!live) return;
-    float.prepare({ name: char?.name || '', image: s.video ? (scene || avatar || '') : (avatar || ''), video: s.video });
-  }, [live, char?.name, avatar, scene, s.video]);
+    float.prepare({ name: shown(char), image: s.video ? (scene || avatar || '') : (avatar || ''), video: s.video });
+  }, [live, shown(char), avatar, scene, s.video]);
   if (!live) return null;
 
   const video = s.video;
@@ -196,7 +197,7 @@ export function CallLayer() {
   // 缩起来时整层还留着，只是看不见、点不到：摄像头取帧靠的是这一层里的小窗
   // （camera.attach），拆掉的话角色在缩小期间就看不见你了；打了一半的字也还在
   return html`
-    ${mini && !desk.pip ? html`<${CallBall} s=${s} avatar=${avatar} scene=${scene} name=${char?.name}/>` : null}
+    ${mini && !desk.pip ? html`<${CallBall} s=${s} avatar=${avatar} scene=${scene} name=${shown(char)}/>` : null}
     <div class=${`call-layer${dark ? ' is-video' : ''}${mini ? ' is-mini' : ''}`}
       inert=${mini} aria-hidden=${mini ? 'true' : null}>
       ${canShrink ? html`
@@ -212,8 +213,8 @@ export function CallLayer() {
       ${dark ? html`<div class="call-scrim"></div>` : null}
 
       <div class="call-head">
-        ${dark ? null : html`<${Avatar} src=${avatar} name=${char?.name} size=${84} radius=${42}/>`}
-        <div class="call-name">${char?.name || '通话'}</div>
+        ${dark ? null : html`<${Avatar} src=${avatar} name=${shown(char)} size=${84} radius=${42}/>`}
+        <div class="call-name">${shown(char) || '通话'}</div>
         <div class="call-status">${status}</div>
         ${s.error ? html`<div class="call-error">${s.error}</div>` : null}
       </div>
@@ -223,7 +224,7 @@ export function CallLayer() {
 
       ${s.phase === 'active' ? html`
         <${Lines} lines=${s.lines} draft=${s.draft} thinking=${s.thinking}
-          me=${me?.name || '我'} char=${char?.name || '对方'} onDark=${dark}/>`
+          me=${me?.name || '我'} char=${shown(char) || '对方'} onDark=${dark}/>`
         : html`<div class="call-lines"></div>`}
 
       ${s.phase === 'active' && s.mic ? html`

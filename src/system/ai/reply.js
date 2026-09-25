@@ -996,7 +996,8 @@ export function materialize(part, base, char) {
     ...base, ...quote,
     ...(takeBack ? { recalled: recall.charMark() } : {}),
     ...(part.stamp ? { stamp: part.stamp } : {}),
-    ...(part.translation ? { translation: part.translation } : {}),
+    // 模型自己给的译文和原文一模一样（本来就是那种语言）：不挂，免得点开是同一句
+    ...(part.translation && !translate.sameText(part.translation, part.text) ? { translation: part.translation } : {}),
     ...(part.inner ? { inner: String(part.inner).slice(0, 300) } : {}),
   };
 
@@ -1376,8 +1377,8 @@ export function notifyMessage(chat, char, msg) {
   // 群聊：标题是群名，谁说的写在正文前面
   const inGroup = group.isGroup(chat);
   notify({
-    title: inGroup ? group.titleOf(chat) : extras.starTitle(char, char.name || '新消息'),
-    body: inGroup ? `${char.name || ''}：${bodyOf(msg)}` : bodyOf(msg),
+    title: inGroup ? group.titleOf(chat) : extras.starTitle(char, remark.nameOf(char) || '新消息'),
+    body: inGroup ? `${remark.nameOf(char)}：${bodyOf(msg)}` : bodyOf(msg),
     icon: 'message', appId: 'chat', avatar: char.avatar,
     payload: { route: `/chat/${chat.id}` },
   });
@@ -1397,11 +1398,12 @@ function startTranslate(chat, parts) {
   parts.forEach((p, i) => {
     if ((p.type !== 'text' && p.type !== 'voice') || p.translation) return;
     const t = String(p.text || '').trim();
-    if (t) { idx.push(i); texts.push(t); }
+    // 已经是目标语言的那几条不送去翻（中译中，还白花钱）
+    if (t && !translate.alreadyIn(t, chat.translateTo)) { idx.push(i); texts.push(t); }
   });
   if (!texts.length) return null;
   return {
-    idx,
+    idx, texts,
     // 翻译挂了不能连累这一轮消息。原文已经发出去了，少一行译文而已
     promise: translate.run(texts, { lang: chat.translateTo, extra: chat.translateRules })
       .catch(err => { console.warn('[translate] 这一轮没翻出来:', err.message || err); return null; }),
@@ -1415,7 +1417,7 @@ async function applyTranslate(job, byPart) {
   job.idx.forEach((at, k) => {
     const id = byPart.get(at);
     const text = String(out[k] || '').trim();
-    if (id && text) messages.update(id, { translation: text });
+    if (id && text && !translate.sameText(text, job.texts[k])) messages.update(id, { translation: text });
   });
 }
 

@@ -96,7 +96,7 @@ export function SettingsPage() {
 
       <${List} title="角色的身体状态">
         ${chars.map(c => html`
-          <${ListItem} key=${c.id} title=${c.name} multiline
+          <${ListItem} key=${c.id} title=${phone.remark.nameOf(c)} multiline
             subtitle=${health.charOn(c.id)
               ? '已开启。在「健康」首页为它设定今天的状态'
               : '关闭。开启后可为它设定每天的精力、心情与不适，并写进它的上下文'}

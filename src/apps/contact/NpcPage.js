@@ -185,7 +185,7 @@ export function NpcPage({ id }) {
       <${Sheet} open=${picking} onClose=${() => setPicking(false)} title="选择要关联的角色" height="70%">
         <${List} inset=${false}>
           ${others.map(c => html`
-            <${ListItem} key=${c.id} title=${c.name} subtitle=${c.signature || ''} multiline arrow
+            <${ListItem} key=${c.id} title=${phone.remark.nameOf(c)} subtitle=${c.signature || ''} multiline arrow
               left=${html`<${Icon} name="user" size=${18}/>`}
               onClick=${() => manual(c)}/>`)}
         <//>

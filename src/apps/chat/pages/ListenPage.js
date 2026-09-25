@@ -133,7 +133,7 @@ export function ListenPage({ chatId }) {
       ${svc.neteaseReady() ? html`
         <${List} title="搜索网易云"/>
         <${NeteaseSearch} onPick=${playNetease} onSide=${t => setAdding(t)}/>
-        <div class="settings-foot">点击结果即一起听这一首；「加入歌单」可放进你或${char?.name || '角色'}的歌单。</div>` : null}
+        <div class="settings-foot">点击结果即一起听这一首；「加入歌单」可放进你或${phone.remark.nameOf(char) || '角色'}的歌单。</div>` : null}
 
       ${ne.logged ? html`
         <${List} title="我的网易云歌单">
@@ -147,7 +147,7 @@ export function ListenPage({ chatId }) {
       <${List} title="一起听了多久">
         <${ListItem} title="累积" multiline
           subtitle=${total.count
-            ? `和${char?.name || '对方'}一共听了 ${listen.fmt(total.seconds)}，${total.count} 首`
+            ? `和${phone.remark.nameOf(char) || '对方'}一共听了 ${listen.fmt(total.seconds)}，${total.count} 首`
             : '还没有一起听过'}/>
         ${live ? html`
           <${ListItem} title="本次" multiline
@@ -157,7 +157,7 @@ export function ListenPage({ chatId }) {
       <//>
 
       ${hers.length ? html`
-        <${List} title=${`${char?.name || '角色'}建的歌单`}>
+        <${List} title=${`${phone.remark.nameOf(char) || '角色'}建的歌单`}>
           ${hers.map(p => html`
             <${ListItem} key=${p.id} title=${p.name}
               subtitle=${`${(p.trackIds || []).length} 首`}
@@ -211,7 +211,7 @@ export function ListenPage({ chatId }) {
         <${List} inset=${false}>
           ${[...mine, ...hers].map(p => html`
             <${ListItem} key=${p.id} title=${p.name}
-              subtitle=${p.owner === music.LIB_OWNER ? '我的歌单' : `${char?.name || '角色'}的歌单`}
+              subtitle=${p.owner === music.LIB_OWNER ? '我的歌单' : `${phone.remark.nameOf(char) || '角色'}的歌单`}
               onClick=${() => { addTo(p.id, adding); setAdding(null); }}/>`)}
         <//>
         ${[...mine, ...hers].length ? null : html`<div class="settings-foot">还没有歌单，可在下方「我的歌单」中新建。</div>`}

@@ -78,7 +78,7 @@ export function MealSettleSheet({ msg, onClose }) {
   const act = take => { takeout.settle(msg.id, take); onClose(); };
   return html`
     <${Sheet} open=${!!msg} onClose=${onClose}
-      title=${`${char?.name || '对方'}${treat ? '点给你' : '让你付'} ${msg.item}`}>
+      title=${`${phone.remark.nameOf(char) || '对方'}${treat ? '点给你' : '让你付'} ${msg.item}`}>
       <div class="settings-foot">${takeout.format(msg.amount, msg.currency)}</div>
       <${List} inset=${false}>
         <${ListItem} title=${treat ? '要了' : '替对方付'} arrow
@@ -154,7 +154,7 @@ export function ShareSheet({ open, chatId, onClose }) {
             spot=${st.me} onLocate=${useHere}
             onChange=${v => geo.setSpot(chatId, 'me', v)}/>
 
-          <${SpotFields} label=${`${char?.name || '角色'}的位置`}
+          <${SpotFields} label=${`${phone.remark.nameOf(char) || '角色'}的位置`}
             desc="按角色的设定填。角色自己不会改这一项。"
             spot=${st.char}
             onChange=${v => geo.setSpot(chatId, 'char', v)}/>

@@ -19,7 +19,11 @@ export const authorOf = id =>
   (id === 'me' ? (phone.accounts.current() || db.persona.get()) : db.characters.get(id));
 
 export const nameOf = id =>
-  (id === 'me' ? (phone.accounts.current()?.name || '我') : (db.characters.get(id)?.name || '某人'));
+  (id === 'me' ? (phone.accounts.current()?.name || '我') : (phone.remark.nameOf(db.characters.get(id)) || '某人'));
+
+/** 动态作者显示的名字：角色走备注（没备注就是本名），我自己是身份名 */
+export const shownName = (id, author) =>
+  (!author ? '已删除' : id === 'me' ? (author.name || '我') : (phone.remark.nameOf(author) || '已删除'));
 
 // 角色发的也能删。删掉之后聊天里不再提到它，删除不可恢复
 export async function removeMoment(mo) {
@@ -85,7 +89,7 @@ function MomentBody({ mo, onComment, onOpen, gone = false }) {
     <div class=${`mo-card ph-moment${isMe ? ' ph-moment-mine' : ''}${gone ? ' is-gone' : ''}`}>
       <${Avatar} src=${avatar} name=${author?.name} size=${40} radius=${8}/>
       <div class="mo-main ph-moment-main">
-        <div class="mo-name ph-moment-name">${author?.name || '已删除'}</div>
+        <div class="mo-name ph-moment-name">${shownName(mo.authorId, author)}</div>
         ${mo.text ? html`<div class=${`mo-text ph-moment-text${open ? ' press' : ''}`} onClick=${open}>${mo.text}</div>` : null}
         <${MomentSong} mo=${mo}/>
         ${mo.imagePending ? html`
@@ -160,7 +164,7 @@ export function CommentSheet({ target, onClose }) {
               ${chars.map(c => html`
                 <button key=${c.id} class=${`btn btn-sm btn-ghost press${asking === c.id ? ' is-busy' : ''}`}
                   disabled=${!!asking} onClick=${() => ask(c)}>
-                  ${asking === c.id ? '正在评论' : c.name}
+                  ${asking === c.id ? '正在评论' : phone.remark.nameOf(c)}
                 </button>`)}
             </div>
           </div>` : null}

@@ -81,7 +81,7 @@ export function MailPage({ chatId }) {
   const sent = space.letters(chatId).slice().reverse();
   const kept = space.drafts(chatId).slice().reverse();
   const meName = sp?.persona?.name || '我';
-  const charName = sp?.char?.name || '角色';
+  const charName = phone.remark.nameOf(sp?.char) || '角色';
 
   const compose = d => { setDraft(d || null); setWriting(true); };
   const close = () => { setWriting(false); setDraft(null); };

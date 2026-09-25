@@ -227,7 +227,7 @@ export function UnwrapSheet({ msg, onClose }) {
   const act = open => { gift.settle(msg.id, open); onClose(); };
   return html`
     <${Sheet} open=${!!msg} onClose=${onClose}
-      title=${`${char?.name || '对方'}送来「${msg.cover}」`}>
+      title=${`${phone.remark.nameOf(char) || '对方'}送来「${msg.cover}」`}>
       <${List} inset=${false}>
         <${ListItem} title="拆开" arrow
           left=${html`<${Icon} name="gift" size=${18}/>`} onClick=${() => act(true)}/>
@@ -435,7 +435,7 @@ export function CallLogSheet({ msg, onClose }) {
     if (!blob) { toast('这通电话没有可下载的声音'); return; }
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `${char?.name || '通话'}-${new Date(fresh.createdAt || Date.now())
+    a.download = `${phone.remark.nameOf(char) || '通话'}-${new Date(fresh.createdAt || Date.now())
       .toISOString().slice(0, 16).replace(/[:T]/g, '')}.mp3`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 4000);
@@ -459,7 +459,7 @@ export function CallLogSheet({ msg, onClose }) {
           </div>
           ${lines.map((l, i) => html`
             <div key=${i} class="log-line">
-              <span class="log-who">${l.role === 'user' ? me : (char?.name || '对方')}</span>
+              <span class="log-who">${l.role === 'user' ? me : (phone.remark.nameOf(char) || '对方')}</span>
               <span class="log-body">
                 <span class="log-text">${l.text}</span>
                 ${l.trans ? html`<span class="log-trans">${l.trans}</span>` : null}
@@ -514,7 +514,7 @@ export function SettleSheet({ msg, onClose }) {
   };
   return html`
     <${Sheet} open=${!!msg} onClose=${onClose}
-      title=${`${char?.name || '对方'}转来 ${transfer.format(msg.amount)}`}>
+      title=${`${phone.remark.nameOf(char) || '对方'}转来 ${transfer.format(msg.amount)}`}>
       ${msg.note ? html`<div class="settings-foot">留言：${msg.note}</div>` : null}
       <${List} inset=${false}>
         <${ListItem} title="收款" arrow
@@ -565,7 +565,7 @@ export function VoteSheet({ msg, onClose }) {
     : `动用共同账户 ${request.format(msg.amount, msg.currency)}`;
   const act = ok => { request.settle(msg.id, ok); onClose(); };
   return html`
-    <${Sheet} open=${!!msg} onClose=${onClose} title=${`${char?.name || '对方'}申请${what}`}>
+    <${Sheet} open=${!!msg} onClose=${onClose} title=${`${phone.remark.nameOf(char) || '对方'}申请${what}`}>
       ${msg.note && k === request.SPEND
         ? html`<div class="settings-foot">用途：${msg.note}</div>` : null}
       <${List} inset=${false}>

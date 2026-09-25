@@ -135,7 +135,7 @@ export function TripPage({ tripId }) {
         </div>` : null}
 
       <${List} title="同行">
-        <${ListItem} title=${char?.name || '这段对话已经不在了'}
+        <${ListItem} title=${phone.remark.nameOf(char) || '这段对话已经不在了'}
           subtitle=${row.agreed ? '已同意同行'
             : row.proposedBy === 'char' ? '由该角色提出' : '对方尚未回应'}
           left=${html`<${Icon} name="users" size=${18}/>`}

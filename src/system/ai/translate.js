@@ -19,6 +19,37 @@ import { settings } from '../db/index.js';
 // 由聊天模型在回复里写 [译文：…]。翻译开着却一条译文都没有，比慢一点糟得多。
 
 export const mode = translateMode;
+
+// ---- 已经是那种语言了就不翻 ----
+//
+// 翻译开着、目标是中文，而这一句本来就是中文（用户的模板里写了「视频通话说中文」，
+// 或者角色就是说中文的）：从前照翻不误，字幕底下再出一行一模一样的中文 ——
+// 中译中，还白花一次接口。
+//
+// 只认几种能从字形上看出来的：中文、日文、韩文、英文。目标语言写的是别的
+// （法语、西班牙语……），看不出来就照旧翻，不替人省这一次。
+const count = (t, re) => (String(t).match(re) || []).length;
+const SAME = [
+  { lang: /中文|汉语|漢語|简体|简中|繁体|繁體|繁中|chinese|^zh/i,
+    is: t => { const han = count(t, /[\u4e00-\u9fff]/g);
+      return han > 0 && !count(t, /[\u3040-\u30ff\uac00-\ud7af]/g) && han * 2 >= count(t, /[A-Za-z]/g); } },
+  { lang: /日[语語文本]|japanese|^ja/i, is: t => count(t, /[\u3040-\u30ff]/g) > 0 },
+  { lang: /韩|韓|朝鲜|korean|^ko/i, is: t => count(t, /[\uac00-\ud7af]/g) > 0 },
+  { lang: /英|english|^en/i,
+    is: t => count(t, /[A-Za-z]/g) > 0 && !count(t, /[\u3040-\u30ff\u4e00-\u9fff\uac00-\ud7af]/g) },
+];
+
+/** 这句话是不是已经是 lang 那种语言了。看不出来一律当作不是 */
+export function alreadyIn(text, lang) {
+  const t = String(text || '').trim();
+  const l = String(lang || '').trim();
+  if (!t || !l) return false;
+  const rule = SAME.find(r => r.lang.test(l));
+  return !!rule && rule.is(t);
+}
+
+/** 译文和原文是同一句（模型照抄回来的）：不算译文 */
+export const sameText = (a, b) => String(a || '').replace(/\s+/g, '') === String(b || '').replace(/\s+/g, '');
 export const filled = translateFilled;
 export const ready = () => translateMode() === 'api';
 

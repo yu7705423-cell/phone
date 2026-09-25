@@ -85,7 +85,7 @@ export function ReviewsPage({ kind, subjectId }) {
       <${Sheet} open=${picking} onClose=${() => setPicking(false)} title="谁来写" height="70%">
         <${List} inset=${false}>
           ${db.characters.all().filter(c => !c.parentId).map(c => html`
-            <${ListItem} key=${c.id} title=${c.name} arrow
+            <${ListItem} key=${c.id} title=${phone.remark.nameOf(c)} arrow
               subtitle=${c.signature || ''} onClick=${() => make(c.id)}/>`)}
           ${db.characters.count() ? null : html`
             <${ListItem} title="还没有角色" multiline subtitle="先在「联系」里建一个"/>`}

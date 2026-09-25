@@ -5,6 +5,7 @@ import * as imgPrompt from '../imageprompt.js';
 import { template, runJSONTask } from '../engine.js';
 import { notify } from '../../notify.js';
 import * as extras from '../../extras.js';
+import * as remark from '../../remark.js';
 import { fillTemplate } from '../templates.js';
 import { listFor } from '../context/memory.js';
 import { neteaseReady } from '../services.js';
@@ -77,7 +78,7 @@ export async function createMoment(charId) {
   // 朋友圈本来就是「你想起来才去看」的东西，每条都弹就成了骚扰。
   if (extras.isStarred(char)) {
     notify({
-      title: extras.starTitle(char, char.name || '新动态'),
+      title: extras.starTitle(char, remark.nameOf(char) || '新动态'),
       body: String(mo.text || '').slice(0, 40),
       icon: 'moments', appId: 'chat', avatar: char.avatar,
       payload: { route: '/moments' },

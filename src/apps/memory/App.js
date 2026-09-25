@@ -40,7 +40,7 @@ function MemoryList() {
   const loose = db.memories.where(m => !m.charId).length;
   const owners = [
     { v: 'all', label: '全部' },
-    ...chars.map(c => ({ v: c.id, label: c.name })),
+    ...chars.map(c => ({ v: c.id, label: phone.remark.nameOf(c) })),
     ...(loose ? [{ v: 'none', label: `没绑定角色 ${loose}` }] : []),
   ];
   const stats = RANKS.map(r => ({ r, n: db.memories.where(m => m.rank === r).length }));
@@ -208,7 +208,7 @@ function EditPage({ id }) {
           <div class="chip-row">
             ${chars.map(c => html`
               <button key=${c.id} class=${`chip${m.charId === c.id ? ' is-active' : ''}`}
-                onClick=${() => patch({ charId: c.id })}>${c.name}</button>`)}
+                onClick=${() => patch({ charId: c.id })}>${phone.remark.nameOf(c)}</button>`)}
           </div>
         <//>
 
