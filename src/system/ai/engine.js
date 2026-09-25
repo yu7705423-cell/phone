@@ -58,12 +58,15 @@ function send(taskId, c, payload, kind = 'complete') {
   });
   noteCall(taskId);
   const hid = watchHidden();
-  let got = 0;
+  let partial = '';
   const onDelta = payload.onDelta;
-  const sent = onDelta ? { ...payload, onDelta: (piece, all) => { got = all.length; onDelta(piece, all); } } : payload;
+  // 流式的一律记着收到了多少字（调用方没要逐字回调也记）：断在中途时靠它保留那部分、说清楚是否已计费
+  const sent = kind === 'stream'
+    ? { ...payload, onDelta: (piece, all) => { partial = all; if (onDelta) onDelta(piece, all); } }
+    : payload;
   return provider[kind](cfg, sent)
     .then(text => { hid.stop(); t.done(text); return text; })
-    .catch(err => { const away = hid.stop(); t.fail(err); throw explainDrop(err, { away, got }); });
+    .catch(err => { const away = hid.stop(); t.fail(err); throw explainDrop(err, { away, got: partial.length, partial }); });
 }
 
 // ---- 连接中途断开 ----
@@ -87,7 +90,7 @@ function watchHidden() {
   return { stop: () => { document.removeEventListener('visibilitychange', on); return away; } };
 }
 
-export function explainDrop(err, { away = false, got = 0 } = {}) {
+export function explainDrop(err, { away = false, got = 0, partial = '' } = {}) {
   if (!err || isAbort(err) || err.status || err.dropped) return err;
   const raw = String(err.message || err);
   if (!(err instanceof TypeError) && !DROP.test(raw)) return err;
@@ -101,6 +104,8 @@ export function explainDrop(err, { away = false, got = 0 } = {}) {
   out.dropped = true;
   out.away = away;
   out.cause = err;
+  // 断开之前已经收到的那部分字（用户要求保留：那部分已经付过钱）。见 reply.keepPartial
+  if (String(partial || '').trim()) out.partial = String(partial);
   return out;
 }
 
@@ -239,6 +244,8 @@ async function runWith(taskId, run) {
       return await run(chain[i]);
     } catch (err) {
       if (isAbort(err)) throw err;
+      // 已经收到一部分字才断开的：这一次已经计费，换一套再发是同一次付两份钱。留着收到的部分，不换
+      if (err.partial) { err.failedPresets = [{ id: chain[i].id, balance: false }]; throw err; }
       last = err;
       failed.push({ id: chain[i].id, balance: isBalanceError(err) });
       if (i + 1 < chain.length) {

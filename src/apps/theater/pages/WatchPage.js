@@ -128,7 +128,10 @@ function Screen({ chatId, chat, char }) {
         watch.markSaid();
       }
     } catch (err) {
-      if (!ai.queue.isAbort(err)) toast(String(err.message || err), 'error', 4000);
+      if (!ai.queue.isAbort(err)) {
+        await ai.reply.keepPartial({ chat, char, err });
+        toast(String(err.message || err), 'error', 4000);
+      }
     } finally { busyRef.current = false; setBusy(false); }
   }
 

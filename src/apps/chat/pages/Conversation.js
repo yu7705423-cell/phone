@@ -398,6 +398,8 @@ export const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, o
         ${!mine && msg.ban?.length ? html`
           <div class="msg-ban">命中禁写：${msg.ban.join('、')}</div>` : null}
 
+        ${msg.cutOff ? html`<div class="msg-cut">回复在此处中断</div>` : null}
+
         ${!mine && swipes.length > 1 && msg.status === 'done' ? html`
           <div class="swipes">
             <button class="swipe-btn press" onClick=${() => onSwipe(msg, -1)}>
@@ -894,11 +896,14 @@ export function Conversation({ chatId, focusId = '' }) {
       }
     } catch (err) {
       if (!ai.queue.isAbort(err)) {
+        // 断在回复中途：收到的那部分已经付过钱，照常落成气泡，标上在此处中断（用户要求）
+        const kept = await ai.reply.keepPartial({ chat, char, err, notify: true });
+        const why = `${kept.length ? '断开之前收到的部分已保留在上方。' : ''}${String(err.message || err)}`;
         db.messages.create({
           chatId, role: 'char', authorId: char.id, kind: 'text',
-          content: '', status: 'error', error: String(err.message || err), failedPresets: err.failedPresets || [],
+          content: '', status: 'error', error: why, failedPresets: err.failedPresets || [],
         });
-        toast(String(err.message || err), 'error', 4500);
+        toast(why, 'error', 4500);
       }
     } finally { setBusy(false); }
   }

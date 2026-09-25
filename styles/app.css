@@ -248,6 +248,7 @@ input[type="range"] {
 .swipes { display: flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-11); color: var(--text-3); }
 /* 命中禁写词的记号。低调地摆在气泡下面，不拦着也不弹窗 —— 要不要重掷是用户的事 */
 .msg-ban { font-size: var(--fs-11); color: var(--text-3); padding: var(--sp-1) 0 0; }
+.msg-cut { font-size: var(--fs-11); color: var(--text-3); padding: var(--sp-1) 0 0; }
 .swipe-btn { color: var(--text-2); display: flex; }
 
 /* 引用块。气泡上面顶一小条，点一下跳回原话。

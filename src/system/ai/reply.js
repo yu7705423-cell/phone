@@ -1421,6 +1421,24 @@ async function applyTranslate(job, byPart) {
   });
 }
 
+/**
+ * 回复途中连接断开、已经收到一部分字：把收到的那部分照常落成气泡，最后一条标上「回复在此处中断」。
+ *
+ * 用户要求保留 —— 那部分已经付过钱，从前连同整轮一起丢掉。err 是 engine.explainDrop 给的那个（带 partial）。
+ * 回来的是落下的几条；没有可留的就是空数组，调用方照旧只落一条失败提示
+ */
+export async function keepPartial({ chat, char, err, turnId, notify = false }) {
+  const raw = String(err?.partial || '').trim();
+  if (!raw || !chat || !char) return [];
+  let made = [];
+  try {
+    made = await renderTurn({ chat, char, raw, turnId: turnId || `cut-${Date.now()}`, swipes: [raw], swipeIndex: 0, instant: true, notify });
+  } catch { return []; }
+  const last = made[made.length - 1];
+  if (last) messages.update(last.id, { cutOff: true });
+  return made;
+}
+
 // notify：每落一条弹一条（人不在这个会话里时）。重放候选、一起看的插话不传。
 export async function renderTurn({ chat, char, raw, turnId, swipes, swipeIndex, onEach, signal, instant, notify: wantNotify = false }) {
   const parts = splitReply(raw);

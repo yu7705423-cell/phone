@@ -35,8 +35,10 @@ function start(job) {
       } catch (err) {
         lastErr = err;
         if (controller.signal.aborted) throw err;
+        // 网络中断：一个字都还没收到的才重试（用户开了重试时）。已经收到一部分字的不重试 ——
+        // 那一次已经计费，收到的部分会保留下来（engine.explainDrop、reply.keepPartial）
         const retryable = err.status === 429 || (err.status >= 500 && err.status < 600)
-          || err.name === 'TypeError';           // 网络中断
+          || err.name === 'TypeError' || (err.dropped && !err.partial);
         if (!retryable || attempt === job.retries) throw err;
         await new Promise(r => setTimeout(r, 600 * Math.pow(2, attempt)));
       }

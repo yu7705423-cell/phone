@@ -71,7 +71,10 @@ export function TogetherPage({ chatId, bookId }) {
         await ai.reply.renderTurn({ chat, char, raw: clean, turnId: phone.uid('turn'), notify: true });
         read.markSaid();
       }
-    } catch (err) { toast(String(err.message || err), 'error', 4000); }
+    } catch (err) {
+      if (!ai.queue.isAbort(err)) await ai.reply.keepPartial({ chat, char, err });
+      toast(String(err.message || err), 'error', 4000);
+    }
     finally { setBusy(false); }
   };
 

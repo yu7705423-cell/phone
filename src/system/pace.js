@@ -188,6 +188,9 @@ export async function runDue(now = Date.now()) {
       chats.update(chat.id, { unread: (chats.get(chat.id)?.unread || 0) + made.length });
       done += 1;
     } catch (err) {
+      // 断在中途：收到的部分已经付过钱，照常落下（见 reply.keepPartial）
+      const kept = await reply.keepPartial({ chat, char, err, notify: true }).catch(() => []);
+      if (kept.length) chats.update(chat.id, { unread: (chats.get(chat.id)?.unread || 0) + kept.length });
       console.warn('[pace] 这一段没回成:', err.message || err);
     }
   }

@@ -5,6 +5,8 @@
 //   二、生成期间切到后台之后断开：写明是切后台导致的，生成完之前保持在前台
 //   三、断在回复中途（已经收到一部分字）：写明收到了多少字、这一次已经计费
 //   四、接口自己回了错误码（比如 401）：照原样，不当成断线
+//   五、断在回复中途：已经收到的那部分照常落成气泡、标「回复在此处中断」（用户要求保留，那部分已经付过钱）；
+//       开了自动重试与失败换接口也不再重发（同一次付两份钱）
 import { BASE, EXE, chromium } from './_env.mjs';
 
 const browser = await chromium.launch({ executablePath: EXE, args: ['--no-sandbox'] });
@@ -14,7 +16,13 @@ await ctx.route('**/src/site.js*', async r => {
   r.fulfill({ response: res, body: (await res.text()).replace(/accounts:\s*'[^']*'/, "accounts: ''") });
 });
 let mode = 'drop';
+let hits = 0;
 await ctx.route('**/relay.example.com/**', async r => {
+  hits += 1;
+  if (mode === 'partial') {
+    // 先吐一段再掐断：用一段写不完的流，路由层没法在流中途断，这里改由页面里的 fetch 替身来做（见下）
+    return r.abort('connectionreset');
+  }
   if (mode === 'drop') return r.abort('connectionreset');
   if (mode === 'slowdrop') { await new Promise(x => setTimeout(x, 1500)); return r.abort('connectionreset'); }
   if (mode === '401') return r.fulfill({ status: 401, contentType: 'application/json', body: '{"error":{"message":"invalid key"}}' });
@@ -84,6 +92,48 @@ const e401 = await page.evaluate(async o => {
   catch (e) { return String(e.message); }
 }, ids);
 ok('接口回了错误码：照原样，不当成断线', /401/.test(e401) && !/断开/.test(e401), e401);
+
+// ---- 五：断在回复中途 ----
+// 路由层给不出「吐一半再断」的流，页面里把 fetch 换成一个替身：先给两条，再抛网络错误
+mode = 'partial';
+await page.evaluate(async () => {
+  const { db } = await import('/src/system/db/index.js');
+  const svc = await import('/src/system/ai/services.js');
+  db.settings.set({ retryMax: 2, chatFallback: true, failoverMax: 0 });
+  const p2 = svc.newChatPreset({ name: '副用' });
+  svc.updateChatPreset(p2.id, { baseUrl: 'https://relay.example.com/v1', apiKey: 'k2', model: 'm', provider: 'openai' });
+  const real = window.fetch;
+  window.__calls = 0;
+  window.fetch = function (u, init) {
+    if (!String(u).includes('relay.example.com')) return real.apply(this, arguments);
+    window.__calls += 1;
+    const enc = new TextEncoder();
+    const chunk = t => enc.encode(`data: ${JSON.stringify({ choices: [{ delta: { content: t } }] })}\n\n`);
+    let i = 0;
+    const body = new ReadableStream({
+      pull(c) {
+        if (i === 0) { i++; c.enqueue(chunk('刚到家，')); return; }
+        if (i === 1) { i++; c.enqueue(chunk('雨下得很大')); return; }
+        c.error(new TypeError('Load failed'));
+      },
+    });
+    return Promise.resolve(new Response(body, { status: 200, headers: { 'content-type': 'text/event-stream' } }));
+  };
+});
+await page.locator('[aria-label="让对方回复"]').click();
+await page.waitForTimeout(4000);
+const cut = await page.evaluate(async id => {
+  const { db } = await import('/src/system/db/index.js');
+  const list = db.messages.where(m => m.chatId === id);
+  const kept = list.filter(m => m.role === 'char' && m.status !== 'error' && /雨下得很大|刚到家/.test(m.content || ''));
+  const fail = list.filter(m => m.status === 'error').pop();
+  return { kept: kept.map(m => m.content), cut: kept.some(m => m.cutOff), fail: fail?.error || '', calls: window.__calls,
+    note: [...document.querySelectorAll('.msg-cut')].map(x => x.textContent) };
+}, ids.chat);
+ok('断在回复中途：收到的那部分照常落成气泡', cut.kept.join('').includes('雨下得很大'), JSON.stringify(cut));
+ok('断在回复中途：气泡下标明回复在此处中断', cut.cut && cut.note.includes('回复在此处中断'), JSON.stringify(cut));
+ok('断在回复中途：失败提示写明收到的部分已保留、已经计费', /已保留/.test(cut.fail) && /已经计费/.test(cut.fail), cut.fail);
+ok('断在回复中途：开了自动重试与失败换接口也只发一次（不为同一次付两份钱）', cut.calls === 1, `发了 ${cut.calls} 次`);
 
 ok('全程没有运行时报错', errs.length === 0, errs.join(' | '));
 await browser.close();
