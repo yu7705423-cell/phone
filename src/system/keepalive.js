@@ -58,9 +58,9 @@ export const state = createStore({
 });
 
 let el = null;
+let elUrl = '';
 let watchdog = null;
 let retry = null;
-let wired = false;
 
 // ---- 外壳那条路 ----
 
@@ -133,18 +133,38 @@ function silentWav() {
 
 function ensure() {
   if (el) return el;
-  el = new Audio(silentWav());
-  el.loop = true;
-  el.volume = 0;
+  elUrl = silentWav();
+  const a = new Audio(elUrl);
+  a.loop = true;
+  a.volume = 0;
   // iOS 要有这个才肯在后台继续播
-  el.setAttribute('playsinline', '');
-  if (!wired) {
-    wired = true;
-    // 被按停不等于我们想停。想开着就再续上
-    ['pause', 'ended', 'error'].forEach(ev => el.addEventListener(ev, onStopped));
-    el.addEventListener('playing', () => sync());
-  }
+  a.setAttribute('playsinline', '');
+  // 被按停不等于我们想停。想开着就再续上
+  ['pause', 'ended', 'error'].forEach(ev => a.addEventListener(ev, onStopped));
+  // **关着的时候不许播。** 关掉之后锁屏的播放条、耳机线控还能对这个元素按播放；
+  // 从前没人管，它就一直循环播下去。现在一按播放（play）、一出声（playing）都立刻卸掉
+  const guard = () => {
+    if (!state.get().want || a !== el) { release(a); return true; }
+    return false;
+  };
+  a.addEventListener('play', guard);
+  a.addEventListener('playing', () => { if (!guard()) sync(); });
+  el = a;
   return el;
+}
+
+/**
+ * 卸掉：停下、把音源摘掉。只 pause() 的话元素还挂着音源，系统的播放条留着，
+ * 之后一点播放就又开始（见上面 playing 那一句）。摘掉之后播放条跟着消失，点了也播不出声
+ */
+function release(a = el) {
+  if (!a) return;
+  try { a.pause(); } catch { /* */ }
+  try { a.removeAttribute('src'); a.load(); } catch { /* */ }
+  if (a === el) {
+    el = null;
+    if (elUrl) { try { URL.revokeObjectURL(elUrl); } catch { /* */ } elUrl = ''; }
+  }
 }
 
 /** 以元素为准同步一次状态。on 从来不靠我们自己记。 */
@@ -209,7 +229,9 @@ export function stop() {
     state.set({ on: false, note: '' });
     return;
   }
-  if (el) { el.pause(); el.currentTime = 0; }
+  release();
+  // 系统那边的播放条也说一声「没在放了」（有的浏览器靠它决定留不留那一条）
+  try { if (navigator.mediaSession) navigator.mediaSession.playbackState = 'none'; } catch { /* */ }
   sync(false);
   state.set({ note: '' });     // 自己关的，不用在界面上报告
 }
