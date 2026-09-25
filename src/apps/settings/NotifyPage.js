@@ -1,6 +1,6 @@
-import { html, useState, useRef, useEffect } from '../../lib.js';
+import { html, useState, useRef } from '../../lib.js';
 import { phone, useStore } from '../../sdk/index.js';
-import { Page, List, ListItem, Field, Input, NumberInput, Segmented, Button, Switch, Icon, toast, confirm } from '../../ui/index.js';
+import { Page, List, ListItem, Field, Input, NumberInput, Segmented, Button, Switch, Icon, toast } from '../../ui/index.js';
 
 const { db, nav, sound, notify, push, bgpush } = phone;   // notify 就是 notify()，见 sdk/index.js
 
@@ -22,10 +22,7 @@ export function NotifyPage() {
   const cfg = sound.config();
   const [busy, setBusy] = useState(false);
   const [perm, setPerm] = useState(push.permission());
-  const [sub, setSub] = useState(null);
   const fileRef = useRef(null);
-
-  useEffect(() => { push.subscription().then(setSub).catch(() => {}); }, [perm]);
 
   const set = patch => db.settings.set({ notify: { ...(s.notify || {}), ...patch } });
 
@@ -95,37 +92,6 @@ export function NotifyPage() {
     } finally { setBusy(false); }
   };
 
-  const doSubscribe = async () => {
-    setBusy(true);
-    try {
-      const got = await push.subscribe();
-      setSub(got);
-      toast('订阅成功', 'ok');
-    } catch (e) {
-      toast(String(e.message || e), 'error', 6000);
-    } finally { setBusy(false); }
-  };
-
-  const copySub = async () => {
-    if (!sub) return;
-    const text = JSON.stringify(sub.toJSON ? sub.toJSON() : sub, null, 2);
-    try {
-      await navigator.clipboard.writeText(text);
-      toast('订阅信息已复制，请粘贴至服务端', 'ok', 4000);
-    } catch {
-      toast('复制失败，请从控制台获取：' + text.slice(0, 40) + '...', 'plain', 5000);
-    }
-  };
-
-  const drop = async () => {
-    if (!await confirm({ title: '退订', message: '退订后服务端将无法向本设备推送。', okText: '退订', danger: true })) return;
-    await push.unsubscribe();
-    setSub(null);
-    toast('已退订');
-  };
-
-  const pcfg = push.pushConfig();
-
   // 后台消息（system/bgpush.js）。打开要问通知权限，所以必须在这一下点击里做
   const bg = s.bgPush || {};
   const toggleBg = async v => {
@@ -134,7 +100,6 @@ export function NotifyPage() {
       if (v) {
         await bgpush.enable();
         setPerm(push.permission());
-        push.subscription().then(setSub).catch(() => {});
         toast('后台消息已开启', 'ok');
       } else {
         await bgpush.disable();
@@ -226,15 +191,27 @@ export function NotifyPage() {
         <${Button} full disabled=${busy} onClick=${test}>试一条应用内横幅<//>
       </div>
 
-      ${bgpush.available() ? html`
-        <${List} title="后台消息">
+      <${List} title="后台消息"/>
+      <div class="pad-x">
+        <${Field} label="推送服务器地址"
+          desc=${bg.on
+            ? '关闭后台消息后才能更换。'
+            : '在自己的 Cloudflare 与 Supabase 账号上按教程部署推送服务器后，填入它的地址。模型调用、通知与数据都在自己的账号上，不经过他人。'}>
+          <${Input} value=${bg.server || ''} placeholder=${bgpush.siteServer() || 'https://push.example.com'} disabled=${bg.on === true}
+            onInput=${v => db.settings.set({ bgPush: { ...bg, server: v.trim().replace(/\/+$/, '') } })}/>
+        <//>
+      </div>
+      <${List}>
+        <${ListItem} title="部署教程" arrow onClick=${() => nav.push('/push-guide')}/>
+      <//>
+      <${List}>
           <${ListItem} title="后台消息" multiline
             subtitle=${`开启后，离开应用期间，已开启「主动找你」的角色由推送服务器按原定时间代为发出消息，`
               + (bgpush.canNotify()
                 ? '并以系统通知送达；回到应用时，这些消息写入对应的会话。'
                 : '回到应用时，这些消息写入对应的会话，时间为当时发出的时刻。当前环境不支持推送通知，离开期间不会弹出通知。')
               + '接口密钥与该段对话的上下文会加密后交给推送服务器保存，到时间后用于调用模型。关闭后，服务器上的任务与本机登记一并删除。'}
-            right=${html`<${Switch} checked=${bg.on === true} disabled=${busy} onChange=${toggleBg}/>`}/>
+            right=${html`<${Switch} checked=${bg.on === true} disabled=${busy || !bgpush.serverOk()} onChange=${toggleBg}/>`}/>
         <//>
         ${bg.on ? html`
           <div class="pad-x">
@@ -282,45 +259,12 @@ export function NotifyPage() {
         <div class="settings-foot">
           应用开着时，角色的主动消息仍由本机发出，推送服务器不重复发送。
           离开期间的推送通知需要浏览器或添加到主屏幕的网页；安装版应用（apk、ipa）可改用上方的通知通道，未设置时消息在打开应用时出现。
-        </div>` : null}
-
-      ${push.native() ? html`
-        <div class="settings-foot">
-          Web Push 需要浏览器的 Push API，已安装的应用里没有这一项，因此不显示。
-          应用被系统完全结束之后的通知仍然需要一台服务器，那一条这里做不到。
-        </div>` : bgpush.available() ? null : html`
-      <${List} title="Web Push">
-        <${ListItem} title="订阅状态" multiline
-          subtitle=${sub ? '已订阅。将订阅信息提供给服务端即可推送' : '未订阅'}
-          right=${sub ? html`<${Icon} name="check" size=${17}/>` : null}/>
-      <//>
-      <div class="pad-x">
-        <${Field} label="VAPID 公钥"
-          desc="服务端生成的 VAPID 密钥对中的公钥。没有服务端则无法填写，也无法订阅。">
-          <${Input} value=${pcfg.vapidPublicKey}
-            onInput=${v => db.settings.set({ push: { ...(s.push || {}), vapidPublicKey: v.trim() } })}
-            placeholder="BEl62i..."/>
-        <//>
-        <${Field} label="订阅上报地址（可选）"
-          desc="填写后将在订阅成功时自动 POST 至该地址。留空则需手动复制订阅信息。">
-          <${Input} value=${pcfg.reportUrl}
-            onInput=${v => db.settings.set({ push: { ...(s.push || {}), reportUrl: v.trim() } })}
-            placeholder="https://.../subscribe"/>
-        <//>
-      </div>
-      <div class="pad batch-acts">
-        <${Button} size="sm" disabled=${busy || !pcfg.vapidPublicKey}
-          onClick=${doSubscribe}>${sub ? '重新订阅' : '订阅'}<//>
-        <${Button} size="sm" variant="ghost" disabled=${!sub} onClick=${copySub}>复制订阅<//>
-        <${Button} size="sm" variant="ghost" disabled=${!sub} onClick=${drop}>退订<//>
-      </div>`}
+        </div>
 
       <div class="settings-foot">
         「试一条应用内横幅」会回到主界面，横幅从顶上掉下来，同时响一声。<br/>
         手机上第一次要先碰一下屏幕，浏览器才允许出声。<br/><br/>
-        <b>app 完全关掉之后要收到通知，只能靠 Web Push，而 Web Push 必须有一台
-        服务器替你发。</b>iOS 会在 PWA 退到后台几秒后冻结 JS，这边的定时器就停了，
-        所以「订阅」以下这些是给服务器用的，客户端这半边已经接好了。
+        应用完全关闭之后，角色的主动消息需要由推送服务器代为发出，见上方「后台消息」。
       </div>
     <//>`;
 }

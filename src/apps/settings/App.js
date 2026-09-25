@@ -13,6 +13,7 @@ import { GitHubPage } from './GitHubPage.js';
 import { BackgroundPage } from './BackgroundPage.js';
 import { TracePage } from './TracePage.js';
 import { NotifyPage } from './NotifyPage.js';
+import { PushGuidePage } from './PushGuidePage.js';
 import { EmbedPage } from './EmbedPage.js';
 import { RerankPage } from './RerankPage.js';
 import { VisionPage } from './VisionPage.js';
@@ -206,6 +207,7 @@ export default function SettingsApp({ route }) {
   if (route === '/signin') return html`<${SigninPage}/>`;
   if (route === '/signin/admin') return html`<${AdminPage}/>`;
   if (route === '/notify') return html`<${NotifyPage}/>`;
+  if (route === '/push-guide') return html`<${PushGuidePage}/>`;
   if (route === '/embed') return html`<${EmbedPage}/>`;
   if (route === '/rerank') return html`<${RerankPage}/>`;
   if (route === '/vision') return html`<${VisionPage}/>`;

@@ -62,13 +62,44 @@ async function open({ server = PUSH, noPush = false } = {}) {
   return { ctx, page, calls, embeds, setResults: x => { results = x; } };
 }
 
-// ---- 没配服务器：没有这一项 ----
+// ---- 用户自己部署：设置里填地址 ----
 {
-  const { ctx, page } = await open({ server: '' });
+  const { ctx, page, calls } = await open({ server: '' });
   await page.evaluate(async () => { const n = await import('/src/system/nav.js'); n.unlock(); n.openApp('settings', '/notify'); });
   await page.waitForTimeout(700);
-  const txt = await page.evaluate(() => document.body.innerText);
-  ok('site.js 没配推送服务器：设置里没有「后台消息」', !/后台消息/.test(txt), '');
+  const sw = () => page.locator('.list-item', { hasText: '开启后，离开应用期间' }).locator('input[type="checkbox"], .switch, [role="switch"]').first();
+  const st = await page.evaluate(() => ({ txt: document.body.innerText }));
+  const disabled = await sw().evaluate(el => el.disabled || el.getAttribute('aria-disabled') === 'true' || el.classList.contains('is-disabled')
+    || !!el.closest('[disabled]') || !!el.querySelector?.('input[disabled]'));
+  ok('没填推送服务器：「后台消息」照样在，有地址栏与部署教程，开关是灰的', /推送服务器地址/.test(st.txt) && /部署教程/.test(st.txt) && disabled, `${disabled}`);
+  await page.locator('input[placeholder="https://push.example.com"]').fill('https://my-push.example.com/');
+  await page.waitForTimeout(300);
+  const saved = await page.evaluate(async () => (await import('/src/system/bgpush.js')).server());
+  ok('填了自己的地址：记下来（末尾斜杠去掉），开关可以点', saved === 'https://my-push.example.com'
+    && !(await sw().evaluate(el => el.disabled || !!el.querySelector?.('input[disabled]'))), saved);
+  await page.locator('input[placeholder="https://push.example.com"]').fill('http://not-secure.example.com');
+  await page.waitForTimeout(300);
+  ok('不是 https 的地址：开关仍是灰的', await page.evaluate(async () => !(await import('/src/system/bgpush.js')).serverOk()), '');
+
+  // 部署教程页
+  await page.evaluate(async () => { const n = await import('/src/system/nav.js'); n.openApp('settings', '/push-guide'); });
+  await page.waitForTimeout(1200);
+  const guide = await page.evaluate(() => {
+    const md = document.querySelector('.md');
+    const sb = [...(md?.querySelectorAll('a') || [])].find(a => a.href.startsWith('https://supabase.com'));
+    return { h1: md?.querySelector('h1')?.textContent || '', tables: md?.querySelectorAll('table').length || 0,
+      pre: md?.querySelectorAll('pre').length || 0, link: sb ? sb.target : '', scripts: md?.querySelectorAll('script').length || 0,
+      buttons: [...document.querySelectorAll('button')].map(b => b.textContent.trim()) };
+  });
+  ok('部署教程：在应用里直接看，标题、表格、代码块都画出来，外部链接在新窗口打开', /自己部署推送服务器/.test(guide.h1) && guide.tables >= 3
+    && guide.pre >= 3 && guide.link === '_blank' && guide.scripts === 0, JSON.stringify(guide));
+  ok('部署教程：顶上有复制 Worker 代码、复制建表 SQL', guide.buttons.includes('复制 Worker 代码') && guide.buttons.includes('复制建表 SQL'), JSON.stringify(guide.buttons));
+  // 无头浏览器的剪贴板靠不住：记下页面交给剪贴板的那一份
+  await page.evaluate(() => { window.__clip = ''; navigator.clipboard.writeText = async t => { window.__clip = t; }; });
+  await page.locator('button', { hasText: '复制 Worker 代码' }).click();
+  await page.waitForTimeout(800);
+  const clip = await page.evaluate(() => window.__clip || '');
+  ok('复制 Worker 代码：剪贴板里是整份 push.js', /export default \{/.test(clip) && /sendChannel/.test(clip), clip.slice(0, 80));
   await ctx.close();
 }
 

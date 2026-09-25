@@ -28,7 +28,8 @@ export const SITE = {
   // 浏览器里的数据按网址分开存，不搬的话新网址上是空的。留空表示没有搬家这回事
   moveFrom: 'https://yu7705423-cell.github.io/phone/',
   moveTo: 'https://eiraphone.cn/',
-  // 后台消息的推送服务器（worker/push.js 部署之后的地址，步骤见 worker/PUSH.md），例如 https://push.eiraphone.cn
-  // 填了，「设置 - 通知」里出现「后台消息」：app 关着时角色照样按时发消息来。留空表示本站不提供
+  // 后台消息的推送服务器（worker/push.js）。**由用户自己部署在自己的账号上**，地址填在「设置 - 通知 - 后台消息」，
+  // 步骤见 worker/PUSH.md（应用里「部署教程」同一份）。这里是运营方可选提供的默认值：
+  // 填了，用户没填自己的时就用它（那样所有人的接口密钥与聊天上下文都会经过运营方的服务器）。留空表示不提供
   pushServer: '',
 };

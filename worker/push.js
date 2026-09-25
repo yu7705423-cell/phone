@@ -410,6 +410,11 @@ async function handle(req, env) {
   const url = new URL(req.url);
   const h = cors(env, req);
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: h });
+  // 填了 ALLOW_ORIGINS：别的网站的网页一律拒绝（浏览器发的请求都带 Origin）。
+  // 不带 Origin 的（直接在浏览器地址栏打开 /、/setup）照常
+  const origin = req.headers.get('origin') || '';
+  const allow = String(env.ALLOW_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
+  if (origin && allow.length && !allow.includes(origin)) return json(h, { error: '这个网站不在 ALLOW_ORIGINS 里' }, 403);
   const route = `${req.method} ${url.pathname.replace(/\/+$/, '') || '/'}`;
 
   if (route === 'GET /setup') return setupPage(env);

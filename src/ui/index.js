@@ -5,4 +5,5 @@ export * from './overlay.js';
 export * from './qrlogin.js';
 export * from './zonepicker.js';
 export * from './iconpicker.js';
+export * from './markdown.js';
 export { Icon } from '../icons/Icon.js';

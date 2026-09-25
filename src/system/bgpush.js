@@ -37,8 +37,14 @@ const DEV_KEY = 'eira-bgpush-device';     // 本机在服务器上的登记：{ 
 const ALIVE_EVERY = 4 * 60 * 1000;        // app 开着时多久报一次到（服务器那边看 6 分钟）
 export const PER_CHAR = 2;                // 每个角色离开期间最多发几次，默认值（设置里可改）
 
-export const server = () => String(settings.get().bgPush?.server || SITE.pushServer || '').trim().replace(/\/+$/, '');
+// 推送服务器由**用户自己部署**（worker/PUSH.md）：地址填在「设置 - 通知 - 后台消息」里。
+// 模型调用、通知、数据都在用户自己的 Cloudflare 与 Supabase 账号上 —— 花的是他自己的额度，
+// 出了问题也只影响他自己。site.js 的 pushServer 是运营方可选提供的默认值，留空就没有
+export const siteServer = () => String(SITE.pushServer || '').trim().replace(/\/+$/, '');
+export const server = () => String(settings.get().bgPush?.server || siteServer()).trim().replace(/\/+$/, '');
 export const available = () => !!server();
+/** 地址像样：https 开头 */
+export const serverOk = () => /^https:\/\/[^/\s]+/i.test(server());
 /** 这台设备能不能收到推送通知。不能的话消息只在打开应用时出现 */
 export const canNotify = () => push.pushSupported();
 export const isOn = () => settings.get().bgPush?.on === true;
@@ -100,7 +106,7 @@ async function ensureDevice() {
 
 /** 打开：要通知权限、订阅、登记。回来时已经开着 */
 export async function enable() {
-  if (!available()) throw new Error('本站没有配置推送服务器');
+  if (!serverOk()) throw new Error('请先填写推送服务器地址（https 开头），部署方法见「部署教程」');
   await ensureDevice();
   settings.set({ bgPush: { ...(settings.get().bgPush || {}), on: true } });
   await plan({ away: false }).catch(() => {});

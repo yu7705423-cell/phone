@@ -102,10 +102,11 @@ export const ColorInput = ({ value, onChange, fallback = '#888888' }) => html`
       <button type="button" class="color-clear press" onClick=${() => onChange('')}>不改</button>` : null}
   </div>`;
 
-export const Switch = ({ checked, onChange }) => html`
+// disabled：灰掉、点了不动。从前这一项没接上，几处传了 disabled 的开关其实照样能点
+export const Switch = ({ checked, onChange, disabled }) => html`
   <button class=${`switch${checked ? ' is-on' : ''}`} role="switch"
-    aria-checked=${!!checked}
-    onClick=${e => { e.stopPropagation(); if (onChange) onChange(!checked); }}>
+    aria-checked=${!!checked} disabled=${!!disabled} aria-disabled=${disabled ? 'true' : null}
+    onClick=${e => { e.stopPropagation(); if (!disabled && onChange) onChange(!checked); }}>
     <span class="switch-dot"></span>
   </button>`;
 

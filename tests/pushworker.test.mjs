@@ -359,6 +359,16 @@ await call(env, 'POST', '/ack', { token, body: { ids: failed.map(r => r.id) } })
   await call(env, 'DELETE', '/device', { token: tk });
 }
 
+// ---- ALLOW_ORIGINS ----
+{
+  const allowEnv = { ...env, ALLOW_ORIGINS: 'https://eiraphone.cn, https://eira-test.pages.dev' };
+  const other = await worker.fetch(new Request('https://push.worker/vapid', { headers: { origin: 'https://evil.example' } }), allowEnv);
+  const mine = await worker.fetch(new Request('https://push.worker/vapid', { headers: { origin: 'https://eira-test.pages.dev' } }), allowEnv);
+  const bare = await worker.fetch(new Request('https://push.worker/'), allowEnv);
+  ok('ALLOW_ORIGINS：别的网站 403，名单里的照常，直接在地址栏打开照常', other.status === 403 && mine.status === 200 && bare.status === 200,
+    `${other.status} ${mine.status} ${bare.status}`);
+}
+
 // ---- 订阅作废 ----
 pushStatus = 410;
 await call(env, 'POST', '/plan', { token, body: { away: true, jobs: [{ ...job, due: [Date.now() - 1000] }] } });
