@@ -8731,6 +8731,7 @@ IndexedDB 与 localStorage：测试版的数据迁移会改掉正式数据，`DB
 | | 怎么做 | 什么时候出现 |
 |---|---|---|
 | 安卓 app | 外壳的 `EiraNative.setFloat` / `floatAllowed` / `askFloat`，原生小窗（`android/.../CallFloat.kt`），要「显示在其他应用上层」权限 | 开着（`settings.callDesk`）且 Eira 退到后台时；回到 Eira 收起 |
+| iPhone app | iOS 不许画在别的应用上面，只有系统画中画。外壳 `CallFloatBridge.swift` 把同样那几样画成视频帧交给 `AVPictureInPictureController`；网页经 `callfloat` 通道每有变化就交一次，外壳回一句小窗还在不在 | 点按钮当场弹出，同浏览器那条 |
 | 浏览器、PWA | 系统画中画。canvas 画出头像、名字、时长与最近一句，`captureStream` 成视频流给一个藏起来的 `<video>`，再请系统弹成小窗 | 点按钮当场弹出，应用里同时缩起来（不再另画一个球）；关掉小窗回到悬浮球 |
 
 安卓那边第一次点是去系统设置要权限，**不记为开**：记成开却画不出来，按钮亮着、桌面上什么都没有。
@@ -8740,9 +8741,8 @@ IndexedDB 与 localStorage：测试版的数据迁移会改掉正式数据，`DB
 **小窗里只能看，不能说。** 系统不许后台的网页用麦克风，安卓 11 以后原生应用在后台也一样；
 回到 Eira 才能打字或开麦克风。角色说的话照常进字幕、照常出声。
 
-旧版安卓 app 没有 `setFloat`，按钮自然不出现；要用得装新打的 apk。iPhone 的 app 外壳不许画在
-别的应用上面，那里只看 WKWebView 给不给画中画。测试 `tests/callmini.test.mjs`（安卓那条用假的
-`EiraNative` 测网页这一侧；原生小窗本身靠打包流程编译、真机上看）。
+旧版安卓 app 没有 `setFloat`、旧版 iPhone app 没有 `phoneCallFloat`，按钮自然不出现；要用得装新打的包。测试 `tests/callmini.test.mjs`（安卓、iPhone 两条用假的
+`EiraNative` / `callfloat` 通道测网页这一侧；原生小窗本身靠打包流程编译、真机上看）。
 
 同一批顺带：**app 外壳里不提醒搬家**（`move.js` 的 `inShell`）。外壳是一个 WebView，开不出第二个
 窗口，点了「搬家」新网址会被当成站外链接扔给系统浏览器，数据落到浏览器那边。外壳的网址另外换

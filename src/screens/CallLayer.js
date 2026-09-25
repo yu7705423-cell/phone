@@ -139,8 +139,8 @@ function deskTap() {
     else toast('桌面悬浮窗已关闭', 'ok', 2500);
     return;
   }
-  if (k === 'pip') {
-    float.togglePip()
+  if (k === 'pip' || k === 'ios') {
+    (k === 'ios' ? float.toggleShell() : float.togglePip())
       .then(() => { if (float.desk.get().pip) call.shrink(); })
       .catch(err => toast(`无法打开悬浮窗：${err.message || err}`, 'error', 5000));
   }

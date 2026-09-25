@@ -42,6 +42,7 @@ final class ShellViewController: UIViewController {
     private let keepAliveBridge = KeepAliveBridge()
     private let alarmBridge = AlarmBridge()
     private let netBridge = NetBridge()
+    private let callFloatBridge = CallFloatBridge()   // 通话的画中画
 
     /// 「1.0.17 (17)」这种。前一个是版本号，括号里是构建序号。
     static var appVersion: String {
@@ -166,6 +167,7 @@ final class ShellViewController: UIViewController {
         //                    表示每一次请求自带的期限它认。旧外壳只有 true，
         //                    网页那边靠这一项分得出手机上装的是不是旧版 ——
         //                    旧版一律 120 秒掐断，「等待上限」对它不生效
+        //   phoneCallFloat   通话可以弹成系统画中画（见 CallFloatBridge）
         //   phoneAppVersion  这只 app 自己的版本。网页那份构建号是从站点取的，
         //                    说明不了手机上装的是哪一版外壳 —— 而外壳里那半边
         //                    （闹钟、通知、健康）只能靠重装才会变
@@ -176,6 +178,7 @@ final class ShellViewController: UIViewController {
                 + "window.phoneHealth = \(HealthBridge.available);"
                 + "window.phoneAlarm = \(AlarmBridge.available);"
                 + "window.phoneNet = { timeout: true };"
+                + "window.phoneCallFloat = \(CallFloatBridge.available);"
                 + "window.phoneAppVersion = \"\(Self.appVersion)\";",
             injectionTime: .atDocumentStart,
             forMainFrameOnly: false))
@@ -189,6 +192,8 @@ final class ShellViewController: UIViewController {
             alarmBridge, contentWorld: .page, name: "alarm")
         cfg.userContentController.addScriptMessageHandler(
             netBridge, contentWorld: .page, name: "net")
+        cfg.userContentController.addScriptMessageHandler(
+            callFloatBridge, contentWorld: .page, name: "callfloat")
 
         let w = WKWebView(frame: view.bounds, configuration: cfg)
         w.navigationDelegate = self
@@ -205,6 +210,7 @@ final class ShellViewController: UIViewController {
         w.scrollView.pinchGestureRecognizer?.isEnabled = false
         view.addSubview(w)
         web = w
+        callFloatBridge.attach(to: view)
         // 点开通知要回跳到某一页，那一下得有地方喊
         notifyBridge.web = w
         installEdgeBack(on: w)

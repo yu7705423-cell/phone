@@ -12,8 +12,20 @@ const browser = await chromium.launch({ executablePath: EXE, args: ['--no-sandbo
 const R = []; const ok = (n, c, e) => { R.push({ n, pass: !!c }); console.log(`${c ? '  ok  ' : '  FAIL'} ${n}${c ? '' : '   << ' + (e ?? '')}`); };
 const errs = [];
 
-async function open({ nativeShell = false } = {}) {
+async function open({ nativeShell = false, iosShell = false } = {}) {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  if (iosShell) {
+    await ctx.addInitScript(() => {
+      window.__ios = { pip: false, sent: [] };
+      window.phoneCallFloat = true;
+      window.webkit = { messageHandlers: { callfloat: { postMessage: async m => {
+        window.__ios.sent.push(m);
+        if (m.action === 'toggle') { window.__ios.pip = !window.__ios.pip; return { pip: window.__ios.pip }; }
+        if (m.action === 'set' && m.on === false) window.__ios.pip = false;
+        return { pip: window.__ios.pip };
+      } } } };
+    });
+  }
   if (nativeShell) {
     await ctx.addInitScript(() => {
       window.__float = { allowed: false, asked: 0, sent: [] };
@@ -199,6 +211,32 @@ const state = page => page.evaluate(async () => {
   await page.waitForTimeout(400);
   f = await page.evaluate(() => window.__float);
   ok('挂断：外壳那边的小窗撤掉', f.sent.length && f.sent[f.sent.length - 1].on === false, JSON.stringify(f.sent.slice(-1)));
+  await ctx.close();
+}
+
+// ---- iPhone 外壳：画中画由外壳画 ----
+{
+  const { ctx, page, ids } = await open({ iosShell: true });
+  ok('iPhone 外壳：接通了', await dialAndWait(page, ids.chat));
+  await page.waitForTimeout(1200);
+  let f = await page.evaluate(() => window.__ios);
+  const lastSet = f.sent.filter(m => m.action === 'set' && m.on).slice(-1)[0] || {};
+  ok('iPhone 外壳：通话中就把名字与时长交给外壳（点按钮那一刻画面是现成的）', lastSet.title === '阿岚' && /\d+:\d{2}/.test(lastSet.status || ''), JSON.stringify(lastSet));
+  await page.locator('[aria-label="桌面悬浮窗"]').click();
+  await page.waitForTimeout(500);
+  let st = await page.evaluate(async () => ({ toggled: window.__ios.sent.some(m => m.action === 'toggle'),
+    mini: (await import('/src/system/call.js')).call.get().mini, ball: !!document.querySelector('.call-ball') }));
+  ok('iPhone 外壳：点按钮弹出画中画，应用里缩起来，不另画球', st.toggled && st.mini && !st.ball, JSON.stringify(st));
+  // 用户在小窗上点了关闭：下一次交状态时外壳回 pip:false，球回来
+  await page.evaluate(() => { window.__ios.pip = false; });
+  await page.waitForTimeout(1600);
+  st = await page.evaluate(() => ({ ball: !!document.querySelector('.call-ball') }));
+  ok('iPhone 外壳：小窗被关掉后回到应用内的悬浮球', st.ball, JSON.stringify(st));
+  await page.evaluate(async () => (await import('/src/system/call.js')).hangUp());
+  await page.waitForTimeout(400);
+  f = await page.evaluate(() => window.__ios);
+  const end = f.sent[f.sent.length - 1] || {};
+  ok('iPhone 外壳：挂断时让外壳收掉', end.action === 'set' && end.on === false, JSON.stringify(end));
   await ctx.close();
 }
 

@@ -11,11 +11,15 @@ import { call, duration } from './call.js';
 //     由外壳画一个原生小窗，只在 Eira 退到后台时出现，回到 Eira 就收起（见 android/.../CallFloat.kt）。
 //     这里只负责把「谁、通了多久、刚说到哪句」按时交过去。开没开记在 settings.callDesk。
 //
+//   iPhone app（外壳注入 phoneCallFloat，消息通道 callfloat）：iOS 不许画在别的应用上面，
+//     只有系统画中画。由外壳把同样那几样画成视频帧弹成小窗（见 ios/Sources/CallFloatBridge.swift）。
+//     点了才弹，和浏览器那条一样；状态每有变化就交过去，外壳回一句小窗还在不在。
+//
 //   浏览器与 PWA：系统画中画。画中画只认 <video>，所以拿一块 canvas 画出头像、名字、时长与
 //     最近一句，captureStream 成视频流塞进一个藏起来的 <video>，再请系统把它弹成小窗。
 //     进画中画必须发生在点击的那一刻，所以视频在通话一开始就备好（prepare），按钮里同步调用。
 //
-// 两条都没有（比如 iPhone 的 app 外壳）就不给按钮。
+// 哪条都没有（旧版的 app 外壳、不支持画中画的浏览器）就不给按钮。
 //
 // **小窗里只能看，不能说。** 回到 Eira 才能打字或开麦克风：系统不许后台的网页用麦克风，
 // 安卓 11 以后原生应用在后台也一样。角色说的话照常进字幕、照常出声。
@@ -25,6 +29,9 @@ export const desk = createStore({ pip: false });
 const native = () => (typeof window !== 'undefined' && window.EiraNative
   && typeof window.EiraNative.setFloat === 'function') ? window.EiraNative : null;
 
+const iosFloat = () => (typeof window !== 'undefined' && window.phoneCallFloat === true
+  && window.webkit?.messageHandlers?.callfloat) || null;
+
 const pipOk = () => typeof document !== 'undefined'
   && document.pictureInPictureEnabled === true
   && typeof HTMLVideoElement !== 'undefined'
@@ -32,9 +39,10 @@ const pipOk = () => typeof document !== 'undefined'
   && typeof HTMLCanvasElement !== 'undefined'
   && typeof HTMLCanvasElement.prototype.captureStream === 'function';
 
-/** 'native' 安卓外壳的悬浮窗 | 'pip' 系统画中画 | '' 都没有 */
+/** 'native' 安卓外壳的悬浮窗 | 'ios' iPhone 外壳的画中画 | 'pip' 浏览器的画中画 | '' 都没有 */
 export function kind() {
   if (native()) return 'native';
+  if (iosFloat()) return 'ios';
   if (pipOk()) return 'pip';
   return '';
 }
@@ -119,20 +127,32 @@ export function statusOf(s) {
   return duration(s.seconds);
 }
 
-// ---- 安卓 ----
+// ---- app 外壳（安卓、iPhone） ----
 
 let info = { name: '', image: '', video: false };
 let sentImage = '';
 let lastFeed = 0;
 let feedTimer = null;
 
-function feedNative() {
+// 交给外壳。iPhone 那边回一句小窗还在不在：用户在小窗上点了关闭，这边靠它知道
+function send(msg) {
   const n = native();
-  if (!n) return;
+  if (n) { try { n.setFloat(JSON.stringify(msg)); } catch { /* 外壳没接住也不要紧 */ } return; }
+  const h = iosFloat();
+  if (!h) return;
+  Promise.resolve(h.postMessage({ action: 'set', ...msg }))
+    .then(r => { if (r && typeof r.pip === 'boolean' && r.pip !== desk.get().pip) desk.set({ pip: r.pip }); })
+    .catch(() => {});
+}
+
+function feedNative() {
+  const k = kind();
+  if (k !== 'native' && k !== 'ios') return;
   const s = call.get();
   const live = s.phase === 'dialing' || s.phase === 'active';
-  if (!live || !nativeOn()) {
-    try { n.setFloat(JSON.stringify({ on: false })); } catch { /* */ }
+  // 安卓要开着才送（它退到后台自己弹）；iPhone 一直送，点按钮那一刻画面得是现成的
+  if (!live || (k === 'native' && !nativeOn())) {
+    send({ on: false });
     sentImage = '';
     return;
   }
@@ -142,11 +162,11 @@ function feedNative() {
   if (want !== sentImage) {
     smallDataUrl(want).then(url => {
       sentImage = want;
-      try { n.setFloat(JSON.stringify({ ...msg, image: url || '' })); } catch { /* */ }
+      send({ ...msg, image: url || '' });
     });
     return;
   }
-  try { n.setFloat(JSON.stringify(msg)); } catch { /* */ }
+  send(msg);
 }
 
 // 字幕是一个字一个字流进来的，每一下都过一次桥太密。最多半秒一次，末尾那一下一定送到
@@ -239,7 +259,7 @@ async function draw() {
  */
 export function prepare(next) {
   info = { ...info, ...next };
-  if (kind() === 'native') { scheduleNative(); return; }
+  if (kind() === 'native' || kind() === 'ios') { scheduleNative(); return; }
   if (!pipOk() || pip) { if (pip) draw(); return; }
   const canvas = document.createElement('canvas');
   canvas.width = W; canvas.height = H;
@@ -276,10 +296,20 @@ export function togglePip() {
   });
 }
 
-/** 通话结束：画中画收掉，安卓那边的小窗撤掉 */
+/** iPhone 外壳：弹出 / 收起画中画。回来之后 desk.pip 是实情 */
+export function toggleShell() {
+  const h = iosFloat();
+  if (!h) return Promise.reject(new Error('这个版本的 app 不支持画中画'));
+  return Promise.resolve(h.postMessage({ action: 'toggle' })).then(r => {
+    if (r && r.error) throw new Error(r.error);
+    desk.set({ pip: !!(r && r.pip) });
+  });
+}
+
+/** 通话结束：画中画收掉，外壳那边的小窗撤掉 */
 export function release() {
-  const n = native();
-  if (n) { try { n.setFloat(JSON.stringify({ on: false })); } catch { /* */ } }
+  if (kind() === 'native' || kind() === 'ios') send({ on: false });
+  desk.set({ pip: false });
   sentImage = '';
   clearTimeout(feedTimer); feedTimer = null;
   if (!pip) return;
@@ -298,5 +328,5 @@ call.subscribe(s => {
   const live = s.phase !== 'idle';
   if (!live) { if (wasLive) release(); wasLive = false; return; }
   wasLive = true;
-  if (native()) scheduleNative();
+  if (kind() === 'native' || kind() === 'ios') scheduleNative();
 });
