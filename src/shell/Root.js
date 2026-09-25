@@ -28,6 +28,8 @@ import { KeepAliveBanner } from './KeepAliveBanner.js';
 import { NavBack } from './NavBack.js';
 import * as goback from './goback.js';
 import { pinStore } from '../system/pinlock.js';
+import { termsStore, accepted as termsAccepted } from '../system/terms.js';
+import { TermsGate } from './TermsGate.js';
 
 // 全局那一层美化的挂上与摘下，单独一个组件。
 //
@@ -73,6 +75,8 @@ export function Root() {
   const lockWall = useImage(lay.wallpaper?.lock);
   // 设了锁屏密码、还没输对：导航停在哪儿都只画锁屏（system/pinlock.js）
   const pinLocked = useStore(pinStore).locked;
+  // 使用须知：还没同意就挡在一切之上（system/terms.js）。设置那边读完了才知道，所以每次渲染都问一次
+  const termsOk = useStore(termsStore).ok || termsAccepted();
   const scr = pinLocked ? 'lock' : s.screen;
   const wallpaper = scr === 'lock' ? (lockWall || homeWall)
     : scr === 'home' ? homeWall : null;
@@ -191,5 +195,6 @@ export function Root() {
       <${KeepAliveBanner}/>
       <${NotifyBanner}/>
       <${CallLayer}/>
+      ${termsOk ? null : html`<${TermsGate}/>`}
     </div>`;
 }

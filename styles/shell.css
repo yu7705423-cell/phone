@@ -802,3 +802,29 @@
 .lock.has-wallpaper .lock-pin .pinpad-key { background: var(--scrim); color: var(--on-scrim); }
 .lock.has-wallpaper .lock-pin .pinpad-dots i { border-color: var(--on-scrim); }
 .lock.has-wallpaper .lock-pin .pinpad-dots i.is-on { background: var(--on-scrim); }
+
+/* ---- 使用须知与内测说明（shell/TermsGate.js）---- */
+.terms-gate {
+  position: absolute; inset: 0; z-index: var(--z-terms);
+  display: flex; flex-direction: column;
+  background: var(--bg); color: var(--text);
+  padding-top: var(--safe-top); padding-bottom: var(--safe-bottom);
+}
+.terms-body { flex: 1; min-height: 0; overflow-y: auto; padding: var(--sp-6) var(--sp-5) var(--sp-4); }
+.terms-title { font-size: var(--fs-20); font-weight: 600; margin-bottom: var(--sp-3); }
+.terms-step { font-size: var(--fs-12); color: var(--text-3); margin-bottom: var(--sp-4); }
+.terms-sec { margin-top: var(--sp-4); }
+.terms-sec-title { font-size: var(--fs-15); font-weight: 600; margin-bottom: var(--sp-1); }
+.terms-p { font-size: var(--fs-14); color: var(--text-2); line-height: 1.7; margin: var(--sp-2) 0 0; }
+.terms-outro { margin-top: var(--sp-5); color: var(--text); }
+.terms-item {
+  margin-top: var(--sp-5); padding: var(--sp-4); border-radius: var(--r-md);
+  background: var(--surface-2); font-size: var(--fs-15); line-height: 1.7;
+}
+.terms-acts {
+  display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-5) var(--sp-5);
+}
+.terms-gate.is-end { justify-content: center; align-items: center; }
+.terms-end { display: flex; flex-direction: column; align-items: center; gap: var(--sp-4); padding: var(--sp-6); text-align: center; }
+.terms-end-text { font-size: var(--fs-15); color: var(--text-2); line-height: 1.7; }

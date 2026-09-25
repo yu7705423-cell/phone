@@ -49,6 +49,12 @@ class NativeBridge(private val context: Context, private val web: WebView) {
     @JavascriptInterface
     fun version(): String = "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})"
 
+    /** 关掉应用。网页「使用须知」里点「不同意」时调（src/system/terms.js）；没有这个接口的旧外壳显示结束页 */
+    @JavascriptInterface
+    fun exitApp() {
+        main.post { (context as? Activity)?.finishAndRemoveTask() }
+    }
+
     @JavascriptInterface
     fun post(name: String, id: Int, json: String) {
         pool.execute {

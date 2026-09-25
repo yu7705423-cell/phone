@@ -10,6 +10,7 @@ import { VideoPage } from './VideoPage.js';
 import { AppearancePage } from './AppearancePage.js';
 import { LockPinPage } from './LockPinPage.js';
 import { RoutesPage } from './RoutesPage.js';
+import { TermsPage } from './TermsPage.js';
 import { StoragePage } from './StoragePage.js';
 import { GitHubPage } from './GitHubPage.js';
 import { BackgroundPage } from './BackgroundPage.js';
@@ -193,6 +194,9 @@ function Home() {
         <${ListItem} title="强制更新" arrow
           subtitle="界面仍是旧版时，清除缓存的代码并重新加载"
           left=${html`<${Icon} name="refresh" size=${18}/>`} onClick=${update}/>
+        <${ListItem} title="使用须知与内测说明" arrow
+          subtitle="第一次打开时确认过的全文"
+          left=${html`<${Icon} name="book" size=${18}/>`} onClick=${() => nav.push('/terms')}/>
       <//>
 
       <div class="settings-foot">
@@ -223,6 +227,7 @@ export default function SettingsApp({ route }) {
   if (route === '/translate') return html`<${TranslateApiPage}/>`;
   if (route === '/memoryapi') return html`<${MemoryApiPage}/>`;
   if (route === '/routes') return html`<${RoutesPage}/>`;
+  if (route === '/terms') return html`<${TermsPage}/>`;
   if (route === '/voice') return html`<${VoicePage}/>`;
   if (route === '/image') return html`<${ImagePage}/>`;
   if (route === '/video') return html`<${VideoPage}/>`;

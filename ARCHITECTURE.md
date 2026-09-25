@@ -9246,3 +9246,17 @@ CLAUDE.md 第 15 条加一段「自动触发的，先记试过再发」。测试
 测试 `tests/dropped.test.mjs` 第五段：页面里把 fetch 换成先吐两段再抛网络错误的替身；收到的部分落成气泡、标中断、
 失败提示写明已保留与已计费、开着自动重试与换接口也只发一次。
 
+### 4.246 使用须知与内测说明
+
+用户要求：第一次打开时弹出「Eira 使用须知」与「内测说明」；内测说明一条一页、每条「同意 / 不同意」，不同意就退出；
+**只弹一次，发版不再弹**。
+
+- 内容在 `system/terms.js`（`NOTICE`、`BETA`），用户逐字审过；改之前先给用户看。
+- `shell/TermsGate.js` 挂在 `Root` 最上层（`--z-terms`），第 0 步使用须知全文，第 1 到 6 步内测说明各一条。
+- 不同意：安卓安装包调 `EiraNative.exitApp()` 关掉应用（`NativeBridge.kt` 新加，要重新打包才有）；
+  网页与 iPhone 安装包没法自己关掉，画结束页，只留「重新阅读」。
+- 同意记在 localStorage 与 `settings.termsAccepted` 两处，任意一处认了就放行（恢复备份的新设备不再问）。
+  `VERSION` 只在须知有实质改动、且用户要求所有人重新确认时才改，发版不改。
+- 「设置 - 使用须知与内测说明」可随时重看全文（`/terms`，只读）。
+- 自动化测试里默认不弹（`navigator.webdriver`），专测它的在 localStorage 放 `eira-terms-test`。测试 `terms`。
+
