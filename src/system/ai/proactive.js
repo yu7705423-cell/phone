@@ -181,6 +181,19 @@ export function reschedule(charId) {
   setNext(charId, cfg.proactive ? Date.now() + rollDelay(cfg.proactiveMinutes) : 0);
 }
 
+/**
+ * 落点已经过了的角色，全部重新掷。回到前台、后台消息的结果取回之后调（见 bgpush）：
+ * 离开期间到点的那几次开口归服务器 —— 发成了、发失败了（可能已扣费）、因为封顶没发，
+ * 都不该由本机回来补一次。**不靠服务器告诉我们是哪个角色**：旧版服务器失败的结果里不带角色，
+ * 用户部署的服务器也不会跟着应用更新
+ */
+export function rescheduleOverdue(now = Date.now()) {
+  const m = readMap();
+  const ids = Object.keys(m).filter(id => !id.startsWith('g:') && m[id] && m[id] <= now);
+  ids.forEach(reschedule);
+  return ids.length;
+}
+
 function gapText(ms) {
   if (!ms || ms < 0) return 'a long time';
   const m = Math.round(ms / 60000);

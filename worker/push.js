@@ -329,8 +329,10 @@ async function runDue(env) {
       { status: 'running', fired_at: iso(now) }, 'return=representation');
     if (!claimed || !claimed.length) continue;
     await runJob(env, job, dev, now).catch(async err => {
+      // 带上是哪段会话、哪个角色：应用回来时据此知道这一次已经用掉了，不补发
+      const who = await unseal(env, job.data).then(d => ({ chatId: d.chatId, charId: d.charId })).catch(() => ({}));
       await db(env, 'PATCH', `push_jobs?id=eq.${job.id}`, {
-        status: 'failed', fired_at: iso(now), result: await seal(env, { error: String(err.message || err) }),
+        status: 'failed', fired_at: iso(now), result: await seal(env, { error: String(err.message || err), ...who }),
       }).catch(() => {});
     });
   }

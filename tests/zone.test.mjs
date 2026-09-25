@@ -153,6 +153,9 @@ await E((m, id) => m.t.update(id, { zone: 'Asia/Tokyo' }), ids.tr);
 const after = await E((m, id, tid, from, to) => {
   m.t.update(tid, { from, to });
   const char = m.db.characters.get(id);
+  // 第 2 步那一天是按东京的「今天」存的。时区回到上海之后，两边的「今天」在一天里有几个小时对不上
+  //（东京已过早上的分界、上海还没到）—— 那时这条断言会随运行时刻失败。按此刻的「今天」确保排着一天
+  if (!m.day.get(id, m.day.dateKey(char))) m.day.save(id, { date: m.day.dateKey(char), items: [{ text: '去邮局', slot: 'morning' }] });
   const c = m.caps.CAPS.find(x => x.id === 'agenda');
   return {
     going: !!m.t.goingFor(id),

@@ -10,6 +10,7 @@ import { migrateLegacy } from './system/ai/services.js';
 import { migrateFrames } from './system/skin.js';
 import { nav } from './system/nav.js';
 import { forceUpdate } from './system/refresh.js';
+import { install as installNewBuild } from './system/newbuild.js';
 import { lockAtBoot } from './system/pinlock.js';
 import { BUILD } from './version.js';
 import { gate, watch as watchAuth } from './system/auth.js';
@@ -66,6 +67,8 @@ function boot() {
     installOffline();
     // 后台消息：离开时把任务交给推送服务器，回来时把替你发出去的取回来（system/bgpush.js）
     installBgPush();
+    // 一直开着的页面，发了新版本之后回到前台时换成新的（system/newbuild.js）
+    installNewBuild();
     askToMove();
   }).catch(err => {
     console.error('[boot] 启动失败', err);

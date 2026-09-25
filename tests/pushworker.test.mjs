@@ -241,6 +241,7 @@ await tick(env);
 reply = oldReply;
 const failed = (await call(env, 'GET', '/results', { token })).data.results;
 ok('模型返回空：记为失败，原因取得回来，不推', failed.length === 1 && failed[0].status === 'failed' && /空内容/.test(failed[0].error) && pushes.length === 0, JSON.stringify(failed));
+ok('失败的结果里带着是哪段会话、哪个角色（应用据此不补发）', !!failed[0]?.chatId && !!failed[0]?.charId, JSON.stringify(failed));
 await call(env, 'POST', '/ack', { token, body: { ids: failed.map(r => r.id) } });
 
 // ---- 安装版应用：登记时不带订阅，照样到点发、存着，只是不推 ----

@@ -243,7 +243,7 @@ export function holdsProactive() {
 export async function collect() {
   if (!readDev()) return 0;
   const { results = [] } = await api('/results');
-  if (!results.length) return 0;
+  if (!results.length) { proactive.rescheduleOverdue(); return 0; }
   let n = 0;
   const touched = new Set();
   const failed = [];
@@ -252,6 +252,9 @@ export async function collect() {
       // 失败的也算这一次用掉了：模型那一次可能已经扣过钱，本机不补发，照样重新掷落点
       if (r.charId) touched.add(r.charId);
       failed.push(`${remark.nameOf(characters.get(r.charId)) || '角色'}：${r.error || '原因不明'}`);
+      // 记进账本：除了「已达每日上限」是调模型之前就停下的，其余失败都可能已经调过模型、扣过钱。
+      // 宁可多记，不能让「后台任务」页上的次数比实际扣费少
+      if (!/已达每日上限/.test(String(r.error || ''))) note('chat.proactive', r.firedAt || Date.now());
       continue;
     }
     const chat = chats.get(r.chatId);
@@ -271,6 +274,8 @@ export async function collect() {
   await api('/ack', { method: 'POST', body: { ids: results.map(r => r.id) } }).catch(() => {});
   // 刚替它发过（或者试过），本机这边重新掷一次落点，不然一打开 app 它又立刻开口
   touched.forEach(id => proactive.reschedule(id));
+  // 离开期间到点、结果里却没有的（旧版服务器失败时不带角色、封顶没发）：同样归服务器，本机不补
+  proactive.rescheduleOverdue();
   lastProblem = failed.length ? `服务器替角色发送失败 ${failed.length} 次（${failed[0]}）。失败的那一次不补发` : '';
   return n;
 }
