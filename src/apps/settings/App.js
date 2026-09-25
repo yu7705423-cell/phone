@@ -8,6 +8,7 @@ import { VoicePage } from './VoicePage.js';
 import { ImagePage } from './ImagePage.js';
 import { VideoPage } from './VideoPage.js';
 import { AppearancePage } from './AppearancePage.js';
+import { LockPinPage } from './LockPinPage.js';
 import { StoragePage } from './StoragePage.js';
 import { GitHubPage } from './GitHubPage.js';
 import { BackgroundPage } from './BackgroundPage.js';
@@ -207,6 +208,7 @@ export default function SettingsApp({ route }) {
   if (route === '/signin') return html`<${SigninPage}/>`;
   if (route === '/signin/admin') return html`<${AdminPage}/>`;
   if (route === '/notify') return html`<${NotifyPage}/>`;
+  if (route === '/lockpin') return html`<${LockPinPage}/>`;
   if (route === '/push-guide') return html`<${PushGuidePage}/>`;
   if (route === '/embed') return html`<${EmbedPage}/>`;
   if (route === '/rerank') return html`<${RerankPage}/>`;

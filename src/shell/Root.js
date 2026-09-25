@@ -26,6 +26,7 @@ import * as keepAlive from '../system/keepalive.js';
 import { KeepAliveBanner } from './KeepAliveBanner.js';
 import { NavBack } from './NavBack.js';
 import * as goback from './goback.js';
+import { pinStore } from '../system/pinlock.js';
 
 // 全局那一层美化的挂上与摘下，单独一个组件。
 //
@@ -55,8 +56,11 @@ export function Root() {
   const lay = useStore(layout.store);
   const homeWall = useImage(lay.wallpaper?.home);
   const lockWall = useImage(lay.wallpaper?.lock);
-  const wallpaper = s.screen === 'lock' ? (lockWall || homeWall)
-    : s.screen === 'home' ? homeWall : null;
+  // 设了锁屏密码、还没输对：导航停在哪儿都只画锁屏（system/pinlock.js）
+  const pinLocked = useStore(pinStore).locked;
+  const scr = pinLocked ? 'lock' : s.screen;
+  const wallpaper = scr === 'lock' ? (lockWall || homeWall)
+    : scr === 'home' ? homeWall : null;
 
   useEffect(() => {
     document.documentElement.dataset.theme = cfg.theme;
@@ -149,17 +153,17 @@ export function Root() {
         <div class="wallpaper ph-wallpaper" style=${`--wall:url(${wallpaper})`}></div>` : null}
       <${StatusBar}/>
       <div class="screen ph-screen">
-        ${s.screen === 'lock' ? html`<${LockScreen}/>` : null}
-        ${s.screen === 'home' ? html`
+        ${scr === 'lock' ? html`<${LockScreen}/>` : null}
+        ${scr === 'home' ? html`
           <div class="home-layer"><${HomeScreen}/></div>` : null}
-        ${s.screen === 'app' && s.appId ? html`
+        ${scr === 'app' && s.appId ? html`
           <div class="app-layer"><${AppHost} appId=${s.appId} route=${route}/></div>` : null}
-        ${s.switcher ? html`<${AppSwitcher}/>` : null}
-        ${s.screen === 'app' && cfg.navStyle === 'back'
+        ${s.switcher && !pinLocked ? html`<${AppSwitcher}/>` : null}
+        ${scr === 'app' && cfg.navStyle === 'back'
           ? html`<${NavBack}/>` : null}
       </div>
-      ${s.screen === 'home' ? html`<${Dock}/>` : null}
-      ${s.screen !== 'lock' && cfg.navStyle !== 'back' ? html`
+      ${scr === 'home' ? html`<${Dock}/>` : null}
+      ${scr !== 'lock' && cfg.navStyle !== 'back' ? html`
         <div class="home-indicator" onClick=${goHome}
           onDblClick=${() => setSwitcher(true)} title="点击返回主界面，双击打开多任务">
           <span class="hi-bar"></span>

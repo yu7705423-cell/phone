@@ -138,7 +138,7 @@ export function confirm({ title, message, okText = '确定', cancelText = '取�
   });
 }
 
-export function prompt({ title, message = '', value = '', placeholder = '', multiline, okText = '保存' }) {
+export function prompt({ title, message = '', value = '', placeholder = '', multiline, okText = '保存', type = 'text' }) {
   return new Promise(resolve => {
     const box = document.createElement('div');
     document.body.appendChild(box);
@@ -155,7 +155,7 @@ export function prompt({ title, message = '', value = '', placeholder = '', mult
           <div class="modal-body">
             ${multiline
               ? html`<textarea rows="5" placeholder=${placeholder} onInput=${onInput}>${value}</textarea>`
-              : html`<input value=${value} placeholder=${placeholder} onInput=${onInput}/>`}
+              : html`<input type=${type} value=${value} placeholder=${placeholder} onInput=${onInput}/>`}
           </div>
           <div class="modal-actions">
             <button class="modal-btn press" onClick=${() => done(null)}>取消</button>

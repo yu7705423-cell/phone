@@ -10,6 +10,7 @@ import { migrateLegacy } from './system/ai/services.js';
 import { migrateFrames } from './system/skin.js';
 import { nav } from './system/nav.js';
 import { forceUpdate } from './system/refresh.js';
+import { lockAtBoot } from './system/pinlock.js';
 import { BUILD } from './version.js';
 import { gate, watch as watchAuth } from './system/auth.js';
 import { Login } from './shell/Login.js';
@@ -54,6 +55,8 @@ function boot() {
     // 没等完的视频任务接着等。不重新提交，只是接着问那个 task_id
     resumeClips();
     if (!s.showLockScreen) nav.set({ screen: 'home' });
+    // 设了锁屏密码：「启动时显示锁屏」关着也先锁上（system/pinlock.js）
+    lockAtBoot();
     // 浏览器标签页里点一下进全屏（见 system/fullscreen.js）
     installFullscreen();
 

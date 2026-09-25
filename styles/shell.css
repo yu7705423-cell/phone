@@ -791,3 +791,14 @@
   background: var(--danger); color: var(--on-scrim); font-size: var(--fs-11);
   opacity: .85; pointer-events: none;
 }
+
+/* 锁屏密码（system/pinlock.js）：时间留在上面，键盘占中间 */
+.lock.is-pin { justify-content: space-between; }
+.lock-pin { display: flex; flex-direction: column; align-items: center; padding-bottom: var(--sp-6); }
+.lock-pin-acts { display: flex; gap: var(--sp-8); margin-top: var(--sp-5); }
+.lock-pin-acts button { font-size: var(--fs-14); color: var(--text-2); padding: var(--sp-2); }
+.lock.has-wallpaper .lock-pin .pinpad-note,
+.lock.has-wallpaper .lock-pin-acts button { color: var(--on-scrim); }
+.lock.has-wallpaper .lock-pin .pinpad-key { background: var(--scrim); color: var(--on-scrim); }
+.lock.has-wallpaper .lock-pin .pinpad-dots i { border-color: var(--on-scrim); }
+.lock.has-wallpaper .lock-pin .pinpad-dots i.is-on { background: var(--on-scrim); }

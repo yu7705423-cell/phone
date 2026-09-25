@@ -148,6 +148,12 @@ export function AppearancePage() {
           left=${html`<${Icon} name="lock" size=${19}/>`}
           right=${html`<${Switch} checked=${s.showLockScreen}
             onChange=${v => db.settings.set({ showLockScreen: v })}/>`}/>
+        <${ListItem} title="锁屏密码" arrow multiline
+          subtitle=${phone.pinlock.hasPin()
+    ? `已设置 ${phone.pinlock.pinLength()} 位密码，每次打开应用时需要输入`
+    : '未设置。设置后每次打开应用时需要输入'}
+          left=${html`<${Icon} name="lock" size=${19}/>`}
+          onClick=${() => nav.push('/lockpin')}/>
       <//>
 
       <div class="list-wrap">
