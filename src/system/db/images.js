@@ -31,18 +31,57 @@ export async function compress(file, maxEdge = PHOTO_MAX) {
   return { blob, w, h };
 }
 
+/**
+ * 图里真正有东西的那一块（不透明像素的外框），按原图坐标给。
+ * 四周没有透明边、或者整张都是透明的，给 null。
+ *
+ * 网上下的 png 图标常常四周留一大圈透明：图标本体只占中间一半，
+ * 整张放进格子里，看着就是格子里空了一大块。
+ */
+const ALPHA_MIN = 10;          // 这么淡的边缘不算内容（抗锯齿那一圈）
+function opaqueBox(bmp) {
+  const k = Math.min(1, 512 / Math.max(bmp.width, bmp.height));
+  const W = Math.max(1, Math.round(bmp.width * k));
+  const H = Math.max(1, Math.round(bmp.height * k));
+  const c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const ctx = c.getContext('2d', { willReadFrequently: true });
+  ctx.drawImage(bmp, 0, 0, W, H);
+  const px = ctx.getImageData(0, 0, W, H).data;
+  let x0 = W, y0 = H, x1 = -1, y1 = -1;
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      if (px[(y * W + x) * 4 + 3] <= ALPHA_MIN) continue;
+      if (x < x0) x0 = x; if (x > x1) x1 = x;
+      if (y < y0) y0 = y; if (y > y1) y1 = y;
+    }
+  }
+  if (x1 < 0) return null;
+  // 四边都几乎贴边：没什么可裁的
+  if (x0 <= 1 && y0 <= 1 && x1 >= W - 2 && y1 >= H - 2) return null;
+  return { x: x0 / k, y: y0 / k, w: (x1 - x0 + 1) / k, h: (y1 - y0 + 1) / k };
+}
+
+/** 这张图四周有没有可裁的透明边。给「去掉透明边」判断要不要换一张 */
+export async function hasPadding(blob) {
+  const bmp = await createImageBitmap(blob);
+  try { return !!opaqueBox(bmp); } finally { bmp.close && bmp.close(); }
+}
+
 // 整张图完整放进正方形画布，留白透明。用于应用图标。
 // 不做居中裁切：宽图被裁掉两边就只剩中间一小块，什么都看不出来。
-export async function compressFit(file, size = ICON_MAX) {
+// trim：先裁掉四周的透明边，再放进画布（见 opaqueBox）
+export async function compressFit(file, size = ICON_MAX, { trim = false } = {}) {
   const bmp = await createImageBitmap(file);
-  const scale = Math.min(size / bmp.width, size / bmp.height);
-  const w = Math.max(1, Math.round(bmp.width * scale));
-  const h = Math.max(1, Math.round(bmp.height * scale));
+  const box = (trim && opaqueBox(bmp)) || { x: 0, y: 0, w: bmp.width, h: bmp.height };
+  const scale = Math.min(size / box.w, size / box.h);
+  const w = Math.max(1, Math.round(box.w * scale));
+  const h = Math.max(1, Math.round(box.h * scale));
   const canvas = document.createElement('canvas');
   canvas.width = size; canvas.height = size;
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, size, size);
-  ctx.drawImage(bmp, Math.round((size - w) / 2), Math.round((size - h) / 2), w, h);
+  ctx.drawImage(bmp, box.x, box.y, box.w, box.h, Math.round((size - w) / 2), Math.round((size - h) / 2), w, h);
   bmp.close && bmp.close();
   const blob = await new Promise(res => canvas.toBlob(res, 'image/webp', QUALITY))
     || await new Promise(res => canvas.toBlob(res, 'image/png'));
@@ -101,8 +140,8 @@ export const images = {
     rows.forEach(r => sizes.set(r.id, r.bytes || 0));
   },
 
-  async putIcon(file, size = ICON_MAX) {
-    const { blob, w, h } = await compressFit(file, size);
+  async putIcon(file, size = ICON_MAX, opts = {}) {
+    const { blob, w, h } = await compressFit(file, size, opts);
     const row = { id: uid('img'), blob, w, h, bytes: blob.size, createdAt: Date.now() };
     sizes.set(row.id, row.bytes);
     await write('images', () => idb.put('images', row));

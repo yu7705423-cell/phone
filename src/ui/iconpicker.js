@@ -2,7 +2,7 @@ import { html, useRef, useState } from '../lib.js';
 import { Icon } from '../icons/Icon.js';
 import { ICON_NAMES } from '../icons/paths.js';
 import { Sheet, prompt, toast } from './overlay.js';
-import { Button, Field, Input } from './basic.js';
+import { Button, Field, Input, Slider } from './basic.js';
 
 // 改一个 app 的图标与名称。
 //
@@ -16,6 +16,8 @@ import { Button, Field, Input } from './basic.js';
 // service.file(appId, File)      换成一张图片
 // service.url(appId, string)     从链接换成一张图片
 // service.clearImage(appId)      去掉图片，改回线条图标
+// service.trim(appId)            可选。已存的那张裁掉四周的透明边
+// service.scale(appId, pct)      可选。图片在格子里占多大；scaleRange 给上下限
 export function IconPicker({ appId, app, preview, service, maxEdge = 256, onClose }) {
   const fileRef = useRef(null);
   const [busy, setBusy] = useState(false);
@@ -23,6 +25,15 @@ export function IconPicker({ appId, app, preview, service, maxEdge = 256, onClos
 
   const cur = service.override(appId);
   const icon = cur.icon || app?.icon;
+  const range = service.scaleRange || { min: 50, max: 160, def: 100 };
+  const scale = cur.scale || range.def;
+
+  const trim = async () => {
+    setBusy(true);
+    try { toast(await service.trim(appId) ? '已去掉四周的透明边' : '这张图四周没有透明边'); }
+    catch (err) { toast('处理失败：' + (err.message || err), 'error', 4000); }
+    finally { setBusy(false); }
+  };
 
   const useFile = async file => {
     setBusy(true);
@@ -54,10 +65,11 @@ export function IconPicker({ appId, app, preview, service, maxEdge = 256, onClos
         <${Input} value=${app?.name || ''} onInput=${v => service.set(appId, { name: v })}/>
       <//>
 
-      <${Field} label="更换为图片" desc=${`整图完整缩放至 ${maxEdge} x ${maxEdge}，保存在本地。`}>
+      <${Field} label="更换为图片"
+        desc=${`四周的透明边自动裁掉，其余部分完整缩放至 ${maxEdge} x ${maxEdge}，保存在本地。`}>
         <div class="icon-upload">
           <div class=${`app-tile app-tile-preview${preview ? ' has-image' : ''}`}
-            style=${preview ? `background-image:url(${preview})` : ''}>
+            style=${preview ? `--tile-img:url(${preview});--tile-img-size:${scale}%` : ''}>
             ${preview ? null : html`<${Icon} name=${icon} size=${24}/>`}
           </div>
           <div class="icon-upload-acts">
@@ -74,6 +86,17 @@ export function IconPicker({ appId, app, preview, service, maxEdge = 256, onClos
       <//>
 
       ${cur.imageId ? html`
+        ${service.scale ? html`
+          <${Field} label=${`图片大小　${scale}%`}
+            desc="图片在图标格子里占的比例。100% 为铺满格子，调大时超出格子的部分被裁掉。">
+            <${Slider} value=${scale} min=${range.min} max=${range.max} step=${5} unit="%"
+              onChange=${v => service.scale(appId, v === '' ? range.def : v)}/>
+          <//>` : null}
+        ${service.trim ? html`
+          <div class="btn-row pad-t">
+            <${Button} size="sm" variant="ghost" icon="crop" disabled=${busy} onClick=${trim}>去掉四周的透明边<//>
+          </div>
+          <div class="field-desc">早先上传、四周留有大片透明区域的图片，可用此项裁掉，不必重新上传。</div>` : null}
         <div class="field-desc">正在使用图片。点上方的「改回图标」可换回线条图标。</div>`
       : html`
         <${Field} label="或者挑一个图标"/>

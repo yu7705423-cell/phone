@@ -144,7 +144,7 @@ import { useFile } from '../system/db/useFile.js';
 import { BLOCKS, DEFAULT_ORDER, resolveOrder } from '../system/ai/context/index.js';
 import { toast, confirm, prompt } from '../ui/overlay.js';
 import { appLook, listAppLooks, iconOverride, setAppIcon, resetAppIcon,
-         setAppIconFile, setAppIconUrl, clearAppIconImage } from '../system/look.js';
+         setAppIconFile, setAppIconUrl, clearAppIconImage, trimAppIcon, setAppIconScale, ICON_SCALE } from '../system/look.js';
 import { registryStore } from '../system/registry.js';
 import { removedApps, restoreApp } from '../screens/home/layout.js';
 
@@ -181,6 +181,9 @@ export const phone = {
       file: setAppIconFile,
       url: setAppIconUrl,
       clearImage: clearAppIconImage,
+      trim: trimAppIcon,
+      scale: setAppIconScale,
+      scaleRange: ICON_SCALE,
     },
   },
 

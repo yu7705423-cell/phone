@@ -279,8 +279,9 @@ export function resetIcon(charId, appId) {
   set(charId, { icons: all });
 }
 
+// 和自己主屏的图标一样，先裁掉四周的透明边（images.compressFit 的 trim）
 export async function setIconFile(charId, appId, file) {
-  const id = await images.putIcon(file, ICON_MAX);
+  const id = await images.putIcon(file, ICON_MAX, { trim: true });
   const old = iconOf(charId, appId).imageId;
   if (old) images.remove(old);
   setIcon(charId, appId, { imageId: id });

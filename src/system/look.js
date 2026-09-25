@@ -1,5 +1,5 @@
 import { settings, images } from './db/index.js';
-import { ICON_MAX } from './db/images.js';
+import { ICON_MAX, hasPadding } from './db/images.js';
 import { getApp, listApps } from './registry.js';
 
 // 图标一律白底黑图。颜色、阴影、名称显示与否在主题设置里统一控制，
@@ -13,6 +13,7 @@ export function appLook(appId) {
     icon: custom.icon || app.icon,
     name: custom.name || app.name,
     imageId: custom.imageId || null,     // 自定义图片，有则盖过 SVG
+    scale: custom.scale || 0,            // 图片在格子里占多大（百分数），0 为整格
   };
 }
 
@@ -83,8 +84,9 @@ export function resetAppIcon(appId) {
   settings.replace({ ...s, appIcons: all });
 }
 
+// 存之前先裁掉四周的透明边（images.compressFit 的 trim）
 export async function setAppIconFile(appId, file) {
-  const id = await images.putIcon(file, ICON_MAX);
+  const id = await images.putIcon(file, ICON_MAX, { trim: true });
   const old = iconOverride(appId).imageId;
   if (old) images.remove(old);
   setAppIcon(appId, { imageId: id });
@@ -98,6 +100,28 @@ export async function setAppIconUrl(appId, url) {
   const blob = await res.blob();
   if (!/^image\//.test(blob.type)) throw new Error('这个链接不是图片');
   return setAppIconFile(appId, new File([blob], 'icon', { type: blob.type }));
+}
+
+/**
+ * 已经存着的那张重新裁一遍透明边。给回有没有变：本来就贴边的不动。
+ * 换进来的是新图、新 id，旧的那张删掉
+ */
+export async function trimAppIcon(appId) {
+  const old = iconOverride(appId).imageId;
+  if (!old) return false;
+  const blob = await images.blob(old);
+  if (!blob || !(await hasPadding(blob))) return false;
+  const id = await images.putIcon(blob, ICON_MAX, { trim: true });
+  setAppIcon(appId, { imageId: id });
+  images.remove(old);
+  return true;
+}
+
+/** 图片在格子里占多大，百分数。100 是整格；空着按 100 算 */
+export const ICON_SCALE = { min: 50, max: 160, def: 100 };
+export function setAppIconScale(appId, pct) {
+  const n = Math.round(Number(pct) || ICON_SCALE.def);
+  setAppIcon(appId, { scale: n === ICON_SCALE.def ? undefined : Math.max(ICON_SCALE.min, Math.min(ICON_SCALE.max, n)) });
 }
 
 export function clearAppIconImage(appId) {

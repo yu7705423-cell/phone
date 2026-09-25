@@ -94,7 +94,7 @@
   /* 图走变量，不走内联样式。挂了契约钩子的元素上写内联样式，作者写什么
      都盖不住它（见 ARCHITECTURE 4.136）。变量喂进来，这条声明在这儿 */
   background-image: var(--tile-img, none);
-  background-size: contain; background-position: center; background-repeat: no-repeat;
+  background-size: var(--tile-img-size, contain); background-position: center; background-repeat: no-repeat;
 }
 .app-name {
   font-size: var(--fs-11); color: var(--ph-tile-name-color, var(--text-2)); max-width: 100%;

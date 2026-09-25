@@ -225,6 +225,18 @@ export function AppearancePage() {
           subtitle="先勾选若干应用，再一次选择多张图片，按勾选顺序依次对应。" arrow
           left=${html`<${Icon} name="grid" size=${19}/>`}
           onClick=${() => setBatchOpen(true)}/>
+        ${apps.some(a => (s.appIcons || {})[a.id]?.imageId) ? html`
+          <${ListItem} title="去掉所有图片四周的透明边" multiline
+            subtitle="新上传的图片会自动裁掉透明边。早先上传、图标四周空出一大块的，可在此一次处理。单个图标的大小在点开该图标后调节。"
+            left=${html`<${Icon} name="crop" size=${19}/>`}
+            onClick=${async () => {
+              let n = 0;
+              for (const a of apps) {
+                if (!(db.settings.get().appIcons || {})[a.id]?.imageId) continue;
+                try { if (await appsApi.icon.trim(a.id)) n++; } catch { /* 读不到的那张跳过 */ }
+              }
+              toast(n ? `已处理 ${n} 个图标` : '没有需要处理的图标');
+            }}/>` : null}
         ${apps.map(a => {
           const cur = (s.appIcons || {})[a.id] || {};
           return html`
