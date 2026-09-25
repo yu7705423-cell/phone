@@ -84,10 +84,18 @@ const pushes = [];
 const channels = [];
 let pushStatus = 201;
 let reply = n => `[旁白：他看了一眼窗外。]\n第${n}次开口。\n你在忙吗`;
+const sbHeaders = [];
+let sbGate = null;
 globalThis.fetch = async (input, init = {}) => {
   const url = new URL(typeof input === 'string' ? input : input.url);
   const method = init.method || 'GET';
   if (url.host === 'sb.test') {
+    sbHeaders.push(init.headers || {});
+    // 像真的网关那样认密钥：不对就是 Supabase 原样的那句 Invalid API key；
+    // 新版 sb_ 密钥不是 JWT，放进 Authorization 也会被拒
+    if (sbGate && (init.headers?.apikey !== sbGate || (/^sb_/.test(sbGate) && init.headers?.authorization))) {
+      return new Response(JSON.stringify({ message: 'Invalid API key', hint: 'Double check your API key.' }), { status: 401 });
+    }
     const [status, data] = supabase(method, url, init.body ? JSON.parse(init.body) : undefined, init.headers?.prefer);
     return new Response(data == null ? '' : JSON.stringify(data), { status });
   }
@@ -374,6 +382,32 @@ pushStatus = 410;
 await call(env, 'POST', '/plan', { token, body: { away: true, jobs: [{ ...job, due: [Date.now() - 1000] }] } });
 await tick(env);
 ok('推送服务说订阅作废（410）：整台设备连同任务删掉', tables.push_devices.length === 0 && tables.push_jobs.length === 0, `${tables.push_devices.length} ${tables.push_jobs.length}`);
+
+// ---- Supabase 密钥（用户报：最后一步测试弹 Supabase 401 Invalid API key）----
+{
+  const jwt = o => `eyJhbGciOiJIUzI1NiJ9.${Buffer.from(JSON.stringify(o)).toString('base64url')}.sig`;
+  const home = async key => (await worker.fetch(new Request('https://push.worker/'), { ...env, SUPABASE_KEY: key })).text();
+  sbGate = 'sb_secret_abc123';
+  sbHeaders.length = 0;
+  const good = await home('  "sb_secret_abc123"\n');
+  ok('新版 sb_secret_ 密钥：带着空格引号换行也能用，打开 Worker 地址显示已就绪', /已就绪/.test(good), good);
+  ok('新版 sb_secret_ 密钥：只放 apikey，不放进 Authorization', sbHeaders.length && sbHeaders.every(h => !h.authorization), JSON.stringify(sbHeaders));
+  const said = async (key, re, name) => { const t = await home(key); ok(name, /连不上数据库/.test(t) && re.test(t) && /Invalid API key/.test(t), t); };
+  await said('sb_publishable_xyz', /publishable/, '填成 publishable 密钥：说出来');
+  await said(jwt({ role: 'anon', ref: 'test' }), /anon 密钥/, '填成 anon 密钥：说出来');
+  await said('sb_secret_ab••••••', /遮住的显示文字/, '复制成打了圆点的显示文字：说出来');
+  await said('7f3a9c-some-jwt-secret', /JWT Secret/, '填成别的东西：说出常见误填');
+  await said(jwt({ role: 'service_role', ref: 'other' }), /Legacy|项目/, '旧版 service_role 被拒：说出可能的原因');
+  sbGate = jwt({ role: 'service_role', ref: 'x' });
+  sbHeaders.length = 0;
+  ok('旧版 eyJ 密钥照旧能用（apikey 与 Authorization 都带）', /已就绪/.test(await home(sbGate)) && sbHeaders.every(h => h.authorization === `Bearer ${sbGate}`));
+  sbGate = 'sb_secret_abc123';
+  const dev = await worker.fetch(new Request('https://push.worker/device', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' }),
+    { ...env, SUPABASE_KEY: 'sb_publishable_xyz' });
+  const msg = (await dev.json()).error || '';
+  ok('应用里打开后台消息时的报错也带着这句说明', /publishable/.test(msg), msg);
+  sbGate = null;
+}
 
 const n = R.filter(x => !x.pass).length;
 console.log(`\n${R.length - n}/${R.length} 通过`);

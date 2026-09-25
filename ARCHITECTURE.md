@@ -9061,3 +9061,33 @@ iPhone 的 WebKit 上，应用在后台待一阵回来，网页与数据库（In
 测试 `tests/closetdaily.test.mjs`：三组各自指定后 `presetFor` 的结果、不影响对话回复、没填全照默认、界面点选写进设置；
 没开不调、开了调一次走指定那套、不认识的 id 丢掉、同一天不再调、今天已穿着不调、失败原因记下并在衣帽间页显示、
 开着的角色算进额外调用。
+
+**按天气（用户要求「开了和风天气要严格结合天气」）。** 配了和风天气、角色卡填了所在地区时：
+
+- 日期按角色时区算；今天的日程已经查过天气就用那一份，否则 `weather.forChar` 查一次（不花模型的钱）。
+- 预报经 `task.closet-daily-weather` 接进请求，标明是硬性条件：整天的温度区间（含最低温）都要穿得住、
+  有降水且有雨具就带、紫外线 6 以上且有防晒就带、风力 5 级以上不选不耐风的。模板可在「模板」页改。
+- **代码里也拦一道**：`seasonsFor` 按当天最高、最低、平均气温算出合季的季节（宁宽勿窄），标了季节又不合的衣物
+  不交给模型，模型选回来也不认；没标季节的留着，随身物品不看季节。全部衣物都被拿掉时照原样全给，不让角色今天没有衣服。
+
+测试同在 `tests/closetdaily.test.mjs`：没配天气时请求里没有那一段；配了之后预报进请求、夏季短袖不在列表里、
+模型硬选回来也不勾。
+
+### 4.238 推送服务器：Supabase 401 Invalid API key
+
+用户报：照教程部署到最后一步，测试时弹 `Supabase 401: {"message":"Invalid API key","hint":"Double check your API key."}`。
+
+Supabase 新版后台的密钥换成了 `sb_secret_…` / `sb_publishable_…`，旧的 `eyJ…`（Legacy）在新项目里常常是停用的。
+从前教程只写「找 service_role」，Worker 也把密钥同时塞进 `apikey` 与 `Authorization: Bearer`。三处都改：
+
+- `worker/push.js` 的 `db`：密钥与地址先去掉空格、换行、引号、零宽字符（手机上复制常带进来）；只有 `eyJ` 开头的
+  才放进 `Authorization`，`sb_secret_` 不是 JWT，只带 `apikey`，由网关换成 service_role。
+- 401 / 403 时 `keyProblem` 看填的是什么，说出具体哪里错：publishable、anon、复制到了圆点、不是 API 密钥
+  （JWT Secret、数据库密码）、JWT 里的项目与地址不是同一个、Legacy 被停用。这句跟着报错一路回到应用里。
+- 直接打开 Worker 地址（`GET /`）从前只看环境变量填没填，填错密钥照样显示「已就绪」；现在真的查一次数据库，
+  连不上就写「连不上数据库」和上面那句原因。
+- `PUSH.md` 第一步改成新版后台的找法（Secret keys 一栏、点复制按钮），常见问题加一行 401。
+
+测试 `tests/pushworker.test.mjs` 末尾：模拟 Supabase 网关认密钥；`sb_secret_` 带空格引号也能用且不进 Authorization；
+五种填错各自说得出来；旧版 `eyJ` 照旧能用；应用打开后台消息时的报错带着这句说明。
+

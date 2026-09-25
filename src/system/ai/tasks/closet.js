@@ -11,6 +11,9 @@ import { toDataUrl } from '../../audio.js';
 import { subsOf, setImage, itemsOf, isOutfit, create, garmentOnly, live, isCarry, today, wear, wornToday } from '../../closet.js';
 import { GROUPS, COLORS, SEASONS, OCCASIONS, groupOf } from '../../closet-kinds.js';
 import { runJSONTask } from '../engine.js';
+import * as clock from '../../time.js';
+import * as dayStore from '../../day.js';
+import * as weatherApi from '../../weather.js';
 
 export { isVisionReady, isImageReady };
 
@@ -158,21 +161,44 @@ const line = r => `${r.id} | ${[groupOf(r.group)?.label, r.sub].filter(Boolean).
   + `${(r.seasons || []).length ? ` | ${r.seasons.map(x => SEASONS.find(y => y.id === x)?.label || x).join('、')}` : ''}`
   + `${(r.occasions || []).length ? ` | ${r.occasions.map(x => OCCASIONS.find(y => y.id === x)?.label || x).join('、')}` : ''}`;
 
+// 当天气温落在哪几个季节。宁宽勿窄：只用来把明显不合季节的衣物拿掉，
+// 没标季节的衣物一律留着（不知道就不替它判断）
+function seasonsFor(w) {
+  if (!w || !Number.isFinite(w.tempMin) || !Number.isFinite(w.tempMax)) return null;
+  const mid = (w.tempMin + w.tempMax) / 2;
+  const out = new Set();
+  if (w.tempMax >= 26 || mid >= 22) out.add('summer');
+  if (mid >= 8 && mid <= 25) { out.add('spring'); out.add('autumn'); }
+  if (w.tempMin <= 10 || mid <= 12) out.add('winter');
+  return out;
+}
+
 /** 挑一次，勾上。回来的是勾上了几件 */
 export async function pickToday(charId) {
   const char = characters.get(charId);
   if (!char) throw new Error('角色不存在');
-  const all = itemsOf(charId).filter(r => live(r) && !isOutfit(r) && r.side === 'wear' && !(r.lent && r.lent.to));
+  const owned = itemsOf(charId).filter(r => live(r) && !isOutfit(r) && r.side === 'wear' && !(r.lent && r.lent.to));
+  if (!owned.length) throw new Error('该角色的衣帽间里还没有衣物或随身物品');
+  // 日期按角色那边的时区算（和日程、天气同一个「今天」）
+  const p = clock.partsOf(clock.now(), clock.charZone(char));
+  const date = `${p.year}-${p.month}-${p.day}`;
+  // 天气：配了和风天气、角色填了所在地区才有。今天的日程已经查过就用那一份，不再查一次
+  const w = dayStore.get(charId, date)?.weather || await weatherApi.forChar(char, date);
+  // 用户要求严格按天气：标了季节、又不合今天气温的衣物，**不交给模型**，模型选回来也不认。
+  // 随身物品不看季节。全被拿掉时照原样全给（宁可让模型按预报挑，也不让角色今天什么都不穿）
+  const fit = seasonsFor(w);
+  const suits = r => isCarry(r) || !fit || !(r.seasons || []).length || r.seasons.some(x => fit.has(x));
+  const kept = owned.filter(suits);
+  const all = kept.some(r => !isCarry(r)) || !owned.some(r => !isCarry(r)) ? kept : owned;
   const clothes = all.filter(r => !isCarry(r));
   const carry = all.filter(isCarry);
-  if (!clothes.length && !carry.length) throw new Error('该角色的衣帽间里还没有衣物或随身物品');
-  const now = new Date();
   const out = await runJSONTask('closet.daily', {
     system: fillTemplate(template('task.closet-daily'), {
       charName: char.name || '该角色',
       charPersona: [char.persona, char.appearance].filter(Boolean).join('\n\n') || '（角色卡里还没有写人设）',
-      date: `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`,
-      weekday: '日一二三四五六'[now.getDay()],
+      date,
+      weekday: '日一二三四五六'[new Date(`${date}T12:00:00`).getDay()],
+      weather: w ? fillTemplate(template('task.closet-daily-weather'), { forecast: weatherApi.promptLine(w) }) : '',
       clothes: clothes.map(line).join('\n') || '（没有）',
       carry: carry.map(line).join('\n') || '（没有）',
     }),

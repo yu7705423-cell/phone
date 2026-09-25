@@ -1731,13 +1731,26 @@ Write "name" and "desc" in the same language as the category names above.`,
 
 ## Small items that can be carried (id | category | name)
 {{carry}}
-
+{{weather}}
 ## Rules
 - Choose only from the lists above, by id. Do not invent items.
 - "wear" is what is worn today; "carry" is what is carried today. Either may be empty.
 
 ## Output JSON only, with no other text
 {"wear":["id"],"carry":["id"]}`,
+
+  // 用户要求：开了和风天气，每日穿搭要严格按天气来。只有查到了当天预报才接进 task.closet-daily
+  'task.closet-daily-weather':
+`
+## Today's weather (hard constraint)
+{{forecast}}
+
+- Every garment worn must suit this forecast. Between them, the chosen layers cover the whole temperature range of the day, including the low.
+- An item whose seasons are listed and do not include the season this temperature belongs to is not chosen.
+- When precipitation is forecast and the carry list contains rain gear, it is carried.
+- When the UV index is 6 or above and the lists contain sun protection, it is included.
+- When the wind force is 5 or above, garments that cannot be worn in strong wind are not chosen.
+`,
 
   'task.closet-wardrobe':
 `You are the author of {{charName}}'s settings. List {{count}} items this

@@ -73,10 +73,15 @@ Worker 收到后先用 `DATA_KEY` 加密，再存入 Supabase，数据库中只�
 
   例如 Project ID 是 `abcdefghijk`，地址就是 `https://abcdefghijk.supabase.co`。
   （有的版本在 **Data API** 页直接显示 **Project URL**，与此相同。）
-- **service_role 密钥**：在 **API Keys** 中找到 **service_role**（有的版本叫 `secret` key），点 Reveal 后复制
+- **secret 密钥**：左侧 **API Keys**。
+  - 新版后台：在 **Secret keys** 一栏（不是上面的 Publishable key）找到 `default`，点它右侧的**复制按钮**。
+    复制到的应以 `sb_secret_` 开头。没有这一栏时点 **Create new secret key** 新建一个
+  - 旧版后台（或 **Legacy API Keys** 标签页）：复制 **service_role** 那一串，以 `eyJ` 开头
 
-> **service_role 密钥可以读写整个数据库**，只填进下面 Worker 的环境变量，不要发给任何人，不要截图外传。
-> 另一个 `anon` / `publishable` 密钥这里用不到。
+  **一定要点复制按钮，不要手动选中文字**：页面上显示的密钥中间是一排圆点，选中复制到的是圆点，不是密钥。
+
+> **secret / service_role 密钥可以读写整个数据库**，只填进下面 Worker 的环境变量，不要发给任何人，不要截图外传。
+> `publishable` / `anon` 密钥这里用不到，填了会报 `Invalid API key`。
 
 ---
 
@@ -129,7 +134,7 @@ Worker 页面 → **Settings** → **Variables and Secrets** → **Add**。
 | 名称（一字不差） | 值 |
 |---|---|
 | `SUPABASE_URL` | 第一步记下的项目地址，例如 `https://abcdefghijk.supabase.co` |
-| `SUPABASE_KEY` | 第一步记下的 **service_role** 密钥 |
+| `SUPABASE_KEY` | 第一步记下的 **secret** 密钥（`sb_secret_` 或 `eyJ` 开头） |
 | `VAPID_PUBLIC` | `/setup` 页面上 VAPID_PUBLIC 后面那串 |
 | `VAPID_PRIVATE` | `/setup` 页面上 VAPID_PRIVATE 后面那串 |
 | `DATA_KEY` | `/setup` 页面上 DATA_KEY 后面那串 |
@@ -146,6 +151,8 @@ Worker 页面 → **Settings** → **Variables and Secrets** → **Add**。
 ```
 Eira 推送服务器：已就绪
 ```
+
+打开地址时服务器会实际连接一次数据库。显示「连不上数据库」时，下一行写明是哪一项填错，按提示改正后重新打开。
 
 ---
 
@@ -238,6 +245,7 @@ PushPlus 免费版每天有发送条数上限，用完当天不再发送通知�
 |---|---|
 | 后台消息的开关是灰的 | 还没有填写推送服务器地址，或地址不是 `https://` 开头 |
 | 打开开关时提示「推送服务器的环境变量还没填全」 | 第四步有一项未填或名称拼错。打开 Worker 地址，确认显示「已就绪」 |
+| 提示 `Supabase 401` / `Invalid API key` | `SUPABASE_KEY` 填错。常见原因：填成了 publishable / anon 密钥；手动选中复制到了圆点；复制时多了空格或少了几位；密钥与 `SUPABASE_URL` 不是同一个项目。打开 Worker 地址，页面会写明是哪一种。改完 Variables 后点 **Deploy** 或等待保存生效 |
 | 打开开关时提示 `Failed to fetch` | Worker 地址无法访问（大陆访问 `workers.dev` 常见，参考第六步），或地址填错 |
 | 提示「这个网站不在 ALLOW_ORIGINS 里」 | `ALLOW_ORIGINS` 中没有当前使用的网址。正式版填 `https://eiraphone.cn`，测试版另外加上测试版网址 |
 | 测试推送能收到，角色消息收不到 | 缺少第五步的定时触发；或该角色没有打开「主动找你」；或未读已达「用量与上限」中设定的上限；或已达 `MAX_PER_DAY` |

@@ -13,13 +13,13 @@
 //   PushPlus 经微信公众号送到微信里，哪种手机都收得到
 // 用哪个、填什么由应用在交任务时一起交来（加密存在设备那一行），到点发完 Web Push 再按它发一条。
 //
-// 数据存在 Supabase（表结构见 worker/push.sql），经它的 REST 接口读写，用 service_role 密钥。
+// 数据存在 Supabase（表结构见 worker/push.sql），经它的 REST 接口读写，用 secret（旧版叫 service_role）密钥。
 // **订阅、任务、结果一律先用 DATA_KEY 加密再存**：任务里带着用户的接口密钥与聊天上下文，
 // 数据库里只看得到密文。DATA_KEY 只在这个 Worker 的环境变量里。
 //
 // 需要的环境变量（Worker 的 Settings - Variables and Secrets，全部选 Secret）：
 //   SUPABASE_URL    Supabase 项目地址，例如 https://abcd.supabase.co
-//   SUPABASE_KEY    Supabase 的 service_role 密钥
+//   SUPABASE_KEY    Supabase 的 secret 密钥（新版 sb_secret_ 开头；旧版 service_role，eyJ 开头）
 //   VAPID_PUBLIC    VAPID 公钥（打开这个 Worker 的 /setup 生成）
 //   VAPID_PRIVATE   VAPID 私钥（同上）
 //   DATA_KEY        加密用的密钥（同上）
@@ -207,17 +207,56 @@ async function sendPush(env, sub, message) {
 
 // ---- Supabase ----
 
+// 密钥与地址从环境变量里取出来先洗一遍：手机上复制粘贴常常带进空格、换行、引号，
+// 甚至零宽字符，肉眼看不出来，Supabase 只回一句 Invalid API key
+const clean = v => String(v || '').replace(/[\s\u200b-\u200d\ufeff"'`]/g, '');
+const sbKey = env => clean(env.SUPABASE_KEY);
+const sbUrl = env => clean(env.SUPABASE_URL).replace(/\/+$/, '').replace(/\/rest\/v1$/, '');
+
+function jwtPayload(k) {
+  try { return JSON.parse(atob(k.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))); } catch { return null; }
+}
+
+// Supabase 回 401 时，看一眼填的是什么，说出具体哪里不对。
+// 新版后台的密钥是 sb_secret_… / sb_publishable_…，旧版（Legacy）是 eyJ 开头的一长串
+function keyProblem(env) {
+  const k = sbKey(env);
+  const url = sbUrl(env);
+  const ref = (url.match(/^https:\/\/([a-z0-9]+)\.supabase\.(co|in)$/i) || [])[1];
+  if (!k) return 'SUPABASE_KEY 是空的';
+  if (/[•*…]/.test(k)) return 'SUPABASE_KEY 里有圆点或星号：复制到的是遮住的显示文字。在 API Keys 页点密钥右侧的复制按钮，不要手动选中文字';
+  if (/^sb_publishable_/i.test(k)) return 'SUPABASE_KEY 填的是 publishable 密钥。这里需要 secret 密钥（sb_secret_ 开头），在 API Keys 页 Secret keys 一栏复制';
+  if (/^eyJ/.test(k)) {
+    const p = jwtPayload(k);
+    if (!p) return 'SUPABASE_KEY 复制不完整：eyJ 开头的密钥由两个点分成三段，请重新复制整串';
+    if (p.role === 'anon') return 'SUPABASE_KEY 填的是 anon 密钥。这里需要 service_role 密钥';
+    if (p.role !== 'service_role') return `SUPABASE_KEY 的角色是 ${p.role || '未知'}，这里需要 service_role 密钥`;
+    if (ref && p.ref && p.ref !== ref) return `SUPABASE_KEY 属于项目 ${p.ref}，而 SUPABASE_URL 指向项目 ${ref}。两项要来自同一个项目`;
+    return 'Supabase 没有接受这把 service_role 密钥：Legacy 密钥可能已被停用，或已重新生成过。改用 API Keys 页 Secret keys 一栏的 sb_secret_ 密钥';
+  }
+  if (!/^sb_secret_/i.test(k)) {
+    return 'SUPABASE_KEY 不是 Supabase 的 API 密钥（应以 sb_secret_ 或 eyJ 开头）。常见的误填是 JWT Secret、数据库密码或 Project ID';
+  }
+  if (!ref) return `SUPABASE_URL 应为 https://项目ID.supabase.co，现在是 ${url || '空'}`;
+  return 'secret 密钥与 SUPABASE_URL 不是同一个项目，或该密钥已被删除。在该项目的 API Keys 页重新复制 secret 密钥';
+}
+
 async function db(env, method, path, body, prefer) {
-  const headers = {
-    apikey: env.SUPABASE_KEY,
-    authorization: `Bearer ${env.SUPABASE_KEY}`,
-    'content-type': 'application/json',
-  };
+  const key = sbKey(env);
+  const headers = { apikey: key, 'content-type': 'application/json' };
+  // 只有旧版 eyJ 开头的密钥本身是 JWT，才放进 Authorization。
+  // 新版 sb_secret_ 不是 JWT，放进去会被 Supabase 拒掉；只带 apikey，网关自己换成 service_role
+  if (/^eyJ/.test(key)) headers.authorization = `Bearer ${key}`;
   if (prefer) headers.prefer = prefer;
-  const res = await fetch(`${env.SUPABASE_URL.replace(/\/+$/, '')}/rest/v1/${path}`, {
+  const res = await fetch(`${sbUrl(env)}/rest/v1/${path}`, {
     method, headers, body: body === undefined ? undefined : JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(`Supabase ${res.status}: ${(await res.text()).slice(0, 200)}`);
+  if (!res.ok) {
+    const raw = (await res.text()).slice(0, 200);
+    throw new Error(res.status === 401 || res.status === 403
+      ? `Supabase ${res.status}：${keyProblem(env)}（原文 ${raw}）`
+      : `Supabase ${res.status}: ${raw}`);
+  }
   const text = await res.text();
   return text ? JSON.parse(text) : null;
 }
@@ -419,8 +458,14 @@ async function handle(req, env) {
 
   if (route === 'GET /setup') return setupPage(env);
   if (route === 'GET /') {
-    return new Response(configured(env) ? 'Eira 推送服务器：已就绪\n' : 'Eira 推送服务器：环境变量还没填全，见 worker/PUSH.md\n',
-      { headers: { ...h, 'content-type': 'text/plain; charset=utf-8' } });
+    // 直接在浏览器里打开 Worker 地址就是一次自检：环境变量填全了，再真的连一次数据库
+    let text = 'Eira 推送服务器：环境变量还没填全，见 worker/PUSH.md\n';
+    if (configured(env)) {
+      text = await db(env, 'GET', 'push_devices?select=id&limit=1')
+        .then(() => 'Eira 推送服务器：已就绪\n')
+        .catch(err => `Eira 推送服务器：连不上数据库\n${err.message}\n`);
+    }
+    return new Response(text, { headers: { ...h, 'content-type': 'text/plain; charset=utf-8' } });
   }
   if (!configured(env)) return json(h, { error: '推送服务器的环境变量还没填全' }, 503);
   if (route === 'GET /vapid') return json(h, { publicKey: env.VAPID_PUBLIC });

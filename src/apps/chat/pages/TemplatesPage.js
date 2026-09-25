@@ -103,6 +103,8 @@ const LABELS = {
   'task.closet-vision': '任务 · 衣帽间识图',
   'task.closet-image': '任务 · 衣帽间按描述生图',
   'task.closet-wardrobe': '任务 · 按角色设定生成衣帽间',
+  'task.closet-daily': '任务 · 角色的每日穿搭',
+  'task.closet-daily-weather': '任务 · 每日穿搭的天气约束',
   'task.moment-comment': '任务 · 评论动态',
   'task.moment-reply': '任务 · 回复评论',
   'task.scenario-seeds': '任务 · 生成近况',

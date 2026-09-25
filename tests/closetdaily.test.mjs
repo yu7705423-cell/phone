@@ -3,6 +3,8 @@
 //   一、主动发消息、总结记忆、每日穿搭各自可以指定一套接口；没指定照默认；指定的那套没填全也照默认
 //   二、每日穿搭：开了的角色，每天从自己衣帽间里挑一次，勾成今天穿着、带着；
 //       同一天不再调；今天已经穿着东西的不碰；失败记在角色身上；开关在该角色的衣帽间页
+//   三、配了和风天气（用户要求「严格结合天气」）：当天预报作为硬性条件进请求；
+//       标了季节却不合当天气温的衣物不交给模型，模型选回来也不认
 import { BASE, EXE, chromium } from './_env.mjs';
 
 const browser = await chromium.launch({ executablePath: EXE, args: ['--no-sandbox'] });
@@ -14,11 +16,19 @@ await ctx.route('**/src/site.js*', async r => {
 const R = []; const ok = (n, c, e) => { R.push({ n, pass: !!c }); console.log(`${c ? '  ok  ' : '  FAIL'} ${n}${c ? '' : '   << ' + (e ?? '')}`); };
 const errs = [];
 const hits = [];
+const bodies = [];
 let reply = '{}';
+await ctx.route('**/qw.example.com/**', route => {
+  const u = new URL(route.request().url());
+  const J = o => route.fulfill({ status: 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify(o) });
+  if (u.pathname === '/geo/v2/city/lookup') return J({ code: '200', location: [{ id: '101050101', name: '哈尔滨', adm1: '黑龙江省', country: '中国', tz: 'Asia/Shanghai' }] });
+  return J({ code: '200', daily: [{ fxDate: '2000-01-01', textDay: '小雪', textNight: '阴', tempMin: '-12', tempMax: '-3', humidity: '70', precip: '1.5', windDirDay: '北风', windScaleDay: '3-4', uvIndex: '1' }] });
+});
 await ctx.route(/https:\/\/(main|side|third)\.example\.com\//, async route => {
   const host = new URL(route.request().url()).host.split('.')[0];
   hits.push(host);
   const body = JSON.parse(route.request().postData() || '{}');
+  bodies.push(JSON.stringify(body));
   if (body.stream) {
     return route.fulfill({ status: 200, contentType: 'text/event-stream',
       body: `data: ${JSON.stringify({ choices: [{ delta: { content: reply } }] })}\n\ndata: [DONE]\n\n` });
@@ -124,6 +134,30 @@ await page.waitForTimeout(800);
 const txt = await ev(() => document.body.innerText);
 ok('角色的衣帽间页：有每日自动穿搭开关', /每日自动穿搭/.test(txt), txt.slice(0, 300));
 ok('角色的衣帽间页：写明今天自动生成失败的原因', /没有从衣帽间里选出/.test(txt), txt.slice(0, 300));
+
+// ---- 三、天气 ----
+const noWeather = bodies.find(b => /Choose what/.test(b)) || '';
+ok('没配和风天气：请求里没有天气那一段', noWeather && !/weather/i.test(noWeather.replace(/Choose what[^]*?\{/, '')), noWeather.slice(0, 200));
+const wx = await ev(async () => {
+  const { db } = await import('/src/system/db/index.js');
+  const svc = await import('/src/system/ai/services.js');
+  svc.setQweather({ host: 'https://qw.example.com', key: 'good' });
+  const cl = await import('/src/system/closet.js');
+  const c = db.characters.create({ name: '阿雪', region: '哈尔滨', closetDaily: true });
+  const tee = cl.create({ owner: c.id, group: 'top', sub: 'T 恤', name: '短袖', seasons: ['summer'] });
+  const down = cl.create({ owner: c.id, group: 'top', sub: 'T 恤', name: '长款羽绒服', seasons: ['winter'] });
+  const plain = cl.create({ owner: c.id, group: 'top', sub: 'T 恤', name: '没标季节的毛衣' });
+  const umb = cl.create({ owner: c.id, group: 'carry', sub: '伞', name: '折叠伞' });
+  return { char: c.id, tee: tee.id, down: down.id, plain: plain.id, umb: umb.id };
+});
+bodies.length = 0;
+reply = JSON.stringify({ wear: [wx.tee, wx.down], carry: [wx.umb] });
+await daily(wx.char);
+const req = bodies.find(b => /Choose what/.test(b)) || '';
+ok('配了和风天气：当天预报作为硬性条件进请求', /hard constraint/.test(req) && /小雪/.test(req) && /-12 to -3/.test(req), req.slice(0, 400));
+ok('不合当天气温的衣物（夏季短袖）不交给模型', !req.includes('短袖') && req.includes('长款羽绒服') && req.includes('没标季节的毛衣'), req.slice(0, 600));
+const ww = await worn(wx.char);
+ok('模型选回来的短袖也不认，羽绒服与伞照常勾上', JSON.stringify(ww) === JSON.stringify([wx.down, wx.umb].sort()), JSON.stringify(ww));
 
 ok('全程没有运行时报错', errs.length === 0, errs.join(' | '));
 await browser.close();

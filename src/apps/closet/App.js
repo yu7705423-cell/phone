@@ -124,7 +124,7 @@ function Home() {
         return html`
           <${List}>
             <${ListItem} title="每日自动穿搭" multiline
-              subtitle=${on ? '每天从该角色衣帽间已有的衣物与随身物品里选一次今天穿什么、带什么，调用一次接口。当天已经选过的不再生成。关闭后不再自动选择'
+              subtitle=${on ? '每天从该角色衣帽间已有的衣物与随身物品里选一次今天穿什么、带什么，调用一次接口。已配置和风天气且角色卡填写了所在地区时，严格按当天预报选择，不合气温的衣物不参与挑选。当天已经选过的不再生成。关闭后不再自动选择'
                 : '关闭。开启后每天调用一次接口，从该角色衣帽间已有的东西里选出今天穿什么、带什么；所用接口可在「设置 - 任务用哪套接口」中选择'}
               right=${html`<${Switch} checked=${on}
                 onChange=${v => db.characters.update(owner, { closetDaily: v, closetDailyAt: '', closetDailyError: '' })}/>`}/>
