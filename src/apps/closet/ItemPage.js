@@ -3,6 +3,7 @@ import { phone, useStore } from '../../sdk/index.js';
 import { Page, Field, Input, Textarea, NumberInput, Segmented, Button, Icon, EmptyState,
          toast, confirm, prompt } from '../../ui/index.js';
 import { Photo, ChipSet } from './parts.js';
+import { LoanPart, MemoryPart, UseSheet } from './ItemExtras.js';
 
 const { db, nav, closet, intent } = phone;
 const K = closet.kinds;
@@ -125,6 +126,7 @@ export function ItemPage({ id }) {
   useStore(db.characters.store);
   const fileRef = useRef(null);
   const [busy, setBusy] = useState('');
+  const [using, setUsing] = useState(false);
   const item = db.closet.get(id);
   if (!item) {
     return html`<${Page} title="衣帽间" onBack=${nav.pop}><${EmptyState} title="这件东西已不在了"/><//>`;
@@ -165,7 +167,8 @@ export function ItemPage({ id }) {
           ${busy === 'draw' ? '生成中' : '按描述生成图片（1 次）'}<//>
         ${side === 'wear' ? html`
           <${Button} size="sm" variant=${wearing ? 'primary' : 'ghost'} icon="check"
-            onClick=${() => closet.wear(id, !wearing)}>${wearing ? '今天穿着' : '今天穿'}<//>` : null}
+            onClick=${() => closet.wear(id, !wearing)}>${wearing ? (closet.isCarry(item) ? '今天带着' : '今天穿着') : (closet.isCarry(item) ? '今天带' : '今天穿')}<//>` : null}
+        <${Button} size="sm" variant="ghost" icon="message" onClick=${() => setUsing(true)}>在会话中使用<//>
       </div>
       <input type="file" accept="image/*" ref=${fileRef} onChange=${pickFile} style="display:none"/>
 
@@ -204,6 +207,9 @@ export function ItemPage({ id }) {
 
       ${side === 'beauty' ? html`<${BeautyPart} item=${item} set=${set}/>` : null}
 
+      <${LoanPart} item=${item}/>
+      <${MemoryPart} item=${item}/>
+
       <div class="cl-section">来历</div>
       <${SourcePart} item=${item} set=${set}/>
       <${Field} label="备注" desc="仅自己可见。例如在哪里买的、哪一天第一次穿。">
@@ -217,5 +223,6 @@ export function ItemPage({ id }) {
       <div class="pad">
         <${Button} full variant="ghost" icon="trash" onClick=${del}>删除<//>
       </div>
+      <${UseSheet} item=${item} open=${using} onClose=${() => setUsing(false)}/>
     <//>`;
 }

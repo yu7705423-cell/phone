@@ -10,6 +10,8 @@ import { dateKey } from '../../health.js';
 //   清单         **只在聊到穿搭、化妆的时候带**。按大类分行，每类几件在「用量与上限」里改
 //   快用完、快过期  低频：一件东西只在第一次递出去的那一天出现，之后隔冷却期（默认 30 天）
 //                才再出现一次（closet.takeAlerts）。频率是代码管的，不靠提示词去劝
+//   随身、借穿、回忆（ARCHITECTURE 4.216）：包里带着的另起一段；借来的写明是谁的；两人之间没还的
+//                单列；今天穿着的东西上用户记下的回忆带最近几条
 //   好久没穿     同样低频：一次一件，两次之间至少隔几天（closet.takeIdle，ARCHITECTURE 4.214）
 //
 // 带不带清单用一份本地词表认（「穿、搭配、口红……」），和能力目录的冷热同一个做法，不花钱
@@ -45,9 +47,21 @@ function originOf(r, char, userName) {
   return '';
 }
 
-function itemLine(r, char, userName) {
+// 借来的：按「读它的这个角色」的视角写是谁的
+function loanOf(r, wearer, char, userName) {
+  if (!r.lent || r.owner === wearer) return '';
+  const whose = r.owner === char?.id ? 'you' : r.owner === closet.ME ? userName : (characters.get(r.owner)?.name || 'someone');
+  return `borrowed from ${whose} on ${dateKey(r.lent.at)}`;
+}
+
+// 这件东西上用户记下的回忆，最近几条（「用量与上限」里改，0 为全部）。原话是数据，不翻译
+const memLine = (r, n) => closet.memoriesOf(r, n)
+  .map(m => `remembered ${dateKey(m.at)}: 「${m.text}」`).join('; ');
+
+function itemLine(r, char, userName, { wearer = '', mems = -1 } = {}) {
   const tags = tagsOf(r);
-  const origin = originOf(r, char, userName);
+  const origin = [originOf(r, char, userName), loanOf(r, wearer, char, userName),
+    mems >= 0 ? memLine(r, mems) : ''].filter(Boolean).join('; ');
   const desc = closet.garmentOnly(r.desc).slice(0, 60);
   return `- ${r.name}${tags ? ` (${tags})` : ''}${desc ? `: ${desc}` : ''}${origin ? `; ${origin}` : ''}`;
 }
@@ -70,10 +84,25 @@ export function build({ char, persona, messages, settings: s } = {}) {
   const talk = talkOf(messages);
   const out = [];
 
-  const mine = closet.wornToday(closet.ME, pid);
-  if (mine.length) out.push(`## What ${user} is wearing today`, ...mine.map(r => itemLine(r, char, user)));
-  const theirs = char ? closet.wornToday(char.id) : [];
-  if (theirs.length) out.push('## What you are wearing today', ...theirs.map(r => itemLine(r, char, user)));
+  const mems = Math.max(0, Math.round(Number(s?.closetMemMax ?? 2) || 0));
+  // 今天穿的与今天带着的（随身那一类）分两段；借来的写明是谁的；穿着的带上记下的回忆
+  const today = (who, head, bag) => {
+    const rows = who ? closet.wornToday(who, who === closet.ME ? pid : undefined) : [];
+    const on = rows.filter(r => !closet.isCarry(r));
+    const carry = rows.filter(closet.isCarry);
+    const opt = { wearer: who, mems };
+    if (on.length) out.push(head, ...on.map(r => itemLine(r, char, user, opt)));
+    if (carry.length) out.push(bag, ...carry.map(r => itemLine(r, char, user, opt)));
+  };
+  today(closet.ME, `## What ${user} is wearing today`, `## In ${user}'s bag today`);
+  today(char?.id, '## What you are wearing today', '## In your bag today');
+
+  // 两人之间借了还没还的。今天没穿也在：东西在谁手上是一件持续的事
+  const loans = char ? closet.lentBetween(char.id, pid) : [];
+  if (loans.length) {
+    out.push(`## Lent between you and ${user}, not yet returned`, ...loans.map(r =>
+      `- ${r.name}: ${r.owner === closet.ME ? `${user}'s, with you` : `yours, with ${user}`} since ${dateKey(r.lent.at)}`));
+  }
 
   if (WEAR_TOPIC.test(talk)) {
     const a = closet.listLines(closet.ME, pid, 'wear', limit);

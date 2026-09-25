@@ -1300,7 +1300,7 @@ const BODY_OF = {
   location: '[位置]', call: '[通话]', listen: '[一起听]', watch: '[一起看]',
   takeout: '[外卖]', request: '[申请]', share: '[分享]', dice: '[骰子]', song: '[分享歌曲]', tool: '[调用工具]',
   trip: '[旅行]',
-  pact: '[约定]', letter: '[信]', vote: '[投票]', outfit: '[搭配]',
+  pact: '[约定]', letter: '[信]', vote: '[投票]', outfit: '[搭配]', groom: '[动作]', dresscode: '[穿搭盲盒]',
 };
 const bodyOf = m => (m.kind === 'text' ? m.content : BODY_OF[m.kind]) || '发来一条消息';
 

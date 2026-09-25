@@ -143,9 +143,58 @@ export async function addPhotos(files, { owner = ME, side = 'wear', group = '', 
 
 export const today = () => dateKey(clock.now());
 
-/** 今天穿着（戴着）的那几件 */
-export const wornToday = (owner, personaId) =>
-  itemsOf(owner, personaId).filter(r => r.side === 'wear' && r.wornOn === today() && live(r));
+const onToday = r => r.side === 'wear' && r.wornOn === today() && live(r);
+
+/**
+ * 今天穿着（戴着、带着）的那几件。借出去的算在借的人身上：自己的东西借出去了就不算自己的，
+ * 借来的算进来（ARCHITECTURE 4.216）。随身那一类也在里面，要分开用 isCarry
+ */
+export const wornToday = (owner, personaId) => [
+  ...itemsOf(owner, personaId).filter(r => onToday(r) && !lentOut(r)),
+  ...borrowedBy(owner, personaId).filter(onToday),
+];
+
+// ---- 随身（ARCHITECTURE 4.216） ----
+//
+// 包里带着的小东西：伞、耳机、相机……放在衣橱的「随身」大类里，勾上就是今天带着。
+// 和穿在身上的分开说：给角色看时另起一段，生图不画它，「好久没穿」不算它，换一套衣服也不动它
+export const CARRY = 'carry';
+export const isCarry = r => !!r && r.group === CARRY;
+
+// ---- 借穿 ----
+//
+// lent 记着借给了谁、哪天借的；归还就清掉。借出去的东西还在原主人的衣帽间里（标着借给了谁），
+// 今天穿不穿算在借的人身上
+export const lentOut = r => !!(r && r.lent && r.lent.to);
+
+/** 借到这个人手上的（别人的东西）。自己的按身份分开 */
+export function borrowedBy(owner, personaId = accounts.currentId()) {
+  return closet.all().filter(r => lentOut(r) && r.lent.to === owner && r.owner !== owner && !isOutfit(r) && live(r)
+    && (owner !== ME || !r.lent.personaId || r.lent.personaId === personaId));
+}
+
+/** 借给谁。to 是 'me' 或角色 id */
+export function lend(id, to) {
+  const r = closet.get(id);
+  if (!r || !to || to === r.owner) return null;
+  return closet.update(id, { lent: { to, at: clock.now(), personaId: to === ME ? (accounts.currentId() || '') : '' },
+    wornOn: '' });
+}
+
+/** 还回去。今天正穿着的一并取消 */
+export function giveBack(id) {
+  const r = closet.get(id);
+  if (!r) return null;
+  return closet.update(id, { lent: null, wornOn: r.wornOn === today() ? '' : r.wornOn });
+}
+
+/** 我和这个角色之间借来借去、还没还的 */
+export function lentBetween(charId, personaId = accounts.currentId()) {
+  return [
+    ...borrowedBy(ME, personaId).filter(r => r.owner === charId),
+    ...borrowedBy(charId).filter(r => r.owner === ME && (!r.personaId || r.personaId === personaId)),
+  ];
+}
 
 /**
  * 今天穿 / 不穿了。第一次勾上的那天穿过次数加一；当天又取消就减回去，
@@ -318,6 +367,7 @@ const ALIASES = [
   ['唇膏', 'lip', '口红'], ['唇釉', 'lip', '唇釉'], ['面霜', 'skin', '乳霜'], ['粉底液', 'base', '粉底'],
   ['眼影盘', 'eye', '眼影'], ['香氛', 'scent', '香水'], ['化妆刷', 'tool', '刷具'],
   ['外套', 'outer', '夹克'], ['围巾', 'acc', '围巾'], ['帽', 'acc', '帽子'], ['手表', 'acc', '手表'],
+  ['雨伞', 'carry', '伞'], ['拍立得', 'carry', '相机'],
   ['鞋', 'shoes', ''], ['包', 'bag', ''], ['裙', 'onepiece', '连衣裙'],
 ];
 // 太泛的几个小类名单独出现时不认：「平底锅」不是鞋，「茶具套装」不是衣服
@@ -439,7 +489,8 @@ export function wearOutfit(id) {
   const d = today();
   const pid = o.owner === ME ? (o.personaId || undefined) : '';
   const want = new Set(outfitItems(o).filter(r => r.side === 'wear' && live(r)).map(r => r.id));
-  for (const r of wornToday(o.owner, pid)) if (!want.has(r.id)) wear(r.id, false);
+  // 包里带着的不动：换一套衣服不等于把伞放下
+  for (const r of wornToday(o.owner, pid)) if (!want.has(r.id) && !isCarry(r)) wear(r.id, false);
   want.forEach(x => wear(x, true));
   if (o.wornOn !== d) closet.update(id, { wornOn: d, wornCount: (o.wornCount || 0) + 1, lastWorn: clock.now() });
 }
@@ -495,9 +546,12 @@ export function postOutfit({ chatId, role, authorId, name = '', names = [], extr
   const owner = role === 'user' ? ((chat.characterIds || [])[0] || '') : ME;
   if (!owner) return null;
   const items = matchItems(owner, names);
+  // 这段会话里有还没揭晓的穿搭盲盒：角色这一套也封着，等我点揭晓
+  const box = role === 'char' ? openDresscode(chatId) : null;
   const msg = messagesDb.create({
     ...extra, chatId, role, authorId, kind: 'outfit', status: 'done',
     outfitName: name, outfitOwner: owner, outfitItems: items,
+    ...(box ? { sealed: true, dresscodeId: box.id } : {}),
     content: outfitText(name, items.map(x => x.name)),
   });
   chats.update(chatId, { lastMessageAt: Date.now() });
@@ -546,7 +600,7 @@ export function idleOf(owner, personaId, now = clock.now()) {
   const { days } = idleCfg();
   if (!days) return [];
   return itemsOf(owner, personaId)
-    .filter(r => r.side === 'wear' && r.group && live(r) && r.wornCount > 0 && r.lastWorn
+    .filter(r => r.side === 'wear' && r.group && !isCarry(r) && live(r) && r.wornCount > 0 && r.lastWorn
       && now - r.lastWorn >= days * DAY)
     .sort((a, b) => a.lastWorn - b.lastWorn);
 }
@@ -571,4 +625,115 @@ export function takeIdle(personaId, now = clock.now()) {
   if (!next) return null;
   closet.update(next.id, { idleAt: now });
   return { ...next, idleAt: now };
+}
+
+// ---- 物品的回忆（ARCHITECTURE 4.216） ----
+//
+// 一件东西陪着经历过的事。**只由用户记**：在会话里长按一条消息「记到衣帽间」，或者在单品页上手写。
+// 不自动编 —— 哪句话值得记在这件衣服上，是用户的事。穿着它的那天，角色读得到最近几条
+export function addMemory(id, { text, at = 0, chatId = '', msgId = '' } = {}) {
+  const r = closet.get(id);
+  const t = String(text || '').replace(/\s+/g, ' ').trim().slice(0, 200);
+  if (!r || !t) return null;
+  const m = { id: `mm${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`,
+    at: at || clock.now(), text: t, chatId, msgId };
+  closet.update(id, { memories: [...(r.memories || []), m] });
+  return m;
+}
+export function dropMemory(id, memId) {
+  const r = closet.get(id);
+  if (r) closet.update(id, { memories: (r.memories || []).filter(m => m.id !== memId) });
+}
+/** 最近的 n 条（0 为全部），新的在前 */
+export const memoriesOf = (r, n = 0) => {
+  const all = (r?.memories || []).slice().sort((a, b) => (b.at || 0) - (a.at || 0));
+  return n > 0 ? all.slice(0, n) : all;
+};
+
+// ---- 在会话里用一件东西（ARCHITECTURE 4.216） ----
+//
+// 单品页上「在会话中使用」：帮对方喷上香水、请对方帮我系领带。落一条我发的动作卡片，
+// 正文是一行协议 [动作：…]，角色在历史里读到，怎么回应由角色卡决定
+
+/** 按大类给几个现成的动作。都可以不用，自己写 */
+export function actionsFor(r) {
+  const g = r?.group || '';
+  if (g === 'scent') return ['帮你喷上', '请你帮我喷上', '喷上'];
+  if (['lip', 'eye', 'cheek', 'base'].includes(g)) return ['帮你涂上', '请你帮我涂上', '涂上'];
+  if (g === 'skin' || g === 'hair') return ['帮你抹上', '请你帮我抹上', '抹上'];
+  if (g === 'jewelry') return ['帮你戴上', '请你帮我戴上', '戴上'];
+  if (g === 'acc') return r.sub === '领带' || r.sub === '围巾'
+    ? ['帮你系上', '请你帮我系上', '系上'] : ['帮你戴上', '请你帮我戴上', '戴上'];
+  if (g === CARRY) return ['递给你', '拿出来给你看'];
+  if (r?.side === 'wear') return ['帮你穿上', '请你帮我穿上', '换上', '借给你穿'];
+  return ['递给你', '拿出来给你看'];
+}
+
+/** 能发到哪几段会话：一对一的，这件东西的主人（是角色的话）排在最前 */
+export function useTargets(r) {
+  const list = chats.all().filter(c => (c.characterIds || []).length === 1)
+    .sort((a, b) => (b.lastMessageAt || 0) - (a.lastMessageAt || 0));
+  if (!r || r.owner === ME) return list;
+  return [...list.filter(c => c.characterIds[0] === r.owner), ...list.filter(c => c.characterIds[0] !== r.owner)];
+}
+
+export function useInChat(id, chatId, action) {
+  const r = closet.get(id);
+  const chat = chats.get(chatId);
+  const act = String(action || '').trim().slice(0, 30);
+  if (!r || !chat) throw new Error('这件东西或这段会话已经不在了');
+  if (!act) throw new Error('请选择或填写一个动作');
+  const theirs = r.owner !== ME && r.owner === (chat.characterIds || [])[0];
+  const desc = garmentOnly(r.desc).slice(0, 60);
+  const msg = messagesDb.create({
+    chatId, role: 'user', authorId: ME, kind: 'groom', status: 'done',
+    itemId: id, itemName: r.name, action: act,
+    content: `[动作：${act}「${r.name}」${theirs ? '（你的）' : ''}${desc ? `（${desc}）` : ''}]`,
+  });
+  chats.update(chatId, { lastMessageAt: Date.now() });
+  return msg;
+}
+
+// ---- 穿搭盲盒（ARCHITECTURE 4.216） ----
+//
+// 我在角色的衣帽间里按一个主题替它挑好一套，发出去时封着：卡片上只有主题，历史里也只有主题。
+// 角色在这之后写的 [搭配：…] 同样封着（postOutfit 看到这段会话里有没揭晓的盲盒就封上）。
+// 我点「揭晓」，两边一起打开，另落一行揭晓的提示，角色下一轮读到两边各挑了什么
+
+/** 这段会话里还没揭晓的那一个盲盒 */
+export const openDresscode = chatId => messagesDb.byIndex(chatId)
+  .filter(m => m.kind === 'dresscode' && !m.revealed)
+  .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))[0] || null;
+
+export function startDresscode(outfitId, theme) {
+  const o = closet.get(outfitId);
+  const t = String(theme || '').trim().slice(0, 40);
+  if (!isOutfit(o) || o.owner === ME) return null;
+  if (!t) throw new Error('请填写主题');
+  const chat = useTargets({ owner: o.owner }).find(c => c.characterIds[0] === o.owner);
+  if (!chat) throw new Error('还没有和该角色的会话');
+  const items = outfitItems(o).map(r => ({ name: r.name, id: r.id }));
+  if (!items.length) throw new Error('这一套里没有东西');
+  const msg = messagesDb.create({
+    chatId: chat.id, role: 'user', authorId: ME, kind: 'dresscode', status: 'done',
+    theme: t, outfitName: o.name, outfitOwner: o.owner, outfitItems: items, revealed: false,
+    content: `[穿搭主题：${t}]（我按这个主题为你挑好了一套，揭晓前不告诉你。也请你按这个主题为我挑一套。）`,
+  });
+  chats.update(chat.id, { lastMessageAt: Date.now() });
+  return msg;
+}
+
+/** 揭晓：盲盒和角色封着的那几张一起打开，落一行提示，角色下一轮读到两边各挑了什么 */
+export function revealDresscode(msgId) {
+  const m = messagesDb.get(msgId);
+  if (!m || m.kind !== 'dresscode' || m.revealed) return null;
+  messagesDb.update(msgId, { revealed: true });
+  const theirs = messagesDb.byIndex(m.chatId).filter(x => x.kind === 'outfit' && x.dresscodeId === msgId);
+  theirs.forEach(x => messagesDb.update(x.id, { sealed: false }));
+  const mine = (m.outfitItems || []).map(x => x.name).join('、');
+  const back = theirs.map(x => (x.outfitItems || []).map(i => i.name).join('、')).filter(Boolean).join('；');
+  return messagesDb.create({
+    chatId: m.chatId, role: 'user', authorId: ME, kind: 'notice', status: 'done',
+    content: `[穿搭揭晓：${m.theme}｜我为你挑的：${mine}${back ? `｜你为我挑的：${back}` : ''}]`,
+  });
 }

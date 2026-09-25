@@ -108,20 +108,29 @@ export function AddSheet({ open, owner, side, group = '', onClose }) {
     <//>`;
 }
 
-/** 今天穿的：按大类列出这个人的衣物，勾上就是今天穿着 */
-export function TodaySheet({ open, owner, onClose }) {
+/**
+ * 今天穿的：按大类列出这个人的衣物，勾上就是今天穿着。借来的另列一组（ARCHITECTURE 4.216）。
+ * carry 为真时只列「随身」那一类，勾上是今天带着
+ */
+export function TodaySheet({ open, owner, onClose, carry = false }) {
   useStore(db.closet.store);
   if (!open) return null;
-  const rows = closet.itemsOf(owner).filter(r => r.side === 'wear' && closet.live(r) && r.group);
+  const mine = closet.itemsOf(owner).filter(r => r.side === 'wear' && closet.live(r) && r.group && !closet.lentOut(r));
+  const borrowed = carry ? [] : closet.borrowedBy(owner).filter(r => !closet.isCarry(r));
+  const rows = [...mine, ...borrowed].filter(r => closet.isCarry(r) === carry);
   const d = closet.today();
-  const groups = closet.groupsOf('wear').filter(g => rows.some(r => r.group === g.id));
+  const groups = [
+    ...closet.groupsOf('wear').filter(g => mine.some(r => r.group === g.id && closet.isCarry(r) === carry)),
+    ...(borrowed.length ? [{ id: '_borrowed', label: '借来的' }] : []),
+  ];
+  const inGroup = g => (g.id === '_borrowed' ? borrowed : mine.filter(r => r.group === g.id));
   return html`
-    <${Sheet} open=${true} onClose=${onClose} title="今天穿的" height="86%">
+    <${Sheet} open=${true} onClose=${onClose} title=${carry ? '今天带着' : '今天穿的'} height="86%">
       ${groups.length ? groups.map(g => html`
         <div key=${g.id} class="cl-today-group">
           <div class="cl-filter-label">${g.label}</div>
           <div class="cl-today-row">
-            ${rows.filter(r => r.group === g.id).map(r => html`
+            ${inGroup(g).map(r => html`
               <button key=${r.id} class=${`cl-today-pick press${r.wornOn === d ? ' is-on' : ''}`}
                 onClick=${() => closet.wear(r.id, r.wornOn !== d)}>
                 <${Thumb} item=${r}/>
@@ -130,10 +139,11 @@ export function TodaySheet({ open, owner, onClose }) {
               </button>`)}
           </div>
         </div>`)
-      : html`<div class="settings-foot">衣橱里还没有分好类的衣物。</div>`}
+      : html`<div class="settings-foot">${carry ? '「随身」里还没有东西。可以添加伞、耳机、相机这类随身带着的小物。' : '衣橱里还没有分好类的衣物。'}</div>`}
       <div class="settings-foot">
-        勾选的衣物记为今天穿着，穿着次数加一，第二天自动清空。
-        开启「衣帽间」上下文时，角色看得到今天穿的是哪几件，以及其中哪些是谁送的。
+        ${carry
+          ? '勾选的东西记为今天带着，第二天自动清空。开启「衣帽间」上下文时，角色看得到今天包里带着什么。'
+          : '勾选的衣物记为今天穿着，穿着次数加一，第二天自动清空。开启「衣帽间」上下文时，角色看得到今天穿的是哪几件，以及其中哪些是谁送的、从谁那里借来的。'}
       </div>
       <div class="sheet-acts"><${Button} full onClick=${onClose}>完成<//></div>
     <//>`;

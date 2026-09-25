@@ -355,7 +355,7 @@ export const CAPS = [
     label: '搭配衣帽间里的衣物',
     on: ({ chat }) => (chat?.characterIds || []).length <= 1 && closet.hasWardrobe(),
     // 在聊穿搭就热：清单那一段这时才带（context/closet.js），细则跟着到
-    hot: ({ msgs }) => usedRecently(msgs, /^outfit$|[[【]搭配/)
+    hot: ({ msgs }) => usedRecently(msgs, /^(outfit|dresscode)$|[[【](搭配|穿搭主题)/)
       || msgs.filter(m => m.role === 'user').slice(-3).some(m => closet.WEAR_TOPIC.test(String(m.content || ''))),
     line: () => 'Put together an outfit from their wardrobe: write a line on its own,'
       + ' [搭配：outfit name | item、item、item]',

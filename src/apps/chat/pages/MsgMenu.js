@@ -314,6 +314,10 @@ export function MsgMenu({ msg, char, onClose, onRegenerate, onQuote, onMultiSele
             subtitle="存成一条记忆，接着可以填关键词，或者钉成一直记着的"
             left=${html`<${Icon} name="brain" size=${18}/>`}
             onClick=${remember}/>
+          <${ListItem} title="记到衣帽间" multiline arrow
+            subtitle="记成衣帽间里某件东西的回忆。穿着或带着它的那天，角色会读到这一条"
+            left=${html`<${Icon} name="hanger" size=${18}/>`}
+            onClick=${() => { close(); phone.intent.open('closet', { route: `/remember/${fresh.id}`, back: true }); }}/>
           <${ListItem} title="存成备忘" multiline arrow
             subtitle="存进「待办」中的备忘，供自己查阅。角色不会看到这一条"
             left=${html`<${Icon} name="notes" size=${18}/>`}

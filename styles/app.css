@@ -3277,6 +3277,22 @@ button.conv-notice { background: none; border: 0; font: inherit; cursor: pointer
 .fit-img.is-blank { background: var(--sw, var(--surface-2)); box-shadow: inset 0 0 0 1px var(--border); }
 /* 「今天穿的」右上角那两个按钮 */
 .cl-strip-acts { display: flex; gap: var(--sp-4); }
+/* 穿搭盲盒揭晓后「我为对方挑的」那一行；动作卡片左边那一件东西 */
+.fit-sub { margin-top: var(--sp-3); font-size: var(--fs-12); opacity: .7; }
+.bubble-outfit .tr-top .fit-piece { width: 40px; }
+.bubble-outfit .tr-top .fit-img { width: 40px; height: 40px; }
+.ph-dresscode.is-done { opacity: .75; }
+/* 单品页：借出那一行、回忆 */
+.cl-loan { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); font-size: var(--fs-14); padding-bottom: var(--sp-2); }
+.cl-mems { display: flex; flex-direction: column; gap: var(--sp-2); padding-bottom: var(--sp-3); }
+.cl-mem { padding: var(--sp-3); border-radius: var(--r-lg); background: var(--surface-2); }
+.cl-mem-head .nav-text { font-size: var(--fs-12); }
+.cl-mem-head { display: flex; align-items: center; gap: var(--sp-3); font-size: var(--fs-12); color: var(--text-3); }
+.cl-mem-head span { margin-right: auto; }
+.cl-mem p { margin: var(--sp-1) 0 0; font-size: var(--fs-14); line-height: 1.55; }
+/* 记到衣帽间：一行一件，左边缩略图 */
+.cl-pick-row { align-items: center; box-shadow: none; }
+.cl-pick-thumb { width: 44px; flex: none; }
 /* 套装格子下面「谁搭配的」那一行 */
 .cl-fit-by { padding: 0 var(--sp-1); margin-top: calc(var(--sp-2) * -1); font-size: var(--fs-11); color: var(--text-3); }
 /* 按角色设定生成的结果：一行一件，点一下取消勾选 */

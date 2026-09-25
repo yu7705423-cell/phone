@@ -282,6 +282,13 @@ export function LimitsPage() {
             onChange=${v => set({ closetListMax: v })}/>
         <//>
 
+        <${Field} label="今天穿着的东西，每件带几条回忆"
+          desc="衣帽间里某件东西上记下的回忆，穿着或带着它的那天随请求带给角色，每件带最近这么多条。
+            填 0 表示全部带上。">
+          <${NumberInput} value=${s.closetMemMax ?? 2} unit="条" placeholder="全部"
+            onChange=${v => set({ closetMemMax: v })}/>
+        <//>
+
         <${Field} label="线下带上手机里最近几条"
           desc="线下的每次请求带上这段会话里最近这么多条消息的原文。
             气泡很短，二十条也只有几百字，所以带的是原文而不是摘要。

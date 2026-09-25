@@ -172,12 +172,12 @@ function wearOf(text, char) {
   const out = [];
   const cn = String(char?.name || '').trim();
   if (char && (pair || SELFISH.test(t) || (cn.length >= 2 && t.includes(cn)))) {
-    const l = line(cn || 'The character', closet.wornToday(char.id));
+    const l = line(cn || 'The character', closet.wornToday(char.id).filter(r => !closet.isCarry(r)));
     if (l) out.push({ from: `「${cn}」今天穿的（衣帽间）`, text: l });
   }
   const mn = String(accounts.current()?.name || '').trim();
   if (pair || (mn.length >= 2 && t.includes(mn))) {
-    const l = line(mn || 'The other person', closet.wornToday(closet.ME));
+    const l = line(mn || 'The other person', closet.wornToday(closet.ME).filter(r => !closet.isCarry(r)));
     if (l) out.push({ from: '我今天穿的（衣帽间）', text: l });
   }
   // 衣服的照片多半是模特穿着的。这一句钉死：这几行只管衣服，脸和身形按上面的外貌来

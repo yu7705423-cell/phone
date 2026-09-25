@@ -116,7 +116,7 @@ await ev(async () => {
   const n = await import('/src/system/nav.js'); n.unlock(); n.openApp('closet', '/');
 });
 await page.waitForTimeout(800);
-ok('首页：大类卡片一屏看全', await page.locator('.cl-group').count() === 9);
+ok('首页：大类卡片一屏看全', await page.locator('.cl-group').count() === 10);
 await page.locator('[aria-label="添加"]').click();
 await page.waitForTimeout(300);
 await page.locator('.cl-add-way', { hasText: '手动添加' }).click();

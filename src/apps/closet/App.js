@@ -7,6 +7,7 @@ import { GroupPage } from './GroupPage.js';
 import { ItemPage } from './ItemPage.js';
 import { SettingsPage } from './SettingsPage.js';
 import { OutfitsPage, OutfitPage, FromCard, GeneratePage } from './OutfitPages.js';
+import { RememberPage } from './ItemExtras.js';
 
 const { db, nav, closet } = phone;
 const K = closet.kinds;
@@ -35,12 +36,17 @@ function Home() {
   useStore(db.characters.store);
   const [adding, setAdding] = useState(false);
   const [picking, setPicking] = useState(false);
+  const [packing, setPacking] = useState(false);
   const owner = ownerNow();
   const side = sideNow();
   const all = closet.itemsOf(owner).filter(r => r.side === side);
   const live = all.filter(closet.live);
   const unsorted = live.filter(r => !r.group);
-  const today = side === 'wear' ? closet.wornToday(owner) : [];
+  const worn = side === 'wear' ? closet.wornToday(owner) : [];
+  const today = worn.filter(r => !closet.isCarry(r));
+  const bag = worn.filter(closet.isCarry);
+  const showBag = side === 'wear' && !closet.hiddenGroups().has(closet.CARRY);
+  const borrowed = side === 'wear' ? closet.borrowedBy(owner) : [];
   const alerts = side === 'beauty' ? closet.alertsOf(owner) : [];
   const who = ownerName(owner);
 
@@ -85,6 +91,33 @@ function Home() {
                 </button>`)}
             </div>`
           : html`<div class="cl-strip-empty">尚未选择。点「选择」从衣橱里勾选今天穿着的几件。</div>`}
+        </div>` : null}
+
+      ${showBag ? html`
+        <div class="cl-strip">
+          <div class="cl-strip-head">
+            <b>${owner === closet.ME ? '今天带着' : `${who}今天带着`}</b>
+            <button class="nav-text press" onClick=${() => setPacking(true)}>选择</button>
+          </div>
+          ${bag.length ? html`
+            <div class="cl-strip-row">
+              ${bag.map(r => html`
+                <button key=${r.id} class="cl-strip-item press" onClick=${() => nav.push(`/item/${r.id}`)}>
+                  <${Thumb} item=${r}/><span class="ellipsis">${r.name}</span>
+                </button>`)}
+            </div>`
+          : html`<div class="cl-strip-empty">包里带着的伞、耳机、相机这类小物，放在「随身」里，在这里勾选。</div>`}
+        </div>` : null}
+
+      ${borrowed.length ? html`
+        <div class="cl-strip">
+          <div class="cl-strip-head"><b>借来的</b></div>
+          <div class="cl-strip-row">
+            ${borrowed.map(r => html`
+              <button key=${r.id} class="cl-strip-item press" onClick=${() => nav.push(`/item/${r.id}`)}>
+                <${Thumb} item=${r}/><span class="ellipsis">${ownerName(r.owner)}的${r.name}</span>
+              </button>`)}
+          </div>
         </div>` : null}
 
       ${alerts.length ? html`
@@ -133,6 +166,7 @@ function Home() {
 
       <${AddSheet} open=${adding} owner=${owner} side=${side} onClose=${() => setAdding(false)}/>
       <${TodaySheet} open=${picking} owner=${owner} onClose=${() => setPicking(false)}/>
+      <${TodaySheet} open=${packing} owner=${owner} carry=${true} onClose=${() => setPacking(false)}/>
     <//>`;
 }
 
@@ -165,6 +199,8 @@ export default function ClosetApp({ route }) {
   if (route === '/generate') return html`<${GeneratePage}/>`;
   const of = route?.match(/^\/outfit\/(.+)$/);
   if (of) return html`<${OutfitPage} id=${of[1]}/>`;
+  const rem = route?.match(/^\/remember\/(.+)$/);
+  if (rem) return html`<${RememberPage} msgId=${rem[1]}/>`;
   const card = route?.match(/^\/fit\/(.+)$/);
   if (card) return html`<${FromCard} msgId=${card[1]}/>`;
   const gift = route?.match(/^\/gift\/(.+)$/);

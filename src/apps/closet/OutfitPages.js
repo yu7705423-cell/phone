@@ -109,6 +109,15 @@ export function OutfitPage({ id }) {
     try { closet.sendOutfit(id); toast(`已发送到与${ownerName(o.owner)}的会话`, 'ok'); }
     catch (err) { toast(String(err.message || err), 'error'); }
   };
+  // 穿搭盲盒：按一个主题发出去，揭晓之前卡片上和历史里都只有主题（ARCHITECTURE 4.216）
+  const blind = async () => {
+    const theme = await prompt({ title: '穿搭主题', placeholder: '例如 九十年代复古' });
+    if (theme == null) return;
+    try {
+      closet.startDresscode(id, theme);
+      toast(`已发出。${ownerName(o.owner)}按同一主题为你挑的那一套同样封存，在会话中点「揭晓」后两边一起公开`, 'ok', 5000);
+    } catch (err) { toast(String(err.message || err), 'error'); }
+  };
   const del = async () => {
     if (!await confirm({ title: `删除「${o.name}」`, message: '只删除这一套的组合，里面的单品保留。', danger: true, okText: '删除' })) return;
     closet.remove(id);
@@ -124,7 +133,8 @@ export function OutfitPage({ id }) {
           ${wearing ? '今天穿着这一套' : '今天穿这一套'}<//>
         <${Button} size="sm" variant="ghost" icon="layers" onClick=${() => setPicking(true)}>调整单品<//>
         ${o.owner !== closet.ME ? html`
-          <${Button} size="sm" variant="ghost" icon="send" onClick=${send}>发给${ownerName(o.owner)}<//>` : null}
+          <${Button} size="sm" variant="ghost" icon="send" onClick=${send}>发给${ownerName(o.owner)}<//>
+          <${Button} size="sm" variant="ghost" icon="gift" onClick=${blind}>作为穿搭盲盒发出<//>` : null}
       </div>
       ${rows.length ? html`<${Grid} items=${rows} onOpen=${r => nav.push(`/item/${r.id}`)}/>`
         : html`<${EmptyState} icon="layers" title="这一套里没有单品" desc="点「调整单品」从衣橱里挑选。"/>`}

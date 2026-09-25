@@ -47,7 +47,8 @@ const ROUTES = {
   health: ['/', '/log', '/cycle', '/meds', '/settings', '/char/:char'],
   closet: ['/', '/all', '/unsorted', '/settings', '/g/top', '/g/base', '/g/nope',
     '/item/:clWear', '/item/:clBeauty', '/item/nope', '/gift/:giftMsg', '/gift/nope',
-    '/outfits', '/outfit/:clFit', '/outfit/nope', '/fit/:fitMsg', '/fit/nope', '/generate'],
+    '/outfits', '/outfit/:clFit', '/outfit/nope', '/fit/:fitMsg', '/fit/nope', '/generate',
+    '/remember/:fitMsg', '/remember/nope'],
   todo: ['/', '/detect', '/alarm', '/notes'],
   skin: ['/', '/one/:skin', '/one/nope', '/contract', '/gen/:skin', '/gen/nope', '/size/:skin', '/size/nope', '/css/:skin', '/css/nope'],
   us: ['/', `/chat/:chat`, '/work/:work', '/work/:work/edit', '/work/nope',
@@ -265,6 +266,16 @@ const ids = await page.evaluate(async () => {
   // 一套套装、会话里一张角色搭的卡片（一件认得出、一件认不出）
   const clFit = cl.createOutfit({ name: '周末出门', items: [clWear.id] });
   const fitMsg = cl.postOutfit({ chatId: chat.id, role: 'char', authorId: a.id, name: '降温', names: ['白色针织衫', '红色围巾'] });
+  // 第三期：随身一件、借来一件、一条回忆、一张动作卡片、一个没揭晓的穿搭盲盒
+  const clBag = cl.create({ group: 'carry', sub: '伞', name: '折叠伞' });
+  cl.wear(clBag.id, true);
+  const clLoan = cl.create({ owner: a.id, group: 'top', sub: '卫衣', name: '灰色连帽衫' });
+  cl.lend(clLoan.id, 'me');
+  cl.addMemory(clWear.id, { text: '第一次见面时穿着' });
+  cl.useInChat(clBeauty.id, chat.id, '涂上');
+  const clBox = cl.createOutfit({ owner: a.id, name: '复古', items: [clLoan.id] });
+  cl.giveBack(clLoan.id);
+  cl.startDresscode(clBox.id, '九十年代复古');
   const giftMsg = db.messages.all().find(m => m.kind === 'gift');
   const skinRow = (await import('/src/system/skin.js')).create({ name: '样例美化',
     tokens: { bubbleR: 18 }, shape: 'round', css: '.bubble{opacity:.95}' });

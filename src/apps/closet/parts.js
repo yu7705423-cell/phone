@@ -49,6 +49,7 @@ export function ItemCard({ item, onOpen }) {
       <div class="cl-card-marks">
         ${wearing ? html`<span class="cl-mark is-on" title="今天穿着"><${Icon} name="check" size=${10}/></span>` : null}
         ${item.source === 'gift' ? html`<span class="cl-mark" title="礼物"><${Icon} name="gift" size=${10}/></span>` : null}
+        ${closet.lentOut(item) ? html`<span class="cl-mark" title="已借出"><${Icon} name="send" size=${10}/></span>` : null}
         ${f ? html`<span class="cl-mark is-warn" title="快用完或快过期"><${Icon} name="clock" size=${10}/></span>` : null}
       </div>
       ${rem ? html`<div class="cl-meter"><i style=${`--pct:${rem.pct}%`}></i></div>` : null}

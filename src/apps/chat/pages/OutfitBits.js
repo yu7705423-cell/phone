@@ -22,6 +22,20 @@ function Piece({ it }) {
 
 export function OutfitBubble({ msg, mine }) {
   useStore(db.closet.store);
+  // 穿搭盲盒里角色挑的那一套：揭晓之前只露一句（ARCHITECTURE 4.216）
+  if (msg.sealed) {
+    return html`
+      <div class=${`bubble bubble-outfit ph-outfit is-sealed${mine ? ' is-mine' : ''}`}>
+        <div class="tr-top">
+          <${Icon} name="gift" size=${20}/>
+          <div class="tr-body">
+            <div class="fit-tag">穿搭盲盒</div>
+            <div class="fit-name">已为你挑好一套</div>
+          </div>
+        </div>
+        <div class="tr-foot">在主题卡片上点「揭晓」后公开</div>
+      </div>`;
+  }
   const items = msg.outfitItems || [];
   const hits = items.filter(x => x.id && db.closet.get(x.id)).length;
   const saved = closet.outfitOfMsg(msg.id);
@@ -43,6 +57,49 @@ export function OutfitBubble({ msg, mine }) {
             e.stopPropagation();
             intent.open('closet', { route: `/fit/${msg.id}`, back: true });
           }}>${saved ? '在衣帽间中查看' : '存为套装'}</button>` : null}
+      </div>
+    </div>`;
+}
+
+/** 动作卡片：在会话里用了衣帽间里的一件东西（帮对方喷上香水之类） */
+export function GroomBubble({ msg, mine }) {
+  useStore(db.closet.store);
+  const row = msg.itemId ? db.closet.get(msg.itemId) : null;
+  return html`
+    <div class=${`bubble bubble-outfit ph-groom${mine ? ' is-mine' : ''}`}>
+      <div class="tr-top">
+        <${Piece} it=${{ id: row ? row.id : '', name: '' }}/>
+        <div class="tr-body">
+          <div class="fit-tag">${msg.action || ''}</div>
+          <div class="fit-name ellipsis">${msg.itemName || row?.name || ''}</div>
+        </div>
+      </div>
+    </div>`;
+}
+
+/** 穿搭盲盒的主题卡片。揭晓之前我挑的那一套也不显示，免得自己先剧透给自己看 */
+export function DresscodeBubble({ msg, mine }) {
+  useStore(db.messages.store);
+  const items = msg.outfitItems || [];
+  const reveal = e => {
+    e.stopPropagation();
+    closet.revealDresscode(msg.id);
+  };
+  return html`
+    <div class=${`bubble bubble-outfit ph-dresscode${mine ? ' is-mine' : ''}${msg.revealed ? ' is-done' : ''}`}>
+      <div class="tr-top">
+        <${Icon} name="gift" size=${20}/>
+        <div class="tr-body">
+          <div class="fit-tag">穿搭盲盒 · 主题</div>
+          <div class="fit-name ellipsis">${msg.theme}</div>
+        </div>
+      </div>
+      ${msg.revealed ? html`
+        <div class="fit-sub">我为对方挑的：${msg.outfitName || ''}</div>
+        <div class="fit-pieces">${items.map((it, i) => html`<${Piece} key=${i} it=${it}/>`)}</div>` : null}
+      <div class="tr-foot">
+        ${msg.revealed ? '已揭晓' : `为对方挑好了 ${items.length} 件，揭晓前双方都不公开`}
+        ${msg.revealed ? null : html`<button class="gift-closet press" onClick=${reveal}>揭晓</button>`}
       </div>
     </div>`;
 }

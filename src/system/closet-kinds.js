@@ -25,8 +25,10 @@ export const GROUPS = [
   { id: 'shoes', side: 'wear', label: '鞋', subs: w(['运动鞋', '靴子', '高跟鞋', '平底 / 乐福', '凉拖']) },
   { id: 'bag', side: 'wear', label: '包', subs: w(['手提', '斜挎', '双肩', '托特', '手拿']) },
   { id: 'jewelry', side: 'wear', label: '首饰', subs: w(['戒指', '项链', '耳饰', '手链 / 手镯', '胸针']) },
-  { id: 'acc', side: 'wear', label: '配饰', subs: w(['帽子', '围巾', '眼镜', '腰带', '发饰', '手表', '袜子']) },
+  { id: 'acc', side: 'wear', label: '配饰', subs: w(['帽子', '围巾', '领带', '眼镜', '腰带', '发饰', '手表', '袜子']) },
   { id: 'home', side: 'wear', label: '家居', subs: w(['睡衣', '家居服', '贴身']) },
+  // 随身：包里带着的小东西。勾上是「今天带着」，不算穿在身上（ARCHITECTURE 4.216）
+  { id: 'carry', side: 'wear', label: '随身', subs: w(['伞', '耳机', '相机', '钥匙', '零食', '小物']) },
 
   // ---- 妆台 ----
   { id: 'skin', side: 'beauty', label: '护肤', subs: [
