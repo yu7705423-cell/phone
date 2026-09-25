@@ -227,7 +227,7 @@ export const CAPS = [
     // 正在一起听就必须是热的：点歌、建歌单这几个标记怎么写，这一段说了算
     hot: ({ chat, msgs }) => (listen.get().active && listen.get().chatId === chat.id)
       || usedRecently(msgs, /^(listen|song)$|[[【](一起听|点歌|建歌单|加入歌单|分享歌曲)/),
-    line: () => 'Music: [一起听] to listen together, [点歌：song title] to change the track,'
+    line: () => 'Music: [一起听] to listen together, [点歌：song title - artist] to change the track,'
       + ' [分享歌曲：song title - artist] to send a song, [加入歌单：playlist | song - artist] to keep songs',
     detail: () => template('skeleton.listen'),
   },

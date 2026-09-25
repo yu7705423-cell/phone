@@ -340,8 +340,11 @@ message starting with [工具结果：tool name]. Before that message appears, t
 `[一起听歌]
 To invite the other party to listen to music together, write a line on its own,
 [一起听].
-To change the track while listening, write a line on its own, [点歌：song
-title], taking the title from the tracks known to you.
+To change the track while listening, write a line on its own, [点歌：song title
+- artist]. The song is looked up in the music library and, when a music service
+is connected, searched online, so it need not be one already in the library.
+When the original recording cannot be played, a version by another artist plays
+instead, and a notice states whose version is playing.
 To send the other party a song, write a line on its own, [分享歌曲：song title -
 artist]; it arrives as a song card they can play.
 To keep songs in a playlist of your own, write a line on its own, [加入歌单：

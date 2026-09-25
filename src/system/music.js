@@ -143,6 +143,45 @@ export async function resolveSong(query) {
   return pick ? fromNetease(pick) : null;
 }
 
+// ---- 点歌：歌名加歌手，原唱放不了就放翻唱（ARCHITECTURE 4.219） ----
+
+const bare = t => String(t || '').replace(/[(（[【].*?[)）\]】]/g, '').replace(/\s+/g, '').toLowerCase();
+const sameArtist = (a, b) => !b || !a || a.includes(b) || b.includes(a);
+
+/**
+ * 角色点的那一首，找一个**放得出来**的版本。
+ *   本机曲库里有就用它；
+ *   否则去网易云搜：歌名对得上、歌手也对得上的是原唱，歌名对得上、歌手不同的是别人唱的；
+ *   原唱逐个问一次播放地址，放得出来就用；都放不了（没版权、要会员）或者根本没搜到原唱，
+ *   就依次试别人唱的版本。
+ * 给 { song, swap }：swap 为 'locked'（原唱放不了）、'missing'（没搜到原唱）或空；
+ * 一个能放的都没有给 { song: null }。问播放地址是网易云的接口，不是模型，不算多调一次（第 15 条）
+ */
+export async function playableSong(query) {
+  const { title, artist } = splitQuery(query);
+  if (!title) return { song: null };
+  const local = allSongs().find(s => bare(s.title) === bare(title) && sameArtist(s.artist, artist))
+    || (artist ? null : findSong(title));
+  if (local) return { song: local, swap: '' };
+  const ne = await import('./netease.js');
+  if (!ne.ready()) return { song: null };
+  const seen = new Set();
+  const rows = [
+    ...(artist ? await ne.search(`${title} ${artist}`, 10).catch(() => []) : []),
+    ...await ne.search(title, 10).catch(() => []),
+  ].filter(t => (seen.has(t.id) ? false : seen.add(t.id)));
+  const same = rows.filter(t => bare(t.title) === bare(title));
+  // 没写歌手时，搜出来的第一个同名版本当原唱
+  const lead = artist ? same.filter(t => sameArtist(t.artist, artist)) : same.slice(0, 1);
+  const others = same.filter(t => !lead.includes(t));
+  const plays = async t => { try { return !!(await ne.songUrl(t.id)); } catch { return false; } };
+  for (const t of lead) if (await plays(t)) return { song: fromNetease(t), swap: '' };
+  for (const t of others) {
+    if (await plays(t)) return { song: fromNetease(t), swap: lead.length ? 'locked' : 'missing', want: { title, artist } };
+  }
+  return { song: null, want: { title, artist } };
+}
+
 /**
  * 在会话里分享一首歌。正文写成和角色分享时同一个标记，角色读历史时看到的是
  * 「[分享歌曲：晚风 - 林晚]」，知道是哪一首。

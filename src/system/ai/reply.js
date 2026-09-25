@@ -1034,18 +1034,25 @@ export function materialize(part, base, char) {
     // 先在自己的曲库里找。找不到而且配了网易云，就让它去那边搜一首回来 ——
     // 这就是「角色可以自己搜歌加进来」。两处都没有就当没点过：
     // 凭空冒出一首放不出来的歌，界面上只是个哑巴条。
-    const local = music.findSong(part.name);
+    //
+    // 写成「歌名 - 歌手」按两样一起找；原唱放不了（没版权、要会员）或没搜到，就放别人唱的版本，
+    // 落一行提示说清放的是谁的，角色下一轮读到（music.playableSong，ARCHITECTURE 4.219）。
+    // 一个能放的都没有，也落一行，不然角色以为换上了
     inTurn(base, async () => {
       const m = await import('../listen.js');
       const wanted = listenWanted && listenWanted.chatId === base.chatId && listenWanted.turnId === base.turnId;
       if (!m.listen.get().active && !wanted) return;
-      let song = local;
-      if (!song) {
-        const ne = await import('../netease.js');
-        if (!ne.ready()) return;
-        const hit = (await ne.search(part.name, 1).catch(() => []))[0];
-        if (!hit) return;
-        song = music.fromNetease(hit);
+      const got = await music.playableSong(part.name);
+      const want = got.want ? `${got.want.artist ? `${got.want.artist}的` : ''}《${got.want.title}》` : '';
+      const tell = text => messages.create({ chatId: base.chatId, role: 'char', authorId: base.authorId,
+        turnId: base.turnId, kind: 'notice', status: 'done', content: `[${text}]` });
+      if (!got.song) { if (want) tell(`没有找到可以播放的${want}`); return; }
+      const song = got.song;
+      if (got.swap) {
+        const who = song.artist || '其他歌手';
+        tell(got.swap === 'locked'
+          ? `${want}无法播放（需要会员或没有版权），换成了${who}演唱的版本`
+          : `没有找到${want}，换成了${who}演唱的版本`);
       }
       if (m.listen.get().active) m.play(song.id);
       else { listenWanted = null; m.start({ chatId: base.chatId, songId: song.id, autoplay: false }); }

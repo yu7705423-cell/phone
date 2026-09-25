@@ -18,7 +18,8 @@ await ctx.route('**/ne.example.com/**', async route => {
   const p = u.pathname;
   if (p === '/cloudsearch') {
     const kw = u.searchParams.get('keywords') || '';
-    if (/晴天/.test(kw)) return J({ code: 200, result: { songs: [song(901, '晴天', '周杰伦')] } });
+    if (/晴天/.test(kw)) return J({ code: 200, result: { songs: [song(901, '晴天', '周杰伦'), song(903, '晴天', '路人')] } });
+    if (/夜曲/.test(kw)) return J({ code: 200, result: { songs: [song(904, '夜曲', '路人')] } });
     if (/稻香/.test(kw)) return J({ code: 200, result: { songs: [song(902, '稻香', '周杰伦')] } });
     return J({ code: 200, result: { songs: [] } });
   }
@@ -26,7 +27,9 @@ await ctx.route('**/ne.example.com/**', async route => {
   if (p === '/record/recent/song') return J({ code: 200, data: { list: [{ playTime: Date.now(), data: song(801, '刚听过的歌', '某人') }] } });
   if (p === '/user/playlist') return J({ code: 200, playlist: [{ id: 7, name: '夜里听', trackCount: 2, userId: 42 }] });
   if (p === '/playlist/track/all') return J({ code: 200, songs: [song(701, '晚风', '林晚'), song(702, '海边', '林晚')] });
-  if (p.startsWith('/song/url')) return J({ code: 200, data: [{ url: '' }] });
+  // 周杰伦的《晴天》放不了（没版权）；别的都放得出来
+  if (p.startsWith('/song/url')) return J({ code: 200, data: [{ url: u.searchParams.get('id') === '901' ? '' : 'https://ne.example.com/a.mp3' }] });
+  if (p === '/a.mp3') return route.fulfill({ status: 404, body: '' });
   if (p === '/lyric') return J({ code: 200, nolyric: true });
   return J({ code: 200 });
 });
@@ -57,7 +60,9 @@ const turn = (text, turnId) => ev(async ({ chat, char, text, turnId }) => {
   const l = await import('/src/system/listen.js');
   const cur = l.current();
   const s = l.listen.get();
-  const out = { active: s.active, song: cur?.title || '', lib: (await import('/src/system/music.js')).allSongs().map(x => x.title) };
+  const notes = db.messagesOf(chat).filter(m => m.kind === 'notice' && m.turnId === turnId).map(m => m.content);
+  const out = { active: s.active, song: cur?.title || '', artist: cur?.artist || '', notes,
+    lib: (await import('/src/system/music.js')).allSongs().map(x => x.title) };
   l.stop();
   return out;
 }, { ...ids, text, turnId });
@@ -65,8 +70,17 @@ const turn = (text, turnId) => ev(async ({ chat, char, text, turnId }) => {
 // ---- 角色：曲库空着 ----
 const a = await turn('一起听吧。\n[一起听]', 't1');
 ok('曲库空、登录了网易云：角色写 [一起听] 起得来，放的是刚听过的那首', a.active && a.song === '刚听过的歌', JSON.stringify(a));
-const b = await turn('换一首。\n[一起听]\n[点歌：晴天]', 't2');
-ok('同一轮 [一起听] 再 [点歌]：起来之后换成点的那首', b.active && b.song === '晴天', JSON.stringify(b));
+const b = await turn('换一首。\n[一起听]\n[点歌：稻香 - 周杰伦]', 't2');
+ok('同一轮 [一起听] 再 [点歌：歌名 - 歌手]：起来之后换成点的那首，原唱放得了就不提示', b.active && b.song === '稻香' && b.artist === '周杰伦' && !b.notes.length, JSON.stringify(b));
+const b2 = await turn('听这个。\n[一起听]\n[点歌：晴天 - 周杰伦]', 't2b');
+ok('原唱放不了：换成别人唱的版本，落一行提示角色下一轮读得到', b2.song === '晴天' && b2.artist === '路人'
+  && JSON.stringify(b2.notes) === '["[周杰伦的《晴天》无法播放（需要会员或没有版权），换成了路人演唱的版本]"]', JSON.stringify(b2));
+const b3 = await turn('[一起听]\n[点歌：夜曲 - 周杰伦]', 't2c');
+ok('没搜到原唱：放别人唱的，提示写「没有找到」', b3.song === '夜曲' && b3.artist === '路人'
+  && JSON.stringify(b3.notes) === '["[没有找到周杰伦的《夜曲》，换成了路人演唱的版本]"]', JSON.stringify(b3));
+const b4 = await turn('[一起听]\n[点歌：一首根本不存在的歌 - 谁]', 't2d');
+ok('一个能放的都没有：不换，也落一行说没找到', b4.song !== '一首根本不存在的歌'
+  && JSON.stringify(b4.notes) === '["[没有找到可以播放的谁的《一首根本不存在的歌》]"]', JSON.stringify(b4));
 await ev(async () => {
   const svc = await import('/src/system/ai/services.js');
   const m = await import('/src/system/music.js');
