@@ -919,6 +919,19 @@ function justSent(chatId, turnId) {
  * **那一行提示当场落，找完再改字。** 从前是找完才落，网易云一搜一两秒，
  * 这一轮后面的话早就落下去了，提示排到了它们后面，顺序和角色写的对不上。
  */
+// 一起听与点歌的队（见 materialize 里 listen / pick 两处）。**按轮排**：同一轮里先起播再点歌；
+// 不同轮互不等 —— 上一轮点歌去网易云搜得慢，不该拖住下一轮的 [一起听]
+const listenChains = new Map();
+function inTurn(base, fn) {
+  const k = `${base.chatId}:${base.turnId || ''}`;
+  const next = (listenChains.get(k) || Promise.resolve()).then(fn);
+  const done = next.catch(() => {});
+  listenChains.set(k, done);
+  done.then(() => { if (listenChains.get(k) === done) listenChains.delete(k); });
+  return next;
+}
+let listenWanted = null;
+
 function collect(base, name, queries) {
   let list;
   try { list = music.listNamed(base.authorId, name); }
@@ -1002,11 +1015,18 @@ export function materialize(part, base, char) {
   }
   // 一起听、点歌、建歌单都不落消息 —— 它们改的是播放状态和曲库，不是对话内容。
   // 动态 import 的理由和电话一样：listen 要用 db，engine 要用本文件，静态引会成环。
+  //
+  // 一起听与点歌排成一队（inTurn）：同一轮里先写 [一起听] 再写 [点歌]，
+  // 起播要去网易云拿歌、要等一会儿，点歌必须等它起来了再换，不然点歌那一句落空
   if (part.type === 'listen') {
     if (base.role === 'char') {
-      import('../listen.js')
-        .then(m => { if (!m.listen.get().active) m.start({ chatId: base.chatId, autoplay: false }); })
-        .catch(err => console.warn('[listen] 没起来:', err.message || err));
+      inTurn(base, () => import('../listen.js')
+        .then(m => (m.listen.get().active ? null : m.startAnywhere({ chatId: base.chatId, autoplay: false }))))
+        .catch(err => {
+          // 曲库空、网易云也拿不到第一首：记下这一轮想一起听，同一轮后面的 [点歌] 就拿它点的那首起播
+          listenWanted = { chatId: base.chatId, turnId: base.turnId };
+          console.warn('[listen] 没起来:', err.message || err);
+        });
     }
     return null;
   }
@@ -1015,8 +1035,10 @@ export function materialize(part, base, char) {
     // 这就是「角色可以自己搜歌加进来」。两处都没有就当没点过：
     // 凭空冒出一首放不出来的歌，界面上只是个哑巴条。
     const local = music.findSong(part.name);
-    import('../listen.js').then(async m => {
-      if (!m.listen.get().active) return;
+    inTurn(base, async () => {
+      const m = await import('../listen.js');
+      const wanted = listenWanted && listenWanted.chatId === base.chatId && listenWanted.turnId === base.turnId;
+      if (!m.listen.get().active && !wanted) return;
       let song = local;
       if (!song) {
         const ne = await import('../netease.js');
@@ -1025,7 +1047,8 @@ export function materialize(part, base, char) {
         if (!hit) return;
         song = music.fromNetease(hit);
       }
-      m.play(song.id);
+      if (m.listen.get().active) m.play(song.id);
+      else { listenWanted = null; m.start({ chatId: base.chatId, songId: song.id, autoplay: false }); }
     }).catch(err => console.warn('[listen] 点歌没成:', err.message || err));
     return null;
   }

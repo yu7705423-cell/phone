@@ -1,9 +1,58 @@
-import { html, useState } from '../../../lib.js';
+import { html, useState, useEffect } from '../../../lib.js';
 import { phone, useStore } from '../../../sdk/index.js';
-import { Page, List, ListItem, Button, Icon,
+import { Page, List, ListItem, Button, Icon, Input, Spinner,
          Sheet, EmptyState, toast, confirm, prompt } from '../../../ui/index.js';
 
-const { db, nav, music, listen } = phone;
+const { db, nav, music, listen, netease } = phone;
+const svc = phone.ai.services;
+
+/**
+ * 搜网易云。回车才发请求，每敲一个字查一次是在替接口挨限流。
+ * onPick 拿到的是网易云那边的一首（还没进曲库），由调用方决定放还是加进歌单
+ */
+function NeteaseSearch({ onPick, pickLabel = '', onSide = null }) {
+  const [q, setQ] = useState('');
+  const [st, setSt] = useState({ list: [], err: '', loading: false, done: false });
+  if (!svc.neteaseReady()) return null;
+  const go = async () => {
+    const k = q.trim();
+    if (!k) return;
+    setSt({ list: [], err: '', loading: true, done: false });
+    try { setSt({ list: await netease.search(k, 20), err: '', loading: false, done: true }); }
+    catch (err) { setSt({ list: [], err: String(err.message || err), loading: false, done: true }); }
+  };
+  return html`
+    <div class="pad-x ls-search">
+      <${Input} value=${q} onInput=${setQ} placeholder="搜索网易云的歌曲、歌手，按回车搜索"
+        onKeyDown=${e => { if (e.key === 'Enter') { e.target.blur(); go(); } }}/>
+    </div>
+    ${st.loading ? html`<div class="ls-wait"><${Spinner}/></div>` : null}
+    ${st.err ? html`<div class="settings-foot">搜索失败：${st.err}</div>` : null}
+    ${st.done && !st.err && !st.list.length ? html`<div class="settings-foot">没有匹配的歌曲。</div>` : null}
+    ${st.list.length ? html`
+      <${List} inset=${false}>
+        ${st.list.map(t => html`
+          <${ListItem} key=${t.id} title=${t.title} subtitle=${t.artist || '网易云'}
+            right=${onSide ? html`<button class="nav-text press"
+              onClick=${e => { e.stopPropagation(); onSide(t); }}>加入歌单</button>` : pickLabel ? html`<span class="ls-hint">${pickLabel}</span>` : null}
+            onClick=${() => onPick(t)}/>`)}
+      <//>` : null}`;
+}
+
+/** 自己的网易云歌单。登录了才有 */
+function useNeteaseLists() {
+  const logged = svc.neteaseLoggedIn();
+  const [st, setSt] = useState({ list: [], err: '', loading: logged });
+  useEffect(() => {
+    if (!logged) return;
+    let off = false;
+    netease.playlistsOf('')
+      .then(list => { if (!off) setSt({ list, err: '', loading: false }); })
+      .catch(err => { if (!off) setSt({ list: [], err: String(err.message || err), loading: false }); });
+    return () => { off = true; };
+  }, [logged]);
+  return { logged, ...st };
+}
 
 function SongRow({ song, right, onTap }) {
   return html`
@@ -19,6 +68,8 @@ export function ListenPage({ chatId }) {
   useStore(db.chats.store);
   const s = useStore(listen.listen);
   const [picking, setPicking] = useState(null);   // 往哪个歌单里加歌
+  const [adding, setAdding] = useState(null);     // 搜到的一首，要加进哪个歌单
+  const ne = useNeteaseLists();
 
   const chat = db.chats.get(chatId);
   const char = db.characters.get((chat?.characterIds || [])[0]);
@@ -38,9 +89,22 @@ export function ListenPage({ chatId }) {
   };
   // 角色的歌单点进去先看里面有什么，一起听的按钮在那一页上
   const openList = id => phone.intent.open('music', { route: `/local/${id}/${chatId}`, back: true });
+  // 正在和这一位一起听就只换这一首，不重新开一场
   const startSong = id => {
-    try { listen.start({ chatId, songId: id }); nav.pop(); }
+    try {
+      if (live) { listen.play(id); toast('已切换', 'ok'); return; }
+      listen.start({ chatId, songId: id }); nav.pop();
+    } catch (err) { toast(String(err.message || err), 'error'); }
+  };
+  // 网易云搜到的：先收进曲库（只存歌名与网易云 id），再放
+  const playNetease = t => startSong(music.fromNetease(t).id);
+  const openNeteaseList = async p => {
+    toast(`正在打开「${p.name}」`);
+    try { await listen.startNeteaseList({ chatId, id: p.id, name: p.name }); nav.pop(); }
     catch (err) { toast(String(err.message || err), 'error'); }
+  };
+  const addTo = (listId, t) => {
+    toast(music.addTrack(listId, music.fromNetease(t).id) ? '已加入' : '已在这个歌单里');
   };
 
   const newList = async () => {
@@ -66,6 +130,20 @@ export function ListenPage({ chatId }) {
             onClick=${() => phone.intent.open('music', { route: '/now/listen', back: true })}/>
         <//>` : null}
 
+      ${svc.neteaseReady() ? html`
+        <${List} title="搜索网易云"/>
+        <${NeteaseSearch} onPick=${playNetease} onSide=${t => setAdding(t)}/>
+        <div class="settings-foot">点击结果即一起听这一首；「加入歌单」可放进你或${char?.name || '角色'}的歌单。</div>` : null}
+
+      ${ne.logged ? html`
+        <${List} title="我的网易云歌单">
+          ${ne.loading ? html`<div class="ls-wait"><${Spinner}/></div>` : null}
+          ${ne.err ? html`<div class="settings-foot">歌单取不到：${ne.err}</div>` : null}
+          ${ne.list.map(p => html`
+            <${ListItem} key=${p.id} title=${p.name} subtitle=${`${p.count} 首${p.mine ? '' : ' · 收藏'}`} arrow
+              onClick=${() => openNeteaseList(p)}/>`)}
+        <//>` : null}
+
       <${List} title="一起听了多久">
         <${ListItem} title="累积" multiline
           subtitle=${total.count
@@ -82,7 +160,8 @@ export function ListenPage({ chatId }) {
         <${List} title=${`${char?.name || '角色'}建的歌单`}>
           ${hers.map(p => html`
             <${ListItem} key=${p.id} title=${p.name}
-              subtitle=${`${(p.trackIds || []).length} 首`} arrow
+              subtitle=${`${(p.trackIds || []).length} 首`}
+              right=${html`<button class="nav-text press" onClick=${e => { e.stopPropagation(); setPicking(p.id); }}>加歌</button>`}
               onClick=${() => openList(p.id)}/>`)}
         <//>` : null}
 
@@ -108,21 +187,34 @@ export function ListenPage({ chatId }) {
             left=${html`<${Icon} name="database" size=${18}/>`}
             onClick=${openLib}/>
         <//>`
+      : svc.neteaseReady() ? null
       : html`<${EmptyState} icon="music" title="曲库是空的"
           desc="曲库在音乐中管理：可上传本机音频、填写播放地址，或收入网易云的曲目。"
           action=${html`<${Button} size="sm" icon="database" onClick=${openLib}>前往曲库<//>`}/>`}
 
       <div class="settings-foot">
-        点击我的歌单或单曲即可开始一起听；角色的歌单点击后先查看曲目。播放期间可在会话顶部控制。
+        点击我的歌单或单曲即可开始一起听；角色的歌单点击后先查看曲目，「加歌」可替角色往里放歌。播放期间可在会话顶部控制。
       </div>
 
-      <${Sheet} open=${!!picking} onClose=${() => setPicking(null)} title="选择要加入的歌曲" height="70%">
+      <${Sheet} open=${!!picking} onClose=${() => setPicking(null)} title="选择要加入的歌曲" height="80%">
+        <${NeteaseSearch} pickLabel="加入" onPick=${t => addTo(picking, t)}/>
+        ${lib.length ? html`<div class="settings-foot">本机曲库</div>` : null}
         <${List} inset=${false}>
           ${lib.map(song => html`
             <${SongRow} key=${song.id} song=${song}
               onTap=${() => { music.addTrack(picking, song.id); toast('已加入'); }}/>`)}
         <//>
-        ${lib.length ? null : html`<div class="settings-foot">曲库是空的。</div>`}
+        ${lib.length || svc.neteaseReady() ? null : html`<div class="settings-foot">曲库是空的。</div>`}
+      <//>
+
+      <${Sheet} open=${!!adding} onClose=${() => setAdding(null)} title=${adding ? `把「${adding.title}」加入` : ''}>
+        <${List} inset=${false}>
+          ${[...mine, ...hers].map(p => html`
+            <${ListItem} key=${p.id} title=${p.name}
+              subtitle=${p.owner === music.LIB_OWNER ? '我的歌单' : `${char?.name || '角色'}的歌单`}
+              onClick=${() => { addTo(p.id, adding); setAdding(null); }}/>`)}
+        <//>
+        ${[...mine, ...hers].length ? null : html`<div class="settings-foot">还没有歌单，可在下方「我的歌单」中新建。</div>`}
       <//>
     <//>`;
 }

@@ -201,7 +201,7 @@ export function start({ chatId, listId = '', songId = '', autoplay = true }) {
     if (mine) { list = mine.id; first = mine.trackIds[0]; }
   }
   if (!first) first = music.allSongs()[0]?.id;
-  if (!first) throw new Error('曲库里还没有歌，先去「一起听」里添加');
+  if (!first) throw new Error('曲库里还没有歌。可以在「一起听」中搜索网易云，或打开自己的网易云歌单');
 
   listen.set({
     active: true, chatId, charId: char.id, listId: list, songId: '',
@@ -209,6 +209,59 @@ export function start({ chatId, listId = '', songId = '', autoplay = true }) {
   });
   load(first, autoplay);
   return true;
+}
+
+// ---- 曲库空着也起得来（接网易云） ----
+//
+// 只用网易云的人，本机曲库常常是空的。从前那样 start 直接报「曲库里还没有歌」，
+// 角色写 [一起听] 起不来，它后面那句 [点歌] 也就跟着落空。
+// 所以本机挑不出第一首时，去网易云拿一首：刚听过的，没有就取自己第一个歌单的第一首。
+
+async function firstFromNetease() {
+  if (!netease.ready() || !netease.cookieOf()) return null;
+  try {
+    const r = await netease.recent('', 1);
+    if (r.songs?.[0]) return music.fromNetease(r.songs[0]);
+  } catch { /* 这个号没有听歌记录，走下一条 */ }
+  try {
+    const lists = await netease.playlistsOf('');
+    for (const p of lists.slice(0, 3)) {
+      const t = (await netease.playlistTracks(p.id, 1))[0];
+      if (t) return music.fromNetease(t);
+    }
+  } catch { /* 取不到歌单 */ }
+  return null;
+}
+
+const hasLocal = char => !!(music.allSongs().length
+  || music.allLists(char?.id).some(p => (p.trackIds || []).length));
+
+/** 起一场一起听。本机挑不出歌时从网易云拿一首（角色写 [一起听] 走这里） */
+export async function startAnywhere({ chatId, autoplay = true }) {
+  const chat = chats.get(chatId);
+  const char = characters.get((chat?.characterIds || [])[0]);
+  if (hasLocal(char)) return start({ chatId, autoplay });
+  const song = await firstFromNetease();
+  return start({ chatId, songId: song ? song.id : '', autoplay });
+}
+
+/**
+ * 打开自己的网易云歌单一起听：歌单里的歌收进曲库（只存歌名与网易云 id，不存播放地址），
+ * 本机建一个同名歌单（已有就补齐），从第一首放起。正在一起听就只换歌单与这一首
+ */
+export async function startNeteaseList({ chatId, id, name }) {
+  const tracks = await netease.playlistTracks(id);
+  if (!tracks.length) throw new Error('这个歌单里没有能放的歌');
+  const list = music.listNamed(music.LIB_OWNER, name || '网易云歌单');
+  const ids = tracks.map(t => music.fromNetease(t).id);
+  ids.forEach(sid => music.addTrack(list.id, sid));
+  if (listen.get().active && listen.get().chatId === chatId) {
+    listen.set({ listId: list.id });
+    play(ids[0]);
+    return list;
+  }
+  start({ chatId, listId: list.id, songId: ids[0] });
+  return list;
 }
 
 // 换一首。角色点歌走的也是这里。

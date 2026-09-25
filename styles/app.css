@@ -3309,3 +3309,8 @@ button.conv-notice { background: none; border: 0; font: inherit; cursor: pointer
 .cl-gen-body em { font-style: normal; font-size: var(--fs-12); color: var(--text-2); line-height: 1.5; }
 /* 礼物气泡上的「收进衣帽间」（TransferBits.js 的 GiftBubble） */
 .gift-closet { margin-left: var(--sp-2); font-size: var(--fs-11); color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+
+/* 一起听页里的网易云搜索（chat/pages/ListenPage.js） */
+.ls-search { padding-bottom: var(--sp-2); }
+.ls-wait { display: flex; justify-content: center; padding: var(--sp-4) 0; }
+.ls-hint { font-size: var(--fs-12); color: var(--text-3); }

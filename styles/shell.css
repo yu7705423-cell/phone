@@ -59,9 +59,11 @@
 .home-grid.is-edit .cell-widget .wg { pointer-events: none; }
 
 .cell { min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+/* 不裁：未读角标挂在图标右上角外面一点（.tile-badge 的 -4px），裁了就只剩半个。
+   名字自己带 ellipsis，横向不会溢出 */
 .cell-app {
   align-items: center; justify-content: flex-start; gap: 5px; cursor: pointer;
-  overflow: hidden;
+  overflow: visible;
 }
 .cell-app:active .app-tile { transform: scale(.93); }
 .app-tile {
