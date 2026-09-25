@@ -8948,3 +8948,23 @@ Bark 可选 AES-CBC 加密（Key 16/24/32 位、IV 16 位，与 Bark 里的设�
 外壳那一串容器仍然是 100vh（CLAUDE.md 第 1 条），不全屏只是在 `.root` 里让出一条、或者限宽。
 
 测试：`tests/windowed.test.mjs`。iPhone 的安全区在 Chromium 里模拟不出来，那一档只查了标记，要真机看。
+
+### 4.233 从后台回来之后写的全丢：数据库连接断了，写入失败没人说
+
+用户用新 ipa：刚聊完，切到后台再回来，刚才那些全没了。
+
+iPhone 的 WebKit 上，应用在后台待一阵回来，网页与数据库（IndexedDB）之间的连接常常已经断了
+（"Connection to Indexed Database server lost"，或者 InvalidStateError）。`idb.js` 从前把第一次打开的连接
+一直留着用：断了之后每一次读写都失败，**失败只在控制台记一句**。界面照常显示刚聊的（那是内存里的镜像），
+等页面被系统回收、重开，这段时间写的全没了。新 ipa 用外壳保活，页面在后台活得更久，从前页面早被回收、
+回来是重开的，反而拿的是新连接，所以换了新 ipa 才明显起来。读也一样：图从库里读不出来，就是又一条「图没了」。
+
+改法（`system/db/idb.js`）：
+
+- 连接被系统关掉（`onclose`）、别处要升级（`onversionchange`）：丢掉它，下一次用时重新打开
+- 一次读写失败而且像连接的问题（InvalidStateError、UnknownError、TransactionInactiveError，或消息里有
+  connection / lost / closing）：丢掉连接、重新打开、再做一次
+- 换了连接还是写不进去（存储满了之类）：发 `eira-db-write-failed`，外壳在屏幕上说「数据未能保存」和原因，
+  同一原因一分钟一次。**任何写入失败都不许只记在控制台**（CLAUDE.md 第 20 条）
+
+测试 `tests/idblost.test.mjs`：关掉连接模拟断开，写一条、重开，看它在不在（旧代码上丢）；模拟存储满，看屏幕上有没有说。

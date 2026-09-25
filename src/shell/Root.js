@@ -10,7 +10,8 @@ import { HomeScreen } from '../screens/home/HomeScreen.js';
 import { AppSwitcher } from '../screens/AppSwitcher.js';
 import { CallLayer } from '../screens/CallLayer.js';
 import { AppHost } from '../system/runtime.js';
-import { closeTopOverlay } from '../ui/overlay.js';
+import { closeTopOverlay, toast } from '../ui/overlay.js';
+import { WRITE_FAILED } from '../system/db/idb.js';
 import * as alarm from '../system/alarm.js';
 import { notify } from '../system/notify.js';
 import { useImage } from '../system/db/useImage.js';
@@ -50,6 +51,20 @@ function GlobalSkin({ off }) {
   return null;
 }
 
+// 数据写不进库（换了连接也不行）时在屏幕上说一声（system/db/idb.js）。
+// 从前只在控制台记一句：人照常聊下去，重开才发现这段时间的全没了。同一原因一分钟只说一次
+const saidAt = new Map();
+function onWriteFailed(e) {
+  const d = e.detail || {};
+  const key = d.name || d.message;
+  if (Date.now() - (saidAt.get(key) || 0) < 60000) return;
+  saidAt.set(key, Date.now());
+  const why = d.name === 'QuotaExceededError'
+    ? '存储空间不足。请在「设置 - 存储」清理不需要的图片与文件后再继续。'
+    : '请关闭应用后重新打开，再继续使用，并反馈此问题。';
+  toast(`数据未能保存（${d.name || d.message || '未知原因'}）。刚才的内容在重开后可能丢失。${why}`, 'error', 12000);
+}
+
 export function Root() {
   const s = useStore(nav);
   const cfg = useStore(settings.store);
@@ -76,6 +91,11 @@ export function Root() {
   // 真正挂上摘下在下面的 GlobalSkin 里
   const inSettings = s.screen === 'app' && s.appId === 'settings';
   const gid = inSettings ? '' : (skin.globalSkin()?.id || '');
+
+  useEffect(() => {
+    window.addEventListener(WRITE_FAILED, onWriteFailed);
+    return () => window.removeEventListener(WRITE_FAILED, onWriteFailed);
+  }, []);
 
   useEffect(() => { applyLook(cfg); },
     [cfg.iconColor, cfg.iconShadow, cfg.iconLabels, cfg.iconLabelColor, cfg.bottomLift, cfg.glass]);
