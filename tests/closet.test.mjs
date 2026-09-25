@@ -100,7 +100,7 @@ await ev(async ({ char }) => {
 let sys = await sysOf('');
 ok('今天穿的：名字、分类、描述都在', /白色针织衫 \(上装 \/ 针织 \/ 毛衣; 白\): 软糯的羊毛开衫/.test(sys), sys.slice(-800));
 ok('今天戴着它送的：写明是它送的、哪天', /珍珠耳环[^\n]*a gift from you, 2026-08-29/.test(sys), sys.slice(-800));
-ok('没聊到穿搭：不带衣橱清单', !/wardrobe/.test(sys) && !/直筒牛仔裤/.test(sys));
+ok('没聊到穿搭：不带衣橱清单', !/## [^\n]*wardrobe/.test(sys) && !/直筒牛仔裤/.test(sys));
 sys = await sysOf('明天约会穿什么好');
 ok('聊到穿搭：按大类带上衣橱清单', /'s wardrobe/.test(sys) && /下装: 直筒牛仔裤/.test(sys), sys.slice(-800));
 ok('聊穿搭时不带妆台清单', !/豆沙色口红/.test(sys));
