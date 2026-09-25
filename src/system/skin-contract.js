@@ -115,6 +115,8 @@ export const HOOKS = [
     note: '自己发的另带内部类名 is-mine；穿搭盲盒里未揭晓的另带 is-sealed' },
   { hook: 'groom', label: '衣帽间的动作卡片', on: ['chat'], since: 2, needs: '在衣帽间单品页选择「在会话中使用」',
     note: '自己发的另带内部类名 is-mine' },
+  { hook: 'slip', label: '包里多出来的东西', on: ['chat'], since: 2, needs: '线下剧情中角色往你包里放了东西，并已收场',
+    note: '点开之后另带内部类名 is-done' },
   { hook: 'dresscode', label: '穿搭盲盒的主题卡片', on: ['chat'], since: 2, needs: '在角色的套装页选择「作为穿搭盲盒发出」',
     note: '揭晓之后另带内部类名 is-done' },
 

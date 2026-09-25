@@ -1,5 +1,6 @@
 import { scenes, beats, characters, chats, settings } from './db/index.js';
 import * as accounts from './accounts.js';
+import * as story from './closet-story.js';
 
 // 线下。一场戏 + 一段段正文。见 ARCHITECTURE 4.107
 //
@@ -74,8 +75,35 @@ export const beatsOf = sceneId => beats.byIndex(sceneId)
   .slice()
   .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
 
+// ---- 衣帽间的标记（ARCHITECTURE 4.217） ----
+//
+// 角色写的那一段里的 [换上：…] [借走：…] [塞进包里：…] 这几个，从正文里摘掉、照做，
+// 做了什么记在那一版上（acts）。换一版、删掉那一段时照着撤回，再按新的那一版做一遍。
+// 只认这一场存在的（「我们」那边的章节也走 addBeat，但那不是一场戏）
+
+const marks = (sceneId, role, authorId, text) => (role === CHAR && scenes.has(sceneId)
+  ? story.takeMarks(text, { sceneId, charId: authorId }) : { text: String(text || ''), done: [] });
+
+const curOf = row => {
+  const list = versionsOf(row);
+  return list[Math.max(0, Math.min(list.length - 1, Number(row?.swipeIndex) || 0))] || null;
+};
+
+/** 这一段当前这一版做了的几件事（给界面提示用） */
+export const actsOf = row => (curOf(row)?.acts || []).filter(a => a.text || a.slipId);
+
+// 换到另一版：旧的那一版做过的撤回，新的那一版按它的原文再做一遍
+function redo(row, from, to) {
+  if (from?.acts?.length) story.undoAll(from.acts, row.sceneId);
+  if (!to || row.role !== CHAR) return to;
+  return { ...to, acts: marks(row.sceneId, row.role, row.authorId, to.marked || to.raw || to.text).done };
+}
+
 export function addBeat({ sceneId, role, authorId = '', text = '', raw = '', think = '', at = '' }) {
-  const one = { text: String(text || ''), raw: String(raw || ''), think: String(think || ''), at: String(at || '') };
+  const m = marks(sceneId, role, authorId, text);
+  // 摘掉标记之前的原文也留着（marked）：换回这一版时要按它再做一遍，而 raw 不一定有
+  const one = { text: m.text, raw: String(raw || ''), think: String(think || ''), at: String(at || ''),
+    ...(m.done.length ? { acts: m.done, marked: String(text || '') } : {}) };
   const row = beats.create({
     sceneId, role, authorId, ...one,
     swipes: [one], swipeIndex: 0, pinned: false,
@@ -102,8 +130,12 @@ const face = v => ({ text: v.text, raw: v.raw, think: v.think, at: v.at });
 export function addSwipe(id, v) {
   const row = beats.get(id);
   if (!row) return null;
-  const list = [...versionsOf(row), asVersion(v)];
-  return updateBeat(id, { swipes: list, swipeIndex: list.length - 1, ...face(asVersion(v)) });
+  const cur = curOf(row);
+  if (cur?.acts?.length) story.undoAll(cur.acts, row.sceneId);
+  const m = marks(row.sceneId, row.role, row.authorId, asVersion(v).text);
+  const one = { ...asVersion(v), text: m.text, ...(m.done.length ? { acts: m.done, marked: asVersion(v).text } : {}) };
+  const list = [...versionsOf(row), one];
+  return updateBeat(id, { swipes: list, swipeIndex: list.length - 1, ...face(one) });
 }
 
 /** 翻到第几版。 */
@@ -112,7 +144,9 @@ export function pickSwipe(id, i) {
   const list = versionsOf(row);
   const n = Math.max(0, Math.min(list.length - 1, Math.round(Number(i) || 0)));
   if (!list.length) return null;
-  return updateBeat(id, { swipeIndex: n, ...face(list[n]) });
+  const at = Math.max(0, Math.min(list.length - 1, Number(row.swipeIndex) || 0));
+  if (at !== n) list[n] = redo(row, list[at], list[n]);
+  return updateBeat(id, { swipes: list, swipeIndex: n, ...face(list[n]) });
 }
 
 /** 删掉当前这一版。只剩一版时不动 —— 那等于删掉整段，走删除那一项。 */
@@ -123,6 +157,7 @@ export function dropSwipe(id) {
   const at = Math.max(0, Math.min(list.length - 1, Number(row.swipeIndex) || 0));
   const left = list.filter((_, i) => i !== at);
   const n = Math.min(at, left.length - 1);
+  left[n] = redo(row, list[at], left[n]);
   return updateBeat(id, { swipes: left, swipeIndex: n, ...face(left[n]) });
 }
 
@@ -130,8 +165,9 @@ export function dropSwipe(id) {
 export function appendBeat(id, { text = '', raw = '', at = '' }) {
   const row = beats.get(id);
   if (!row) return null;
-  const add = String(text || '').trim();
-  if (!add) return row;
+  const m = marks(row.sceneId, row.role, row.authorId, text);
+  const add = m.text.trim();
+  if (!add && !m.done.length) return row;
   const merged = {
     text: `${row.text}\n${add}`.trim(),
     raw: `${row.raw || ''}\n${raw || ''}`.trim(),
@@ -140,8 +176,9 @@ export function appendBeat(id, { text = '', raw = '', at = '' }) {
   };
   const list = versionsOf(row);
   const i = Math.max(0, Math.min(list.length - 1, Number(row.swipeIndex) || 0));
-  if (list.length) list[i] = { ...list[i], ...merged };
-  return updateBeat(id, { ...merged, swipes: list.length ? list : [merged] });
+  if (list.length) list[i] = { ...list[i], ...merged, acts: [...(list[i].acts || []), ...m.done],
+    ...(m.done.length ? { marked: `${list[i].marked || list[i].text}\n${String(text || '')}`.trim() } : {}) };
+  return updateBeat(id, { ...merged, swipes: list.length ? list : [{ ...merged, acts: m.done }] });
 }
 
 /** 改写这一段的正文。改的是当前这一版。 */
@@ -165,6 +202,7 @@ export function updateBeat(id, patch) {
 export function dropBeat(id) {
   const row = beats.get(id);
   if (!row) return;
+  story.undoAll(curOf(row)?.acts, row.sceneId);
   beats.remove(id);
   update(row.sceneId, {});
 }
@@ -177,7 +215,7 @@ export function dropFrom(id) {
   const at = list.findIndex(b => b.id === id);
   if (at < 0) return 0;
   const gone = list.slice(at);
-  gone.forEach(b => beats.remove(b.id));
+  gone.forEach(b => { story.undoAll(curOf(b)?.acts, b.sceneId); beats.remove(b.id); });
   update(row.sceneId, {});
   return gone.length;
 }

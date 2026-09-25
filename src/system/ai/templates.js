@@ -607,6 +607,27 @@ Items are matched by name against their wardrobe in [衣帽间]; copy the names 
 A name not found in the wardrobe shows on the card as unmatched.
 They receive it as a card and may save it as an outfit.`,
 
+  'skeleton.closet-act':
+`[衣帽间]
+Four lines change the wardrobe records, each written on its own line:
+[换上：item] you change into one of your own items, or one you have borrowed
+[借走：item] you borrow one of their items
+[借给你：item] you lend them one of your items
+[归还：item] an item lent between you goes back to its owner
+Items are matched by name against the wardrobe lists in [衣帽间]; copy the names as listed there.
+A name that matches nothing changes nothing. Each line shows to them as a short notice.`,
+
+  'skeleton.scene-closet':
+`[衣帽间]
+These lines change the wardrobe records. Write each on its own line; it is removed from the text they read:
+[换上：item] you change into one of your own items, or one you have borrowed
+[借走：item] you borrow one of their items
+[借给你：item] you lend them one of your items
+[归还：item] an item lent between you goes back to its owner
+[塞进包里：thing] you slip something into their bag without their knowledge; they find it only after this scene ends
+Items are matched by name against the wardrobe lists in [衣帽间]. A name that matches nothing changes nothing.
+The thing slipped into the bag may be anything, including something not in any wardrobe.{{secrets}}`,
+
   'skeleton.letter':
 `[写信]
 When something is better written down than said, write a line on its own,

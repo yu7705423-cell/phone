@@ -362,6 +362,19 @@ export const CAPS = [
     detail: () => template('skeleton.outfit'),
   },
   {
+    // 剧情里的衣帽间：换上、借走、借给你、归还（ARCHITECTURE 4.217）。两边衣帽间都空着就不提，
+    // 没有东西可换、可借。群里不给：借给谁说不清。线下那一套在 skeleton.scene-closet
+    id: 'closetact',
+    label: '衣帽间：换上、借走、借给、归还',
+    on: ({ char, chat }) => (chat?.characterIds || []).length <= 1 && !!char
+      && (closet.hasWardrobe() || closet.itemsOf(char.id).some(r => r.side === 'wear' && closet.live(r))),
+    hot: ({ msgs }) => usedRecently(msgs, /[[【](换上|借走|借给你|归还)|借|还给/)
+      || msgs.filter(m => m.role === 'user').slice(-3).some(m => closet.WEAR_TOPIC.test(String(m.content || ''))),
+    line: () => 'Wardrobe: write a line on its own, [换上：item] to change into one of your items,'
+      + ' [借走：item] to borrow one of theirs, [借给你：item] to lend them one of yours, [归还：item] to return one',
+    detail: () => template('skeleton.closet-act'),
+  },
+  {
     id: 'pat',
     label: '拍一拍',
     on: ({ char }) => char.canPat !== false,

@@ -25,7 +25,7 @@ import { SceneBlock, LookFloat } from './SceneInline.js';
 import { ChatLookSheet } from './ChatLook.js';
 import { MentionBar } from './GroupBits.js';
 import { AwardBubble, StreakMark, UnlockToast } from './BadgeBits.js';
-import { OutfitBubble, GroomBubble, DresscodeBubble } from './OutfitBits.js';
+import { OutfitBubble, GroomBubble, DresscodeBubble, SlipBubble } from './OutfitBits.js';
 
 // panel 这个名字在本文件里已经被「当前开着哪个面板」占了（见下面的 useState），
 // 所以模块换个名字进来 —— 同名会被局部变量盖掉，读出来是 null。
@@ -358,6 +358,8 @@ export const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, o
           ? html`<${GroomBubble} msg=${msg} mine=${mine}/>`
           : msg.kind === 'dresscode'
           ? html`<${DresscodeBubble} msg=${msg} mine=${mine}/>`
+          : msg.kind === 'slip'
+          ? html`<${SlipBubble} msg=${msg}/>`
           : msg.kind === 'sticker'
           ? html`<div class="bubble-sticker ph-sticker">
               ${sticker ? html`<${StickerImg} sticker=${sticker} size=${112}/>`
@@ -782,9 +784,13 @@ export function Conversation({ chatId, focusId = '' }) {
       if (!body.trim()) throw new Error('模型返回了空内容');
       const told = sceneApi.beatsOf(row.id).filter(b => b.role !== sceneApi.DIRECTOR);
       const last = told.length ? told[told.length - 1] : null;
-      if (more && last) sceneApi.appendBeat(last.id, { text: body, raw, at: stamp });
-      else sceneApi.addBeat({ sceneId: row.id, role: sceneApi.CHAR, authorId: char.id,
-        text: body, raw, think, at: stamp });
+      // 这一段里角色借走、换上了什么，衣帽间已经跟着改了，提示一句（塞进包里的不提示：那是秘密）
+      const had = more && last ? sceneApi.actsOf(last).length : 0;
+      const done = more && last ? sceneApi.appendBeat(last.id, { text: body, raw, at: stamp })
+        : sceneApi.addBeat({ sceneId: row.id, role: sceneApi.CHAR, authorId: char.id,
+          text: body, raw, think, at: stamp });
+      const told2 = sceneApi.actsOf(done).slice(had).filter(a => a.text);
+      if (told2.length) toast(`衣帽间：${told2.map(a => a.text).join('；')}`);
       db.chats.update(chatId, { lastMessageAt: Date.now() });
       const gap = db.settings.get().autoSummarizeInterval;
       if (ai.memory.shouldAutoExtract(chatId, gap)) {

@@ -1,7 +1,7 @@
 import { html, useState } from '../../../lib.js';
 import { phone, useStore } from '../../../sdk/index.js';
 import { Icon, Button, Textarea, List, ListItem, Sheet, FullSheet,
-         Switch, NumberInput, Field, toast, confirm } from '../../../ui/index.js';
+         Switch, NumberInput, Field, toast, confirm, prompt } from '../../../ui/index.js';
 import { Prose, Sign, Byline, Versions } from '../../../ui/prose.js';
 import { Face } from './StageFace.js';
 
@@ -98,9 +98,19 @@ export function SceneBlock({ sceneId, onSetup }) {
           <button class="sc-act press" onClick=${() => onSetup && onSetup("setup", sceneId)}>这一场</button>
           <button class="sc-act press" onClick=${() => onSetup && onSetup("look", sceneId)}>外观</button>
           <button class="sc-act press" onClick=${async () => {
+    // 我往对方包里放的：不写进正文，角色当场读不到；收场后才被发现（ARCHITECTURE 4.217）
+    const v = await prompt({ title: '偷偷放进对方包里', placeholder: '例如 一张写着字的便签', okText: '放进去',
+      message: '对方在收场之前看不到。收场后，角色回到家打开包才会发现。' });
+    if (v == null || !v.trim()) return;
+    phone.closetStory.slip(sceneId, { from: 'me', what: v });
+    toast('已放进去。收场后对方才会发现', 'ok');
+  }}>放进包里</button>
+          <button class="sc-act press" onClick=${async () => {
     const ok = await confirm({ title: '收场', message: '收场后输入框回到线上。这一场仍然留在这里。', okText: '收场' });
     if (ok) {
       sceneApi.endScene(sceneId);
+      // 包里的东西在收场时落到会话里
+      phone.closetStory.arrive(sceneId);
       if (db.settings.get().sceneSummary === true) {
         ai.scene.wrap(sceneId).then(t => toast(t ? '已生成摘要' : '没有可供摘要的内容'))
           .catch(err => toast(err.message || '生成失败', 'error'));

@@ -13,6 +13,7 @@ import * as recallApi from '../system/recall.js';
 import * as closetApi from '../system/closet.js';
 import * as closetKinds from '../system/closet-kinds.js';
 import * as closetTask from '../system/ai/tasks/closet.js';
+import * as closetStoryApi from '../system/closet-story.js';
 import { isTest } from '../system/channel.js';
 import * as fontsApi from '../system/fonts.js';
 import * as clockApi from '../system/time.js';
@@ -377,6 +378,9 @@ export const phone = {
 
   // 衣帽间：数据与估算、分类表、识图与生图（见 system/closet.js）
   closet: { ...closetApi, kinds: closetKinds, ai: closetTask },
+
+  // 剧情里的衣帽间：换上、借还、塞进包里（见 system/closet-story.js）
+  closetStory: closetStoryApi,
 
   // 聊天背景与上下栏样式（存在会话记录上）
   chatLook: chatLookApi,

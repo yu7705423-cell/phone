@@ -1,7 +1,7 @@
 import { html, useState, useRef, useEffect, useMemo } from '../../../lib.js';
 import { phone, useStore, useImage } from '../../../sdk/index.js';
 import { Page, IconButton, Icon, Button, Textarea, Switch, Field,
-         Sheet, FullSheet, List, ListItem, Spinner, toast, confirm } from '../../../ui/index.js';
+         Sheet, FullSheet, List, ListItem, Spinner, toast, confirm, prompt } from '../../../ui/index.js';
 import { Prose, Sign, Byline, Card, Versions, Bub } from '../../../ui/prose.js';
 import { Face } from './StageFace.js';
 
@@ -173,9 +173,13 @@ export function StageRead({ sceneId }) {
       const { text, think } = ai.reply.stripThink(raw);
       const { text: body, stamp: at2 } = ai.reply.stripStamps(text);
       if (!body.trim()) throw new Error('模型返回了空内容');
-      if (rewrite) sceneApi.addSwipe(rewrite, { text: body, raw, think, at: at2 });
-      else if (more) sceneApi.appendBeat(lastBeat?.id, { text: body, raw, at: at2 });
-      else sceneApi.addBeat({ sceneId, role: 'char', authorId: char.id, text: body, raw, think, at: at2 });
+      // 这一段里角色借走、换上了什么，衣帽间已经跟着改了，提示一句（塞进包里的不提示：那是秘密）
+      const had = more && lastBeat ? sceneApi.actsOf(lastBeat).length : 0;
+      const done = rewrite ? sceneApi.addSwipe(rewrite, { text: body, raw, think, at: at2 })
+        : more ? sceneApi.appendBeat(lastBeat?.id, { text: body, raw, at: at2 })
+        : sceneApi.addBeat({ sceneId, role: 'char', authorId: char.id, text: body, raw, think, at: at2 });
+      const told2 = done ? sceneApi.actsOf(done).slice(had).filter(a => a.text) : [];
+      if (told2.length) toast(`衣帽间：${told2.map(a => a.text).join('；')}`);
       // 线下发生的事也要进记忆，否则见了一整场面，回到线上什么都不记得。
       // 和线上共用同一个间隔，默认 0 就是关着的（第 15 条）
       const gap = db.settings.get().autoSummarizeInterval;
@@ -245,8 +249,21 @@ export function StageRead({ sceneId }) {
     if (ok) sceneApi.dropBeat(beat.id);
   };
 
+  // 我往对方包里放的：不写进正文，角色当场读不到（ARCHITECTURE 4.217）
+  const slipCount = phone.closetStory.slipsOf(sceneId, 'me').length;
+  const slipIn = async () => {
+    setMenu(false);
+    const v = await prompt({ title: '偷偷放进对方包里', placeholder: '例如 一张写着字的便签', okText: '放进去' });
+    if (v == null || !v.trim()) return;
+    phone.closetStory.slip(sceneId, { from: 'me', what: v });
+    toast('已放进去。收场后对方才会发现', 'ok');
+  };
+
   const wrap = async () => {
     setMenu(false);
+    // 包里的东西在收场时落到会话里（ARCHITECTURE 4.217）
+    const bag = phone.closetStory.arrive(sceneId);
+    if (bag.length) toast('这一场放进包里的东西，已经落到会话中', 'ok');
     if (db.settings.get().sceneSummary !== true) {
       toast('收场摘要尚未开启。可在「设置 - 用量与上限」中开启');
       return;
@@ -457,7 +474,10 @@ export function StageRead({ sceneId }) {
             onClick=${() => stage.set({ layout: cards ? 'page' : 'cards' })}/>
           <${ListItem} title="铺满屏幕"
             right=${html`<${Switch} checked=${cfg.spread} onChange=${v => stage.set({ spread: v })}/>`}/>
-          <${ListItem} title="收场" subtitle="把整场压成一段摘要，进入记忆" onClick=${wrap}/>
+          <${ListItem} title="偷偷放进对方包里" arrow
+            subtitle=${slipCount ? `已放进 ${slipCount} 样。收场后对方才会发现` : '对方在收场之前看不到。收场后，角色回到家打开包才会发现'}
+            onClick=${slipIn}/>
+          <${ListItem} title="收场" subtitle="把整场压成一段摘要，进入记忆；放进包里的东西在此时被发现" onClick=${wrap}/>
         <//>
       <//>
     <//>`;

@@ -276,6 +276,12 @@ const ids = await page.evaluate(async () => {
   const clBox = cl.createOutfit({ owner: a.id, name: '复古', items: [clLoan.id] });
   cl.giveBack(clLoan.id);
   cl.startDresscode(clBox.id, '九十年代复古');
+  // 剧情联动：一场线下里角色往我包里塞了一张便签，收场后落到会话（一张封着的卡片）
+  const sc = await import('/src/system/scene.js');
+  const scBag = sc.create({ chatId: chat.id, title: '包里', inline: true });
+  sc.addBeat({ sceneId: scBag.id, role: sc.CHAR, authorId: a.id, text: '他目送你上车。\n[塞进包里：一张便签]' });
+  sc.endScene(scBag.id);
+  (await import('/src/system/closet-story.js')).arrive(scBag.id);
   const giftMsg = db.messages.all().find(m => m.kind === 'gift');
   const skinRow = (await import('/src/system/skin.js')).create({ name: '样例美化',
     tokens: { bubbleR: 18 }, shape: 'round', css: '.bubble{opacity:.95}' });

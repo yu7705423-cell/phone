@@ -6,7 +6,8 @@ import { activate as activateLore, split as splitLore, textOf as loreText, voice
 import { recallAsync as recallMemory, recall as recallSync, recallText, depthOf as memoryDepth,
   markRecalled, recentOf as recentMemories } from './context/memory.js';
 import { fillTemplate, template } from './templates.js';
-import { capabilityBlock } from './capabilities.js';
+import { capabilityBlock, offSet } from './capabilities.js';
+import * as closetStory from '../closet-story.js';
 import { embedQuery, embedReady } from './embed.js';
 import { getProvider } from './providers/index.js';
 import { activeChat, fallbackChat, chatPresets, visionMode, memoryConfig, memoryMode, translateMode } from './services.js';
@@ -653,6 +654,12 @@ export function buildSceneSystem(scene, chat, char, list, opts = {}) {
   }
 
   out += '\n\n' + fillTemplate(template('skeleton.scene-rules'), names);
+  // 衣帽间的标记（ARCHITECTURE 4.217）。能力开关里关了「衣帽间：换上、借走……」就不给；
+  // 群戏不给，借给谁说不清。该角色这一场偷偷放进对方包里的，接在后面，它自己要记得
+  if (!offSet(s).has('closetact') && !others.length) {
+    const secrets = closetStory.secretsFor(scene.id, names.userName);
+    out += '\n\n' + fillTemplate(template('skeleton.scene-closet'), { secrets: secrets ? `\n\n${secrets}` : '' });
+  }
   const setup = sceneSetup(scene, others);
   if (setup) out += '\n\n' + setup;
   // 时刻仍走线上那套协议：模型写 [时间：…]，本地摘下来记在这一段上

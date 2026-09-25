@@ -103,3 +103,33 @@ export function DresscodeBubble({ msg, mine }) {
       </div>
     </div>`;
 }
+
+/**
+ * 角色在线下偷偷塞进我包里的东西（ARCHITECTURE 4.217）。收场后才落到会话里，
+ * 点开之前只写「包里多了一样东西」；点开落一行我发现了什么，角色下一轮读到
+ */
+export function SlipBubble({ msg }) {
+  useStore(db.closet.store);
+  const kept = db.closet.all().find(r => r.giftMsgId === msg.id);
+  const open = e => { e.stopPropagation(); phone.closetStory.openSlip(msg.id); };
+  const keep = e => {
+    e.stopPropagation();
+    const r = kept || phone.closetStory.keepSlip(msg.id);
+    if (r) intent.open('closet', { route: `/item/${r.id}`, back: true });
+  };
+  return html`
+    <div class=${`bubble bubble-outfit ph-slip${msg.slipOpened ? ' is-done' : ''}`}
+      onClick=${msg.slipOpened ? null : open}>
+      <div class="tr-top">
+        <${Icon} name="bag" size=${20}/>
+        <div class="tr-body">
+          <div class="fit-tag">${msg.slipOpened ? '包里多出来的' : '回到家，包里多了一样东西'}</div>
+          <div class="fit-name">${msg.slipOpened ? msg.slipWhat : '点开看看'}</div>
+        </div>
+      </div>
+      ${msg.slipOpened ? html`
+        <div class="tr-foot">
+          <button class="gift-closet press" onClick=${keep}>${kept ? '在衣帽间中查看' : '收进衣帽间'}</button>
+        </div>` : null}
+    </div>`;
+}

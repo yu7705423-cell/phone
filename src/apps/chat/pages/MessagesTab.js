@@ -25,6 +25,9 @@ const Row = memo(function Row({ chat, onHold }) {
     : last.kind === 'takeout' ? `[外卖] ${last.item || ''}`
     : last.kind === 'dice' ? `[骰子] ${last.value}`
     : last.kind === 'award' ? `[标识] ${last.awardName || ''}`
+    : last.kind === 'slip' ? (last.slipOpened ? `[包里的东西] ${last.slipWhat || ''}` : '[包里多了一样东西]')
+    : last.kind === 'dresscode' ? `[穿搭盲盒] ${last.theme || ''}`
+    : last.kind === 'outfit' ? (last.sealed ? '[穿搭盲盒]' : `[搭配] ${last.outfitName || ''}`)
     : last.kind === 'listen' ? `[一起听] ${phone.listen.fmt(last.seconds)}`
     : last.kind === 'tool' ? `[工具] ${last.toolTitle || last.toolName || ''}`
     : last.kind === 'song' ? `[歌曲] ${db.songs.get(last.songId)?.title || phone.music.splitQuery(last.songQuery || '').title}`

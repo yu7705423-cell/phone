@@ -36,7 +36,7 @@ const pageSize = () => db.settings.get().chatPage || Infinity;
 const KINDS = {
   voice: '语音', sticker: '表情', call: '通话', gift: '礼物', letter: '信',
   transfer: '转账', location: '位置', dice: '骰子', takeout: '外卖',
-  pact: '约定', watch: '一起看', listen: '一起听', excerpt: '摘录', outfit: '搭配', groom: '动作', dresscode: '穿搭盲盒',
+  pact: '约定', watch: '一起看', listen: '一起听', excerpt: '摘录', outfit: '搭配', groom: '动作', dresscode: '穿搭盲盒', slip: '包里的东西',
   read: '已读', notice: '提示', request: '请求', recent: '最近',
 };
 
