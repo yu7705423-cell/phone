@@ -1,7 +1,9 @@
 // Eira 的后台消息服务器（Cloudflare Worker）。部署步骤见 worker/PUSH.md，应用那一侧见 src/system/bgpush.js。
 //
 // 做三件事：
-//   1. 记下每台设备的 Web Push 订阅（POST /device）
+//   1. 记下每台设备，有 Web Push 订阅的连订阅一起记（POST /device）。
+//      安装版应用（apk、ipa）的外壳里没有 Web Push，登记时不带订阅：照样到点替它发、存着，
+//      只是不推通知，等应用打开时取回
 //   2. 收下应用离开时交来的任务：每个角色接下来几次开口的时间，与到时候要发给模型的那一次请求（POST /plan）
 //   3. 每分钟看一次（Cron Trigger）：到点的任务替应用发请求，拿到角色的话，用 Web Push 推到手机上，
 //      结果存着等应用回来取（GET /results，取完 POST /ack 删掉）
@@ -227,11 +229,13 @@ async function runJob(env, job, dev, now) {
     status: 'done', fired_at: iso(now),
     result: await seal(env, { text, chatId: data.chatId, charId: data.charId }),
   });
-  const sub = await unseal(env, dev.sub);
-  const sent = await sendPush(env, sub, {
-    title: data.title || 'Eira', body: preview(text), appId: 'chat', route: `/chat/${data.chatId}`, tag: `bg-${job.id}`,
-  });
-  if (sent.gone) { await db(env, 'DELETE', `push_devices?id=eq.${dev.id}`); return; }
+  // 没有订阅（安装版应用）：只存着，等应用打开时取回
+  if (dev.sub) {
+    const sent = await sendPush(env, await unseal(env, dev.sub), {
+      title: data.title || 'Eira', body: preview(text), appId: 'chat', route: `/chat/${data.chatId}`, tag: `bg-${job.id}`,
+    });
+    if (sent.gone) { await db(env, 'DELETE', `push_devices?id=eq.${dev.id}`); return; }
+  }
   // 还有下一次：把这一句接进对话，再由角色接着开口
   const rest = data.rest || [];
   if (rest.length) {
@@ -312,10 +316,11 @@ async function handle(req, env) {
 
   if (route === 'POST /device') {
     const { subscription: sub } = await req.json().catch(() => ({}));
-    if (!sub?.endpoint || !sub?.keys?.p256dh || !sub?.keys?.auth) return json(h, { error: '订阅信息不完整' }, 400);
+    // 不带订阅是可以的（安装版应用）；带了就要是完整的
+    if (sub && (!sub.endpoint || !sub.keys?.p256dh || !sub.keys?.auth)) return json(h, { error: '订阅信息不完整' }, 400);
     const token = b64e(crypto.getRandomValues(new Uint8Array(32)));
     const [row] = await db(env, 'POST', 'push_devices',
-      { token_hash: await sha256(token), sub: await seal(env, sub) }, 'return=representation');
+      { token_hash: await sha256(token), sub: sub ? await seal(env, sub) : null }, 'return=representation');
     return json(h, { id: row.id, token });
   }
 
@@ -327,6 +332,7 @@ async function handle(req, env) {
     return json(h, { ok: true });
   }
   if (route === 'POST /test') {
+    if (!dev.sub) return json(h, { error: '这台设备没有推送订阅（安装版应用），消息在打开应用时出现' }, 400);
     const sent = await sendPush(env, await unseal(env, dev.sub), { title: 'Eira', body: '推送服务器工作正常', tag: 'bg-test' });
     if (sent.gone) await db(env, 'DELETE', `push_devices?id=eq.${dev.id}`);
     return sent.ok ? json(h, { ok: true }) : json(h, { error: `推送服务返回 ${sent.status}` }, 502);

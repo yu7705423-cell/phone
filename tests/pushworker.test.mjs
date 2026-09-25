@@ -223,6 +223,22 @@ const failed = (await call(env, 'GET', '/results', { token })).data.results;
 ok('模型返回空：记为失败，原因取得回来，不推', failed.length === 1 && failed[0].status === 'failed' && /空内容/.test(failed[0].error) && pushes.length === 0, JSON.stringify(failed));
 await call(env, 'POST', '/ack', { token, body: { ids: failed.map(r => r.id) } });
 
+// ---- 安装版应用：登记时不带订阅，照样到点发、存着，只是不推 ----
+{
+  const bare = await call(env, 'POST', '/device', { body: {} });
+  const btoken = `${bare.data.id}.${bare.data.token}`;
+  ok('安装版应用：不带订阅也能登记', bare.status === 200 && bare.data.id, JSON.stringify(bare.data));
+  ok('安装版应用：测试推送说清楚没有订阅', (await call(env, 'POST', '/test', { token: btoken })).status === 400);
+  const before = { calls: modelCalls.length, pushes: pushes.length };
+  await call(env, 'POST', '/plan', { token: btoken, body: { away: true, jobs: [{ ...job, chatId: 'chat_app', due: [Date.now() - 1000] }] } });
+  await tick(env);
+  const got2 = (await call(env, 'GET', '/results', { token: btoken })).data.results;
+  ok('安装版应用：到点照样替它发，结果存着等打开时取，不推', modelCalls.length === before.calls + 1 && pushes.length === before.pushes
+    && got2.length === 1 && got2[0].chatId === 'chat_app' && /开口/.test(got2[0].text), JSON.stringify(got2));
+  await call(env, 'POST', '/ack', { token: btoken, body: { ids: got2.map(r => r.id) } });
+  await call(env, 'DELETE', '/device', { token: btoken });
+}
+
 // ---- 订阅作废 ----
 pushStatus = 410;
 await call(env, 'POST', '/plan', { token, body: { away: true, jobs: [{ ...job, due: [Date.now() - 1000] }] } });

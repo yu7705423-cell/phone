@@ -216,7 +216,11 @@ export function NotifyPage() {
       ${bgpush.available() ? html`
         <${List} title="后台消息">
           <${ListItem} title="后台消息" multiline
-            subtitle="开启后，离开应用期间，已开启「主动找你」的角色由推送服务器按原定时间代为发出消息，并以系统通知送达；回到应用时，这些消息写入对应的会话。接口密钥与该段对话的上下文会加密后交给推送服务器保存，到时间后用于调用模型。关闭后，服务器上的任务与本机登记一并删除。"
+            subtitle=${`开启后，离开应用期间，已开启「主动找你」的角色由推送服务器按原定时间代为发出消息，`
+              + (bgpush.canNotify()
+                ? '并以系统通知送达；回到应用时，这些消息写入对应的会话。'
+                : '回到应用时，这些消息写入对应的会话，时间为当时发出的时刻。当前环境不支持推送通知，离开期间不会弹出通知。')
+              + '接口密钥与该段对话的上下文会加密后交给推送服务器保存，到时间后用于调用模型。关闭后，服务器上的任务与本机登记一并删除。'}
             right=${html`<${Switch} checked=${bg.on === true} disabled=${busy} onChange=${toggleBg}/>`}/>
         <//>
         ${bg.on ? html`
@@ -227,12 +231,13 @@ export function NotifyPage() {
                 onChange=${v => db.settings.set({ bgPush: { ...bg, perChar: Math.max(1, Number(v) || bgpush.PER_CHAR) } })}/>
             <//>
           </div>
-          <div class="pad batch-acts">
-            <${Button} size="sm" disabled=${busy} onClick=${testBg}>发一条测试推送<//>
-          </div>` : null}
+          ${bgpush.canNotify() ? html`
+            <div class="pad batch-acts">
+              <${Button} size="sm" disabled=${busy} onClick=${testBg}>发一条测试推送<//>
+            </div>` : null}` : null}
         <div class="settings-foot">
           应用开着时，角色的主动消息仍由本机发出，推送服务器不重复发送。
-          安装版应用（apk、ipa）没有 Web Push，此项仅在浏览器与添加到主屏幕的网页中可用。
+          离开期间弹出通知需要浏览器或添加到主屏幕的网页；安装版应用（apk、ipa）不弹通知，消息在打开应用时出现。
         </div>` : null}
 
       ${push.native() ? html`

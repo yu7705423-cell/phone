@@ -19,13 +19,15 @@ const browser = await chromium.launch({ executablePath: EXE, args: ['--no-sandbo
 const R = []; const ok = (n, c, e) => { R.push({ n, pass: !!c }); console.log(`${c ? '  ok  ' : '  FAIL'} ${n}${c ? '' : '   << ' + (e ?? '')}`); };
 const errs = [];
 
-async function open({ server = PUSH } = {}) {
+async function open({ server = PUSH, noPush = false } = {}) {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
   await ctx.grantPermissions(['notifications'], { origin: BASE });
   const site = readFileSync(join(ROOT, 'src/site.js'), 'utf8')
     .replace(/accounts:\s*'[^']*'/, "accounts: ''")
     .replace(/pushServer:\s*'[^']*'/, `pushServer: '${server}'`);
   await ctx.route('**/src/site.js*', r => r.fulfill({ status: 200, contentType: 'text/javascript', body: site }));
+  // 安装版应用的外壳里没有 Web Push
+  if (noPush) await ctx.addInitScript(() => { delete window.PushManager; });
   // 假的推送订阅
   await ctx.addInitScript(() => {
     const fake = { endpoint: 'https://fcm.example.com/send/abc', options: { applicationServerKey: null },
@@ -136,6 +138,29 @@ await page.locator('.list-item', { hasText: '后台消息' }).locator('.switch, 
 await page.waitForTimeout(800);
 const off = await page.evaluate(async () => ({ on: (await import('/src/system/db/index.js')).db.settings.get().bgPush?.on, dev: localStorage.getItem('eira-bgpush-device') }));
 ok('关掉：服务器上这台设备删掉，本机登记清掉', calls.some(c => c.path === '/device' && c.method === 'DELETE') && off.on === false && !off.dev, JSON.stringify(off));
+
+// ---- 安装版应用（没有 Web Push）：照样能开，不订阅，消息打开时出现 ----
+{
+  const app = await open({ noPush: true });
+  const got = await app.page.evaluate(async () => {
+    const { db } = await import('/src/system/db/index.js');
+    const c = db.characters.create({ name: '阿岚', proactive: true });
+    db.chats.create({ characterIds: [c.id] });
+    const n = await import('/src/system/nav.js'); n.unlock(); n.openApp('settings', '/notify');
+    await new Promise(r => setTimeout(r, 700));
+    return { text: document.body.innerText, test: [...document.querySelectorAll('button')].some(b => /测试推送/.test(b.textContent)) };
+  });
+  ok('安装版应用：「后台消息」照样显示，说明写着不弹通知、打开时出现', /后台消息/.test(got.text) && /不会弹出通知/.test(got.text), got.text.slice(0, 300));
+  await app.page.locator('.list-item', { hasText: '后台消息' }).locator('.switch, [role="switch"], input[type="checkbox"]').first().click();
+  await app.page.waitForTimeout(1200);
+  const reg = app.calls.find(c => c.path === '/device' && c.method === 'POST');
+  const st = await app.page.evaluate(async () => ({ on: (await import('/src/system/db/index.js')).db.settings.get().bgPush?.on,
+    dev: JSON.parse(localStorage.getItem('eira-bgpush-device') || 'null') }));
+  ok('安装版应用：打开时不取公钥、不订阅，只登记设备', reg && !reg.body.subscription && !app.calls.some(c => c.path === '/vapid')
+    && st.on === true && st.dev?.id && st.dev.endpoint === '', JSON.stringify({ reg: reg?.body, st }));
+  ok('安装版应用：没有「测试推送」按钮', !(await app.page.evaluate(() => [...document.querySelectorAll('button')].some(b => /测试推送/.test(b.textContent)))));
+  await app.ctx.close();
+}
 
 ok('全程没有运行时报错', errs.length === 0, errs.join(' | '));
 await browser.close();

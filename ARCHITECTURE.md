@@ -8799,7 +8799,9 @@ IndexedDB 与 localStorage：测试版的数据迁移会改掉正式数据，`DB
 开关的说明里写明了这一条。设备口令只存哈希；本机的登记存在 localStorage（`eira-bgpush-device`），不进备份 ——
 换台设备恢复备份，不该把推送接到旧手机上。
 
-只有浏览器与「添加到主屏幕」的网页有 Web Push；apk、ipa 外壳里没有，那里不显示这一项（`push.pushSupported`）。
+**没有 Web Push 的地方照样能用。** apk、ipa 的外壳里没有 Web Push（`push.pushSupported` 为假）：登记设备时不带订阅，
+服务器照样到点替角色发、结果存着，只是不推通知；打开应用时取回，落进会话，时间是当时发出的那一刻。
+开关说明按 `bgpush.canNotify()` 分两种写法，没有推送时不给「测试推送」。所以外壳不用改、不用重新打包。
 有 `pushServer` 时，原来那几栏手填 VAPID 公钥、上报地址的「Web Push」不再显示（同一件事只留一个入口）。
 测试 `tests/bgpush.test.mjs`（应用一侧，推送服务器用路由顶上）、`tests/pushworker.test.mjs`（Worker 本身，
 Supabase、模型、推送服务用假的顶上，推送按 RFC 解开、签名验过）。

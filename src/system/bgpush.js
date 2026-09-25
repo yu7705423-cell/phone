@@ -22,14 +22,17 @@ import { note } from './ai/usage.js';
 // 关着时服务器发，同一次开口不会两边都发 —— app 开着的这段时间每隔几分钟报一次到，
 // 服务器看见最近报过到就先不发（等 app 自己发），离开时报一句「走了」。
 //
-// 只有浏览器与加到主屏幕的 PWA 有 Web Push。装成 apk / ipa 的外壳里没有，那里不显示这一项。
+// **没有 Web Push 的地方照样能用**（装成 apk / ipa 的外壳里没有）：登记时不带订阅，服务器照样到点替角色发、
+// 存着，只是不推通知；打开应用时取回，落进会话，时间是它当时发出的那一刻。
 
 const DEV_KEY = 'eira-bgpush-device';     // 本机在服务器上的登记：{ server, id, token, endpoint }
 const ALIVE_EVERY = 4 * 60 * 1000;        // app 开着时多久报一次到（服务器那边看 6 分钟）
 export const PER_CHAR = 2;                // 每个角色离开期间最多发几次，默认值（设置里可改）
 
 export const server = () => String(settings.get().bgPush?.server || SITE.pushServer || '').trim().replace(/\/+$/, '');
-export const available = () => !!server() && push.pushSupported();
+export const available = () => !!server();
+/** 这台设备能不能收到推送通知。不能的话消息只在打开应用时出现 */
+export const canNotify = () => push.pushSupported();
 export const isOn = () => settings.get().bgPush?.on === true;
 export const perChar = () => Math.max(1, Math.round(Number(settings.get().bgPush?.perChar) || PER_CHAR));
 
@@ -66,6 +69,15 @@ async function api(path, { method = 'GET', body, auth = true } = {}) {
  */
 async function ensureDevice() {
   const base = server();
+  // 没有 Web Push：不订阅，只登记
+  if (!canNotify()) {
+    const d = readDev();
+    if (d && d.server === base && !d.endpoint) return d;
+    const got = await api('/device', { method: 'POST', auth: false, body: {} });
+    const dev = { server: base, id: got.id, token: got.token, endpoint: '' };
+    writeDev(dev);
+    return dev;
+  }
   const { publicKey } = await api('/vapid', { auth: false });
   if (!publicKey) throw new Error('推送服务器还没有配置 VAPID 密钥');
   settings.set({ push: { ...(settings.get().push || {}), vapidPublicKey: publicKey, reportUrl: '' } });
@@ -80,7 +92,7 @@ async function ensureDevice() {
 
 /** 打开：要通知权限、订阅、登记。回来时已经开着 */
 export async function enable() {
-  if (!available()) throw new Error('这个环境不支持后台消息');
+  if (!available()) throw new Error('本站没有配置推送服务器');
   await ensureDevice();
   settings.set({ bgPush: { ...(settings.get().bgPush || {}), on: true } });
   await plan({ away: false }).catch(() => {});
