@@ -28,6 +28,7 @@ import { sync as syncBadges } from '../badges.js';
 import { note as noteCall } from './usage.js';
 import { lyricBlock } from '../music.js';
 import * as mcpTools from '../mcptools.js';
+import * as withdraw from '../recall.js';
 
 // 接口协议要求带 max_tokens，取一个足够大的值，等同于不限制
 export const MAX_OUTPUT = 32000;
@@ -425,20 +426,22 @@ export function buildHistory(chat, char, msgs, opts = {}) {
   const inlineTrans = !!chat.translateTo && translateMode() === 'inline';
   const view2 = view.flatMap((m, i) => {
     const mine = m.role === 'char' && m.authorId === char.id;
-    const text = timeLine(m, view[i - 1]) + withQuote(m);
+    // 我撤回的那一条换成一行标记（见 system/recall.js）；角色撤回的在末尾补 [撤回]
+    const text = timeLine(m, view[i - 1]) + withdraw.historyText(m, withQuote(m));
     // 调用工具：调用那一句是它自己写的，结果紧跟在后面，以对方那一侧的一条读进去
     // （mcptools.resultFor：状态说明、按字数截断）
     if (mine && m.kind === 'tool') {
       return [{ role: 'assistant', content: text }, { role: 'user', content: mcpTools.resultFor(m, s) }];
     }
     if (m.role === 'user') {
-      const pic = pics && pics.get(m.id);
-      const body = text + songLyricOf(m, s);
+      const gone = !!m.recalled;
+      const pic = !gone && pics && pics.get(m.id);
+      const body = gone ? text : text + songLyricOf(m, s);
       return pic ? { role: 'user', content: body, image: pic } : { role: 'user', content: body };
     }
     if (mine) {
       const tr = inlineTrans ? String(m.translation || '').trim() : '';
-      return { role: 'assistant', content: tr ? `${text}\n[译文：${tr}]` : text };
+      return { role: 'assistant', content: (tr ? `${text}\n[译文：${tr}]` : text) + withdraw.tailOf(m) };
     }
     // 群里别人说的话,以旁白形式并入 user 侧,避免被当成自己说过的
     const who = characters.get(m.authorId)?.name || '某人';
@@ -1094,10 +1097,11 @@ export function buildGroupHistory(chat, members, msgs, opts = {}) {
   const nameOf = id => members.find(c => c.id === id)?.name || characters.get(id)?.name || '某人';
 
   const list = view.map((m, i) => {
-    const text = timeLine(m, view[i - 1]) + withQuote(m);
+    const text = timeLine(m, view[i - 1]) + withdraw.historyText(m, withQuote(m));
     if (m.role === 'user') {
-      const pic = pics && pics.get(m.id);
-      const body = text + songLyricOf(m, s);
+      const gone = !!m.recalled;
+      const pic = !gone && pics && pics.get(m.id);
+      const body = gone ? text : text + songLyricOf(m, s);
       return pic ? { role: 'user', content: body, image: pic } : { role: 'user', content: body };
     }
     const tr = inlineTrans ? String(m.translation || '').trim() : '';

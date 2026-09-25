@@ -28,8 +28,9 @@ export function MomentPage({ id }) {
       <${EmptyState} title="这条动态已不在了"/><//>`;
   }
 
-  const isMe = mo.authorId === 'me';
   const imgs = mo.images || [];
+  // 角色撤回了的：原文照样看得到，赞和评论不再收（见 system/recall.js）
+  const gone = phone.recall.momentRecalled(mo);
   const liked = (mo.likes || []).includes('me');
   const send = async () => {
     const t = text.trim();
@@ -42,7 +43,7 @@ export function MomentPage({ id }) {
 
   return html`
     <${Page} title="动态" onBack=${nav.pop}
-      right=${isMe ? html`<${IconButton} name="trash" label="删除" onClick=${del}/>` : null}>
+      right=${html`<${IconButton} name="trash" label="删除" onClick=${del}/>`}>
       <div class="ig-author press" onClick=${() => nav.push(`/profile/${mo.authorId}`)}>
         <${Avatar} src=${avatar} name=${author?.name} size=${36} radius=${18}/>
         <div>
@@ -61,8 +62,9 @@ export function MomentPage({ id }) {
           </div>` : null}` : null}
       ${mo.imagePending ? html`<div class="mo-genning pad-x"><span class="spinner"></span>正在配图</div>` : null}
 
+      ${gone ? html`<div class="mo-gone-note">${author?.name || '对方'}已撤回这条动态。以下是撤回前的内容。</div>` : null}
       <div class="ig-foot">
-        <button class=${`mo-act press${liked ? ' is-on' : ''}`}
+        <button class=${`mo-act press${liked ? ' is-on' : ''}`} disabled=${gone}
           onClick=${() => ai.moments.toggleLike(mo.id)}>
           <${Icon} name="heart" size=${20} fill=${liked ? 'currentColor' : 'none'}/>
           ${(mo.likes || []).length || ''}
@@ -75,12 +77,13 @@ export function MomentPage({ id }) {
 
       <div class="ig-comments">
         <${CommentList} comments=${mo.comments}/>
+        ${gone ? null : html`
         <div class="composer composer-inline">
           <textarea rows="1" value=${text} placeholder="写下评论"
             onInput=${e => setText(e.target.value)}></textarea>
           <button class="send-btn press" disabled=${!text.trim()} onClick=${send}>
             <${Icon} name="send" size=${16}/></button>
-        </div>
+        </div>`}
       </div>
     <//>`;
 }

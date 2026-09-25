@@ -73,8 +73,10 @@ export function Profile({ subjectId, embedded }) {
   const mine = db.moments.all()
     .filter(m => m.authorId === subjectId)
     .sort((a, b) => b.createdAt - a.createdAt);
-  const withPics = mine.filter(m => (m.images || []).length);
-  const photoCount = mine.reduce((n, m) => n + (m.images || []).length, 0);
+  // 照片格与照片数只算还挂着的；撤回了的只在下面的列表里折成一行
+  const live = phone.recall.liveMoments(mine);
+  const withPics = live.filter(m => (m.images || []).length);
+  const photoCount = live.reduce((n, m) => n + (m.images || []).length, 0);
   // 第三个数字：角色看关系网里有几个人，我看联系人有几个（小号不算）
   const relCount = isMe
     ? db.characters.all().filter(c => !c.parentId).length

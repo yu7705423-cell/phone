@@ -17,6 +17,8 @@ import * as dayStore from '../day.js';
 import * as extras from '../extras.js';
 import * as avatarLib from '../avatar.js';
 import * as remark from '../remark.js';
+import * as recall from '../recall.js';
+import * as when from '../when.js';
 import * as watchStore from '../watch.js';
 import * as trip from '../trip.js';
 import * as ledger from '../ledger.js';
@@ -109,6 +111,16 @@ export const switchable = () => CAPS.filter(c => !PROTOCOL.has(c.id));
 /** 关掉了哪几样。存的是 id 清单，没有就是一样都没关。 */
 export const offSet = settings =>
   new Set(Array.isArray(settings?.capsOff) ? settings.capsOff : []);
+
+// 撤回动态那一句：最近一条还挂着的动态是什么。没有就不提这一半
+function postLine(char) {
+  const mo = recall.latestMoment(char.id);
+  if (!mo) return '';
+  return fillTemplate(template('skeleton.recall-post'), {
+    when: when.show(mo.createdAt, Date.now()),
+    text: String(mo.text || '').replace(/\s+/g, ' ').trim().slice(0, 80) || '(no text)',
+  });
+}
 
 export const CAPS = [
   {
@@ -374,6 +386,15 @@ export const CAPS = [
       current: remark.theirsOf(chat) || 'no name set',
       mine: remark.mineOf(char) || 'your own name',
     }),
+  },
+  {
+    id: 'recall',
+    label: '撤回',
+    on: ({ char }) => char.canRecall !== false,
+    hot: ({ msgs }) => usedRecently(msgs, /[[【]撤回/) || msgs.slice(-WINDOW).some(m => m.recalled),
+    line: ({ char }) => 'Withdraw a message: write [撤回] on its own line directly after that message.'
+      + (recall.latestMoment(char.id) ? ' Take down your latest post: write [撤回动态] on its own line.' : ''),
+    detail: ({ char }) => fillTemplate(template('skeleton.recall'), { post: postLine(char) }),
   },
   {
     id: 'inner',

@@ -21,8 +21,12 @@ export const authorOf = id =>
 export const nameOf = id =>
   (id === 'me' ? (phone.accounts.current()?.name || '我') : (db.characters.get(id)?.name || '某人'));
 
+// 角色发的也能删。删掉之后聊天里不再提到它，删除不可恢复
 export async function removeMoment(mo) {
-  if (!await confirm({ title: '删除这条动态', danger: true })) return false;
+  if (!await confirm({
+    title: '删除这条动态', danger: true, okText: '删除',
+    message: mo.authorId === 'me' ? '删除后不可恢复。' : '删除后不可恢复。评论与点赞一并删除。',
+  })) return false;
   (mo.images || []).forEach(id => db.images.remove(id));
   db.moments.remove(mo.id);
   return true;
@@ -54,15 +58,31 @@ export async function sendComment(mo, text) {
   }
 }
 
-export function MomentCard({ mo, onComment, onOpen }) {
+// 角色撤回的那一条：折成一行，点一下展开原文（见 system/recall.js）。
+// 展开之后仍然点不了赞、写不了评论 —— 那一条已经不在对方的朋友圈上了
+export function MomentCard(props) {
+  const [open, setOpen] = useState(false);
+  const { mo } = props;
+  if (!phone.recall.momentRecalled(mo)) return html`<${MomentBody} ...${props}/>`;
+  return html`
+    <div class=${`mo-recalled${open ? ' is-open' : ''}`}>
+      <button class="mo-recalled-line press" onClick=${() => setOpen(!open)}>
+        <span>${nameOf(mo.authorId)}撤回了一条动态</span>
+        <${Icon} name=${open ? 'chevronUp' : 'chevronDown'} size=${13}/>
+      </button>
+      ${open ? html`<${MomentBody} ...${props} gone=${true}/>` : null}
+    </div>`;
+}
+
+function MomentBody({ mo, onComment, onOpen, gone = false }) {
   const isMe = mo.authorId === 'me';
   const author = authorOf(mo.authorId);
   const avatar = useImage(author?.avatar);
   const liked = (mo.likes || []).includes('me');
-  const open = onOpen ? () => onOpen(mo) : null;
+  const open = onOpen && !gone ? () => onOpen(mo) : null;
 
   return html`
-    <div class="mo-card">
+    <div class=${`mo-card${gone ? ' is-gone' : ''}`}>
       <${Avatar} src=${avatar} name=${author?.name} size=${40} radius=${8}/>
       <div class="mo-main">
         <div class="mo-name">${author?.name || '已删除'}</div>
@@ -79,6 +99,7 @@ export function MomentCard({ mo, onComment, onOpen }) {
           <span class="mo-time">${relTime(mo.createdAt)}${isMe && Array.isArray(mo.visibleTo)
             ? (mo.visibleTo.length ? ` · ${mo.visibleTo.length} 位角色可见` : ' · 仅自己可见') : ''}</span>
           <div class="mo-actions">
+            ${gone ? null : html`
             <button class=${`mo-act press${liked ? ' is-on' : ''}`}
               onClick=${() => ai.moments.toggleLike(mo.id)}>
               <${Icon} name="heart" size=${14} fill=${liked ? 'currentColor' : 'none'}/>
@@ -86,9 +107,9 @@ export function MomentCard({ mo, onComment, onOpen }) {
             </button>
             <button class="mo-act press" onClick=${() => onComment(mo)}>
               <${Icon} name="message" size=${14}/>${(mo.comments || []).length || ''}
-            </button>
-            ${isMe ? html`<button class="mo-act press" onClick=${() => removeMoment(mo)}>
-              <${Icon} name="trash" size=${14}/></button>` : null}
+            </button>`}
+            <button class="mo-act press" aria-label="删除" onClick=${() => removeMoment(mo)}>
+              <${Icon} name="trash" size=${14}/></button>
           </div>
         </div>
 

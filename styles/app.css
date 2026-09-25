@@ -248,8 +248,12 @@ input[type="range"] {
 .swipe-btn { color: var(--text-2); display: flex; }
 
 /* 引用块。气泡上面顶一小条，点一下跳回原话。
-   align-self 收着，不然它会撑满整列，比底下那条正文还宽 */
+   align-self 收着，不然它会撑满整列，比底下那条正文还宽。
+   DOM 里它排在气泡后面，靠 order 画到上面：美化写 order: 0 就回到气泡下方（ARCHITECTURE 4.208）。
+   群里那一行名字要在它更上面 */
+.msg-col > .msg-who { order: -2; }
 .quote-ref {
+  order: -1;
   align-self: flex-start;
   display: flex; align-items: baseline; gap: var(--sp-2);
   max-width: 100%; min-width: 0; text-align: left;
@@ -265,6 +269,30 @@ input[type="range"] {
   align-self: flex-end;
   border-left: none; border-right: 2px solid var(--group-line);
 }
+
+/* 包在气泡里的那一份引用。默认不显示，美化放出来（见契约里的 .ph-quote-in）。
+   颜色跟着气泡的字色走，深色气泡上也看得清 */
+.bubble-quote {
+  display: none; align-items: baseline; gap: var(--sp-2);
+  margin: 0 0 var(--sp-2); padding: 3px var(--sp-2);
+  border-left: 2px solid currentColor;
+  font-size: var(--fs-11); line-height: 1.5; opacity: .7;
+  text-align: left; white-space: normal;
+}
+.bubble-quote .quote-name { color: inherit; font-weight: var(--fw-medium); }
+.bubble-quote .quote-text {
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+
+/* 撤回之后留下的那一行（system/recall.js）。点开，原来那一条接在下面、压淡一点 */
+.msg-gone { display: flex; flex-direction: column; }
+.recall-line {
+  align-self: center; display: flex; align-items: center; gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-4); font-size: var(--fs-12); color: var(--text-3); line-height: 1.6;
+}
+.recall-hint { color: var(--text-2); text-decoration: underline; text-underline-offset: 2px; }
+.msg.is-recalled { opacity: .55; }
+.msg-gone.is-picked .recall-line { color: var(--accent); }
 
 /* 被引用的那条跳过去之后闪一下 */
 .msg.is-flash .bubble { animation: msg-flash var(--dur-slow) var(--ease-out) 2 alternate; }
@@ -3100,3 +3128,13 @@ button.conv-notice { background: none; border: 0; font: inherit; cursor: pointer
 /* 朋友圈评论表：输入框在最上面（MomentBits.js 的 CommentSheet），键盘只盖得住下半截 */
 .mo-comment-input { padding: 0 0 var(--sp-3); border-bottom: 1px solid var(--border); }
 .mo-comment-list { padding-top: var(--sp-3); }
+
+/* 角色撤回的动态：折成一行，点开是原来那张卡片，压淡、不收赞与评论（ARCHITECTURE 4.207） */
+.mo-recalled { border-bottom: 1px solid var(--border); background: var(--surface); }
+.mo-recalled-line {
+  width: 100%; display: flex; align-items: center; justify-content: center; gap: var(--sp-1);
+  padding: var(--sp-3) var(--sp-4); font-size: var(--fs-12); color: var(--text-3);
+}
+.mo-recalled .mo-card { border-bottom: none; }
+.mo-card.is-gone { opacity: .6; }
+.mo-gone-note { padding: var(--sp-2) var(--sp-4); font-size: var(--fs-12); color: var(--text-3); }

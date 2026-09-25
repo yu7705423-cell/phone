@@ -270,7 +270,9 @@ const wk = await page.evaluate(async (o) => {
   const t = b.weeklyTitles(db.chats.get(grp.id));
   return { a: t.get(o.Ac), d: t.get(o.Dc), id: grp.id };
 }, ids);
-ok('群里这周：说得最多的是话痨，被 @ 最多的是团宠', JSON.stringify(wk.a) === '["话痨"]' && JSON.stringify(wk.d) === '["团宠"]', JSON.stringify(wk));
+// 消息是现在建的：半夜跑这个测试，说话的那位同时是夜猫子。所以只查有没有「话痨」，不查只有它
+ok('群里这周：说得最多的是话痨，被 @ 最多的是团宠', (wk.a || []).includes('话痨') && !(wk.a || []).includes('团宠')
+  && JSON.stringify(wk.d) === '["团宠"]', JSON.stringify(wk));
 await page.evaluate(async (id) => { (await import('/src/system/nav.js')).push(`/chat/${id}`); }, wk.id);
 await page.waitForTimeout(700);
 ok('群里名字后面带着周榜', (await page.locator('.msg-who').allInnerTexts()).some(t => /阿岚 · 话痨/.test(t)));

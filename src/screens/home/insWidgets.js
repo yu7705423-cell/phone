@@ -94,7 +94,7 @@ function FilmBody({ cell }) {
   const wide = (cell?.w || 4) >= 4;
   const n = wide ? 4 : 2;
   const shots = (c.source === 'moments'
-    ? moments.all().sort((a, b) => b.createdAt - a.createdAt).flatMap(m => m.images || [])
+    ? moments.all().filter(m => !m.recalled).sort((a, b) => b.createdAt - a.createdAt).flatMap(m => m.images || [])
     : album.allPhotos().filter(p => p.imageId).map(p => p.imageId)).slice(0, n);
   const open = () => (c.source === 'moments' ? openApp('chat', '/moments') : openApp('album'));
   return html`
@@ -186,7 +186,7 @@ function GridBody({ cell }) {
   const c = cell?.config || {};
   const ids = (c.source === 'album'
     ? album.allPhotos().filter(p => p.imageId).map(p => p.imageId)
-    : moments.all().sort((a, b) => b.createdAt - a.createdAt).flatMap(m => m.images || [])).slice(0, 9);
+    : moments.all().filter(m => !m.recalled).sort((a, b) => b.createdAt - a.createdAt).flatMap(m => m.images || [])).slice(0, 9);
   const open = () => (c.source === 'album' ? openApp('album') : openApp('chat', '/moments'));
   return html`
     <div class="wg ins-grid" onClick=${go(open)}>

@@ -29,7 +29,7 @@ import { AwardBubble, StreakMark, UnlockToast } from './BadgeBits.js';
 // panel 这个名字在本文件里已经被「当前开着哪个面板」占了（见下面的 useState），
 // 所以模块换个名字进来 —— 同名会被局部变量盖掉，读出来是 null。
 const { db, nav, ai, call, extras, pace, autoReply, panel: panelCfg,
-  scene: sceneApi, stage, skin, receipt } = phone;
+  scene: sceneApi, stage, skin, receipt, recall } = phone;
 
 // 一屏装不下这么多，但往上翻几下够用；不够再按按钮要下一段。
 // 见 CLAUDE.md 第 13 条：这是默认值不是上限，设置里填 0 就一次画全。
@@ -45,6 +45,13 @@ function jumpTo(id) {
   setTimeout(() => el.classList.remove('is-flash'), 1200);
 }
 
+// 引用有两份，版式全交给 CSS（见 ARCHITECTURE 4.208）：
+//
+//   .ph-quote     气泡外面那一条。DOM 里排在气泡**后面**，默认 order: -1 画到上面；
+//                 写 order: 0 就回到气泡下面，display: none 就不显示
+//   .ph-quote-in  第一个文字气泡里面那一份。默认不显示，放出来就是「引用包在气泡里」
+//
+// 从前只有上面那一条，而且 DOM 里就排在气泡前面 —— 放到下面、包进气泡，CSS 都做不到
 function QuoteRef({ quote, onClick }) {
   if (!quote) return null;
   return html`
@@ -53,6 +60,15 @@ function QuoteRef({ quote, onClick }) {
       ${quote.name ? html`<span class="quote-name">${quote.name}</span>` : null}
       <span class="quote-text ellipsis">${quote.text}</span>
     </button>`;
+}
+function QuoteIn({ quote, onClick }) {
+  if (!quote) return null;
+  return html`
+    <span class=${`bubble-quote ph-quote-in${quote.id ? ' press' : ' is-dead'}`}
+      onClick=${quote.id && onClick ? e => { e.stopPropagation(); onClick(); } : null}>
+      ${quote.name ? html`<span class="quote-name">${quote.name}</span>` : null}
+      <span class="quote-text">${quote.text}</span>
+    </span>`;
 }
 
 // 气泡上的那一行小字：发出的时刻、已读回执。两样都默认关着，见 system/receipt.js
@@ -167,6 +183,17 @@ export const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, o
   }, [msg.id, !!msg.inner]);
   // 单击看心声、双击拍一拍，只能等一下才分得清是哪一个
   const tap = useRef(null);
+  // 撤回（见 system/recall.js）。角色那一条先照常显示，到点再折起来 ——
+  // 这个组件是 memo 过的，到点没有别的东西会让它重画，所以自己掐一个表
+  const [, tick] = useState(0);
+  const [openGone, setOpenGone] = useState(false);
+  const wait = recall.waitOf(msg);
+  useEffect(() => {
+    if (!wait) return undefined;
+    const t = setTimeout(() => tick(n => n + 1), wait + 30);
+    return () => clearTimeout(t);
+  }, [msg.id, wait > 0]);
+  const gone = recall.isRecalled(msg);
 
   const parts = splitBubbles(msg.content);
   const swipes = msg.swipes || [];
@@ -209,9 +236,9 @@ export const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, o
       </div>`;
   }
 
-  return html`
-    <div id=${`msg-${msg.id}`}
-      class=${`msg no-callout ph-msg ${mine ? 'ph-msg-mine is-mine' : 'ph-msg-theirs'}${selecting && !frozen ? ' is-picking' : ''}${selected ? ' is-picked' : ''}${hasMeta && slot === 'side' ? ' has-aside' : ''}${cont ? ' is-cont' : ''}`}
+  const body = html`
+    <div id=${gone ? undefined : `msg-${msg.id}`}
+      class=${`msg no-callout ph-msg ${mine ? 'ph-msg-mine is-mine' : 'ph-msg-theirs'}${selecting && !frozen ? ' is-picking' : ''}${selected ? ' is-picked' : ''}${hasMeta && slot === 'side' ? ' has-aside' : ''}${cont ? ' is-cont' : ''}${gone ? ' is-recalled' : ''}`}
       onClickCapture=${capture}
       onTouchStart=${start} onTouchEnd=${end} onTouchMove=${end} onTouchCancel=${end}
       onContextMenu=${e => { e.preventDefault(); if (!selecting && !frozen) onHold(msg); }}>
@@ -237,7 +264,6 @@ export const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, o
       </div>
       <div class="msg-col ph-col">
         ${who ? html`<div class="msg-who">${who}</div>` : null}
-        <${QuoteRef} quote=${quote} onClick=${() => jumpTo(quote.id)}/>
 
         ${msg.kind === 'transfer'
           ? html`<${TransferBubble} msg=${msg} onSettle=${selecting ? null : onSettle}/>`
@@ -288,11 +314,14 @@ export const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, o
                 class=${`bubble ph-bubble ${mine ? 'ph-bubble-mine' : 'ph-bubble-theirs'}${trans && i === parts.length - 1 ? ' has-trans' : ''}`}
                 onClick=${trans && i === parts.length - 1 && !selecting
                   ? () => setOpenTrans(v => !v) : null}>
+                ${i === 0 ? html`<${QuoteIn} quote=${quote} onClick=${() => jumpTo(quote.id)}/>` : null}
                 ${p}
                 ${trans && i === parts.length - 1 && showTrans ? html`
                   <div class="bubble-trans ph-trans">${trans}</div>` : null}
               </div>`)
           : null}
+
+        <${QuoteRef} quote=${quote} onClick=${() => jumpTo(quote.id)}/>
 
         ${msg.inner && openInner
           ? html`<${InnerVoice} text=${msg.inner} style=${innerStyle}/>` : null}
@@ -319,6 +348,25 @@ export const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, o
 
       ${hasMeta && slot === 'side' ? html`
         <${MsgMeta} slot=${slot} stamp=${metaStamp} read=${metaRead}/>` : null}
+    </div>`;
+  if (!gone) return body;
+
+  // 撤回了的：居中一行「某某撤回了一条消息」，点一下展开原文，再点收起。
+  // 长按照样弹消息菜单（删除、多选），多选时点这一行就是选它
+  return html`
+    <div id=${`msg-${msg.id}`} class=${`msg-gone${selected ? ' is-picked' : ''}`}>
+      <button class="recall-line no-callout ph-recall press"
+        onClick=${e => {
+          if (hold.current.fired) { hold.current.fired = false; return; }
+          if (selecting && !frozen) { onToggle(msg); return; }
+          e.stopPropagation(); setOpenGone(v => !v);
+        }}
+        onTouchStart=${start} onTouchEnd=${end} onTouchMove=${end} onTouchCancel=${end}
+        onContextMenu=${e => { e.preventDefault(); if (!selecting && !frozen) onHold(msg); }}>
+        <span>${recall.lineOf(msg, phone.remark.nameOf(char) || char?.name)}</span>
+        <span class="recall-hint">${openGone ? '收起' : '查看'}</span>
+      </button>
+      ${openGone ? body : null}
     </div>`;
 });
 

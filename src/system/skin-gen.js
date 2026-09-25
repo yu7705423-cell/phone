@@ -55,6 +55,18 @@ export const FACE_SHOW = [
   { id: 'none', label: '都不显示' },
 ];
 
+/**
+ * 引用放在哪儿。四档都是纯 CSS（DOM 见 Conversation.js 的 QuoteRef / QuoteIn）：
+ * 外面那一条默认 order: -1 画在气泡上方，order: 0 回到下方；
+ * 包进气泡是把外面那条藏起来、把气泡里那一份放出来
+ */
+export const QUOTE_AT = [
+  { id: 'above', label: '气泡上方' },
+  { id: 'below', label: '气泡下方' },
+  { id: 'inside', label: '包在气泡里' },
+  { id: 'none', label: '不显示' },
+];
+
 /** 卡片那几组改哪一边。和气泡那一组的 SIDES 同义，只是前面挂的是整行 */
 export const CARD_SIDES = [
   { id: 'all', label: '双方', pre: '' },
@@ -339,7 +351,12 @@ export const GROUPS = [
   //（card: true）。一种一格的话竖栏十九格，一屏装不下
   ...CARD_GROUPS.map(c => ({
     id: c.id, label: c.label, short: c.short, icon: c.icon, focus: c.sel, card: true,
-    desc: `类名 ${c.sel}`, items: cardItems({ size: c.size }),
+    desc: c.id === 'quote' ? `类名 ${c.sel}（气泡外面那一条）  .ph-quote-in（包在气泡里的那一份）` : `类名 ${c.sel}`,
+    items: [
+      ...(c.id === 'quote' ? [{ id: 'at', label: '引用显示在哪里', type: 'pick', options: QUOTE_AT, def: 'above',
+        desc: '包在气泡里时，底色、字色等几项改的是气泡里那一份。图片、转账这类没有文字气泡的消息，引用照旧显示在上方' }] : []),
+      ...cardItems({ size: c.size }),
+    ],
   })),
   {
     id: 'composer', label: '底栏', short: '底栏', icon: 'edit', focus: '.ph-composer',
@@ -748,20 +765,37 @@ function metaBlocks(gen) {
   return out;
 }
 
+// 引用的位置。只动 order 与 display，和颜色那几项互不相干
+function quotePlace(v) {
+  if (v.at === 'below') return `${note('引用：气泡下方')}\n${rule('.ph-quote', ['order: 0'])}`;
+  if (v.at === 'none') {
+    return `${note('引用：不显示')}\n${rule('.ph-quote', ['display: none'])}\n${rule('.ph-quote-in', ['display: none'])}`;
+  }
+  if (v.at === 'inside') {
+    // 没有文字气泡的（图片、转账）找不到里面那一份，外面那条留着
+    return `${note('引用：包在气泡里')}\n${rule('.ph-col:has(.ph-quote-in) > .ph-quote', ['display: none'])}`
+      + `\n${rule('.ph-quote-in', ['display: flex'])}`;
+  }
+  return '';
+}
+
 function cardBlocks(gen) {
   return CARD_GROUPS.map(c => {
     const v = groupValues(gen, c.id);
+    const place = c.id === 'quote' ? quotePlace(v) : '';
+    // 包在气泡里时，颜色那几项改的是里面那一份
+    const sel = c.id === 'quote' && v.at === 'inside' ? '.ph-quote-in' : c.sel;
     const decls = [];
     if (has(v.bg)) decls.push(`background: ${v.bg}`);
     if (has(v.fg)) decls.push(`color: ${v.fg}`);
     if (c.size && set(v.fs)) decls.push(`font-size: ${num(v.fs)}px`);
     if (set(v.r)) decls.push(`border-radius: ${num(v.r)}px`);
     if (set(v.bw)) decls.push(num(v.bw) > 0 ? `border: ${num(v.bw)}px solid ${has(v.bc) ? v.bc : 'currentColor'}` : 'border: none');
-    if (!decls.length) return '';
+    if (!decls.length) return place;
     const pre = (CARD_SIDES.find(x => x.id === v.side) || CARD_SIDES[0]).pre;
     // 图标是内联 svg，画线用 currentColor，跟着文字颜色走；卡片里几行小字各有颜色，一并改
-    const inner = has(v.fg) ? '\n' + rule(`${pre}${c.sel} *`, [`color: ${v.fg}`]) : '';
-    return `${note(c.label)}\n${rule(pre + c.sel, decls)}${inner}`;
+    const inner = has(v.fg) ? '\n' + rule(`${pre}${sel} *`, [`color: ${v.fg}`]) : '';
+    return `${place ? place + '\n' : ''}${note(c.label)}\n${rule(pre + sel, decls)}${inner}`;
   });
 }
 

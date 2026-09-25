@@ -50,7 +50,11 @@ function row({ mine, name, parts, quote, stamp, read, sticker, card, trans }) {
     ? `<div class="bubble-sticker ph-sticker">${icon('heart', 48)}</div>`
     : card ? CARDS[card]
     : parts.map((t, i) => `<div class="bubble ph-bubble `
-      + `${mine ? 'ph-bubble-mine' : 'ph-bubble-theirs'}${trans && i === parts.length - 1 ? ' has-trans' : ''}">${esc(t)}`
+      + `${mine ? 'ph-bubble-mine' : 'ph-bubble-theirs'}${trans && i === parts.length - 1 ? ' has-trans' : ''}">`
+      // 气泡里那一份引用（默认不显示，见 Conversation.js 的 QuoteIn）
+      + (quote && i === 0 ? `<span class="bubble-quote ph-quote-in"><span class="quote-name">${esc(quote.name)}</span>`
+        + `<span class="quote-text">${esc(quote.text)}</span></span>` : '')
+      + esc(t)
       + (trans && i === parts.length - 1 ? `<div class="bubble-trans ph-trans">${esc(trans)}</div>` : '')
       + '</div>').join('');
   const q = quote
@@ -65,7 +69,7 @@ function row({ mine, name, parts, quote, stamp, read, sticker, card, trans }) {
     : '';
   return `<div class="msg ph-msg ${mine ? 'is-mine ph-msg-mine' : 'ph-msg-theirs'}">`
     + face(name, mine)
-    + `<div class="msg-col ph-col">${q}${bubbles}</div>${m}</div>`;
+    + `<div class="msg-col ph-col">${bubbles}${q}</div>${m}</div>`;
 }
 
 /**

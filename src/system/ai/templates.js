@@ -952,6 +952,21 @@ To rename them, write a line on its own, [备注：the new name]. The new name
 replaces the old one, and the other party is shown that you changed it.
 In the other party's contacts you are saved as: {{mine}}.`,
 
+  'skeleton.recall':
+`[撤回]
+To withdraw a message you have sent, write a line on its own, [撤回], directly
+after that message. It is shown first and withdrawn a few seconds later; the
+other party sees a line saying you withdrew a message, and can still open it.
+In the history, a message the other party withdrew appears as [撤回了一条消息];
+if you had already replied before it was withdrawn, its text follows the colon.{{post}}`,
+
+  'skeleton.recall-post':
+`
+
+To take down your most recent post, write a line on its own, [撤回动态]. It is
+folded on the feed as a withdrawn post. Your most recent post, from {{when}}:
+{{text}}`,
+
   'skeleton.avatar':
 `[换头像]
 Avatars available to you: {{names}}.
@@ -1625,6 +1640,12 @@ has happened recently.
 `## Attaching a song
 To attach one song to the post, add a "song" field to the JSON, written as
 "song title - artist". Without a song, write "song":null.`,
+
+  // 只在该角色开着「撤回」时接在 task.moment-reply 后面
+  'task.moment-recall':
+`## Taking the post down
+To take this post down after replying, add "recall":true to the JSON. The post
+is then folded on the feed as withdrawn. Otherwise omit the field.`,
 
   'task.moment-comment':
 `You are {{charName}}. Below is a post by {{authorName}}:

@@ -26,6 +26,7 @@ import * as dayStore from '../day.js';
 import * as extras from '../extras.js';
 import * as avatar from '../avatar.js';
 import * as remark from '../remark.js';
+import * as recall from '../recall.js';
 import * as takeout from '../takeout.js';
 import * as ban from '../ban.js';
 import * as todo from '../todo.js';
@@ -192,6 +193,10 @@ const lineMark = words => new RegExp(
   'i');
 
 const PAT_LINE = lineMark('拍一拍|拍拍|戳一戳');
+// 撤回刚发的那一条，和撤回自己最近一条动态（见 system/recall.js）。
+// 「撤回动态」要先认：两个都以「撤回」开头
+const RECALL_POST_LINE = lineMark('撤回动态|删除动态');
+const RECALL_LINE = lineMark('撤回|撤回消息|撤回上一条');
 // 共同账户与亲属卡那一套。开通只有一个词，批驳各一个词。
 const JOINT_LINE = lineMark('开通共同账户|开共同账户');
 const OKAY_LINE = lineMark('批准|同意|通过');
@@ -567,6 +572,15 @@ export function splitReply(raw) {
       if (OKAY_LINE.test(t)) { push({ type: 'vote', ok: true }); return; }
       if (DENY_LINE.test(t)) { push({ type: 'vote', ok: false }); return; }
 
+      // 撤回：和心声一样挂到刚刚那一条上，前面没有话就无从撤回。
+      // 撤回动态是一件事，不占气泡
+      if (RECALL_POST_LINE.test(t)) { push({ type: 'recall-post' }); return; }
+      if (RECALL_LINE.test(t)) {
+        const prev = parts[parts.length - 1];
+        if (prev) prev.recall = true;
+        return;
+      }
+
       // 拍一拍落一行提示，骰子落一条自己的消息，两样都不占气泡。
       if (PAT_LINE.test(t)) { push({ type: 'pat' }); return; }
       const kp = t.match(KEEP_LINE);
@@ -871,9 +885,20 @@ export function materialize(part, base, char) {
     });
     return null;
   }
+  // 撤回自己最近一条动态。不是一条消息，不落气泡
+  if (part.type === 'recall-post') {
+    if (base.role === 'char' && char && char.canRecall !== false) {
+      const mo = recall.latestMoment(char.id);
+      if (mo) recall.recallMoment(mo.id);
+    }
+    return null;
+  }
   const quote = quoteFields(base.chatId, part.quote);
+  // 撤回那一条照常发出去，几秒后折起来（recall.charMark 的 at 在几秒之后）
+  const takeBack = part.recall && base.role === 'char' && char?.canRecall !== false;
   const row = {
     ...base, ...quote,
+    ...(takeBack ? { recalled: recall.charMark() } : {}),
     ...(part.stamp ? { stamp: part.stamp } : {}),
     ...(part.translation ? { translation: part.translation } : {}),
     ...(part.inner ? { inner: String(part.inner).slice(0, 300) } : {}),

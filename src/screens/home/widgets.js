@@ -147,7 +147,8 @@ registerWidget({
   label: '朋友圈',
   sizes: [[2, 2], [4, 2]],
   render() {
-    const mo = moments.all().sort((a, b) => b.createdAt - a.createdAt)[0];
+    // 角色撤回了的不算：它已经不在朋友圈上了
+    const mo = moments.all().filter(m => !m.recalled).sort((a, b) => b.createdAt - a.createdAt)[0];
     const author = mo ? (mo.authorId === 'me' ? persona.get().name : characters.get(mo.authorId)?.name) : null;
     return html`
       <div class="wg wg-list" onClick=${() => openApp('chat', '/moments')}>

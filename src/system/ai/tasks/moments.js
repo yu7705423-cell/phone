@@ -9,6 +9,7 @@ import { fillTemplate } from '../templates.js';
 import { listFor } from '../context/memory.js';
 import { neteaseReady } from '../services.js';
 import * as music from '../../music.js';
+import { recallMoment } from '../../recall.js';
 
 // 该角色能不能带歌：和聊天里「一起听」那一项同一个条件（capabilities.js 的 listen）
 const canSong = char => char.canListen !== false && (music.allSongs().length > 0 || neteaseReady());
@@ -141,14 +142,19 @@ export async function replyComment(momentId, charId, commentText) {
   const char = characters.get(charId);
   if (!mo || !char) throw new Error('数据不存在');
 
+  // 撤回是这一次回复顺带交回来的一个字段，不另调接口（见 system/recall.js）
+  const canTake = char.canRecall !== false && mo.authorId === charId && !mo.recalled;
   const system = fillTemplate(template('task.moment-reply'), {
     charName: char.name, userName: persona.get().name,
     momentText: mo.text + await songLine(mo), commentText,
-  }) + `\n\n## Your own settings\n${charContext(char)}`;
+  }) + (canTake ? `\n\n${template('task.moment-recall')}` : '')
+    + `\n\n## Your own settings\n${charContext(char)}`;
 
   const r = await runJSONTask('moment.reply', { system, key: `moment-reply:${momentId}`, maxTokens: 300 });
   if (!r?.text) throw new Error('模型没有返回回复');
-  return addComment(momentId, charId, String(r.text).trim());
+  const c = addComment(momentId, charId, String(r.text).trim());
+  if (canTake && r.recall === true) recallMoment(momentId);
+  return c;
 }
 
 export function addComment(momentId, authorId, text, replyTo = null) {

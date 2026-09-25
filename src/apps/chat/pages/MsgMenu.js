@@ -263,6 +263,13 @@ export function MsgMenu({ msg, char, onClose, onRegenerate, onQuote, onMultiSele
     close();
   };
 
+  // 撤回：对方那边折成一行「你撤回了一条消息」，自己这边点开还看得到（见 system/recall.js）
+  const canRecall = !gone && phone.recall.canRecall(fresh);
+  const takeBack = () => {
+    phone.recall.recallMine(fresh.id);
+    close();
+  };
+
   const del = async () => {
     if (!await confirm({ title: '删除这条消息', message: '删除后不再进入上下文。', danger: true })) return;
     onDelete(msg.id);
@@ -288,6 +295,10 @@ export function MsgMenu({ msg, char, onClose, onRegenerate, onQuote, onMultiSele
             <${ListItem} title="修正格式" subtitle=${`识别到 ${fixes.length} 处可修正的问题`} arrow multiline
               left=${html`<${Icon} name="sparkle" size=${18}/>`}
               onClick=${() => setRepairing(true)}/>` : null}
+          ${canRecall ? html`
+            <${ListItem} title="撤回" multiline arrow
+              subtitle="角色看到一行「对方撤回了一条消息」。角色回复过的消息，撤回后角色仍知道原文"
+              left=${html`<${Icon} name="undo" size=${18}/>`} onClick=${takeBack}/>` : null}
           <${ListItem} title="引用" subtitle="回复这一条，角色可据此判断你在回应哪句" arrow multiline
             left=${html`<${Icon} name="reply" size=${18}/>`}
             onClick=${() => { close(); onQuote(fresh); }}/>

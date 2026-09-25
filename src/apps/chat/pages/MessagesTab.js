@@ -16,7 +16,8 @@ const Row = memo(function Row({ chat, onHold }) {
   const avatar = useImage(char?.avatar);
   const last = db.lastMessageOf(chat.id);
   const preview = !last ? '还没有消息'
-    : last.kind === 'sticker' ? '[表情]'
+    : phone.recall.previewOf(last, db.characters.get(last.authorId)?.name)
+      || (last.kind === 'sticker' ? '[表情]'
     : last.kind === 'transfer' ? `[转账] ${phone.transfer.display(last.amount, last.currency)}`
     : last.kind === 'location' ? `[位置] ${last.place || ''}`
     : last.kind === 'gift' ? `[礼物] ${last.cover || ''}`
@@ -29,11 +30,11 @@ const Row = memo(function Row({ chat, onHold }) {
     : last.kind === 'song' ? `[歌曲] ${db.songs.get(last.songId)?.title || phone.music.splitQuery(last.songQuery || '').title}`
     : last.kind === 'call' ? `[${phone.call.label(last.direction, last.outcome, last.seconds, last.callKind === 'video')}]`
     : last.kind === 'notice' ? String(last.content || '').replace(/^\[|\]$/g, '')
-    : (splitBubbles(last.content).slice(-1)[0] || last.content);
+    : (splitBubbles(last.content).slice(-1)[0] || last.content));
   const isGroup = phone.group.isGroup(chat);
   const title = isGroup ? phone.group.titleOf(chat) : (char ? phone.remark.nameOf(char) : '已删除的角色');
   // 群里的最后一条带上是谁说的
-  const who = isGroup && last?.role === 'char' ? `${db.characters.get(last.authorId)?.name || ''}：` : '';
+  const who = isGroup && last?.role === 'char' && !last.recalled ? `${db.characters.get(last.authorId)?.name || ''}：` : '';
 
   let holdTimer = null;
   const start = () => { holdTimer = setTimeout(() => { holdTimer = null; onHold(chat); }, 500); };
