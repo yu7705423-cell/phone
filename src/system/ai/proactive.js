@@ -210,7 +210,7 @@ function chatFor(charId) {
  *（system/bgpush.js）。`time` 与 `gap` 可以指定 —— 服务器那边是几个小时之后才发，
  * 「现在几点」「多久没说话」要按那一刻写，不能按拼的这一刻
  */
-export async function proactivePayload(chat, char, { mood = false, time, gap } = {}) {
+export async function proactivePayload(chat, char, { mood = false, time, gap, vec = true } = {}) {
   const msgs = messagesDb.all()
     .filter(m => m.chatId === chat.id && m.status !== 'error')
     .sort((a, b) => a.createdAt - b.createdAt);
@@ -221,7 +221,9 @@ export async function proactivePayload(chat, char, { mood = false, time, gap } =
   // 同一句问候隔几个小时再发一遍。现在和平时回复一样走 buildHistory，
   // 条数、字数上限照「用量与上限」那几项（仍是一次调用，只是这一次带的字多了）。
   // 每轮都变的那几块（现在几点、今天排了什么）照旧插到对话末尾
-  const { system, volatile: hot } = buildChatSystem(chat, char, msgs, { queryVec: await queryVecFor(msgs) });
+  // vec: false 不取查询向量（那是一次向量接口调用），记忆检索退回关键词。后台消息离开时就拼好，
+  // 每离开一次拼一次，不能每次都为它多调一次接口（见 bgpush.js）
+  const { system, volatile: hot } = buildChatSystem(chat, char, msgs, { queryVec: vec ? await queryVecFor(msgs) : null });
   const instruction = fillTemplate(template(mood ? 'task.emo' : 'task.proactive'), {
     charName: char.name || '你',
     time: time ?? new Date().toLocaleString('zh-CN', { hour12: false }),

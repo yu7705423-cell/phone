@@ -24,6 +24,16 @@ create table if not exists push_jobs (
   created_at  timestamptz not null default now()
 );
 
+-- 每调一次模型记一笔（调之前记，失败也算）。Worker 拿它封顶：每台设备 24 小时最多几次、同一段会话最短间隔。
+-- 只留两天
+create table if not exists push_log (
+  id          uuid primary key default gen_random_uuid(),
+  device_id   uuid not null references push_devices(id) on delete cascade,
+  chat_id     text not null default '',
+  fired_at    timestamptz not null default now()
+);
+create index if not exists push_log_device on push_log (device_id, fired_at);
+
 create index if not exists push_jobs_due on push_jobs (status, due_at);
 create index if not exists push_jobs_device on push_jobs (device_id);
 
@@ -32,3 +42,4 @@ alter table push_devices enable row level security;
 alter table push_devices alter column sub drop not null;
 alter table push_devices add column if not exists notify text;
 alter table push_jobs enable row level security;
+alter table push_log enable row level security;

@@ -26,12 +26,31 @@
 //   VAPID_SUBJECT   可选，联系方式，例如 mailto:you@example.com
 //   ALLOW_ORIGINS   可选，只许这些网站调用，逗号分隔，例如 https://eiraphone.cn
 //
+//   PAUSED          可选，急停。填 1：定时触发什么都不做，一次模型都不调；删掉或改成 0 恢复
+//   MAX_PER_DAY     可选，每台设备 24 小时内最多替它调几次模型，默认 20。超了的任务记为失败，不调
+//   MIN_GAP_MIN     可选，同一段会话两次之间至少隔几分钟，默认 15。太近的往后挪，不调
+//
 // 另外在 Settings - Trigger Events 加一个 Cron Trigger：`* * * * *`（每分钟）。
+//
+// ---- 防失控（这些是花钱的事，宁可少发，不能多发） ----
+//   · 服务器从不重试。一个任务只会被调一次模型：先占住（pending 改 running）再调，调完是 done 或 failed，
+//     不会回到 pending。卡在 running 的一刻钟后记为失败，也不重来
+//   · 每调一次模型记一笔 push_log（调之前记，失败也算）。每台设备 24 小时封顶 MAX_PER_DAY 次，
+//     同一段会话两次至少隔 MIN_GAP_MIN 分钟 —— 应用那边哪怕出了 bug 一直交任务，这里也兜得住
+//   · 收任务时就卡住：一次最多 30 个角色、每个角色最多排 10 次、时间最远 7 天、地址必须是 https
+//   · 每分钟最多处理 BATCH 个到点任务
 //
 // 不依赖任何 npm 包：Web Push 的加密（RFC 8291）与 VAPID 签名（RFC 8292）都用 Workers 自带的 WebCrypto 写。
 
 const ALIVE_MS = 6 * 60 * 1000;   // 应用最近这么久内报过到，就当它还开着，先不替它发
 const BATCH = 10;                  // 每分钟最多处理几个到点的任务
+const MAX_JOBS = 30;               // 一次交任务最多几个角色
+const MAX_TIMES = 10;              // 每个角色最多排几次
+const MAX_AHEAD = 7 * 86400000;    // 最远排到几天后
+const DAY = 86400000;
+const maxPerDay = env => Math.max(0, Number(env.MAX_PER_DAY ?? 20) || 0);
+const minGap = env => Math.max(0, Number(env.MIN_GAP_MIN ?? 15) || 0) * 60000;
+const paused = env => String(env.PAUSED || '').trim() === '1';
 const MARK_TIME = '{{bg_time}}';
 const MARK_GAP = '{{bg_gap}}';
 
@@ -249,9 +268,11 @@ function preview(text) {
 
 async function runDue(env) {
   const now = Date.now();
-  // 上一次跑到一半没了（超时、部署），占住的任务一直卡在 running：过一刻钟算失败，应用回来能看见
-  await db(env, 'PATCH', `push_jobs?status=eq.running&due_at=lt.${encodeURIComponent(iso(now - 15 * 60000))}`,
-    { status: 'failed', fired_at: iso(now) }).catch(() => {});
+  // 上一次跑到一半没了（超时、部署），占住的任务一直卡在 running：占住一刻钟后算失败，不重来
+  await db(env, 'PATCH', `push_jobs?status=eq.running&fired_at=lt.${encodeURIComponent(iso(now - 15 * 60000))}`,
+    { status: 'failed' }).catch(() => {});
+  // 调用记录只留两天，够算「24 小时内」就行
+  await db(env, 'DELETE', `push_log?fired_at=lt.${encodeURIComponent(iso(now - 2 * DAY))}`).catch(() => {});
   const due = await db(env, 'GET',
     `push_jobs?status=eq.pending&due_at=lte.${encodeURIComponent(iso(now))}&order=due_at.asc&limit=${BATCH}&select=id,device_id,due_at,data`);
   const devices = new Map();
@@ -264,8 +285,9 @@ async function runDue(env) {
     if (!dev) continue;
     // 应用还开着：本机会自己发，这边不重复
     if (dev.seen_at && now - Date.parse(dev.seen_at) < ALIVE_MS) continue;
-    // 先占住，免得两次触发撞在一起各发一遍
-    const claimed = await db(env, 'PATCH', `push_jobs?id=eq.${job.id}&status=eq.pending`, { status: 'running' }, 'return=representation');
+    // 先占住，免得两次触发撞在一起各发一遍。fired_at 记的是占住的时刻
+    const claimed = await db(env, 'PATCH', `push_jobs?id=eq.${job.id}&status=eq.pending`,
+      { status: 'running', fired_at: iso(now) }, 'return=representation');
     if (!claimed || !claimed.length) continue;
     await runJob(env, job, dev, now).catch(async err => {
       await db(env, 'PATCH', `push_jobs?id=eq.${job.id}`, {
@@ -275,8 +297,34 @@ async function runDue(env) {
   }
 }
 
+// 限额：这台设备 24 小时内调了几次、这段会话上一次是什么时候
+async function overLimit(env, dev, chatId, now) {
+  const cap = maxPerDay(env);
+  if (cap) {
+    const day = await db(env, 'GET', `push_log?device_id=eq.${dev.id}&fired_at=gte.${encodeURIComponent(iso(now - DAY))}&select=id`) || [];
+    if (day.length >= cap) return { fail: `已达每日上限（${cap} 次），这一次不发` };
+  }
+  const gap = minGap(env);
+  if (gap && chatId) {
+    const [last] = await db(env, 'GET',
+      `push_log?device_id=eq.${dev.id}&chat_id=eq.${encodeURIComponent(chatId)}&order=fired_at.desc&limit=1&select=fired_at`) || [];
+    const at = last ? Date.parse(last.fired_at) : 0;
+    if (at && now - at < gap) return { later: at + gap };
+  }
+  return null;
+}
+
 async function runJob(env, job, dev, now) {
   const data = await unseal(env, job.data);
+  const limit = await overLimit(env, dev, data.chatId, now);
+  if (limit?.later) {
+    // 离上一次太近：往后挪到够间隔的那一刻，放回去等着（没调模型）
+    await db(env, 'PATCH', `push_jobs?id=eq.${job.id}`, { status: 'pending', due_at: iso(limit.later), fired_at: null });
+    return;
+  }
+  if (limit?.fail) throw new Error(limit.fail);
+  // 调之前先记一笔：调到一半失败也算一次，宁可少发
+  await db(env, 'POST', 'push_log', { device_id: dev.id, chat_id: String(data.chatId || ''), fired_at: iso(now) });
   const text = await callModel(data.request, now, data.lastAt, data.tz);
   await db(env, 'PATCH', `push_jobs?id=eq.${job.id}`, {
     status: 'done', fired_at: iso(now),
@@ -405,9 +453,11 @@ async function handle(req, env) {
     const { away = false, jobs = [], channel } = await req.json().catch(() => ({}));
     await db(env, 'DELETE', `push_jobs?device_id=eq.${dev.id}&status=eq.pending`);
     const rows = [];
-    for (const j of Array.isArray(jobs) ? jobs : []) {
-      const times = (Array.isArray(j.due) ? j.due : [j.due]).map(Number).filter(Boolean).sort((a, b) => a - b);
-      if (!times.length || !j.request?.url || !j.request?.body) continue;
+    const now = Date.now();
+    for (const j of (Array.isArray(jobs) ? jobs : []).slice(0, MAX_JOBS)) {
+      const times = (Array.isArray(j.due) ? j.due : [j.due]).map(Number)
+        .filter(t => t > 0 && t < now + MAX_AHEAD).sort((a, b) => a - b).slice(0, MAX_TIMES);
+      if (!times.length || !j.request?.body || !/^https:\/\//i.test(String(j.request?.url || ''))) continue;
       rows.push({
         device_id: dev.id, due_at: iso(times[0]),
         data: await seal(env, {
@@ -422,6 +472,11 @@ async function handle(req, env) {
     if (channel !== undefined) patch.notify = channel && channel.kind ? await seal(env, channel) : null;
     await db(env, 'PATCH', `push_devices?id=eq.${dev.id}`, patch);
     return json(h, { ok: true, jobs: rows.length });
+  }
+  // 应用开着时隔几分钟报一次到：只改 seen_at，不碰任务
+  if (route === 'POST /alive') {
+    await db(env, 'PATCH', `push_devices?id=eq.${dev.id}`, { seen_at: iso(Date.now()) });
+    return json(h, { ok: true });
   }
   if (route === 'GET /results') {
     const rows = await db(env, 'GET',
@@ -448,7 +503,7 @@ export default {
     catch (err) { return json(cors(env, req), { error: String(err.message || err) }, 500); }
   },
   async scheduled(event, env, ctx) {
-    if (!configured(env)) return;
+    if (!configured(env) || paused(env)) return;
     ctx.waitUntil(runDue(env));
   },
 };

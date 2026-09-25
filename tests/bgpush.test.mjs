@@ -39,6 +39,10 @@ async function open({ server = PUSH, noPush = false } = {}) {
     }
   });
   const calls = [];
+  const embeds = [];
+  // 向量接口：拼后台任务时一次都不该调
+  await ctx.route('https://emb.example.com/**', r => { embeds.push(r.request().url());
+    return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ data: [{ index: 0, embedding: [1, 0, 0, 0] }] }) }); });
   let results = [];
   await ctx.route(`${PUSH}/**`, async r => {
     const u = new URL(r.request().url());
@@ -55,7 +59,7 @@ async function open({ server = PUSH, noPush = false } = {}) {
   page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message));
   await page.goto(`${BASE}/index.html`, { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(1500);
-  return { ctx, page, calls, setResults: x => { results = x; } };
+  return { ctx, page, calls, embeds, setResults: x => { results = x; } };
 }
 
 // ---- 没配服务器：没有这一项 ----
@@ -68,7 +72,7 @@ async function open({ server = PUSH, noPush = false } = {}) {
   await ctx.close();
 }
 
-const { ctx, page, calls, setResults } = await open();
+const { ctx, page, calls, embeds, setResults } = await open();
 const ids = await page.evaluate(async () => {
   const { db } = await import('/src/system/db/index.js');
   const svc = await import('/src/system/ai/services.js');
@@ -76,6 +80,9 @@ const ids = await page.evaluate(async () => {
   const p = svc.newChatPreset({ name: '主用' });
   svc.updateChatPreset(p.id, { baseUrl: 'https://relay.example.com/v1', apiKey: 'sk-test', model: 'm', provider: 'openai' });
   svc.setActiveChat(p.id);
+  // 开着向量记忆：平时拼回复会先调一次向量接口取查询向量
+  svc.setEmbed({ baseUrl: 'https://emb.example.com/v1', apiKey: 'k', model: 'e', dims: 4 });
+  db.settings.set({ memoryEnabled: true, memoryVector: true });
   const me = acc.roots()[0] || acc.createRoot({ name: '我' });
   const c = db.characters.create({ name: '阿岚', proactive: true, proactiveMinutes: 60, proactiveQuietFrom: 0, proactiveQuietTo: 0 });
   const quiet = db.characters.create({ name: '阿树' });           // 没开「主动找你」
@@ -109,10 +116,13 @@ calls.length = 0;
 await page.evaluate(() => {
   Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' });
   document.dispatchEvent(new Event('visibilitychange'));
+  window.dispatchEvent(new Event('pagehide'));
 });
 await page.waitForTimeout(1000);
 const away = calls.find(c => c.path === '/plan');
-ok('退到后台：再交一次，标明「走了」', away && away.body.away === true && away.body.jobs.length === 1, JSON.stringify(away?.body?.away));
+ok('退到后台：再交一次，标明「走了」；同一次离开触发两遍也只交一次', away && away.body.away === true && away.body.jobs.length === 1
+  && calls.filter(c => c.path === '/plan').length === 1, JSON.stringify(calls.map(c => c.path)));
+ok('拼后台任务时一次向量接口都没调（开着向量记忆也一样）', embeds.length === 0, JSON.stringify(embeds));
 
 // ---- 回来 ----
 const fired = Date.now() - 2 * 3600000;
@@ -131,6 +141,7 @@ const back = await page.evaluate(async o => {
 ok('回来：服务器替你发出去的落进会话，照平时一样分条', JSON.stringify(back.texts) === '["醒了吗","今天下雨了"]', JSON.stringify(back));
 ok('时间是发出去的那一刻，未读加上', back.at[0] >= fired && back.at[0] < fired + 1000 && back.unread === 2, JSON.stringify(back));
 ok('取回之后请服务器删掉', calls.some(c => c.path === '/ack' && c.body.ids[0] === 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'), JSON.stringify(calls.map(c => c.path)));
+ok('回到前台只报到（/alive），不重新拼、不重新交任务', calls.some(c => c.path === '/alive') && !calls.some(c => c.path === '/plan'), JSON.stringify(calls.map(c => c.path)));
 
 // ---- 通知通道 ----
 await page.evaluate(async () => { const n = await import('/src/system/nav.js'); n.goHome(); n.openApp('settings', '/notify'); });
@@ -159,7 +170,7 @@ ok('加密填对了才带上 Key 与 IV；填错了不退回明文，改成只�
   && !ch.bad.key && ch.bad.hide === true, JSON.stringify(ch));
 ok('PushPlus：带 token；没填就不交通道', ch.pp.kind === 'pushplus' && ch.pp.token === 't1' && ch.pp.hide === true && ch.none === null, JSON.stringify(ch));
 calls.length = 0;
-await page.evaluate(async () => (await import('/src/system/bgpush.js')).plan({ away: true }));
+await page.evaluate(async () => (await import('/src/system/bgpush.js')).plan({ away: false }));
 const withCh = calls.find(c => c.path === '/plan');
 ok('交任务时通道跟着一起交', withCh?.body?.channel?.kind === 'bark' && withCh.body.channel.url === 'https://api.day.app/AbCd1234', JSON.stringify(withCh?.body?.channel));
 const bk = await page.evaluate(async () => {

@@ -19,8 +19,12 @@ import { note } from './ai/usage.js';
 // 数据库里看不到原文；到点解开、发完、结果同样加密存着，取回后删除。界面上写明了这一条。
 //
 // **不多花一次调用。** 这是本来就会发生的「主动找你」换了个地方发：app 开着时本机发，
-// 关着时服务器发，同一次开口不会两边都发 —— app 开着的这段时间每隔几分钟报一次到，
-// 服务器看见最近报过到就先不发（等 app 自己发），离开时报一句「走了」。
+// 关着时服务器发，同一次开口不会两边都发 —— app 开着的这段时间每隔几分钟报一次到（/alive，
+// 只报到、不交任务），服务器看见最近报过到就先不发（等 app 自己发），离开时交任务并报一句「走了」。
+//
+// **拼任务不调任何接口。** 离开一次拼一次，所以拼的时候不取查询向量（proactivePayload 的 vec: false，
+// 记忆检索退回关键词）；同一次离开触发了两遍（pagehide 与 visibilitychange）只交一次。
+// 服务器那边另有封顶（每台设备每天几次、同一段会话最短间隔、急停），见 worker/push.js 开头。
 //
 // **通知通道**：借别的 app 送通知（worker/push.js 的 sendChannel），给没有 Web Push 的安装版应用用：
 // Bark（iPhone，点通知打开 eira://chat/会话，ipa 外壳接住后跳到那段会话，可加密）、PushPlus（经微信）。
@@ -174,7 +178,7 @@ export async function jobsNow(now = Date.now()) {
     const msgs = messages.all().filter(m => m.chatId === chat.id && m.status !== 'error');
     const lastAt = msgs.reduce((a, m) => Math.max(a, m.createdAt || 0), 0);
     // 「现在几点」「多久没说话」留两个记号，服务器到点按那一刻填（见 worker/push.js 的 fill）
-    const payload = await proactive.proactivePayload(chat, char, { time: MARK_TIME, gap: MARK_GAP });
+    const payload = await proactive.proactivePayload(chat, char, { time: MARK_TIME, gap: MARK_GAP, vec: false });
     let request;
     try { request = prepareTextTask('chat.proactive', payload); } catch { continue; }
     out.push({
@@ -191,8 +195,13 @@ let queue = Promise.resolve();
  * 把任务交给服务器，顺便报到。away: true 是「app 要退到后台了」，服务器从这一刻起到点就发；
  * 否则是「app 还开着」，最近报过到的设备服务器先不发
  */
+let lastPlan = { at: 0, away: null };
 export function plan({ away = false } = {}) {
   if (!isOn() || !readDev()) return Promise.resolve(null);
+  // 同一件事十秒内只交一次（离开时 pagehide 与 visibilitychange 各来一遍）
+  const now = Date.now();
+  if (lastPlan.away === away && now - lastPlan.at < 10000) return Promise.resolve(null);
+  lastPlan = { at: now, away };
   const run = async () => api('/plan', { method: 'POST', body: { away, channel: channelOut(), jobs: await jobsNow() } });
   const next = queue.then(run, run);
   queue = next.catch(() => {});
@@ -234,15 +243,21 @@ export async function collect() {
 
 // ---- 跟着 app 前后台走 ----
 
+// 报到：只告诉服务器「应用还开着」，不拼任务、不交任务
+function alive() {
+  if (!isOn() || !readDev()) return;
+  api('/alive', { method: 'POST' }).catch(() => {});
+}
+
 let timer = null;
 export function install() {
   if (typeof document === 'undefined') return;
   const onShow = () => {
     if (!isOn()) return;
     collect().catch(err => console.warn('[bgpush] 取回失败:', err.message || err));
-    plan({ away: false }).catch(() => {});
+    alive();
     clearInterval(timer);
-    timer = setInterval(() => { if (document.visibilityState === 'visible') plan({ away: false }).catch(() => {}); }, ALIVE_EVERY);
+    timer = setInterval(() => { if (document.visibilityState === 'visible') alive(); }, ALIVE_EVERY);
   };
   const onHide = () => {
     clearInterval(timer); timer = null;

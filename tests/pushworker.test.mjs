@@ -21,12 +21,13 @@ const b64d = s => new Uint8Array(Buffer.from(s, 'base64url'));
 const concat = (...p) => { const o = new Uint8Array(p.reduce((n, x) => n + x.length, 0)); let a = 0; for (const x of p) { o.set(x, a); a += x.length; } return o; };
 
 // ---- 假的 Supabase（PostgREST 的一小部分） ----
-const tables = { push_devices: [], push_jobs: [] };
+const tables = { push_devices: [], push_jobs: [], push_log: [] };
 function match(row, filters) {
   return filters.every(([col, op, val]) => {
     const v = row[col];
     if (op === 'eq') return String(v) === val;
     if (op === 'lte') return v != null && Date.parse(v) <= Date.parse(val);
+    if (op === 'gte') return v != null && Date.parse(v) >= Date.parse(val);
     if (op === 'lt') return v != null && Date.parse(v) < Date.parse(val);
     if (op === 'in') return val.replace(/^\(|\)$/g, '').split(',').includes(String(v));
     throw new Error('mock: unknown op ' + op);
@@ -48,14 +49,14 @@ function supabase(method, url, body, prefer) {
   if (!t) return [404, { message: 'no table ' + table }];
   if (method === 'GET') {
     let rows = t.filter(r => match(r, filters));
-    if (order) rows = rows.sort((a, b) => (Date.parse(a[order[0]]) || 0) - (Date.parse(b[order[0]]) || 0));
+    if (order) rows = rows.sort((a, b) => ((Date.parse(a[order[0]]) || 0) - (Date.parse(b[order[0]]) || 0)) * (order[1] === 'desc' ? -1 : 1));
     if (limit) rows = rows.slice(0, limit);
     return [200, rows.map(r => ({ ...r }))];
   }
   if (method === 'POST') {
     const list = (Array.isArray(body) ? body : [body]).map(r => ({
       id: crypto.randomUUID(), created_at: new Date().toISOString(),
-      ...(table === 'push_jobs' ? { status: 'pending', result: null, fired_at: null } : { seen_at: null }), ...r,
+      ...(table === 'push_jobs' ? { status: 'pending', result: null, fired_at: null } : table === 'push_devices' ? { seen_at: null } : {}), ...r,
     }));
     t.push(...list);
     return [201, prefer ? list : null];
@@ -68,7 +69,10 @@ function supabase(method, url, body, prefer) {
   if (method === 'DELETE') {
     const gone = t.filter(r => match(r, filters));
     tables[table] = t.filter(r => !gone.includes(r));
-    if (table === 'push_devices') tables.push_jobs = tables.push_jobs.filter(j => !gone.some(d => d.id === j.device_id));
+    if (table === 'push_devices') {
+      tables.push_jobs = tables.push_jobs.filter(j => !gone.some(d => d.id === j.device_id));
+      tables.push_log = tables.push_log.filter(j => !gone.some(d => d.id === j.device_id));
+    }
     return [200, null];
   }
   return [405, null];
@@ -117,7 +121,8 @@ const tick = async env => { const waits = []; await worker.scheduled({}, env, { 
 let env = { SUPABASE_URL: 'https://sb.test', SUPABASE_KEY: 'service' };
 const setup = await call(env, 'GET', '/setup');
 const grab = k => (String(setup.data).match(new RegExp(`${k}\\s+(\\S+)`)) || [])[1];
-env = { ...env, VAPID_PUBLIC: grab('VAPID_PUBLIC'), VAPID_PRIVATE: grab('VAPID_PRIVATE'), DATA_KEY: grab('DATA_KEY'), VAPID_SUBJECT: 'mailto:t@example.com' };
+env = { ...env, VAPID_PUBLIC: grab('VAPID_PUBLIC'), VAPID_PRIVATE: grab('VAPID_PRIVATE'), DATA_KEY: grab('DATA_KEY'), VAPID_SUBJECT: 'mailto:t@example.com',
+  MIN_GAP_MIN: '0' };   // 下面先测功能，最短间隔另外测
 ok('/setup 生成一套 VAPID 与 DATA_KEY', env.VAPID_PUBLIC && b64d(env.VAPID_PUBLIC).length === 65 && env.VAPID_PRIVATE && b64d(env.DATA_KEY).length === 32, String(setup.data).slice(0, 200));
 const again = await call(env, 'GET', '/setup');
 ok('填好之后 /setup 不再显示密钥', !String(again.data).includes(env.DATA_KEY) && /已经设置好/.test(again.data), again.data);
@@ -287,6 +292,70 @@ await call(env, 'POST', '/ack', { token, body: { ids: failed.map(r => r.id) } })
 
   await fire(null, 'chat_n');
   ok('通道关掉（交 null）：之后到点不再发通道', channels.length === 0, JSON.stringify(channels));
+  await call(env, 'DELETE', '/device', { token: tk });
+}
+
+// ---- 防失控 ----
+{
+  const fresh = async () => { const r = await call(env, 'POST', '/device', { body: {} }); return `${r.data.id}.${r.data.token}`; };
+  const past = () => [Date.now() - 1000];
+  const mk = (chatId, charId = 'c') => ({ ...job, chatId, charId, due: past() });
+
+  // 同一段会话两次太近：第二次往后挪，不调
+  let tk = await fresh();
+  const gapEnv = { ...env, MIN_GAP_MIN: '15' };
+  let n0 = modelCalls.length;
+  await call(gapEnv, 'POST', '/plan', { token: tk, body: { away: true, jobs: [mk('chat_g', 'a'), mk('chat_g', 'b')] } });
+  await tick(gapEnv);
+  const deferred = tables.push_jobs.filter(j => j.status === 'pending');
+  ok('同一段会话两次太近：只调一次，第二次挪到 15 分钟后', modelCalls.length === n0 + 1 && deferred.length === 1
+    && Date.parse(deferred[0].due_at) - Date.now() > 14 * 60000, `${modelCalls.length - n0} ${deferred.map(j => j.due_at)}`);
+  await tick(gapEnv);
+  ok('挪过的那一次：没到点前再触发也不调', modelCalls.length === n0 + 1, modelCalls.length - n0);
+  await call(env, 'DELETE', '/device', { token: tk });
+
+  // 每天封顶
+  tk = await fresh();
+  const capEnv = { ...env, MAX_PER_DAY: '2' };
+  n0 = modelCalls.length;
+  await call(capEnv, 'POST', '/plan', { token: tk, body: { away: true, jobs: [mk('d1'), mk('d2'), mk('d3')] } });
+  await tick(capEnv);
+  const res = (await call(capEnv, 'GET', '/results', { token: tk })).data.results;
+  ok('每台设备每天封顶：只调两次，第三个记为失败、写明原因', modelCalls.length === n0 + 2
+    && res.filter(r => r.status === 'failed' && /每日上限/.test(r.error)).length === 1, JSON.stringify(res.map(r => [r.status, r.error])));
+  await call(env, 'DELETE', '/device', { token: tk });
+
+  // 急停
+  tk = await fresh();
+  n0 = modelCalls.length;
+  await call(env, 'POST', '/plan', { token: tk, body: { away: true, jobs: [mk('s1')] } });
+  await tick({ ...env, PAUSED: '1' });
+  ok('急停（PAUSED=1）：到点也一次都不调', modelCalls.length === n0 && tables.push_jobs.some(j => j.status === 'pending'), modelCalls.length - n0);
+
+  // 应用开着时的报到
+  await call(env, 'POST', '/alive', { token: tk });
+  await tick(env);
+  ok('报到（/alive）之后：到点也不发，等应用自己发', modelCalls.length === n0, modelCalls.length - n0);
+  await call(env, 'DELETE', '/device', { token: tk });
+
+  // 收任务时就卡住
+  tk = await fresh();
+  const many = Array.from({ length: 50 }, (_, i) => ({ ...job, chatId: `m${i}`, due: [Date.now() + 3600000] }));
+  const bad = [{ ...job, chatId: 'http', due: past(), request: { ...job.request, url: 'http://model.test/v1/chat/completions' } },
+    { ...job, chatId: 'far', due: [Date.now() + 30 * 86400000] }];
+  const got1 = await call(env, 'POST', '/plan', { token: tk, body: { away: true, jobs: many } });
+  const got2 = await call(env, 'POST', '/plan', { token: tk, body: { away: true, jobs: bad } });
+  ok('收任务：一次最多 30 个；不是 https 的、排到一个月后的不收', got1.data.jobs === 30 && got2.data.jobs === 0, `${got1.data.jobs} ${got2.data.jobs}`);
+  await call(env, 'DELETE', '/device', { token: tk });
+
+  // 卡在 running 的：一刻钟后记为失败，不重来
+  tk = await fresh();
+  const devId = tk.split('.')[0];
+  tables.push_jobs.push({ id: crypto.randomUUID(), device_id: devId, due_at: new Date(Date.now() - 3600000).toISOString(),
+    status: 'running', fired_at: new Date(Date.now() - 20 * 60000).toISOString(), data: 'x', result: null });
+  n0 = modelCalls.length;
+  await tick(env);
+  ok('卡在 running 超过一刻钟：记为失败，不重新调', tables.push_jobs.find(j => j.device_id === devId)?.status === 'failed' && modelCalls.length === n0, '');
   await call(env, 'DELETE', '/device', { token: tk });
 }
 
