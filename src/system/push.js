@@ -2,6 +2,7 @@ import { settings } from './db/index.js';
 import { on as busOn, EVENTS } from './bus.js';
 import { open as openIntent } from './intents.js';
 import { shownBody } from './notify.js';
+import { swUrl } from './offline.js';
 
 // 系统通知与 Web Push 的客户端这一半。
 // 说明：真要在「app 完全关着」的时候把手机叫醒，必须有一台服务器替你发推送，
@@ -69,7 +70,8 @@ const swPath = () => !native() && 'serviceWorker' in navigator && 'Notification'
 
 export async function register() {
   if (!swPath()) throw new Error('这个浏览器没有 Service Worker 或通知能力');
-  reg = await navigator.serviceWorker.register('sw.js');
+  // 和缓存那边同一个地址（带构建号），两处不一样会互相把对方换掉（见 system/offline.js）
+  reg = await navigator.serviceWorker.register(swUrl());
   await navigator.serviceWorker.ready;
   return reg;
 }

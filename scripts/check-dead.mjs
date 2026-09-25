@@ -18,6 +18,8 @@ const KEEP = new Map([
   ['src/system/ai/services.js:visionActive', '规则本身，测试钉着'],
   // 角色评论朋友圈。模板与任务都齐了，入口等「特别关心」那一批（批 3）一起做
   ['src/system/ai/tasks/moments.js:commentMoment', '等批 3 的朋友圈弹窗接入'],
+  // 搬家时旧网址那一页（根目录 move.html）里的内联脚本调它。这份检查只扫 src/ 下的 js
+  ['src/system/move.js:serve', 'move.html 调用'],
 ]);
 
 const EXPORT = /^export\s+(?:async\s+)?(?:function\*?|const|let|class)\s+([A-Za-z_$][\w$]*)/gm;

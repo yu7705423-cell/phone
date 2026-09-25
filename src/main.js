@@ -17,6 +17,8 @@ import { install as holdViewport } from './system/viewport.js';
 import { install as installFullscreen } from './system/fullscreen.js';
 import { install as installDiag } from './system/diag.js';
 import { install as markChannel } from './system/channel.js';
+import { install as installOffline } from './system/offline.js';
+import * as move from './system/move.js';
 import './screens/home/widgets.js';
 import './screens/home/insWidgets.js';
 
@@ -56,6 +58,9 @@ function boot() {
 
     render(html`<${Root}/>`, mount);
     dropSplash();
+    // 代码存到本机，下一次打开从本机取（sw.js，ARCHITECTURE 4.220）。版本对不上时不会走到这里
+    installOffline();
+    askToMove();
   }).catch(err => {
     console.error('[boot] 启动失败', err);
     render(html`
@@ -159,8 +164,56 @@ if (stale && tries < HEAL_MAX) {
   enter();
 }
 
+/**
+ * 换了网址（system/move.js）：旧网址上提醒搬到新网址；新网址上还没有数据时，问要不要从旧网址搬过来。
+ * 一天问一次，点「稍后」就等明天。真正的入口在「设置 - 存储」，这里只是提醒一句
+ */
+async function askToMove() {
+  if (!move.isOld() && !move.isNew()) return;
+  const KEY = 'eira-move-asked';
+  try {
+    if (Date.now() - Number(localStorage.getItem(KEY) || 0) < 86400000) return;
+    localStorage.setItem(KEY, String(Date.now()));
+  } catch { /* 隐私模式记不住，照样问 */ }
+  const db = await import('./system/db/index.js');
+  if (move.isNew() && (db.characters.count() || db.chats.count())) return;
+  const { confirm, toast } = await import('./ui/index.js');
+  const ok = await confirm(move.isOld()
+    ? { title: 'Eira 已换到新网址', okText: '搬家', cancelText: '稍后',
+      message: `新网址：${move.newUrl()}\n浏览器里的数据按网址分开存，直接打开新网址会是空的。`
+        + '点「搬家」把这里的角色、聊天记录、图片与接口设置一起带过去。之后也可以在「设置 - 存储与备份」中操作。' }
+    : { title: '从旧网址搬过来', okText: '搬过来', cancelText: '稍后',
+      message: '这里是 Eira 的新网址，还没有数据。点「搬过来」把旧网址上的角色、聊天记录、图片与接口设置一起带过来。'
+        + '之后也可以在「设置 - 存储与备份」中操作。' });
+  if (!ok) return;
+  toast('正在搬家，完成前请不要关闭这两个页面', 'ok', 5000);
+  (move.isOld() ? move.push() : move.pull())
+    .then(r => {
+      if (move.isNew()) { toast(`已搬过来：${r.rows || 0} 条记录`, 'ok', 4000); setTimeout(() => location.reload(), 1500); }
+      else toast('已搬到新网址。以后请从新网址打开', 'ok', 6000);
+    })
+    .catch(err => toast(`搬家没有完成：${err.message || err}。可在「设置 - 存储与备份」中重试`, 'error', 8000));
+}
+
 // 进门：本站开了账号功能就先登录（见 system/auth.js）。没开的话 gate 立刻放行
 async function enter() {
+  // 旧网址用 ?move=in 打开了这里（搬家，system/move.js）：先把数据收下，再按原样进门。
+  // 启动画面底下那行字换成进度
+  const moving = move.receive({ onStatus: t => {
+    const note = document.getElementById('splash-note');
+    if (note) { note.textContent = t; note.classList.add('is-now'); }
+  } });
+  if (moving) {
+    const note = document.getElementById('splash-note');
+    if (note) { note.textContent = '正在等待旧网址发来数据'; note.classList.add('is-now'); }
+    try { await moving; } catch (err) {
+      console.error('[move] 没搬成', err);
+      if (note) note.textContent = `搬家没有完成：${err.message || err}`;
+      await new Promise(r => setTimeout(r, 5000));
+    }
+    location.replace(location.pathname);
+    return;
+  }
   const g = await gate();
   if (g.ok) { watchAuth(); boot(); return; }
   render(html`<${Login} note=${g.note || ''} offline=${!!g.offline} onDone=${() => { watchAuth(); boot(); }}/>`, mount);

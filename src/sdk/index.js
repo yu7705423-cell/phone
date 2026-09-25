@@ -14,6 +14,7 @@ import * as closetApi from '../system/closet.js';
 import * as closetKinds from '../system/closet-kinds.js';
 import * as closetTask from '../system/ai/tasks/closet.js';
 import * as closetStoryApi from '../system/closet-story.js';
+import * as moveApi from '../system/move.js';
 import { isTest } from '../system/channel.js';
 import * as fontsApi from '../system/fonts.js';
 import * as clockApi from '../system/time.js';
@@ -381,6 +382,9 @@ export const phone = {
 
   // 剧情里的衣帽间：换上、借还、塞进包里（见 system/closet-story.js）
   closetStory: closetStoryApi,
+
+  // 换网址时搬家：旧网址与新网址之间整份传数据（见 system/move.js）
+  move: moveApi,
 
   // 聊天背景与上下栏样式（存在会话记录上）
   chatLook: chatLookApi,

@@ -103,8 +103,50 @@ export function StoragePage() {
     finally { setBusy(false); }
   };
 
+  // 搬家（换网址，system/move.js）。window.open 必须在点击的这一刻同步发生，
+  // 所以 push / pull 直接在 onClick 里调，不先弹一层确认
+  const mv = phone.move;
+  const moveGo = run => {
+    setBusy(true);
+    setWork({ text: '正在搬家', pct: 0 });
+    run({ onStatus: t => setWork({ text: t, pct: 0 }) })
+      .then(r => {
+        toast(mv.isOld()
+          ? '已搬到新网址。以后请从新网址打开'
+          : `已搬过来：${r.rows || 0} 条记录、${r.media || 0} 个图片与文件`, 'ok', 6000);
+        if (mv.isNew()) setTimeout(() => location.reload(), 1500);
+      })
+      .catch(err => toast('搬家没有完成：' + (err.message || err), 'error', 6000))
+      .finally(() => { setBusy(false); setWork(null); });
+  };
+
   return html`
     <${Page} title="存储与备份" onBack=${nav.pop}>
+      ${mv.isOld() ? html`
+        <${List} title="搬家">
+          <${ListItem} title="搬到新网址" arrow multiline
+            subtitle=${`Eira 已换到新网址 ${mv.newUrl()}。浏览器里的数据按网址分开存，点这里把这里的角色、聊天记录、图片与接口设置一起带过去`}
+            left=${html`<${Icon} name="send" size=${18}/>`}
+            onClick=${() => !busy && moveGo(mv.push)}/>
+        <//>
+        <div class="settings-foot">
+          会打开新网址并直接传过去，不经过任何服务器。新网址上原有的数据会被替换。
+          在 iPhone 主屏幕上打开时，新网址会在 Safari 中打开，数据落在 Safari 里，
+          之后在 Safari 中把新网址添加到主屏幕即可；也可以用下方的导出与恢复。
+        </div>` : null}
+      ${mv.isNew() ? html`
+        <${List} title="搬家">
+          <${ListItem} title="从旧网址搬过来" arrow multiline
+            subtitle="打开旧网址，把那里的角色、聊天记录、图片与接口设置一起带到这里。这里原有的数据会被替换"
+            left=${html`<${Icon} name="download" size=${18}/>`}
+            onClick=${async () => {
+              if (busy) return;
+              if ((db.characters.count() || db.chats.count())
+                && !await confirm({ title: '从旧网址搬过来', message: '这里已经有数据，搬过来会整份替换。', danger: true, okText: '替换' })) return;
+              moveGo(mv.pull);
+            }}/>
+        <//>` : null}
+
       <${List} title="防丢">
         <${ListItem} title="上次备份" multiline
           subtitle=${last

@@ -21,4 +21,11 @@ export const SITE = {
   // 登录账号服务的地址。通常就是上面那个 Worker（它同时管登录，见 worker/README.md「登录账号」）。
   // 填了、而且那边开了账号功能，应用一打开就要登录；那边还没开时照常放行。留空表示不要登录
   accounts: 'https://phone-netease.yu864249.workers.dev',
+  // 换网址（搬家，见 ARCHITECTURE 4.220）。两个都填完整网址，以 / 结尾，例如
+  //   moveFrom: 'https://yu7705423-cell.github.io/phone/'   旧网址
+  //   moveTo:   'https://eira.example.cn/'                   新网址
+  // 两个都填了，旧网址上会提示搬家，新网址上可以一键把旧网址的数据搬过来。
+  // 浏览器里的数据按网址分开存，不搬的话新网址上是空的。留空表示没有搬家这回事
+  moveFrom: '',
+  moveTo: '',
 };

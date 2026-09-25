@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Eira 搬家</title>
+<!-- 搬家时旧网址这一侧的那一页（src/system/move.js 的 serve，ARCHITECTURE 4.220）。
+     只能由新网址的「从旧网址搬过来」打开：打好整份数据的包，发回给开它的那个窗口。
+     核对与只发给 site.js 里写的新网址，都在 move.js 里 -->
+<style>
+  body { margin: 0; min-height: 100%; display: flex; align-items: center; justify-content: center;
+    font: 15px/1.6 -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: Canvas; color: CanvasText; }
+  main { max-width: 320px; padding: 32px 24px; text-align: center; }
+  h1 { font-size: 20px; font-weight: 600; margin: 0 0 12px; }
+  p { margin: 0; opacity: .7; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Eira 搬家</h1>
+  <p id="note">正在准备。</p>
+</main>
+<script type="module">
+  import { serve } from './src/system/move.js';
+  const note = document.getElementById('note');
+  serve().then(t => { note.textContent = t; }, err => { note.textContent = `出错了：${err.message || err}`; });
+</script>
+</body>
+</html>

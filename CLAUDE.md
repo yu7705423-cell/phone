@@ -451,6 +451,9 @@ style=${`width:${size}px`}
 **Cloudflare Pages 单个文件上限 25 MB。** 超了整站部署失败，测试版停在上一版。
 大文件要切块放（ffmpeg 的 wasm 就是切成两块的，见 `vendor/ffmpeg/README.md`）。
 
+**换正式版网址时**：`src/site.js` 填 `moveFrom` / `moveTo`，旧网址上的用户才能把数据搬过去（见 ARCHITECTURE 4.220）。
+不填就换，用户打开新网址是空的。
+
 测试版连的是同一个账号服务，普通账号在那边登录会占一个设备名额（每个账号 2 台，满了挤掉最早那台）。
 测试版上用 `admin` 登录，管理员不占名额。
 

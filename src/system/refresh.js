@@ -13,7 +13,8 @@ export async function forceUpdate() {
     if (e.name.startsWith(location.origin) && /\.(m?js|css)(\?|$)/.test(e.name)) urls.add(e.name);
   });
 
-  // 顺便清掉 Cache Storage,以后真加了 service worker 也不会拖后腿
+  // 清掉 Cache Storage：sw.js 按构建号缓存了一整份代码（ARCHITECTURE 4.220），
+  // 下面那遍 cache:'reload' 经过它时走网络，并把新的放回去
   if (window.caches) {
     try {
       const keys = await caches.keys();

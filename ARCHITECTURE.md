@@ -8644,3 +8644,41 @@ IndexedDB 与 localStorage：测试版的数据迁移会改掉正式数据，`DB
 - `[没有找到可以播放的……]`（不换歌）
 
 提示是事实，角色下一轮读到，要不要说「这首没版权」、怎么说，由角色卡决定。
+
+### 4.220 换网址：搬家与本机缓存
+
+正式版要从 GitHub Pages 换到自己的域名（接 Cloudflare），大陆打开会快得多。两件事先做好：
+
+**一、本机缓存**（`sw.js`、`system/offline.js`）
+
+从前 Service Worker 故意不缓存（怕新旧文件混着，见 `system/refresh.js`）。现在服务器在海外、四百多个 js，
+每次打开都一个个取太慢，所以缓存，但做成**整份按构建号换**：
+- 注册地址带构建号 `sw.js?b=<index.html 的 meta>`，缓存名 `eira-<构建号>`。构建号一变地址就变，
+  浏览器装一个新的 Service Worker；别的构建号的缓存在它激活后放到后台整份删掉。
+- 页面本身（导航）永远先问网络：index.html 里写着真实版本，启动时的构建号比对（main.js）靠它。断网退回缓存。
+- 同源静态文件先看缓存；带 `cache:'reload'` 的（强制更新那一遍）走网络并覆盖缓存；跨域的一律不碰。
+- 启动完把这一次已加载的文件报给**这一版的**那个 Service Worker 补进缓存（第一次打开时它还没接管）。
+- 激活时只 `clients.claim()`，不等任何事：激活期间页面请求全挂起，等慢事整页就白屏。
+- 发了新版：用户打开时拿到新 index.html，缓存里的旧代码和它对不上，照旧走自愈（清缓存、`cache:'reload'`
+  重取、重开），拿到的是新代码；新版的 Service Worker 等上一版手上的事做完才接管，最晚下一次打开。
+- 通知那边（`push.js`）注册的是同一个地址，两处不一样会互相换掉。
+- 自动化测试里默认不缓存（地址带 `cache=0`）：好几个测试靠拦截本站 js 造场景，缓存接管后拦截失效。
+  `tests/offline.test.mjs` 与 `tests/swupdate.test.mjs`（自带一台能中途改构建号的服务器，模拟发版）专门测缓存。
+
+**二、搬家**（`system/move.js`、根目录 `move.html`）
+
+浏览器数据按网址分开存，换了网址新网址上是空的。`site.js` 填 `moveFrom`（旧网址）与 `moveTo`（新网址）后：
+- 两边跑的是同一份代码（都从 release 部署），各自认得出自己是旧的还是新的（`isOld` / `isNew`）。
+- **推**：旧网址「设置 - 存储与备份 - 搬到新网址」，打开新网址 `?move=in`；新网址说好了，旧网址把整份备份
+  （`backup.build`，含图片、文件与接口设置）用 postMessage 发过去，新网址 `backup.restore` 后去掉查询串重开。
+- **拉**：新网址「从旧网址搬过来」，打开旧网址的 `move.html`，它打好包发回来。
+- **只和 site.js 写死的那个网址说话**：发时 postMessage 的目标源写死成对方，收时核对 `event.origin` 与 `event.source`。
+  `move.html` 被别的地址叫开、或没有开它的窗口时，一个字节都不发。不经过任何服务器。
+- 启动时一天提醒一次：旧网址上问要不要搬，新网址上还没数据时问要不要搬过来。
+- iPhone 主屏幕上的 PWA 与 Safari 各存各的：从 PWA 推过去，新网址在 Safari 里打开、数据落在 Safari，
+  之后在 Safari 里把新网址加到主屏幕；不行就走备份文件导出、恢复。
+测试 `tests/move.test.mjs`（127.0.0.1 当旧网址、localhost 当新网址）。
+
+**换网址时要做的**：新域名的 Cloudflare Pages 项目连 `release`；`site.js` 填好 `moveFrom` / `moveTo`；
+账号服务与网易云转发也绑到新域名的子域名上（`workers.dev` 在大陆常连不上），改 `site.js` 的 `accounts` / `neteaseWorker`。
+测试版仍在 `*.pages.dev`，不能和正式版同一个域名（CLAUDE.md 第 19 条）。
