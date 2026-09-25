@@ -203,7 +203,14 @@ await page.evaluate(async (o) => {
 // 会话页等页面落定之后才同步标识（晚 1.5 秒，见 Conversation 里那一段）
 await page.waitForTimeout(2200);
 const toast = await page.locator('.bd-toast').innerText().catch(() => '');
-ok('会话里解锁新一档：弹出解锁动画', /解锁/.test(toast) && /火焰/.test(toast), toast);
+// 消息是现在建的：半夜跑的话同一下还解锁了「夜猫子」，卡片上写「共 2 枚」、名字是先解锁的那一枚。
+// 所以名字从这一下解锁的清单里查，不从卡片上的字查
+const freshNames = await page.evaluate(async (o) => {
+  const b = (await import('/src/system/badges.js'));
+  return (b.fresh.get().items || []).filter(x => x.chatId === o.A).map(x => x.id);
+}, ids);
+ok('会话里解锁新一档：弹出解锁动画', /解锁/.test(toast)
+  && (/火焰/.test(toast) || freshNames.some(id => /streak-7/.test(id))), toast + JSON.stringify(freshNames));
 await page.screenshot({ path:`${OUT}/badges-toast.png` });
 
 // 菜单进标识页
