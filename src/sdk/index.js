@@ -10,6 +10,9 @@ import * as fullApi from '../system/fullscreen.js';
 import * as chatLookApi from '../system/chatlook.js';
 import * as remarkApi from '../system/remark.js';
 import * as recallApi from '../system/recall.js';
+import * as closetApi from '../system/closet.js';
+import * as closetKinds from '../system/closet-kinds.js';
+import * as closetTask from '../system/ai/tasks/closet.js';
 import { isTest } from '../system/channel.js';
 import * as fontsApi from '../system/fonts.js';
 import * as clockApi from '../system/time.js';
@@ -371,6 +374,9 @@ export const phone = {
 
   // 撤回：消息与角色的动态（见 system/recall.js）
   recall: recallApi,
+
+  // 衣帽间：数据与估算、分类表、识图与生图（见 system/closet.js）
+  closet: { ...closetApi, kinds: closetKinds, ai: closetTask },
 
   // 聊天背景与上下栏样式（存在会话记录上）
   chatLook: chatLookApi,

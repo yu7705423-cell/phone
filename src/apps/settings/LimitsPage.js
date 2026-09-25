@@ -275,6 +275,13 @@ export function LimitsPage() {
             onChange=${v => set({ momentsCount: v })}/>
         <//>
 
+        <${Field} label="聊到穿搭时，衣帽间每类带几件"
+          desc="聊到穿搭、化妆时，把衣帽间的清单按大类带给角色，每个大类最多这么多件，按最近穿过、最近添加排在前面。
+            只带名字与分类，不带描述全文。填 0 表示全部带上。">
+          <${NumberInput} value=${s.closetListMax ?? 8} unit="件" placeholder="全部"
+            onChange=${v => set({ closetListMax: v })}/>
+        <//>
+
         <${Field} label="线下带上手机里最近几条"
           desc="线下的每次请求带上这段会话里最近这么多条消息的原文。
             气泡很短，二十条也只有几百字，所以带的是原文而不是摘要。

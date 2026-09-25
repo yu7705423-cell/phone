@@ -3148,3 +3148,118 @@ button.conv-notice { background: none; border: 0; font: inherit; cursor: pointer
 .icon-switch { display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-3) 0; }
 .icon-switch-text { flex: 1; min-width: 0; }
 .icon-switch-text .field-desc { margin-top: 2px; }
+
+/* ---- 衣帽间（apps/closet，ARCHITECTURE 4.213） ---- */
+.cl-owners { display: flex; gap: var(--sp-2); overflow-x: auto; padding: var(--sp-3) var(--sp-4) var(--sp-2); }
+.cl-owners::-webkit-scrollbar { display: none; }
+.cl-owner {
+  flex: none; display: flex; align-items: center; gap: var(--sp-2);
+  padding: 4px var(--sp-3) 4px 4px; border-radius: var(--r-full);
+  background: var(--surface-2); font-size: var(--fs-13); color: var(--text-2);
+}
+.cl-owner.is-active { background: var(--accent); color: var(--on-accent); }
+
+.cl-strip {
+  margin: var(--sp-3) var(--sp-4) 0; padding: var(--sp-3); border-radius: var(--r-lg);
+  background: var(--surface); box-shadow: var(--shadow-1);
+}
+.cl-strip.is-warn { background: var(--danger-weak); box-shadow: none; }
+.cl-strip-head { display: flex; align-items: center; justify-content: space-between; font-size: var(--fs-14); }
+.cl-strip-row { display: flex; gap: var(--sp-2); overflow-x: auto; margin-top: var(--sp-2); }
+.cl-strip-row::-webkit-scrollbar { display: none; }
+.cl-strip-item { flex: none; width: 64px; display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-11); color: var(--text-2); }
+.cl-strip-empty { margin-top: var(--sp-2); font-size: var(--fs-12); color: var(--text-3); line-height: 1.6; }
+.cl-alert { width: 100%; display: flex; align-items: baseline; gap: var(--sp-2); padding: var(--sp-2) 0 0; font-size: var(--fs-13); text-align: left; }
+.cl-alert span { flex: 1; min-width: 0; }
+.cl-alert em { flex: none; font-style: normal; font-size: var(--fs-12); color: var(--danger); }
+
+.cl-unsorted {
+  display: flex; align-items: center; gap: var(--sp-2); width: calc(100% - var(--sp-8));
+  margin: var(--sp-3) var(--sp-4) 0; padding: var(--sp-3); border-radius: var(--r-lg);
+  border: 1px dashed var(--border-2); font-size: var(--fs-13); text-align: left;
+}
+.cl-unsorted em { margin-left: auto; font-style: normal; font-size: var(--fs-12); color: var(--text-3); }
+
+/* 三列：九个大类一屏看全，这是「总览」这一层的意义 */
+.cl-groups { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-2); padding: var(--sp-3) var(--sp-4); }
+.cl-group { display: flex; flex-direction: column; gap: var(--sp-2); padding: var(--sp-2); border-radius: var(--r-lg); background: var(--surface); box-shadow: var(--shadow-1); text-align: left; }
+.cl-group.is-empty { opacity: .6; }
+/* 大类卡片上拼几张：一件铺满，两件左右各半，三四件四宫格 */
+.cl-mosaic {
+  display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 2px;
+  aspect-ratio: 1; border-radius: var(--r-md); overflow: hidden; background: var(--surface-2); position: relative;
+}
+.cl-mosaic .cl-thumb, .cl-mosaic .cl-blank { border-radius: 0; aspect-ratio: auto; height: 100%; box-shadow: none; }
+.cl-mosaic.n1 > * { grid-column: 1 / -1; grid-row: 1 / -1; }
+.cl-mosaic.n2 > * { grid-row: 1 / -1; }
+.cl-mosaic-empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--text-3); }
+.cl-group-foot { display: flex; align-items: baseline; justify-content: space-between; padding: 0 var(--sp-1); font-size: var(--fs-13); }
+.cl-group-foot span { font-size: var(--fs-12); color: var(--text-3); }
+.cl-all {
+  display: flex; align-items: center; justify-content: space-between; width: calc(100% - var(--sp-8));
+  margin: 0 var(--sp-4) var(--sp-4); padding: var(--sp-3); border-radius: var(--r-lg);
+  background: var(--surface); font-size: var(--fs-14);
+}
+
+.cl-thumb, .cl-blank { width: 100%; aspect-ratio: 1; border-radius: var(--r-md); }
+.cl-thumb { background: var(--img) center / cover no-repeat, var(--surface-2); }
+.cl-blank { background: var(--sw, var(--surface-2)); box-shadow: inset 0 0 0 1px var(--border); }
+.cl-blank.is-empty { display: flex; align-items: center; justify-content: center; color: var(--text-3); }
+.cl-photo { margin: var(--sp-3) var(--sp-4); aspect-ratio: 1; border-radius: var(--r-lg); background: var(--img) center / contain no-repeat, var(--surface-2); overflow: hidden; }
+.cl-photo.is-blank .cl-blank { height: 100%; border-radius: 0; }
+
+.cl-subs { display: flex; gap: var(--sp-2); overflow-x: auto; padding: var(--sp-3) var(--sp-4) 0; }
+.cl-subs::-webkit-scrollbar { display: none; }
+.cl-subs .chip { flex: none; }
+.cl-search { padding-top: var(--sp-3); padding-bottom: var(--sp-2); }
+
+.cl-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-3); padding: var(--sp-3) var(--sp-4) var(--sp-5); }
+.cl-card { position: relative; display: flex; flex-direction: column; gap: 4px; min-width: 0; text-align: left; }
+.cl-card.is-gone { opacity: .45; }
+.cl-card-name { font-size: var(--fs-12); color: var(--text); }
+.cl-card-marks { position: absolute; top: 4px; right: 4px; display: flex; gap: 3px; }
+.cl-mark {
+  width: 18px; height: 18px; border-radius: var(--r-full); display: flex; align-items: center; justify-content: center;
+  background: var(--surface); color: var(--text-2); box-shadow: var(--shadow-1);
+}
+.cl-mark.is-on { background: var(--accent); color: var(--on-accent); }
+.cl-mark.is-warn { color: var(--danger); }
+.cl-meter { height: 3px; border-radius: var(--r-full); background: var(--surface-3); overflow: hidden; }
+.cl-meter i { display: block; height: 100%; width: var(--pct, 0%); background: var(--accent); }
+.cl-meter.is-big { height: 6px; margin-bottom: var(--sp-2); }
+
+.cl-sw { display: inline-block; flex: none; width: 12px; height: 12px; border-radius: var(--r-full); background: var(--sw); border: 1px solid var(--border); margin-right: 4px; vertical-align: -1px; }
+.cl-filter-label { padding: var(--sp-3) 0 0; font-size: var(--fs-12); color: var(--text-3); }
+.cl-switch-row { display: flex; align-items: center; justify-content: space-between; padding: var(--sp-4) 0 var(--sp-2); font-size: var(--fs-14); }
+
+.cl-acts { display: flex; flex-wrap: wrap; gap: var(--sp-2); padding: 0 var(--sp-4) var(--sp-2); }
+/* 单品页的表单。Field 自己不带左右留白，整段收在这里 */
+.cl-form { padding: 0 var(--sp-4); }
+.cl-form .cl-readout { margin: 0 0 var(--sp-3); }
+.cl-row-btn { padding: 0 0 var(--sp-3); }
+.cl-section { padding: var(--sp-5) 0 var(--sp-1); font-size: var(--fs-12); color: var(--text-3); letter-spacing: .5px; }
+.cl-inline { display: flex; align-items: center; gap: var(--sp-3); }
+.cl-inline .segmented { flex: 1; }
+.cl-readout { margin: 0 var(--sp-4) var(--sp-3); padding: var(--sp-3); border-radius: var(--r-md); background: var(--surface-2); font-size: var(--fs-13); line-height: 1.6; }
+
+.cl-add-ways { display: flex; flex-direction: column; gap: var(--sp-3); }
+.cl-add-way {
+  display: grid; grid-template-columns: auto 1fr; column-gap: var(--sp-3); row-gap: 2px; align-items: center;
+  padding: var(--sp-4); border-radius: var(--r-lg); background: var(--surface-2); text-align: left;
+}
+.cl-add-way svg { grid-row: span 2; }
+.cl-add-way b { font-size: var(--fs-15); font-weight: var(--fw-medium); }
+.cl-add-way span { font-size: var(--fs-12); color: var(--text-3); line-height: 1.5; }
+
+.cl-today-group { padding-bottom: var(--sp-2); }
+.cl-today-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--sp-2); margin-top: var(--sp-2); }
+.cl-today-pick { position: relative; display: flex; flex-direction: column; gap: 3px; min-width: 0; font-size: var(--fs-11); color: var(--text-2); }
+.cl-today-pick.is-on .cl-thumb, .cl-today-pick.is-on .cl-blank { outline: 2px solid var(--accent); outline-offset: -2px; }
+.cl-tick {
+  position: absolute; top: 4px; right: 4px; width: 18px; height: 18px; border-radius: var(--r-full);
+  display: flex; align-items: center; justify-content: center; background: var(--accent); color: var(--on-accent);
+}
+.cl-sub-edit { display: flex; flex-wrap: wrap; gap: var(--sp-2); padding: 0 var(--sp-4) var(--sp-3); }
+.cl-sub-edit .chip { display: inline-flex; align-items: center; gap: 4px; }
+/* 礼物气泡上的「收进衣帽间」（TransferBits.js 的 GiftBubble） */
+.gift-closet { margin-left: var(--sp-2); font-size: var(--fs-11); color: inherit; text-decoration: underline; text-underline-offset: 2px; }

@@ -25,6 +25,15 @@ export const DEFAULT_SETTINGS = {
   iconLabels: true,               // 图标下的名称
   iconLabelColor: '',             // 图标名称的颜色，空着为自动
   iconTrim: true,                 // 上传图标图片时裁掉四周的透明边
+  // 衣帽间（system/closet.js）
+  closetSubs: {},                 // 自己加的小类 { 大类 id: [名字] }
+  closetHidden: [],               // 隐藏的大类
+  closetOwner: 'me',              // 衣帽间正在看谁的
+  closetSide: 'wear',             // 衣橱 / 妆台
+  closetListMax: 8,               // 聊到穿搭时给角色的清单，每个大类几件（0 为全部）
+  closetLowPct: 15,               // 余量低于百分之几算快用完
+  closetExpireWarn: 30,           // 离过期还有几天算快过期
+  closetAlertCooldown: 30,        // 同一件东西两次告诉角色之间至少隔几天
   bottomLift: 0,                  // 底部整体上移的像素，见 styles/tokens.css
   fonts: [],                      // 自己传的字体，见 system/fonts.js
   fontBody: '',                   // 正文用哪一个，空 = 系统默认

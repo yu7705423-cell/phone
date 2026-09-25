@@ -95,6 +95,8 @@ const LABELS = {
   'task.moment-create': '任务 · 发朋友圈',
   'task.moment-song': '任务 · 动态附带歌曲',
   'task.moment-recall': '任务 · 回复评论后撤回动态',
+  'task.closet-vision': '任务 · 衣帽间识图',
+  'task.closet-image': '任务 · 衣帽间按描述生图',
   'task.moment-comment': '任务 · 评论动态',
   'task.moment-reply': '任务 · 回复评论',
   'task.scenario-seeds': '任务 · 生成近况',

@@ -152,6 +152,7 @@ export function TransferSheet({ open, chatId, onClose }) {
 
 // 礼物气泡。**拆开之前只写封面**，里面装什么一个字都不露 —— 界面上不露，
 // 上下文里也不露（见 system/gift.js）。
+// 拆开之后多一个「收进衣帽间」：角色送的收进我的，我送的收进角色的（system/closet.js 的 fromGift）
 export function GiftBubble({ msg, onOpen }) {
   const pending = msg.gift === gift.PENDING;
   const opened = msg.gift === gift.OPENED;
@@ -169,6 +170,11 @@ export function GiftBubble({ msg, onOpen }) {
       </div>
       <div class="tr-foot">
         ${gift.stateLabel(msg.gift)}${actionable ? ' · 点击拆开' : ''}
+        ${opened ? html`
+          <button class="gift-closet press" onClick=${e => {
+            e.stopPropagation();
+            phone.intent.open('closet', { route: `/gift/${msg.id}`, back: true });
+          }}>${phone.closet.giftItem(msg.id) ? '在衣帽间中查看' : '收进衣帽间'}</button>` : null}
       </div>
     </div>`;
 }

@@ -1,6 +1,6 @@
 import { characters, lorebooks, memories, chats, messages, messagesOf, images, files,
          scenes, beats, trips, spaceItems, skins, days, meals, health, phones, phoneChats,
-         moments, reviews, readnotes, todos, ebooks, videos, works, chapters, playlists, songs } from './db/index.js';
+         moments, reviews, readnotes, todos, ebooks, videos, works, chapters, playlists, songs, closet } from './db/index.js';
 import { DATA_VERSION } from './db/schema.js';
 import * as accounts from './accounts.js';
 import { uid } from './store.js';
@@ -73,6 +73,8 @@ export function collect(charId, { history = true } = {}) {
   const reviewRows = history ? reviews.where(r => castIds.has(r.charId)) : none;
   const noteRows = history ? readnotes.where(r => castIds.has(r.authorId)) : none;
   const todoRows = history ? todos.where(t => castIds.has(t.charId)) : none;
+  // 角色自己的衣帽间。算角色的一部分（和形象照一样），不看要不要带聊天记录
+  const closetRows = cast.flatMap(c => closet.byIndex(c.id));
   // 角色自己的歌单，以及歌单里、会话里分享过的、动态里带的那几首（曲库里那一行，音频与封面另算）
   const listRows = history ? playlists.where(p => castIds.has(p.owner)) : none;
   const songIds = new Set(listRows.flatMap(p => p.trackIds || []));
@@ -100,6 +102,7 @@ export function collect(charId, { history = true } = {}) {
     if (m.kind === 'call') (m.callLog || []).forEach(l => (l?.audio || []).forEach(id => id && fileIds.add(id)));
   });
   momentRows.forEach(m => (m.images || []).forEach(id => id && imgIds.add(id)));
+  closetRows.forEach(r => r.imageId && imgIds.add(r.imageId));
   // 会话自己换的聊天背景（chatlook.js）
   chatRows.forEach(c => c.look?.bg && imgIds.add(c.look.bg));
   songRows.forEach(x => { if (x.coverId) imgIds.add(x.coverId); if (x.audioId) fileIds.add(x.audioId); });
@@ -117,7 +120,7 @@ export function collect(charId, { history = true } = {}) {
     days: dayRows, meals: mealRows, health: healthRows,
     phones: phoneRows, phoneChats: phoneChatRows,
     moments: momentRows, reviews: reviewRows, readnotes: noteRows, todos: todoRows,
-    playlists: listRows, songs: songRows,
+    playlists: listRows, songs: songRows, closet: closetRows,
     imgIds: [...imgIds].filter(id => images.has(id)),
     fileIds: [...fileIds].filter(id => files.info(id)),
   };
@@ -138,7 +141,7 @@ export function estimate(charId, opts) {
     chapters: g.chapters.length,
     extras: g.trips.length + g.spaceItems.length + g.days.length + g.meals.length
       + g.health.length + g.phones.length + g.phoneChats.length + g.moments.length
-      + g.reviews.length + g.readnotes.length + g.todos.length + g.playlists.length,
+      + g.reviews.length + g.readnotes.length + g.todos.length + g.playlists.length + g.closet.length,
     skins: g.skins.length,
     images: g.imgIds.length,
     files: g.fileIds.length,
@@ -178,6 +181,7 @@ export async function build(charId, { history = true, onProgress } = {}) {
     todos: g.todos,
     playlists: g.playlists,
     songs: g.songs,
+    closet: g.closet,
   };
 
   const entries = [{ name: 'character.json', text: JSON.stringify(data) }];
@@ -202,7 +206,7 @@ export const fileNameFor = name =>
 
 // 除会话、消息、记忆、线下、美化之外，跟着角色走的那几域。界面上报一个总数
 const EXTRA_KINDS = ['trips', 'spaceItems', 'days', 'meals', 'health',
-  'phones', 'phoneChats', 'moments', 'reviews', 'readnotes', 'todos', 'playlists'];
+  'phones', 'phoneChats', 'moments', 'reviews', 'readnotes', 'todos', 'playlists', 'closet'];
 
 /**
  * 读一个包出来先看看，**不动库**。界面照着它写确认框，确认了再 install。
@@ -389,6 +393,7 @@ export async function install(pack) {
   byChar(data.meals, meals, 'ml', 'charId');
   byChar(data.health, health, 'hl', 'who');
   byChar(data.phones, phones, 'ph', 'charId');
+  byChar(data.closet, closet, 'cl', 'owner');
 
   (data.phoneChats || []).forEach(r => {
     if (!r || !mine.has(r.charId)) return;

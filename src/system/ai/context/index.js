@@ -14,6 +14,7 @@ import * as bridgeBlock from './bridge.js';
 import * as planBlock from './plan.js';
 import * as badgesBlock from './badges.js';
 import * as momentsBlock from './moments.js';
+import * as closetBlock from './closet.js';
 
 export const BLOCKS = {
   character,
@@ -48,9 +49,11 @@ export const BLOCKS = {
   badges: { meta: badgesBlock.meta, build: badgesBlock.build },
   // 用户自己发的朋友圈。从前角色一条都看不到
   moments: { meta: momentsBlock.meta, build: momentsBlock.build },
+  // 衣帽间：今天穿的、聊到穿搭时的清单、隔很久才出现一次的快用完
+  closet: { meta: closetBlock.meta, build: closetBlock.build },
 };
 
-export const DEFAULT_ORDER = ['lorebook', 'bond', 'pinned', 'recent', 'character', 'loreAfter', 'user', 'time', 'day', 'avatar', 'geo', 'music', 'watch', 'trip', 'bill', 'health', 'memory', 'space', 'plan', 'moments', 'bridge', 'badges'];
+export const DEFAULT_ORDER = ['lorebook', 'bond', 'pinned', 'recent', 'character', 'loreAfter', 'user', 'time', 'day', 'avatar', 'geo', 'music', 'watch', 'trip', 'bill', 'health', 'closet', 'memory', 'space', 'plan', 'moments', 'bridge', 'badges'];
 
 // 读出一份干净的顺序:丢掉不认识的 id,补上配置里缺失的。
 // 没有这一步,以后每新增一个区块,老用户配置里就少一项,该区块永远不注入,
@@ -93,6 +96,7 @@ export const VOLATILE = new Set([
   'plan',     // 勾掉一条就少一条，到点了措辞也变
   'badges',   // 每天都在变，解锁了就多一行
   'moments',  // 「多久以前」每天都在变，发一条、评一句也变
+  'closet',   // 今天穿的每天换；清单随聊的话题出现、消失
   'recent',   // 一提取就换一批，而且「多久以前」每天都在变
 ]);
 

@@ -45,6 +45,8 @@ const ROUTES = {
     '/reviews/book/:ebook', '/reviews/video/:video', '/para/book/:ebook/0', '/para/video/:video/1'],
   album: ['/', '/album/:alb', '/photo/:pho', '/photo/:card'],
   health: ['/', '/log', '/cycle', '/meds', '/settings', '/char/:char'],
+  closet: ['/', '/all', '/unsorted', '/settings', '/g/top', '/g/base', '/g/nope',
+    '/item/:clWear', '/item/:clBeauty', '/item/nope', '/gift/:giftMsg', '/gift/nope'],
   todo: ['/', '/detect', '/alarm', '/notes'],
   skin: ['/', '/one/:skin', '/one/nope', '/contract', '/gen/:skin', '/gen/nope', '/size/:skin', '/size/nope', '/css/:skin', '/css/nope'],
   us: ['/', `/chat/:chat`, '/work/:work', '/work/:work/edit', '/work/nope',
@@ -251,11 +253,20 @@ const ids = await page.evaluate(async () => {
   db.messages.create({ chatId: grpRow.id, role: 'char', authorId: b.id, kind: 'text',
     content: '我也在。', status: 'done' });
 
+  // 衣帽间：一件衣服、一件化妆品（填了容量与日期，余量与保质期都算得出）、一件没分类的
+  const cl = await import('/src/system/closet.js');
+  const clWear = cl.create({ group: 'top', sub: '针织 / 毛衣', name: '白色针织衫', colors: ['white'], seasons: ['autumn'] });
+  cl.wear(clWear.id, true);
+  const clBeauty = cl.create({ group: 'base', sub: '粉底', name: '粉底液', capacity: 30, perDay: 1,
+    openedAt: '2026-01-01', buyAt: '2025-12-20' });
+  cl.create({ side: 'wear', name: '' });
+  cl.create({ owner: a.id, group: 'outer', sub: '大衣', name: '灰色大衣' });
+  const giftMsg = db.messages.all().find(m => m.kind === 'gift');
   const skinRow = (await import('/src/system/skin.js')).create({ name: '样例美化',
     tokens: { bubbleR: 18 }, shape: 'round', css: '.bubble{opacity:.95}' });
   return { char: a.id, chat: chat.id, mem: mem.id, work: wkRow.id, chapter: cpRow.id, persona: me.id, book: bk.id, ebook: ebk.id, video: vid.id, lore: lore.id,
     alb: book1.id, pho: pho.id, card: cardPhoto.id, trip: trRow.id, scene: scRow.id,
-    skin: skinRow.id, group: grpRow.id };
+    skin: skinRow.id, group: grpRow.id, clWear: clWear.id, clBeauty: clBeauty.id, giftMsg: giftMsg ? giftMsg.id : 'nope' };
 });
 await page.waitForTimeout(400);
 

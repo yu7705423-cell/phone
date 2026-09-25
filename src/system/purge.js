@@ -1,7 +1,7 @@
 import { chats, characters, memories, messages, messagesOf, moments, personas, stickers,
          settings, layout, images, files, videos, songs, ebooks, phones, photos,
          spaceItems, scenes, beats, readnotes, trips, days, meals, health, reviews, todos,
-         phoneChats, works, chapters, playlists } from './db/index.js';
+         phoneChats, works, chapters, playlists, closet } from './db/index.js';
 import { allImageIds, configStrings } from './looks.js';
 import { forget as forgetSnap } from './ai/tasks/snap.js';
 
@@ -142,7 +142,11 @@ export function dropCharacter(charId) {
   readnotes.removeWhere(r => r.authorId === charId);
   // 角色自己建的歌单。歌本身留在曲库里 —— 那是曲库的东西，别人的歌单也可能放着它
   playlists.removeWhere(p => p.owner === charId);
+  // 角色的衣帽间。我这边收着的它送的东西不动 —— 那是我的
+  const wardrobe = closet.byIndex(charId).slice();
+  wardrobe.forEach(r => closet.remove(r.id));
   const imgs = [c.avatar, c.cover, c.faceImage, c.callImage, c.portrait, c.avatarBase,
+    ...wardrobe.map(r => r.imageId),
     ...(c.avatarPool || []).map(x => x?.imageId),
     ...(c.shelf || []).map(it => it?.cover)];
   phones.byIndex(charId).slice().forEach(row => {
@@ -200,6 +204,7 @@ export function usedImageIds() {
     (p.highlights || []).forEach(h => add(h?.imageId));
   });
   stickers.all().forEach(st => add(st.imageId));
+  closet.all().forEach(r => add(r.imageId));
   // 群头像（自己上传的那张）、会话自己换的聊天背景（chatlook.js）
   chats.all().forEach(c => { add(c.avatar); add(c.look?.bg); });
 

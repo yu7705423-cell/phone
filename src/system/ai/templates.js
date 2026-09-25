@@ -1646,6 +1646,28 @@ has happened recently.
 To attach one song to the post, add a "song" field to the JSON, written as
 "song title - artist". Without a song, write "song":null.`,
 
+  // 衣帽间：看一件东西的照片，填分类与标签（ai/tasks/closet.js）
+  'task.closet-vision':
+`Identify the single item in this photo, for a personal wardrobe and dressing-table
+record.
+
+Categories (id: name — subcategories):
+{{groups}}
+
+Colour ids: {{colors}}
+Season ids: {{seasons}}
+Occasion ids: {{occasions}}
+
+Output JSON only:
+{"group":"a category id from the list","sub":"one subcategory name from that category, copied exactly","name":"a short name for the item","colors":["colour ids"],"seasons":["season ids, clothing only"],"occasions":["occasion ids, clothing only"],"shade":"the shade name for makeup, otherwise empty","desc":"one or two sentences on material, cut, colour and details"}
+
+Write "name" and "desc" in the same language as the category names above.`,
+
+  // 衣帽间：按描述画一件东西（ai/tasks/closet.js）
+  'task.closet-image':
+`A clean product photo of a single item: {{desc}}. Centred on a plain light
+background, soft even lighting, no people, no text.`,
+
   // 只在该角色开着「撤回」时接在 task.moment-reply 后面
   'task.moment-recall':
 `## Taking the post down

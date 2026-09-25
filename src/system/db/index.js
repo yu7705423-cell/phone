@@ -69,8 +69,10 @@ export const skins      = makeCollection('skins', 'sk');
 // 正文本身仍然是 beats —— 和线下同一个域、同一套函数，见 ARCHITECTURE 4.117
 export const works      = makeCollection('works', 'wk', { indexBy: 'chatId' });
 export const chapters   = makeCollection('chapters', 'cp', { indexBy: 'workId' });
+// 衣帽间：衣橱与妆台里的每一件。'me' 是自己，别的是角色 id（见 system/closet.js）
+export const closet     = makeCollection('closet', 'cl', { indexBy: 'owner' });
 
-const COLLECTIONS = { characters, lorebooks, memories, chats, messages, moments, stickers, looks, personas, songs, playlists, videos, spaceItems, events, days, todos, notes, recipes, meals, books, entries, ebooks, reviews, readnotes, health, cycles, meds, albums, photos, shots, phones, phoneChats, trips, scenes, beats, skins, works, chapters };
+const COLLECTIONS = { characters, lorebooks, memories, chats, messages, moments, stickers, looks, personas, songs, playlists, videos, spaceItems, events, days, todos, notes, recipes, meals, books, entries, ebooks, reviews, readnotes, health, cycles, meds, albums, photos, shots, phones, phoneChats, trips, scenes, beats, skins, works, chapters, closet };
 
 // ---- kv: settings / persona / layout ----
 function makeKV(key, fallback, { deep = false } = {}) {
@@ -179,7 +181,7 @@ export const db = {
   characters, lorebooks, memories, chats, messages, moments, stickers, looks, personas,
   songs, playlists, videos, spaceItems, events, days, todos, notes, recipes, meals,
   books, entries, ebooks, reviews, readnotes, health, cycles, meds,
-  albums, photos, shots, phones, phoneChats, trips, scenes, beats, skins, works, chapters,
+  albums, photos, shots, phones, phoneChats, trips, scenes, beats, skins, works, chapters, closet,
   images, files, settings, persona, layout,
   messagesOf, lastMessageOf, ready,
 };
