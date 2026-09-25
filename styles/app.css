@@ -3143,3 +3143,8 @@ button.conv-notice { background: none; border: 0; font: inherit; cursor: pointer
 .mo-recalled .mo-card { border-bottom: none; }
 .mo-card.is-gone { opacity: .6; }
 .mo-gone-note { padding: var(--sp-2) var(--sp-4); font-size: var(--fs-12); color: var(--text-3); }
+
+/* 换图标那张表里的两个开关（ui/iconpicker.js） */
+.icon-switch { display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-3) 0; }
+.icon-switch-text { flex: 1; min-width: 0; }
+.icon-switch-text .field-desc { margin-top: 2px; }

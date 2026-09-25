@@ -46,7 +46,7 @@ export function BatchIcons({ open, onClose }) {
       for (let i = 0; i < n; i++) {
         const appId = picked[i];
         const old = next[appId]?.imageId;
-        const imageId = await db.images.putIcon(files[i], ICON_MAX, { trim: true });
+        const imageId = await db.images.putIcon(files[i], ICON_MAX, { trim: db.settings.get().iconTrim !== false });
         if (old) db.images.remove(old);
         next[appId] = { ...(next[appId] || {}), imageId };
       }

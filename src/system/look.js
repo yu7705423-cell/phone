@@ -14,6 +14,7 @@ export function appLook(appId) {
     name: custom.name || app.name,
     imageId: custom.imageId || null,     // 自定义图片，有则盖过 SVG
     scale: custom.scale || 0,            // 图片在格子里占多大（百分数），0 为整格
+    bare: custom.bare === true,          // 不要底板：异形图标只剩图片本身
   };
 }
 
@@ -84,9 +85,14 @@ export function resetAppIcon(appId) {
   settings.replace({ ...s, appIcons: all });
 }
 
-// 存之前先裁掉四周的透明边（images.compressFit 的 trim）
+// 上传时裁不裁四周的透明边。默认裁；想保留留白的在换图标那张表里关掉。
+// 自己主屏、角色手机的图标、批量更换都照这一项（全局一项，不按图标分）
+export const autoTrim = () => settings.get().iconTrim !== false;
+export const setAutoTrim = on => settings.set({ iconTrim: !!on });
+
+// 存之前先裁掉四周的透明边（images.compressFit 的 trim），关了就整张原样放
 export async function setAppIconFile(appId, file) {
-  const id = await images.putIcon(file, ICON_MAX, { trim: true });
+  const id = await images.putIcon(file, ICON_MAX, { trim: autoTrim() });
   const old = iconOverride(appId).imageId;
   if (old) images.remove(old);
   setAppIcon(appId, { imageId: id });

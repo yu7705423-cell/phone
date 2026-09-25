@@ -2,7 +2,7 @@ import { html, useRef, useState } from '../lib.js';
 import { Icon } from '../icons/Icon.js';
 import { ICON_NAMES } from '../icons/paths.js';
 import { Sheet, prompt, toast } from './overlay.js';
-import { Button, Field, Input, Slider } from './basic.js';
+import { Button, Field, Input, Slider, Switch } from './basic.js';
 
 // 改一个 app 的图标与名称。
 //
@@ -18,6 +18,8 @@ import { Button, Field, Input, Slider } from './basic.js';
 // service.clearImage(appId)      去掉图片，改回线条图标
 // service.trim(appId)            可选。已存的那张裁掉四周的透明边
 // service.scale(appId, pct)      可选。图片在格子里占多大；scaleRange 给上下限
+// service.bare                   可选，true 时给「显示底板」开关（存在 override 的 bare 上）
+// service.autoTrim() / setAutoTrim(on)  可选。上传时裁不裁透明边（全局一项）
 export function IconPicker({ appId, app, preview, service, maxEdge = 256, onClose }) {
   const fileRef = useRef(null);
   const [busy, setBusy] = useState(false);
@@ -66,9 +68,11 @@ export function IconPicker({ appId, app, preview, service, maxEdge = 256, onClos
       <//>
 
       <${Field} label="更换为图片"
-        desc=${`四周的透明边自动裁掉，其余部分完整缩放至 ${maxEdge} x ${maxEdge}，保存在本地。`}>
+        desc=${service.autoTrim && !service.autoTrim()
+          ? `整图完整缩放至 ${maxEdge} x ${maxEdge}，四周的透明区域原样保留，保存在本地。`
+          : `四周的透明边自动裁掉，其余部分完整缩放至 ${maxEdge} x ${maxEdge}，保存在本地。`}>
         <div class="icon-upload">
-          <div class=${`app-tile app-tile-preview${preview ? ' has-image' : ''}`}
+          <div class=${`app-tile app-tile-preview${preview ? ' has-image' : ''}${preview && cur.bare ? ' is-bare' : ''}`}
             style=${preview ? `--tile-img:url(${preview});--tile-img-size:${scale}%` : ''}>
             ${preview ? null : html`<${Icon} name=${icon} size=${24}/>`}
           </div>
@@ -84,8 +88,24 @@ export function IconPicker({ appId, app, preview, service, maxEdge = 256, onClos
         </div>
         <input type="file" accept="image/*" ref=${fileRef} onChange=${pickFile} style="display:none"/>
       <//>
+      ${service.autoTrim ? html`
+        <div class="icon-switch">
+          <div class="icon-switch-text">
+            <div>上传时裁掉四周的透明边</div>
+            <div class="field-desc">对所有图标生效。关闭后，图片连同四周的透明区域原样放入，适合本身带留白的图标。已上传的图片不受影响。</div>
+          </div>
+          <${Switch} checked=${service.autoTrim()} onChange=${v => service.setAutoTrim(v)}/>
+        </div>` : null}
 
       ${cur.imageId ? html`
+        ${service.bare ? html`
+          <div class="icon-switch">
+            <div class="icon-switch-text">
+              <div>显示底板</div>
+              <div class="field-desc">图片后面那块圆角底板。异形图标关闭此项，只显示图片本身，不画底板、描边与阴影，也不切圆角。</div>
+            </div>
+            <${Switch} checked=${!cur.bare} onChange=${v => service.set(appId, { bare: !v })}/>
+          </div>` : null}
         ${service.scale ? html`
           <${Field} label=${`图片大小　${scale}%`}
             desc="图片在图标格子里占的比例。100% 为铺满格子，调大时超出格子的部分被裁掉。">

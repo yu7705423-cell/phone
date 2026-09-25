@@ -87,6 +87,48 @@ await page.waitForTimeout(300);
 ok('拖滑杆：存上这一项', await page.evaluate(async () => (await import('/src/system/look.js')).iconOverride('chat').scale) === 70);
 ok('预览那一格跟着变', await page.evaluate(() => getComputedStyle(document.querySelector('.sheet .app-tile-preview')).backgroundSize) === '70%');
 
+// ---- 异形图标：不要底板 ----
+ok('有「显示底板」开关，默认开着', await page.evaluate(async () => (await import('/src/system/look.js')).appLook('chat').bare) === false
+  && await page.locator('.sheet .icon-switch', { hasText: '显示底板' }).count() === 1);
+await page.evaluate(async () => (await import('/src/system/look.js')).setAppIcon('chat', { bare: true }));
+await page.waitForTimeout(300);
+ok('关掉底板：预览那一格只剩图片', await page.evaluate(() => {
+  const c = getComputedStyle(document.querySelector('.sheet .app-tile-preview'));
+  return c.backgroundColor === 'rgba(0, 0, 0, 0)' && c.boxShadow === 'none' && c.borderTopLeftRadius === '0px';
+}));
+await page.evaluate(async () => { const n = await import('/src/system/nav.js'); n.goHome(); });
+await page.waitForTimeout(700);
+const bare = await page.evaluate(() => {
+  const t = [...document.querySelectorAll('.app-tile.is-bare')];
+  return t.map(x => { const c = getComputedStyle(x); return [c.backgroundColor, c.boxShadow, c.borderTopLeftRadius]; });
+});
+ok('主屏那一格同样只剩图片', bare.length === 1 && bare[0][0] === 'rgba(0, 0, 0, 0)' && bare[0][1] === 'none' && bare[0][2] === '0px', JSON.stringify(bare));
+await page.evaluate(() => { document.documentElement.dataset.wallpaper = 'on'; document.documentElement.dataset.glass = 'on'; });
+await page.waitForTimeout(100);
+ok('有壁纸、开着毛玻璃时也不画底板', await page.evaluate(() => {
+  const c = getComputedStyle(document.querySelector('.app-tile.is-bare'));
+  return c.backgroundColor === 'rgba(0, 0, 0, 0)' && (c.backdropFilter === 'none' || !c.backdropFilter);
+}));
+ok('别的图标照旧有底板', await page.evaluate(() => {
+  const c = getComputedStyle(document.querySelector('.app-tile:not(.is-bare)'));
+  return c.backgroundColor !== 'rgba(0, 0, 0, 0)';
+}));
+await page.evaluate(() => { document.documentElement.dataset.wallpaper = 'off'; document.documentElement.dataset.glass = 'off'; });
+
+// ---- 上传时不裁透明边 ----
+const keep = await page.evaluate(async () => {
+  const look = await import('/src/system/look.js');
+  look.setAutoTrim(false);
+  const c = document.createElement('canvas'); c.width = 200; c.height = 200;
+  const g = c.getContext('2d'); g.fillStyle = '#3a3'; g.fillRect(70, 70, 60, 60);
+  const blob = await new Promise(r => c.toBlob(b => r(b), 'image/png'));
+  const id = await look.setAppIconFile('music', new File([blob], 'k.png', { type: 'image/png' }));
+  look.setAutoTrim(true);
+  return id;
+});
+cover = await coverOf(keep);
+ok('关掉「上传时裁掉透明边」：透明留白原样保留', cover < 0.4, cover);
+
 ok('全程没有运行时报错', errs.length === 0, errs.join(' | '));
 await browser.close();
 const bad = R.filter(x => !x.pass).length;

@@ -6,7 +6,7 @@ import { useImage } from '../../system/db/useImage.js';
 import { ICON_MAX } from '../../system/db/images.js';
 import { appLook, iconOverride, setAppIcon, resetAppIcon,
          setAppIconFile, setAppIconUrl, clearAppIconImage, trimAppIcon, setAppIconScale,
-         ICON_SCALE } from '../../system/look.js';
+         ICON_SCALE, autoTrim, setAutoTrim } from '../../system/look.js';
 
 const service = {
   override: iconOverride,
@@ -18,6 +18,8 @@ const service = {
   trim: trimAppIcon,
   scale: setAppIconScale,
   scaleRange: ICON_SCALE,
+  bare: true,
+  autoTrim, setAutoTrim,
 };
 
 // 主界面与文件夹里长按图标弹的就是它。设置 - 外观那一处用的是同一个组件。

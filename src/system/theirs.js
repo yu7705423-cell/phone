@@ -1,4 +1,4 @@
-import { phones, phoneChats, images, characters } from './db/index.js';
+import { phones, phoneChats, images, characters, settings } from './db/index.js';
 import { ICON_MAX, PHOTO_MAX } from './db/images.js';
 
 // 角色手机的数据层。
@@ -281,7 +281,7 @@ export function resetIcon(charId, appId) {
 
 // 和自己主屏的图标一样，先裁掉四周的透明边（images.compressFit 的 trim）
 export async function setIconFile(charId, appId, file) {
-  const id = await images.putIcon(file, ICON_MAX, { trim: true });
+  const id = await images.putIcon(file, ICON_MAX, { trim: settings.get().iconTrim !== false });
   const old = iconOf(charId, appId).imageId;
   if (old) images.remove(old);
   setIcon(charId, appId, { imageId: id });

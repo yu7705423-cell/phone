@@ -96,6 +96,13 @@
   background-image: var(--tile-img, none);
   background-size: var(--tile-img-size, contain); background-position: center; background-repeat: no-repeat;
 }
+/* 异形图标：不要底板（换图标那张表里「显示底板」关掉）。只剩图片本身 ——
+   底色、描边、阴影、毛玻璃、圆角一概去掉。描边只改成透明不去掉，格子大小不变。
+   前面挂 :root 是为了压过有壁纸、毛玻璃那两条 */
+:root .app-tile.has-image.is-bare {
+  background-color: transparent; border-color: transparent; box-shadow: none; border-radius: 0;
+  backdrop-filter: none; -webkit-backdrop-filter: none;
+}
 .app-name {
   font-size: var(--fs-11); color: var(--ph-tile-name-color, var(--text-2)); max-width: 100%;
   text-align: center; line-height: 1.2;
