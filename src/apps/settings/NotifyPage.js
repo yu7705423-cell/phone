@@ -213,6 +213,7 @@ export function NotifyPage() {
               + '接口密钥与该段对话的上下文会加密后交给推送服务器保存，到时间后用于调用模型。关闭后，服务器上的任务与本机登记一并删除。'}
             right=${html`<${Switch} checked=${bg.on === true} disabled=${busy || !bgpush.serverOk()} onChange=${toggleBg}/>`}/>
         <//>
+        ${bg.on && bgpush.problem() ? html`<div class="settings-foot is-error">${bgpush.problem()}</div>` : null}
         ${bg.on ? html`
           <div class="pad-x">
             <${Field} label="每个角色离开期间最多发几次"

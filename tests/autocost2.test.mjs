@@ -353,6 +353,27 @@ const rr = await ev(async o => {
 const rerankN = await n('重排');
 ok('重排：一轮最多一次，失败不重试', rr && rerankN <= 1, `打出去 ${rerankN} 次`);
 
+// ---- 更新当天：旧版本今天已经跑过（新加的 localStorage 记号还是空的），新版本不再跑 ----
+const before = { day: await n('当日日程'), health: await n('角色身体状态'), closet: await n('角色每日穿搭') };
+await ev(async o => {
+  const { db } = await import('/src/system/db/index.js');
+  const store = await import('/src/system/day.js');
+  const hs = await import('/src/system/health.js');
+  const cl = await import('/src/system/closet.js');
+  localStorage.removeItem('phone.daily.tried');
+  const c = db.characters.create({ name: '旧版本跑过的', dayOn: true, healthAuto: true, closetDaily: true });
+  cl.create({ owner: c.id, group: 'top', sub: 'T 恤', name: '灰色 T 恤' });
+  // 旧版本今天留下的：日程那条记录、身体状态与穿搭的日期标记
+  store.save(c.id, { date: store.dateKey(c), items: [], planFailed: '旧版本失败' });
+  db.characters.update(c.id, { healthAutoAt: hs.dateKey(), healthAutoError: '旧版本失败', closetDailyAt: cl.today(), closetDailyError: '旧版本失败' });
+  await (await import('/src/system/ai/tasks/day.js')).ensureToday(c.id);
+  await (await import('/src/system/ai/tasks/health.js')).ensureToday(c.id);
+  await (await import('/src/system/ai/tasks/closet.js')).ensureDaily(c.id);
+}, {});
+await wait(1000);
+const after = { day: await n('当日日程'), health: await n('角色身体状态'), closet: await n('角色每日穿搭') };
+ok('更新当天：旧版本今天已经试过的，新版本不再自动试', JSON.stringify(before) === JSON.stringify(after), `${JSON.stringify(before)} -> ${JSON.stringify(after)}`);
+
 ok('全程没有运行时报错', errs.length === 0, errs.join(' | '));
 await browser.close();
 const fails = R.filter(x => !x.pass).length;

@@ -345,6 +345,9 @@ let closetMod = null;
 import('./tasks/closet.js').then(m => { closetMod = m; }).catch(() => {});
 let dailyMod = null;
 import('./daily.js').then(m => { dailyMod = m; }).catch(() => {});
+// 后台消息开着时，主动消息由服务器与本机分着发（见 bgpush.holdsProactive）。bgpush 反过来要用本文件，只在运行时去问
+let bgMod = null;
+import('../bgpush.js').then(m => { bgMod = m; }).catch(() => {});
 const localDay = t => { const d = new Date(t); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; };
 const altReady = id => !!altMod && altMod.eligible(id);
 const altRolls = id => !!altMod && altMod.rolls(id);
@@ -411,6 +414,9 @@ export async function tick() {
     }
 
     if (inQuiet(cfg)) { m.set(char.id, quietEndsAt(cfg)); continue; }
+    // 这一次归服务器发（退到后台了），或者服务器发过的还没取回来：本机不发，落点也不动。
+    // 取回之后服务器发过的会重新掷落点；服务器没发的，本机到时照发
+    if (bgMod?.holdsProactive()) continue;
     m.set(char.id, now + rollDelay(cfg.proactiveMinutes));
 
     // 轮到她主动时，有一定概率她开的不是口，而是一个新号。

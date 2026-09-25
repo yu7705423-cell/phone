@@ -215,6 +215,26 @@ export function plan({ away = false } = {}) {
   return next;
 }
 
+// ---- 本机这会儿能不能自己发主动消息 ----
+//
+// **同一次开口只能扣一次钱。** 后台消息开着时，主动消息由两边分着发：app 在前台时本机发，退到后台时服务器发。
+// 交接的那几个窗口从前没守住，同一次开口两边各发一次：
+//   · 退到后台之后，页面其实还在跑（电脑上的后台标签页、安卓的浏览器）：本机的定时器照发，服务器也照发
+//   · 刚回到前台、服务器替你发过的还没取回来：本机看落点早过了，又发一次
+//   · 服务器替你发失败了（模型那一次已经扣过）：回来之后本机补发一次
+// 现在：退到后台一律交给服务器；回来之后取回结果（成功失败都算这一次已经用掉）才恢复本机发；
+// 取不回来（服务器连不上）就一直不发，并在「设置 - 通知」写明原因 —— 宁可少发，不能同一次扣两次
+let settling = false;
+let lastProblem = '';
+/** 最近一次和服务器对不上的原因，界面上显示。空字符串表示正常 */
+export const problem = () => lastProblem;
+
+export function holdsProactive() {
+  if (!isOn() || !readDev()) return false;
+  if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return true;
+  return settling;
+}
+
 // ---- 回来时取结果 ----
 
 /**
@@ -226,8 +246,14 @@ export async function collect() {
   if (!results.length) return 0;
   let n = 0;
   const touched = new Set();
+  const failed = [];
   for (const r of results.sort((a, b) => (a.firedAt || 0) - (b.firedAt || 0))) {
-    if (r.status === 'failed') { console.warn('[bgpush] 服务器没替你发成:', r.error || '原因不明'); continue; }
+    if (r.status === 'failed') {
+      // 失败的也算这一次用掉了：模型那一次可能已经扣过钱，本机不补发，照样重新掷落点
+      if (r.charId) touched.add(r.charId);
+      failed.push(`${remark.nameOf(characters.get(r.charId)) || '角色'}：${r.error || '原因不明'}`);
+      continue;
+    }
     const chat = chats.get(r.chatId);
     const char = characters.get(r.charId);
     if (!chat || !char || !r.text) continue;
@@ -243,8 +269,9 @@ export async function collect() {
     } catch (err) { console.warn('[bgpush] 落不进会话:', err.message || err); }
   }
   await api('/ack', { method: 'POST', body: { ids: results.map(r => r.id) } }).catch(() => {});
-  // 刚替它发过，本机这边重新掷一次落点，不然一打开 app 它又立刻开口
+  // 刚替它发过（或者试过），本机这边重新掷一次落点，不然一打开 app 它又立刻开口
   touched.forEach(id => proactive.reschedule(id));
+  lastProblem = failed.length ? `服务器替角色发送失败 ${failed.length} 次（${failed[0]}）。失败的那一次不补发` : '';
   return n;
 }
 
@@ -259,12 +286,26 @@ function alive() {
 let timer = null;
 export function install() {
   if (typeof document === 'undefined') return;
+  // 取回结果。取回之前本机不发主动消息（holdsProactive），取不回来就一直等，下次报到时再取
+  const settle = () => {
+    settling = true;
+    return collect()
+      .then(() => { settling = false; })
+      .catch(err => {
+        lastProblem = `连不上后台消息服务器（${err.message || err}）。为避免同一次开口本机与服务器各发一次，恢复连接之前本机不发主动消息`;
+        console.warn('[bgpush] 取回失败:', err.message || err);
+      });
+  };
   const onShow = () => {
     if (!isOn()) return;
-    collect().catch(err => console.warn('[bgpush] 取回失败:', err.message || err));
+    settle();
     alive();
     clearInterval(timer);
-    timer = setInterval(() => { if (document.visibilityState === 'visible') alive(); }, ALIVE_EVERY);
+    timer = setInterval(() => {
+      if (document.visibilityState !== 'visible') return;
+      alive();
+      if (settling) settle();
+    }, ALIVE_EVERY);
   };
   const onHide = () => {
     clearInterval(timer); timer = null;
