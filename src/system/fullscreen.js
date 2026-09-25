@@ -129,7 +129,34 @@ export function applyWindowed() {
   const pwaApple = apple() && navigator.standalone === true && !window.phoneAppVersion;
   if (off && pwaApple) root.dataset.windowed = 'dark';
   try { window.EiraNative?.setSystemBars?.(off); } catch { /* 旧外壳 */ }
+  // 自己定了窗口大小：中间那一块按这个大小居中，超出屏幕就收到屏幕以内（base.css 的 data-winsize）
+  const { w, h } = windowSize();
+  const sized = off && (w > 0 || h > 0);
+  root.toggleAttribute('data-winsize', sized);
+  if (sized) {
+    root.style.setProperty('--win-w', w > 0 ? `${w}px` : '430px');
+    root.style.setProperty('--win-h', h > 0 ? `${h}px` : '100%');
+  } else {
+    root.style.removeProperty('--win-w');
+    root.style.removeProperty('--win-h');
+  }
   mark();
+}
+
+/** 不全屏时中间那一块的宽高，像素。0 表示没定，按默认（手机上铺满，宽屏上 430 宽、整屏高） */
+export function windowSize() {
+  const s = settings.get();
+  const n = v => (Number(v) > 0 ? Math.round(Number(v)) : 0);
+  return { w: n(s.winW), h: n(s.winH) };
+}
+
+/** 改窗口大小。传空串表示那一项回到默认 */
+export function setWindowSize(patch) {
+  const next = {};
+  if ('w' in patch) next.winW = patch.w === '' ? '' : Number(patch.w) || '';
+  if ('h' in patch) next.winH = patch.h === '' ? '' : Number(patch.h) || '';
+  settings.set(next);
+  applyWindowed();
 }
 
 /** 改开关 */

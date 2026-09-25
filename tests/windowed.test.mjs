@@ -60,6 +60,28 @@ const setFull = (page, v) => page.evaluate(async on => (await import('/src/syste
   await page.evaluate(async () => { const n = await import('/src/system/nav.js'); n.unlock(); });
   await page.waitForTimeout(300);
   ok('重开之后仍然是手机宽度', (await box()).w <= 432);
+  // 自己定窗口大小：外观页里两个滑杆（数字框直接填）
+  await page.evaluate(async () => { const n = await import('/src/system/nav.js'); n.openApp('settings', '/'); n.popToRoot(); n.push('/appearance'); });
+  await page.waitForTimeout(600);
+  const num = label => page.locator('.field', { hasText: label }).locator('.slider-num');
+  await num('窗口宽度').fill('360');
+  await num('窗口高度').fill('640');
+  await page.waitForTimeout(400);
+  const sized = await page.evaluate(() => {
+    const r = document.querySelector('.root').getBoundingClientRect();
+    return { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height) };
+  });
+  ok('填了宽 360、高 640：中间那一块就是这么大，居中',
+    sized.w === 360 && sized.h === 640 && Math.abs(sized.x - (1280 - 360) / 2) <= 1 && Math.abs(sized.y - (800 - 640) / 2) <= 1,
+    JSON.stringify(sized));
+  await num('窗口高度').fill('1500');
+  await page.waitForTimeout(400);
+  ok('高度超出屏幕：收到屏幕以内', (await page.evaluate(() => document.querySelector('.root').getBoundingClientRect().height)) <= 800);
+  await page.locator('.field', { hasText: '窗口宽度' }).locator('button', { hasText: '不改' }).click();
+  await page.locator('.field', { hasText: '窗口高度' }).locator('button', { hasText: '不改' }).click();
+  await page.waitForTimeout(400);
+  const back = await box();
+  ok('两项都「不改」：回到默认的手机宽度一栏', back.w <= 432 && back.x > 400, JSON.stringify(back));
   await setFull(page, true);
   await page.waitForTimeout(300);
   ok('再开回来：铺满', (await box()).w === 1280);

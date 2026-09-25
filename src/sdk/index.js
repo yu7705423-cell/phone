@@ -395,7 +395,8 @@ export const phone = {
 
   // 浏览器标签页里的全屏。外观页上那个开关要知道这台设备有没有这回事
   fullscreen: { supported: fullApi.supported, enter: fullApi.enter, store: fullApi.fullStore,
-    wantFull: fullApi.wantFull, setFull: fullApi.setFull },
+    wantFull: fullApi.wantFull, setFull: fullApi.setFull,
+    windowSize: fullApi.windowSize, setWindowSize: fullApi.setWindowSize },
 
   uid,
 };

@@ -156,6 +156,19 @@ export function AppearancePage() {
           left=${html`<${Icon} name="lock" size=${19}/>`}
           onClick=${() => nav.push('/lockpin')}/>
       <//>
+      ${phone.fullscreen.wantFull() ? null : html`
+        <div class="pad-x pad-t">
+          <${Field} label="窗口宽度"
+            desc="全屏显示关闭时，屏幕中间那一块的宽度。超出屏幕时按屏幕宽度显示。「不改」为默认：手机上铺满，电脑与平板上 430 像素。">
+            <${Slider} value=${s.winW ?? ''} min=${280} max=${1200} step=${10} unit="px" fallback=${430}
+              onChange=${v => phone.fullscreen.setWindowSize({ w: v })}/>
+          <//>
+          <${Field} label="窗口高度"
+            desc="超出屏幕时按屏幕高度显示。「不改」为默认：铺满屏幕高度。">
+            <${Slider} value=${s.winH ?? ''} min=${400} max=${1600} step=${10} unit="px" fallback=${844}
+              onChange=${v => phone.fullscreen.setWindowSize({ h: v })}/>
+          <//>
+        </div>`}
 
       <div class="list-wrap">
         <div class="list-title">壁纸</div>

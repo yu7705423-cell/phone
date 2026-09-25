@@ -102,6 +102,24 @@ svg { display: block; flex: none; }
     border-left: 1px solid var(--border); border-right: 1px solid var(--border);
   }
 }
+/* 自己定了窗口大小（外观里「全屏显示」关掉之后的宽度与高度）：中间那一块按设定的大小居中，
+   超出屏幕就收到屏幕以内。外壳那一串（html、body、#app）仍然是 100vh，
+   只有 .root 这一块变小 —— 它底下露出来的是有意留的底色，不是 iOS 填的那条白边。
+   窗口不贴屏幕边，刘海与 Home Indicator 由 #app 让开，里面的安全区清零 */
+:root[data-winsize] body { background: var(--surface-3); }
+:root[data-winsize] #app {
+  display: flex; align-items: center; justify-content: center;
+  padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px);
+}
+:root[data-winsize] .root {
+  width: var(--win-w); max-width: 100%;
+  height: var(--win-h); max-height: 100%;
+  margin: 0; transform: translateZ(0);
+  border: 1px solid var(--border);
+  padding-top: 0; --safe-top: 0px; --safe-bottom: 0px; --top-inset: 0px;
+}
+:root[data-winsize] .root::before { display: none; }
+:root[data-winsize] .wallpaper { top: 0; }
 
 .scroll {
   overflow-y: auto;
