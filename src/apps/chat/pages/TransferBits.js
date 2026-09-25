@@ -345,7 +345,8 @@ export function ListenBar({ chatId }) {
       <button class="listen-key press" aria-label=${s.playing ? '暂停' : '播放'}
         onClick=${listen.toggle}>
         <${Icon} name=${s.playing ? 'minus' : 'chevronRight'} size=${16}/></button>
-      <div class="listen-main" onClick=${() => phone.intent.open('music', { route: '/now/listen', back: true })}>
+      <div class="listen-main"
+        onClick=${() => (s.blocked ? listen.toggle() : phone.intent.open('music', { route: '/now/listen', back: true }))}>
         <div class="listen-title ellipsis">${music.label(song) || '一起听'}</div>
         <div class="listen-sub ellipsis">
           ${s.error || line || `${listen.clock(s.at)} · 本次 ${listen.fmt(s.seconds)}`}

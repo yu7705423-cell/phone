@@ -728,6 +728,20 @@ export function Conversation({ chatId, focusId = '' }) {
     return () => { ro.disconnect(); conv.style.removeProperty('--foot-h'); };
   }, [floatBottom, chatId, !!chat]);
 
+  // 会话顶上那几条（一起听、一起看、节奏）浮在消息列表上，消息从它们底下滚过去；
+  // 列表顶上留出同样高的一段，最早那几条才不被压住。高度会变（条出现、消失、换行），
+  // 量出来挂成 --strips-h。从前它们排在列表上面各占一格，列表到它们下沿就截断了
+  const stripsRef = useRef(null);
+  useLayoutEffect(() => {
+    const conv = convRef.current, strips = stripsRef.current;
+    if (!conv || !strips || typeof ResizeObserver === 'undefined') return undefined;
+    const apply = () => conv.style.setProperty('--strips-h', `${strips.offsetHeight}px`);
+    apply();
+    const ro = new ResizeObserver(apply);
+    ro.observe(strips);
+    return () => { ro.disconnect(); conv.style.removeProperty('--strips-h'); };
+  }, [chatId, !!chat]);
+
   const last = msgs[msgs.length - 1];
   useEffect(() => {
     // 多选时别乱滚，正挑着消息呢
@@ -1412,6 +1426,8 @@ export function Conversation({ chatId, focusId = '' }) {
         : html`<${IconButton} name="more" onClick=${() => setMenu(true)} label="更多" cls="ph-nav-action"/>`}>
       <div class="conv ph-chat" ref=${convRef}>
         <${UnlockToast} chatId=${chatId}/>
+        <div class="conv-main">
+        <div class="conv-strips" ref=${stripsRef}>
         <${ListenBar} chatId=${chatId}/>
         <${WatchBar} chatId=${chatId}/>
         ${(() => {
@@ -1424,7 +1440,7 @@ export function Conversation({ chatId, focusId = '' }) {
               ${line}
             </button>` : null;
         })()}
-        <div class="conv-main">
+        </div>
         <div class="conv-body ph-chat-body scroll" ref=${bodyRef} onScroll=${onScroll}>
           ${!isGroup && char.firstMessage && !msgs.length ? html`
             <${Bubble} msg=${greeting} char=${char} chat=${chat} frozen

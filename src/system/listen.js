@@ -104,7 +104,7 @@ async function load(songId, autoplay = true) {
   // **先同步把「现在是这一首」记下来**，再去解地址。取本地文件的地址是异步的，
   // 等它回来才更新的话，中间那一下界面上是一场没有歌的一起听，
   // next() 这时候也找不到自己在队列里的位置。
-  listen.set({ songId, at: 0, error: '' });
+  listen.set({ songId, at: 0, error: '', blocked: false });
 
   const src = await srcOf(song);
   if (!src) { listen.set({ error: '这首歌没有可播放的音频' }); return; }
@@ -117,7 +117,7 @@ async function load(songId, autoplay = true) {
 
   if (autoplay) {
     try { await audio.play(); listen.set({ playing: true }); }
-    catch { listen.set({ playing: false, error: '浏览器拦下了自动播放，点一下继续' }); }
+    catch { listen.set({ playing: false, blocked: true, error: '浏览器拦下了自动播放，点此继续播放' }); }
   }
   // 秒表只在真的在放的时候走 —— 暂停的时间不算进一起听的时长
   tick = setInterval(() => {
@@ -172,10 +172,16 @@ export function seek(sec) {
   listen.set({ at: Math.round(audio.currentTime) });
 }
 
+// 被浏览器拦下的那一次：人点一下之后就放得出来了。**那一行提示要跟着清掉**，
+// 从前只改了 playing，「被拦下了」一直挂在播放条上，歌词永远轮不到显示
 export function toggle() {
   if (!audio) return;
-  if (audio.paused) { audio.play().catch(() => {}); listen.set({ playing: true }); }
-  else { audio.pause(); listen.set({ playing: false }); }
+  if (audio.paused) {
+    audio.play()
+      .then(() => listen.set({ playing: true, blocked: false, error: '' }))
+      .catch(() => listen.set({ playing: false, blocked: true, error: '浏览器拦下了自动播放，点此继续播放' }));
+    listen.set({ playing: true });
+  } else { audio.pause(); listen.set({ playing: false }); }
 }
 
 // ---- 开场与收场 ----

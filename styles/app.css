@@ -1363,12 +1363,24 @@ button.search-bar { width: 100%; border: none; }
   background-size: cover; background-position: center;
 }
 
+/* 会话顶上那几条（一起听、一起看、节奏）浮在消息列表上，消息从底下滚过去。
+   列表顶上留出同样高的一段（--strips-h，会话页量出来挂上），最早那几条不被压住 */
+.conv-strips {
+  position: absolute; top: 0; left: 0; right: 0; z-index: 2;
+  display: flex; flex-direction: column; padding-top: var(--sp-2);
+  pointer-events: none;
+}
+.conv-strips > * { pointer-events: auto; }
+.conv-strips:empty { padding-top: 0; }
+.conv-main > .conv-body { padding-top: calc(var(--sp-4) + var(--strips-h, 0px)); }
+
 /* 一起听的播放条。压在会话顶上，不占页面 —— 听歌是背景，聊天还是主角 */
 .listen-bar {
   flex: none; display: flex; align-items: center; gap: var(--sp-2);
   padding: var(--sp-2) var(--sp-3);
   background: var(--group-fill); border-radius: var(--r-md);
   margin: 0 var(--sp-4) var(--sp-2);
+  box-shadow: var(--shadow-2);
 }
 .listen-main { flex: 1; min-width: 0; }
 .listen-title { font-size: var(--fs-13); font-weight: var(--fw-medium); }
@@ -3149,12 +3161,13 @@ button.conv-notice { background: none; border: 0; font: inherit; cursor: pointer
   position: relative; z-index: 3;
   margin-bottom: calc(-1 * (var(--navbar-h) + var(--top-inset)));
 }
-/* 会话顶上那几条（一起听、一起看、节奏）照旧排在顶栏下面；没有它们时，列表一直伸到顶栏底下 */
+/* 会话顶上那几条（一起听、一起看、节奏）浮在顶栏下沿，列表一直伸到顶栏底下 */
 .page.float-top .conv { padding-top: calc(var(--navbar-h) + var(--top-inset)); }
 .page.float-top .conv > .conv-main:first-child { margin-top: calc(-1 * (var(--navbar-h) + var(--top-inset))); }
 .page.float-top .conv > .conv-main:first-child > .conv-body {
-  padding-top: calc(var(--navbar-h) + var(--top-inset) + var(--sp-4));
+  padding-top: calc(var(--navbar-h) + var(--top-inset) + var(--sp-4) + var(--strips-h, 0px));
 }
+.page.float-top .conv > .conv-main:first-child > .conv-strips { top: calc(var(--navbar-h) + var(--top-inset)); }
 .page.float-bottom .conv-foot {
   position: relative; z-index: 3;
   margin-top: calc(-1 * var(--foot-h, 0px));
