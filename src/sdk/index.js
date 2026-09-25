@@ -90,6 +90,7 @@ import * as neteaseApi from '../system/netease.js';
 import * as purgeApi from '../system/purge.js';
 import * as authApi from '../system/auth.js';
 import * as pinlockApi from '../system/pinlock.js';
+import * as lorefileApi from '../system/lorefile.js';
 import * as groupApi from '../system/group.js';
 import * as badgesApi from '../system/badges.js';
 import * as safekeepApi from '../system/safekeep.js';
@@ -310,6 +311,7 @@ export const phone = {
   // 登录账号（本站开了账号功能时）。设置里的「登录账号」与管理页用
   auth: authApi,
   pinlock: pinlockApi,
+  lorefile: lorefileApi,
   group: groupApi,
   badges: badgesApi,
   safekeep: safekeepApi,

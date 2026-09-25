@@ -1,9 +1,11 @@
-import { html, useState } from '../../lib.js';
+import { html, useState, useRef } from '../../lib.js';
 import { phone, useStore } from '../../sdk/index.js';
 import { Page, List, ListItem, Button, Icon, Field, Input, Textarea, Switch,
          Segmented, NumberInput, EmptyState, toast, confirm, prompt } from '../../ui/index.js';
 
-const { db, nav, ai } = phone;
+import { ImportPage, ExportPage, setPending } from './Batch.js';
+
+const { db, nav, ai, lorefile } = phone;
 
 // 世界书的三种用途。见 system/ai/context/lorebook.js 的 purposeOf
 const PURPOSE_ITEMS = [
@@ -35,6 +37,21 @@ const placeText = e => (depthOf(e) === 0
 function BookList() {
   useStore(db.lorebooks.store);
   const books = db.lorebooks.all().sort((a, b) => b.updatedAt - a.updatedAt);
+  const fileRef = useRef(null);
+  const [reading, setReading] = useState(false);
+
+  // 批量导入：选好就读成草稿，到下一页逐本确认后才入库（Batch.js）
+  const pick = async e => {
+    const files = [...(e.target.files || [])];
+    e.target.value = '';
+    if (!files.length) return;
+    setReading(true);
+    try {
+      setPending(await lorefile.readFiles(files));
+      nav.push('/import');
+    } catch (err) { toast(String(err.message || err), 'error'); }
+    finally { setReading(false); }
+  };
 
   const add = async () => {
     const name = await prompt({ title: '新建世界书', placeholder: '例如：校园设定' });
@@ -60,6 +77,14 @@ function BookList() {
           action=${html`<${Button} size="sm" onClick=${add} icon="plus">新建世界书<//>`}/>`}
 
       <div class="pad-x pad-b">
+        <div class="btn-row">
+          <${Button} variant="ghost" icon="download" disabled=${reading}
+            onClick=${() => fileRef.current?.click()}>${reading ? '正在读取' : '批量导入'}<//>
+          <${Button} variant="ghost" icon="upload" disabled=${!books.length}
+            onClick=${() => nav.push('/export')}>批量导出<//>
+        </div>
+        <input type="file" multiple accept=${lorefile.ACCEPT} ref=${fileRef} onChange=${pick} style="display:none"/>
+        <div class="settings-foot">导入与导出支持 txt、docx，也可以是装有它们的 zip。每个文件一本世界书。</div>
         <${Button} full variant="ghost" icon="layers"
           onClick=${() => nav.push('/map')}>注入位置总览<//>
         <div class="pad-t">
@@ -392,5 +417,7 @@ export default function LorebookApp({ route }) {
   if (entry) return html`<${EntryPage} bookId=${entry[1]} entryId=${entry[2]}/>`;
   if (route === '/preview') return html`<${PreviewPage}/>`;
   if (route === '/map') return html`<${MapPage}/>`;
+  if (route === '/import') return html`<${ImportPage}/>`;
+  if (route === '/export') return html`<${ExportPage}/>`;
   return html`<${BookList}/>`;
 }

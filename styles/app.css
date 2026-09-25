@@ -3377,3 +3377,7 @@ button.conv-notice { background: none; border: 0; font: inherit; cursor: pointer
   color: var(--ph-narration-color, var(--text-3));
 }
 .has-chat-bg .msg-narration { text-shadow: 0 0 6px var(--bg), 0 0 2px var(--bg); }
+
+/* 世界书批量导入：每本一块，不导入的那本变淡 */
+.lb-draft { margin-bottom: var(--sp-4); }
+.lb-draft.is-off { opacity: .55; }

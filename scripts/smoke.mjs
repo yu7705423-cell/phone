@@ -25,7 +25,7 @@ const ROUTES = {
   contact: ['/', '/import', '/me', '/me/:persona', '/char/:char',
     '/edit/:char', '/profile/:char', '/net/:char', '/npc/:char'],
   memory: ['/', '/import', '/last', '/check', '/edit/:mem'],
-  lorebook: ['/', '/preview', '/map', '/book/:lore', '/entry/:lore/e1'],
+  lorebook: ['/', '/preview', '/map', '/book/:lore', '/entry/:lore/e1', '/import', '/export'],
   space: ['/', '/space/:chat', '/days/:chat', '/pacts/:chat', '/mail/:chat',
     '/log/:chat/gift', '/log/:chat/location', '/log/:chat/listen', '/log/:chat/call'],
   daily: ['/', '/gen', '/cell/env/good', '/cell/social/bad', '/cell/luck/plain',
