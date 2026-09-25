@@ -23,7 +23,10 @@ const PARTS = [
 
 // 读出来的草稿放在模块里：选文件在列表页，确认在这一页，中间隔着一次导航
 let pending = { drafts: [], failed: [] };
-export const setPending = p => { pending = p; };
+let batch = 0;
+export const setPending = p => { pending = p; batch += 1; };
+// 每一批一个编号。确认页按它当 key：上一批的勾选与设置不许带到下一批
+export const batchKey = () => batch;
 
 function settingsOf(d) {
   return {

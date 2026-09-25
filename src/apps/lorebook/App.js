@@ -3,7 +3,7 @@ import { phone, useStore } from '../../sdk/index.js';
 import { Page, List, ListItem, Button, Icon, Field, Input, Textarea, Switch,
          Segmented, NumberInput, EmptyState, toast, confirm, prompt } from '../../ui/index.js';
 
-import { ImportPage, ExportPage, setPending } from './Batch.js';
+import { ImportPage, ExportPage, setPending, batchKey } from './Batch.js';
 
 const { db, nav, ai, lorefile } = phone;
 
@@ -417,7 +417,7 @@ export default function LorebookApp({ route }) {
   if (entry) return html`<${EntryPage} bookId=${entry[1]} entryId=${entry[2]}/>`;
   if (route === '/preview') return html`<${PreviewPage}/>`;
   if (route === '/map') return html`<${MapPage}/>`;
-  if (route === '/import') return html`<${ImportPage}/>`;
+  if (route === '/import') return html`<${ImportPage} key=${batchKey()}/>`;
   if (route === '/export') return html`<${ExportPage}/>`;
   return html`<${BookList}/>`;
 }

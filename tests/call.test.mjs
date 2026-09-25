@@ -190,13 +190,16 @@ const sys = await page.evaluate(async ids => {
   const engine=await import('/src/system/ai/engine.js');
   const chat=db.chats.get(ids.chat), char=db.characters.get(ids.char);
   const on=await engine.buildCallSystem(chat,char);
+  const chatOn=engine.buildChatSystem(chat,char,[],{}).system;
   db.characters.update(ids.char,{canCall:false});
   const off=engine.buildChatSystem(chat,db.characters.get(ids.char),[],{}).system;
   db.characters.update(ids.char,{canCall:true});
-  return { hasCall:on.includes('[正在通话中]'), hasRing:on.includes('[去电]'), offRing:off.includes('[去电]') };
+  return { hasCall:on.includes('[正在通话中]'), hasRing:chatOn.includes('[去电]'), callRing:on.includes('[去电]'), offRing:off.includes('[去电]') };
 }, ids);
 ok('通话中的提示词拼进去了', sys.hasCall);
-ok('打电话的说明也在', sys.hasRing);
+ok('聊天里有打电话的说明', sys.hasRing);
+// 通话里不再照搬聊天的能力清单：人已经在电话里了，「怎么打电话」那段用不上（ARCHITECTURE 4.234）
+ok('通话里没有打电话的说明', !sys.callRing);
 ok('关掉就不注入打电话', !sys.offRing);
 
 

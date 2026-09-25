@@ -66,7 +66,8 @@ await page.evaluate(async chatId => {
   const c = await import('/src/system/call.js');
   c.ring(chatId, { video: true });
 }, ids.chat);
-await page.waitForTimeout(600);
+await page.waitForSelector('.call-name', { timeout: 5000 }).catch(() => {});
+await page.waitForTimeout(300);
 const ringing = await page.evaluate(async () => ({
   name: document.querySelector('.call-name')?.textContent || '',
   note: (await import('/src/system/notify.js')).notifications.get().items[0]?.title || '',
@@ -89,7 +90,7 @@ const first = lines.find(l => l.role === 'char');
 ok('角色说的就是中文、翻译也设成中文：字幕不出第二行', first && !first.trans, JSON.stringify(first));
 ok('也没有为它发翻译请求', !reqs.some(j => !j.stream && /lines/.test(JSON.stringify(j.messages || []))),
   String(reqs.length));
-await page.evaluate(async () => (await import('/src/system/call.js')).hangup());
+await page.evaluate(async () => (await import('/src/system/call.js')).hangUp());
 await page.waitForTimeout(500);
 
 // 聊天里的判断
