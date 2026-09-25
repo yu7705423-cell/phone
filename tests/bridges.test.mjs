@@ -116,7 +116,8 @@ await page.addInitScript(b => { window.BASE = b; }, BASE);
   check(!/这个浏览器不支持/.test(body), '通知设置页不再显示「这个浏览器不支持」');
   check(/由外壳发送/.test(body), '写明了由外壳发送');
   check(!/VAPID/.test(body), '装成 app 时不显示 Web Push 那一段');
-  check(/需要浏览器的 Push API/.test(body), '并说明了为什么不显示');
+  // 手填 Web Push 那一段已经拿掉，改由用户自己部署的推送服务器发（ARCHITECTURE 4.228）
+  check(/推送服务器地址/.test(body), '后台消息那一段照常显示（填推送服务器地址）');
 
   // 保活
   const K = async fn => page.evaluate(async f => {
@@ -181,7 +182,7 @@ await page.addInitScript(b => { window.BASE = b; }, BASE);
   await page.evaluate(() => import('/src/system/nav.js').then(n => n.openApp('settings', '/notify')));
   await page.waitForTimeout(800);
   const body = await page.evaluate(() => document.body.innerText);
-  check(/VAPID/.test(body), '浏览器里 Web Push 那一段照常显示');
+  check(/推送服务器地址/.test(body), '浏览器里后台消息那一段照常显示');
   check(/Service Worker/.test(body), '文案仍然是 Service Worker 那一套');
   check(!errs.length, `浏览器这一路没有报错${errs.length ? '：' + errs[0] : ''}`);
   await page.close();

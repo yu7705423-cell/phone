@@ -104,7 +104,13 @@ const jump = await page.evaluate(async () => {
   const db = await import('/src/system/db/index.js');
   const chat = db.chats.all()[0];
   nav.goHome();
-  // index.html 里那个占位函数接住的那一下
+  // index.html 里那个占位函数接住的那一下。开机时 push.js 已经换上了真函数，
+  // 这里换回占位的那一个，模拟「js 还没起来时点了通知」
+  window.phoneNotifyOpen = d => {
+    window.__notifyOpen = d || null;
+    try { sessionStorage.setItem('notify-open', JSON.stringify(d || null)); } catch { /* */ }
+    return true;
+  };
   window.phoneNotifyOpen({ appId: 'chat', route: `/chat/${chat.id}` });
   const before = nav.nav.get().screen;
   push.installClickBridge();
