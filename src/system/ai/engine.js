@@ -300,12 +300,16 @@ export function buildChatSystem(chat, char, msgs, opts = {}) {
 
 // 引用过的消息在上下文里要带上出处,不然「是啊」这种回应模型根本不知道在应哪句。
 // 原消息还在就取现文(可能被编辑过),删了就用当初存的快照。
+//
+// **写成和要它写的一模一样的格式**：单独一行 [引用：摘录]，正文在下一行。
+// 从前写的是 `(in reply to 「…」) 正文`，模型最听自己前几轮的样子，
+// 照着抄回来，解析不认，括号原样漏进气泡 —— 「引用容易掉格式」主要就是这么来的
 function withQuote(m) {
   if (!m.quoteId && !m.quoteText) return m.content;
   const src = m.quoteId ? messages.get(m.quoteId) : null;
   const q = String((src ? src.content : m.quoteText) || '').replace(/\s+/g, ' ').trim();
   if (!q) return m.content;
-  return `(in reply to 「${q.length > 40 ? q.slice(0, 40) + '…' : q}」) ${m.content}`;
+  return `[引用：${q.length > 40 ? q.slice(0, 40) + '…' : q}]\n${m.content}`;
 }
 
 // 时间感知开着的时候，历史本身要是一条时间线。

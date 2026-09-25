@@ -202,6 +202,22 @@ export function AppearancePage() {
             </label>
           </div>
         <//>
+        <${Field} label="图标名称颜色"
+          desc="主界面与底栏图标下方文字的颜色。选择「自动」时，有壁纸为白色带投影，无壁纸跟随主题。">
+          <div class="color-row">
+            <button class=${`chip${s.iconLabelColor ? '' : ' is-active'}`}
+              onClick=${() => db.settings.set({ iconLabelColor: '' })}>自动</button>
+            ${PRESET_COLORS.map(c => html`
+              <button key=${c} class=${`swatch${(s.iconLabelColor || '').toLowerCase() === c.toLowerCase() ? ' is-active' : ''}`}
+                style=${`background:${c}`} onClick=${() => db.settings.set({ iconLabelColor: c })}
+                aria-label=${`名称颜色 ${c}`}></button>`)}
+            <label class="swatch swatch-custom">
+              <${Icon} name="plus" size=${16}/>
+              <input type="color" value=${s.iconLabelColor || '#ffffff'} aria-label="自定义名称颜色"
+                onInput=${e => db.settings.set({ iconLabelColor: e.target.value })}/>
+            </label>
+          </div>
+        <//>
       </div>
 
       <${List} title="应用图标">

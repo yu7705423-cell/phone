@@ -117,7 +117,7 @@ function RepairSheet({ msgId, open, onClose }) {
         </div>
         <div class="fix-preview">${preview?.note || ''}</div>
         <div class="fix-head">
-          常用标记：[图片：描述]、[视频：描述]、[语音：内容]、[表情：名称]、
+          常用标记：[引用：原话摘录]、[图片：描述]、[视频：描述]、[语音：内容]、[表情：名称]、
           [骰子]、[拍一拍]、[译文：译文内容]。各占一行。
         </div>
         <div class="pad">

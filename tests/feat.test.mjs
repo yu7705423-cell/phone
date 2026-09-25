@@ -51,8 +51,9 @@ const out = await page.evaluate(async () => {
   const m2 = db.messages.create({ chatId: chat.id, role: 'char', authorId: char.id, kind: 'text', content: '是啊', status: 'done', ...qf });
   const hist = engine.buildHistory(chat, char, db.messagesOf(chat.id));
   const joined = hist.map(h => h.content).join(' | ');
+  // 写成和要它写的一样的格式（[引用：…] 单独一行），见 engine.withQuote
   ok('上下文里带上了引的是哪句',
-    joined.includes('(in reply to 「') && joined.includes('今天下雨了'), joined);
+    joined.includes('[引用：今天下雨了') && joined.includes('是啊'), joined);
 
   // 原话被删，快照还在
   reply.dropMessage(m1.id);

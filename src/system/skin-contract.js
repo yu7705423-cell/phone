@@ -208,6 +208,9 @@ export const VARS = [
   { name: 'ph-bar-bottom', label: '输入栏底色', unit: '', def: 'var(--bg)', on: ['chat'], since: 2,
     note: '只在页面带 .look-bottom 时生效' },
   { name: 'ph-bar-bottom-blur', label: '输入栏模糊', unit: 'px', def: 0, on: ['chat'], since: 2 },
+  // 「外观 - 图标名称颜色」写的就是它。作者也能写，用户在外观里选了颜色时以用户的为准
+  { name: 'ph-tile-name-color', label: '图标名称颜色', unit: '', def: 'var(--text-2)', on: ['shell'], since: 2,
+    note: '写颜色值。有壁纸时默认是白色，这一项同样盖得过' },
 ];
 
 /** 这个钩子在这一档 scope 下够不够得着。 */

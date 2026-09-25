@@ -30,6 +30,10 @@ export function applyLook(s) {
   root.style.setProperty('--bottom-lift', (Number(s.bottomLift) || 0) + 'px');
   root.dataset.iconShadow = s.iconShadow === false ? 'off' : 'on';
   root.dataset.iconLabel = s.iconLabels === false ? 'off' : 'on';
+  // 图标名称的颜色。空着就是「自动」：有壁纸白字带投影，没有跟主题走（shell.css 的 .app-name）。
+  // 写的是契约变量，美化包也能写同一个，用户在这儿选了的以这儿为准（第 18 条）
+  if (s.iconLabelColor) root.style.setProperty('--ph-tile-name-color', s.iconLabelColor);
+  else root.style.removeProperty('--ph-tile-name-color');
   root.dataset.glass = s.glass === true ? 'on' : 'off';
 }
 

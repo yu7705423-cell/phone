@@ -60,7 +60,7 @@ export function Root() {
   }, [gid, gat]);
 
   useEffect(() => { applyLook(cfg); },
-    [cfg.iconColor, cfg.iconShadow, cfg.iconLabels, cfg.bottomLift, cfg.glass]);
+    [cfg.iconColor, cfg.iconShadow, cfg.iconLabels, cfg.iconLabelColor, cfg.bottomLift, cfg.glass]);
 
   useEffect(() => { applyCustomCSS(cfg.customCSS); }, [cfg.customCSS]);
 

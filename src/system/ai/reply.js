@@ -215,8 +215,65 @@ const RING_LINE = lineMark('(视频)?(?:去电|来电|打电话|拨打|通话|ca
 // 所以正常不会出现。真出现了也照存 —— 用户自己写模板要它这么干是他的自由。
 const KEEP_LINE = /^[[【(（]?\s*(?:存图|存照片)\s*[:：]\s*(.+?)[\]】)）]?\s*$/i;
 
-// 引用单独成行，挂在它下面那一条上，不自己占一个气泡。
-const QUOTE_LINE = /^[[【(（]?\s*(?:引用|回复|quote)\s*[:：]\s*([^\n\]】)）]+)[\]】)）]?\s*$/i;
+// ---- 引用 ----
+//
+// 引用挂在它下面那一条上，不自己占一个气泡。标准写法是单独一行 [引用：摘录]，
+// 但模型常写走样，从前那条正则只认整行、摘录里不许有括号，于是：
+//
+//   [引用：（摸摸头）好乖]      摘录里有动作括号 —— 本项目的动作正是写在（）里
+//   [引用：你说的那句] 好啊      标记和正文写在同一行
+//   (in reply to 「…」) 好啊    照着历史里的写法抄（历史从前就是这么给它看的）
+//   【引用】「…」 / > 摘录        没冒号、用了别的记号
+//
+// 这几种都会整行当正文漏进气泡，「修正格式」用的是同一套解析，也修不动。
+// 现在逐个认：给回 { quote, rest }，rest 是同一行里跟在后面的正文，交回去照常处理。
+const QUOTE_WORD = '(?:引用|回复|quote|reply(?:ing)?(?:\\s+to)?|in\\s+reply\\s+to)';
+const QUOTE_OPEN = new RegExp(`^(?:\\d+\\s*[.、)）]\\s*)?([[【(（])\\s*${QUOTE_WORD}\\s*([:：]?)`, 'i');
+const CLOSE_OF = { '[': ']', '【': '】', '(': ')', '（': '）' };
+// 摘录外面常多包一层引号，认领出处前剥掉
+const unwrapQuote = q => String(q || '').trim()
+  .replace(/^[「『“"'‘]+|[」』”"'’]+$/g, '').trim();
+
+export function quoteOfLine(line) {
+  const t = String(line || '').trim();
+  // Markdown 那种「> 摘录」：整行都是摘录。> 后面要有空格 —— >_< 这类颜文字不算
+  const md = t.match(/^>\s+(.+)$/);
+  if (md) return { quote: unwrapQuote(md[1]), rest: '' };
+  const m = t.match(QUOTE_OPEN);
+  if (!m) return null;
+  const open = m[1];
+  const close = CLOSE_OF[open];
+  const alt = open === '[' ? '】' : open === '【' ? ']' : open === '(' ? '）' : ')';
+  let i = m[0].length;
+  // 冒号之后到配对的收口为止都是摘录。按深度数括号：摘录里的（动作）不算收口
+  if (m[2]) {
+    let depth = 0;
+    for (let j = i; j < t.length; j++) {
+      const c = t[j];
+      if (c === open) depth++;
+      else if (c === close || c === alt) {
+        if (depth === 0) {
+          const quote = unwrapQuote(t.slice(i, j));
+          return quote ? { quote, rest: t.slice(j + 1).trim() } : null;
+        }
+        depth--;
+      }
+    }
+    // 没收口：整行剩下的都是摘录
+    const quote = unwrapQuote(t.slice(i));
+    return quote ? { quote, rest: '' } : null;
+  }
+  // 没冒号：[引用] 后面紧跟「摘录」，或者 (in reply to 「摘录」) 这种摘录在括号里面
+  const inner = t.slice(i).match(/^\s*[「『“"]([^」』”"]+)[」』”"]\s*/);
+  if (inner) {
+    let rest = t.slice(i + inner[0].length);
+    if (rest.startsWith(close) || rest.startsWith(alt)) rest = rest.slice(1);
+    return { quote: inner[1].trim(), rest: rest.trim() };
+  }
+  const tag = t.slice(i).match(/^\s*[\]】)）]\s*[「『“"]([^」』”"]+)[」』”"]\s*/);
+  if (tag) return { quote: tag[1].trim(), rest: t.slice(i + tag[0].length).trim() };
+  return null;
+}
 
 // 译文也单独成行，不占气泡，收在消息的 translation 字段里，点原文气泡才展开。
 //
@@ -519,7 +576,7 @@ export function splitReply(raw) {
 
   const pushText = chunk => {
     segments(chunk).forEach(seg => {
-      const t = seg.trim();
+      let t = seg.trim();
       if (!t) return;
 
       // 上一行那句译文还没收口，这一行是它的后半截。
@@ -533,9 +590,14 @@ export function splitReply(raw) {
       }
       // 上一行只写了「[译文]」这个标签，这一行就是译文正文
       if (transNext) { transNext = false; attachTrans(t); return; }
-      // 整行是个引用标记的，记下来挂到下一条上，自己不占气泡
-      const q = t.match(QUOTE_LINE);
-      if (q) { pendingQuote = q[1].trim(); return; }
+      // 引用：记下来挂到下一条上，自己不占气泡。同一行后面还跟着正文的，
+      // 正文照常往下走（见上面 quoteOfLine）
+      const q = quoteOfLine(t);
+      if (q) {
+        pendingQuote = q.quote;
+        if (!q.rest) return;
+        t = q.rest;
+      }
 
       // 处理对方转过来的那一笔。自己不占气泡，落的是一行提示。
       const st = t.match(SETTLE_LINE);
@@ -739,11 +801,14 @@ export function splitReply(raw) {
 
 // 模型引用的是原话里的一小段，拿它回头去最近的消息里认领出处。
 // 认不出来也不丢：原样存成 quoteText，气泡照样显示，只是点不动。
-export function resolveQuote(chatId, text) {
-  const q = String(text || '').replace(/\s+/g, '').trim();
+// turnId：正在写的这一轮。它自己的几条不算出处 —— 引的是之前说过的话；
+// 修正格式重排一条旧消息时，那条消息的原文里正带着这段摘录，不排除就认领到自己
+export function resolveQuote(chatId, text, turnId = '') {
+  // 摘录尾巴上的省略号、外面包的引号不是原话的一部分
+  const q = unwrapQuote(text).replace(/(…+|\.{3,})$/, '').replace(/\s+/g, '').trim();
   if (!q) return null;
   const recent = messages
-    .where(m => m.chatId === chatId && m.content)
+    .where(m => m.chatId === chatId && m.content && !(turnId && m.turnId === turnId))
     .sort((a, b) => b.createdAt - a.createdAt)
     .slice(0, 40);
   for (const m of recent) {
@@ -754,10 +819,10 @@ export function resolveQuote(chatId, text) {
 }
 
 // 引用字段统一在这里拼。存一份快照，原消息被删了也还看得见引的是什么。
-export function quoteFields(chatId, quote) {
+export function quoteFields(chatId, quote, turnId = '') {
   const q = String(quote || '').trim();
   if (!q) return {};
-  const src = resolveQuote(chatId, q);
+  const src = resolveQuote(chatId, q, turnId);
   return src
     ? { quoteId: src.id, quoteText: snippet(src.content), quoteRole: src.role, quoteAuthorId: src.authorId }
     : { quoteId: null, quoteText: snippet(q), quoteRole: '', quoteAuthorId: '' };
@@ -893,7 +958,7 @@ export function materialize(part, base, char) {
     }
     return null;
   }
-  const quote = quoteFields(base.chatId, part.quote);
+  const quote = quoteFields(base.chatId, part.quote, base.turnId);
   // 撤回那一条照常发出去，几秒后折起来（recall.charMark 的 at 在几秒之后）
   const takeBack = part.recall && base.role === 'char' && char?.canRecall !== false;
   const row = {

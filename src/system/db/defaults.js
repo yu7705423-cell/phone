@@ -23,6 +23,7 @@ export const DEFAULT_SETTINGS = {
   iconShadow: true,               // 图标阴影
   glass: false,                   // 毛玻璃。持续的 GPU 合成开销，默认关，见 tokens.css
   iconLabels: true,               // 图标下的名称
+  iconLabelColor: '',             // 图标名称的颜色，空着为自动
   bottomLift: 0,                  // 底部整体上移的像素，见 styles/tokens.css
   fonts: [],                      // 自己传的字体，见 system/fonts.js
   fontBody: '',                   // 正文用哪一个，空 = 系统默认
