@@ -241,6 +241,8 @@ export function installClickBridge() {
     drainPending();
     return;
   }
+  // 外壳喊过来的也走这里（Bark 通知点开的 eira:// 链接，见 ios/Sources/NotifyBridge.swift 的 open）
+  window.phoneNotifyOpen = take;
   fromHash();
   if (!('serviceWorker' in navigator)) { drainPending(); return; }
   navigator.serviceWorker.addEventListener('message', e => {

@@ -1,8 +1,14 @@
 import { html, useState, useRef, useEffect } from '../../lib.js';
 import { phone, useStore } from '../../sdk/index.js';
-import { Page, List, ListItem, Field, Input, NumberInput, Button, Switch, Icon, toast, confirm } from '../../ui/index.js';
+import { Page, List, ListItem, Field, Input, NumberInput, Segmented, Button, Switch, Icon, toast, confirm } from '../../ui/index.js';
 
 const { db, nav, sound, notify, push, bgpush } = phone;   // notify 就是 notify()，见 sdk/index.js
+
+const CHANNEL_ITEMS = [
+  { value: '', label: '不使用' },
+  { value: 'bark', label: 'Bark' },
+  { value: 'pushplus', label: 'PushPlus' },
+];
 
 const PERM_TEXT = {
   granted: '已授权',
@@ -139,6 +145,13 @@ export function NotifyPage() {
       toast(String(e.message || e), 'error', 6000);
     } finally { setBusy(false); }
   };
+  const ch = bgpush.channelOf();
+  const testCh = async () => {
+    setBusy(true);
+    try { await bgpush.testChannel(); toast('已通过通知通道发出一条测试通知', 'ok', 4000); }
+    catch (e) { toast(String(e.message || e), 'error', 6000); }
+    finally { setBusy(false); }
+  };
   const testBg = async () => {
     setBusy(true);
     try { await bgpush.test(); toast('推送服务器已发出一条测试通知', 'ok', 4000); }
@@ -234,10 +247,41 @@ export function NotifyPage() {
           ${bgpush.canNotify() ? html`
             <div class="pad batch-acts">
               <${Button} size="sm" disabled=${busy} onClick=${testBg}>发一条测试推送<//>
+            </div>` : null}
+          <div class="pad-x">
+            <${Field} label="通知通道"
+              desc="借其他应用送达离开期间的通知，适用于没有推送通知的安装版应用，也可与推送通知同时使用。Bark 仅限 iPhone，点击通知打开对应会话；PushPlus 经微信公众号送达，任何手机可用。消息内容会经过所选服务的服务器。">
+              <${Segmented} value=${ch.kind} items=${CHANNEL_ITEMS} onChange=${v => bgpush.setChannel({ kind: v })}/>
+            <//>
+            ${ch.kind === 'bark' ? html`
+              <${Field} label="Bark 推送地址" desc="在 Bark 首页复制的地址，形如 https://api.day.app/ 加一串设备码。">
+                <${Input} value=${ch.url} placeholder="https://api.day.app/..."
+                  onInput=${v => bgpush.setChannel({ url: v.trim() })}/>
+              <//>
+              <${Field} label="加密 Key（可选）"
+                desc="在 Bark 的「推送加密」中选择 AES 与 CBC 模式，填入与此处相同的 Key 与 IV。Key 为 16、24 或 32 位，IV 为 16 位。填写后，Bark 的服务器无法读取消息内容；填写有误时，通知只显示「发来一条消息」。">
+                <${Input} value=${ch.key} placeholder="16、24 或 32 位" onInput=${v => bgpush.setChannel({ key: v.trim() })}/>
+              <//>
+              <${Field} label="加密 IV（可选）">
+                <${Input} value=${ch.iv} placeholder="16 位" onInput=${v => bgpush.setChannel({ iv: v.trim() })}/>
+              <//>` : null}
+            ${ch.kind === 'pushplus' ? html`
+              <${Field} label="PushPlus token" desc="在 pushplus.plus 用微信登录后，于「一对一消息」中复制。">
+                <${Input} value=${ch.token} placeholder="token" onInput=${v => bgpush.setChannel({ token: v.trim() })}/>
+              <//>` : null}
+          </div>
+          ${ch.kind ? html`
+            <${List}>
+              <${ListItem} title="通知中不显示消息内容" multiline
+                subtitle="开启后，通知只显示角色名与「发来一条消息」，消息内容不经过通知服务。"
+                right=${html`<${Switch} checked=${ch.hide === true} onChange=${v => bgpush.setChannel({ hide: v })}/>`}/>
+            <//>
+            <div class="pad batch-acts">
+              <${Button} size="sm" disabled=${busy} onClick=${testCh}>测试通知通道<//>
             </div>` : null}` : null}
         <div class="settings-foot">
           应用开着时，角色的主动消息仍由本机发出，推送服务器不重复发送。
-          离开期间弹出通知需要浏览器或添加到主屏幕的网页；安装版应用（apk、ipa）不弹通知，消息在打开应用时出现。
+          离开期间的推送通知需要浏览器或添加到主屏幕的网页；安装版应用（apk、ipa）可改用上方的通知通道，未设置时消息在打开应用时出现。
         </div>` : null}
 
       ${push.native() ? html`

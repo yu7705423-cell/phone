@@ -8,6 +8,8 @@
 //   还有下一次：接着排一条，对话里接上刚才那句
 //   应用最近报过到（还开着）：到点也不发
 //   取结果、确认后删掉；口令不对一律 401；订阅作废（410）时整台设备删掉
+//   通知通道：Bark（明文、加密）点开是 eira://chat/会话；PushPlus 送到微信；「不显示内容」时只写发来一条消息；
+//     通道配置在数据库里是密文；设置页上的「测试」按传来的通道发
 import worker from '../worker/push.js';
 
 const R = []; const ok = (n, c, e) => { R.push({ n, pass: !!c }); console.log(`${c ? '  ok  ' : '  FAIL'} ${n}${c ? '' : '   << ' + (e ?? '')}`); };
@@ -75,6 +77,7 @@ function supabase(method, url, body, prefer) {
 // ---- 假的模型与推送服务 ----
 const modelCalls = [];
 const pushes = [];
+const channels = [];
 let pushStatus = 201;
 let reply = n => `[旁白：他看了一眼窗外。]\n第${n}次开口。\n你在忙吗`;
 globalThis.fetch = async (input, init = {}) => {
@@ -88,6 +91,10 @@ globalThis.fetch = async (input, init = {}) => {
     const body = JSON.parse(init.body);
     modelCalls.push({ url: url.href, headers: init.headers, body });
     return Response.json({ choices: [{ message: { content: reply(modelCalls.length) } }] });
+  }
+  if (url.host === 'api.day.app' || url.host === 'www.pushplus.plus') {
+    channels.push({ url: url.href, headers: init.headers, body: init.body });
+    return url.host === 'api.day.app' ? Response.json({ code: 200 }) : Response.json({ code: 200, msg: '请求成功' });
   }
   if (url.host === 'push.test') {
     pushes.push({ url: url.href, headers: init.headers, body: new Uint8Array(init.body) });
@@ -237,6 +244,50 @@ await call(env, 'POST', '/ack', { token, body: { ids: failed.map(r => r.id) } })
     && got2.length === 1 && got2[0].chatId === 'chat_app' && /开口/.test(got2[0].text), JSON.stringify(got2));
   await call(env, 'POST', '/ack', { token: btoken, body: { ids: got2.map(r => r.id) } });
   await call(env, 'DELETE', '/device', { token: btoken });
+}
+
+// ---- 通知通道 ----
+{
+  const app = await call(env, 'POST', '/device', { body: {} });
+  const tk = `${app.data.id}.${app.data.token}`;
+  const fire = async (channel, chatId) => {
+    await call(env, 'POST', '/plan', { token: tk, body: { away: true, channel, jobs: [{ ...job, chatId, due: [Date.now() - 1000] }] } });
+    await tick(env);
+    const res = (await call(env, 'GET', '/results', { token: tk })).data.results;
+    await call(env, 'POST', '/ack', { token: tk, body: { ids: res.map(r => r.id) } });
+    return channels.shift();
+  };
+
+  const bark = await fire({ kind: 'bark', url: 'https://api.day.app/AbCd1234/推送内容', icon: 'https://eiraphone.cn/icon-192.png' }, 'chat_b');
+  const bb = bark ? JSON.parse(bark.body) : {};
+  ok('Bark：发到 /push，设备码、角色名、第一句、点开进 eira://chat/会话', bark?.url === 'https://api.day.app/push' && bb.device_key === 'AbCd1234'
+    && bb.title === '阿岚' && /开口/.test(bb.body) && bb.url === 'eira://chat/chat_b' && bb.group === 'Eira' && bb.icon === 'https://eiraphone.cn/icon-192.png', JSON.stringify(bb));
+  ok('通道配置在数据库里是密文', !JSON.stringify(tables).includes('AbCd1234'), '');
+
+  const KEY = '0123456789abcdef0123456789abcdef', IV = 'fedcba9876543210';
+  const sealed = await fire({ kind: 'bark', url: 'https://api.day.app/AbCd1234', key: KEY, iv: IV }, 'chat_e');
+  const form = new URLSearchParams(sealed?.body || '');
+  let open = {};
+  try {
+    const k = await crypto.subtle.importKey('raw', enc(KEY), 'AES-CBC', false, ['decrypt']);
+    const plain = await crypto.subtle.decrypt({ name: 'AES-CBC', iv: enc(IV) }, k, Buffer.from(form.get('ciphertext') || '', 'base64'));
+    open = JSON.parse(new TextDecoder().decode(plain));
+  } catch (e) { open = { err: String(e) }; }
+  ok('Bark 加密：发的是 ciphertext 与 iv，按 AES-256-CBC 解得开，里面是同样那几项', sealed?.url === 'https://api.day.app/AbCd1234' && form.get('iv') === IV
+    && !/阿岚/.test(sealed.body) && open.title === '阿岚' && open.url === 'eira://chat/chat_e', JSON.stringify(open));
+
+  const pp = await fire({ kind: 'pushplus', token: 'pp-token-1', hide: true }, 'chat_p');
+  const pb = pp ? JSON.parse(pp.body) : {};
+  ok('PushPlus：带 token 发到微信；「不显示内容」时只写发来一条消息', pp?.url === 'https://www.pushplus.plus/send' && pb.token === 'pp-token-1'
+    && pb.title === '阿岚' && pb.content === '发来一条消息', JSON.stringify(pb));
+
+  const t = await call(env, 'POST', '/test', { token: tk, body: { channel: { kind: 'pushplus', token: 'pp-token-2' } } });
+  const tb = JSON.parse(channels.shift()?.body || '{}');
+  ok('设置页上的「测试」：按传来的通道发一条', t.status === 200 && tb.token === 'pp-token-2' && /工作正常/.test(tb.content), JSON.stringify(tb));
+
+  await fire(null, 'chat_n');
+  ok('通道关掉（交 null）：之后到点不再发通道', channels.length === 0, JSON.stringify(channels));
+  await call(env, 'DELETE', '/device', { token: tk });
 }
 
 // ---- 订阅作废 ----

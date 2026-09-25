@@ -132,7 +132,54 @@ ok('回来：服务器替你发出去的落进会话，照平时一样分条', J
 ok('时间是发出去的那一刻，未读加上', back.at[0] >= fired && back.at[0] < fired + 1000 && back.unread === 2, JSON.stringify(back));
 ok('取回之后请服务器删掉', calls.some(c => c.path === '/ack' && c.body.ids[0] === 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'), JSON.stringify(calls.map(c => c.path)));
 
+// ---- 通知通道 ----
+await page.evaluate(async () => { const n = await import('/src/system/nav.js'); n.goHome(); n.openApp('settings', '/notify'); });
+await page.waitForTimeout(600);
+await page.locator('.segmented button, [role="tab"], .seg-item', { hasText: 'Bark' }).first().click();
+await page.waitForTimeout(300);
+const barkFields = await page.evaluate(() => document.body.innerText);
+ok('选 Bark：出现推送地址与加密 Key、IV', /Bark 推送地址/.test(barkFields) && /加密 Key/.test(barkFields) && /加密 IV/.test(barkFields), '');
+await page.locator('input[placeholder="https://api.day.app/..."]').fill('https://api.day.app/AbCd1234');
+await page.waitForTimeout(200);
+calls.length = 0;
+await page.getByText('测试通知通道', { exact: true }).click();
+await page.waitForTimeout(600);
+const tc = calls.find(c => c.path === '/test');
+ok('测试通知通道：把现在填的 Bark 交给服务器发一条', tc?.body?.channel?.kind === 'bark' && tc.body.channel.url === 'https://api.day.app/AbCd1234'
+  && /icon-192\.png$/.test(tc.body.channel.icon || '') && !tc.body.channel.key, JSON.stringify(tc?.body));
+const ch = await page.evaluate(async () => {
+  const b = await import('/src/system/bgpush.js');
+  const good = b.channelOut({ kind: 'bark', url: 'https://api.day.app/K', key: '0123456789abcdef', iv: 'fedcba9876543210' });
+  const bad = b.channelOut({ kind: 'bark', url: 'https://api.day.app/K', key: 'short', iv: 'x' });
+  const pp = b.channelOut({ kind: 'pushplus', token: ' t1 ', hide: true });
+  const none = b.channelOut({ kind: 'pushplus', token: '' });
+  return { good, bad, pp, none };
+});
+ok('加密填对了才带上 Key 与 IV；填错了不退回明文，改成只写「发来一条消息」', ch.good.key === '0123456789abcdef' && ch.good.hide === false
+  && !ch.bad.key && ch.bad.hide === true, JSON.stringify(ch));
+ok('PushPlus：带 token；没填就不交通道', ch.pp.kind === 'pushplus' && ch.pp.token === 't1' && ch.pp.hide === true && ch.none === null, JSON.stringify(ch));
+calls.length = 0;
+await page.evaluate(async () => (await import('/src/system/bgpush.js')).plan({ away: true }));
+const withCh = calls.find(c => c.path === '/plan');
+ok('交任务时通道跟着一起交', withCh?.body?.channel?.kind === 'bark' && withCh.body.channel.url === 'https://api.day.app/AbCd1234', JSON.stringify(withCh?.body?.channel));
+const bk = await page.evaluate(async () => {
+  const backup = await import('/src/system/backup.js');
+  const b = await import('/src/system/bgpush.js');
+  b.setChannel({ kind: 'pushplus', token: 'secret-token', key: 'k', iv: 'v' });
+  const data = JSON.parse(await (await backup.build({ media: false })).text());
+  return data.settings.bgPush.channel;
+});
+ok('备份里不带通道的地址、密钥与 token', bk.kind === 'pushplus' && !bk.token && !bk.url && !bk.key && !bk.iv, JSON.stringify(bk));
+
+// eira://chat/会话 点开之后外壳喊的那一下：跳进那段会话
+await page.evaluate(async o => { const n = await import('/src/system/nav.js'); n.goHome(); window.phoneNotifyOpen({ appId: 'chat', route: `/chat/${o.chat}` }); }, ids);
+await page.waitForTimeout(800);
+const where = await page.evaluate(async () => { const n = await import('/src/system/nav.js'); return JSON.stringify(n.nav.get()); });
+ok('外壳交来的「打开这段会话」：跳进去了', where.includes(ids.chat), where.slice(0, 300));
+
 // ---- 关掉 ----
+await page.evaluate(async () => { const n = await import('/src/system/nav.js'); n.goHome(); n.openApp('settings', '/notify'); });
+await page.waitForTimeout(600);
 calls.length = 0;
 await page.locator('.list-item', { hasText: '后台消息' }).locator('.switch, [role="switch"], input[type="checkbox"]').first().click();
 await page.waitForTimeout(800);

@@ -8805,3 +8805,12 @@ IndexedDB 与 localStorage：测试版的数据迁移会改掉正式数据，`DB
 有 `pushServer` 时，原来那几栏手填 VAPID 公钥、上报地址的「Web Push」不再显示（同一件事只留一个入口）。
 测试 `tests/bgpush.test.mjs`（应用一侧，推送服务器用路由顶上）、`tests/pushworker.test.mjs`（Worker 本身，
 Supabase、模型、推送服务用假的顶上，推送按 RFC 解开、签名验过）。
+
+**通知通道（Bark、PushPlus）。** 没有 Web Push 的安装版应用，借别的 app 送通知：服务器到点把消息存好之后，
+按设备登记的通道再发一条（`worker/push.js` 的 `sendChannel`）。通道配置在 `settings.bgPush.channel`，跟着每次
+交任务一起交（`bgpush.channelOut`），服务器加密存在设备那一行的 `notify` 列；交 null 即关掉。
+Bark 点通知打开 `eira://chat/会话`：ipa 登记了这个链接（Info.plist 的 `CFBundleURLTypes`），`AppDelegate` 接住后
+交给 `NotifyBridge.open`，和点本地通知走同一个出口（网页的 `phoneNotifyOpen`，页面没载完就先记着）。
+Bark 可选 AES-CBC 加密（Key 16/24/32 位、IV 16 位，与 Bark 里的设置一致），加密填错时不退回明文，
+改成只写「发来一条消息」；「通知中不显示消息内容」同样只写这一句。Bark 地址、加密 Key、PushPlus token
+在不带密钥的备份里一律清空。apk 暂不登记链接：现有两种通道里能点开跳转的只有 Bark（iPhone）。

@@ -17,4 +17,11 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
         window = w
         return true
     }
+
+    /// eira://chat/会话：Bark 的通知点开时打开这个链接，跳到那段会话。
+    /// 冷启动也走这里（没有 Scene 的 app，系统在 didFinishLaunching 之后再叫这一下）
+    func application(_ app: UIApplication, open url: URL,
+                     options: [UIApplication.OpenURLOptionsKey: Any] = [:]) -> Bool {
+        (window?.rootViewController as? ShellViewController)?.openLink(url) ?? false
+    }
 }

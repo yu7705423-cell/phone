@@ -88,7 +88,9 @@ export async function build({ media = true, keys = false, onProgress } = {}) {
     persona: db.persona.get(),
     // GitHub 备份的令牌同理：能写你的仓库，不跟着文件走（见 system/ghbackup.js）
     settings: keys ? { ...s } : { ...s, services: undefined, apiKey: '',
-      ...(s.githubBackup ? { githubBackup: { ...s.githubBackup, token: '' } } : {}) },
+      ...(s.githubBackup ? { githubBackup: { ...s.githubBackup, token: '' } } : {}),
+      // 后台消息的通知通道：Bark 地址、加密密钥、PushPlus token 都能替你发通知，同样不跟着文件走
+      ...(s.bgPush?.channel ? { bgPush: { ...s.bgPush, channel: { ...s.bgPush.channel, url: '', key: '', iv: '', token: '' } } } : {}) },
     layout: db.layout.get(),
   };
   // Float32Array 进 JSON 之前要换个写法，见 system/typed.js

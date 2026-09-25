@@ -157,6 +157,21 @@ extension NotifyBridge: UNUserNotificationCenterDelegate {
         }
     }
 
+    /// eira://chat/会话 这种链接（Bark 的通知点开时打开的，见 worker/push.js 的 sendChannel）。
+    /// 和点本地通知走同一个出口：交给网页的 phoneNotifyOpen，页面还没载完就记着。
+    /// 认不出去处的链接也收下，只是打开 app，不跳
+    func open(_ url: URL) -> Bool {
+        guard url.scheme?.lowercased() == "eira" else { return false }
+        var payload: [String: Any] = ["appId": "", "route": ""]
+        if url.host?.lowercased() == "chat", let id = url.pathComponents.dropFirst().first, !id.isEmpty {
+            payload = ["appId": "chat", "route": "/chat/\(id)"]
+        }
+        guard let data = try? JSONSerialization.data(withJSONObject: payload),
+              let json = String(data: data, encoding: .utf8) else { return true }
+        deliver(json)
+        return true
+    }
+
     /// 交给网页。页面还在载就先记着，载完再交。**只在主线程上叫。**
     private func deliver(_ json: String) {
         pending = json

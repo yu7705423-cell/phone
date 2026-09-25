@@ -113,6 +113,9 @@ final class ShellViewController: UIViewController {
 
     override var canBecomeFirstResponder: Bool { true }
 
+    /// eira:// 链接（AppDelegate 转过来的）。交给点通知那一条路
+    func openLink(_ url: URL) -> Bool { notifyBridge.open(url) }
+
     override var preferredStatusBarStyle: UIStatusBarStyle { .default }
 
     /// 摇一摇打开外壳菜单。外壳只有这一个入口，其余一切都归网页管。

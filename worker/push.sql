@@ -8,6 +8,7 @@ create table if not exists push_devices (
   id          uuid primary key default gen_random_uuid(),
   token_hash  text not null,               -- 设备口令的哈希，口令本身只在那台设备上
   sub         text,                        -- Web Push 订阅（密文）；安装版应用没有，为空
+  notify      text,                        -- 通知通道（密文）：Bark、PushPlus 与它们的地址或 token
   seen_at     timestamptz,                 -- 应用最近一次报到；为空表示应用已经退到后台
   created_at  timestamptz not null default now()
 );
@@ -29,4 +30,5 @@ create index if not exists push_jobs_device on push_jobs (device_id);
 alter table push_devices enable row level security;
 -- 早先按「订阅必填」建过表的，补这一句（没建过的跑了也无妨）
 alter table push_devices alter column sub drop not null;
+alter table push_devices add column if not exists notify text;
 alter table push_jobs enable row level security;

@@ -22,6 +22,10 @@ import { note } from './ai/usage.js';
 // 关着时服务器发，同一次开口不会两边都发 —— app 开着的这段时间每隔几分钟报一次到，
 // 服务器看见最近报过到就先不发（等 app 自己发），离开时报一句「走了」。
 //
+// **通知通道**：借别的 app 送通知（worker/push.js 的 sendChannel），给没有 Web Push 的安装版应用用：
+// Bark（iPhone，点通知打开 eira://chat/会话，ipa 外壳接住后跳到那段会话，可加密）、PushPlus（经微信）。
+// 配置在 settings.bgPush.channel，跟着每次交任务一起交给服务器。
+//
 // **没有 Web Push 的地方照样能用**（装成 apk / ipa 的外壳里没有）：登记时不带订阅，服务器照样到点替角色发、
 // 存着，只是不推通知；打开应用时取回，落进会话，时间是它当时发出的那一刻。
 
@@ -108,6 +112,47 @@ export async function disable() {
 /** 让服务器马上推一条试试 */
 export const test = () => api('/test', { method: 'POST' });
 
+// ---- 通知通道 ----
+
+export const channelOf = () => ({ kind: '', url: '', key: '', iv: '', token: '', hide: false, ...(settings.get().bgPush?.channel || {}) });
+
+/** Bark 的加密填得对不对：Key 16、24 或 32 位，IV 16 位；都不填是不加密 */
+export function barkCrypto(ch) {
+  const k = String(ch.key || ''), v = String(ch.iv || '');
+  if (!k && !v) return 'off';
+  return [16, 24, 32].includes(new TextEncoder().encode(k).length) && new TextEncoder().encode(v).length === 16 ? 'ok' : 'bad';
+}
+
+/** 交给服务器的那一份。没选通道是 null（服务器那边就关掉） */
+export function channelOut(ch = channelOf()) {
+  if (ch.kind === 'bark') {
+    if (!String(ch.url || '').trim()) return null;
+    const c = barkCrypto(ch);
+    // 加密填错了不能退回明文发：退成只写「发来一条消息」
+    return { kind: 'bark', url: ch.url.trim(), hide: ch.hide === true || c === 'bad',
+      icon: new URL('icon-192.png', location.href).href,
+      ...(c === 'ok' ? { key: ch.key, iv: ch.iv } : {}) };
+  }
+  if (ch.kind === 'pushplus') {
+    if (!String(ch.token || '').trim()) return null;
+    return { kind: 'pushplus', token: ch.token.trim(), hide: ch.hide === true };
+  }
+  return null;
+}
+
+export function setChannel(patch) {
+  settings.set({ bgPush: { ...(settings.get().bgPush || {}), channel: { ...channelOf(), ...patch } } });
+}
+
+/** 按现在填的通道发一条试试 */
+export async function testChannel() {
+  const ch = channelOf();
+  if (ch.kind === 'bark' && barkCrypto(ch) === 'bad') throw new Error('加密的 Key 须为 16、24 或 32 位，IV 须为 16 位');
+  const out = channelOut(ch);
+  if (!out) throw new Error(ch.kind === 'bark' ? '请先填写 Bark 推送地址' : ch.kind === 'pushplus' ? '请先填写 PushPlus token' : '请先选择通知通道');
+  return api('/test', { method: 'POST', body: { channel: out } });
+}
+
 // ---- 离开时交任务 ----
 
 const MARK_TIME = '{{bg_time}}';
@@ -148,7 +193,7 @@ let queue = Promise.resolve();
  */
 export function plan({ away = false } = {}) {
   if (!isOn() || !readDev()) return Promise.resolve(null);
-  const run = async () => api('/plan', { method: 'POST', body: { away, jobs: await jobsNow() } });
+  const run = async () => api('/plan', { method: 'POST', body: { away, channel: channelOut(), jobs: await jobsNow() } });
   const next = queue.then(run, run);
   queue = next.catch(() => {});
   return next;

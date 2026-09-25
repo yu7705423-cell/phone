@@ -8,6 +8,11 @@
 //   3. 每分钟看一次（Cron Trigger）：到点的任务替应用发请求，拿到角色的话，用 Web Push 推到手机上，
 //      结果存着等应用回来取（GET /results，取完 POST /ack 删掉）
 //
+// **通知通道**：除了 Web Push，还可以借别的 app 送通知，给没有 Web Push 的安装版应用用（apk、ipa）：
+//   Bark     iPhone 上的推送 app。点通知打开 eira://chat/会话，直接跳进 Eira 那段会话；可以加密（AES-CBC）
+//   PushPlus 经微信公众号送到微信里，哪种手机都收得到
+// 用哪个、填什么由应用在交任务时一起交来（加密存在设备那一行），到点发完 Web Push 再按它发一条。
+//
 // 数据存在 Supabase（表结构见 worker/push.sql），经它的 REST 接口读写，用 service_role 密钥。
 // **订阅、任务、结果一律先用 DATA_KEY 加密再存**：任务里带着用户的接口密钥与聊天上下文，
 // 数据库里只看得到密文。DATA_KEY 只在这个 Worker 的环境变量里。
@@ -116,6 +121,54 @@ export async function vapidHeader(env, endpoint) {
   return `vapid t=${header}.${claims}.${b64e(sig)}, k=${env.VAPID_PUBLIC}`;
 }
 
+// ---- 通知通道 ----
+
+// Bark 的推送地址形如 https://api.day.app/设备码/（后面可能还跟着示例文字）
+function barkTarget(url) {
+  try {
+    const u = new URL(url);
+    const key = u.pathname.split('/').filter(Boolean)[0] || '';
+    return key ? { base: u.origin, key } : null;
+  } catch { return null; }
+}
+
+// Bark 的加密：在 Bark 里选 AES-128/192/256 + CBC，Key 与 IV 填同样两串（IV 16 位）
+async function barkCipher(key, iv, obj) {
+  const k = await crypto.subtle.importKey('raw', enc(key), 'AES-CBC', false, ['encrypt']);
+  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-CBC', iv: enc(iv) }, k, enc(JSON.stringify(obj))));
+  let s = '';
+  for (let i = 0; i < ct.length; i += 0x8000) s += String.fromCharCode.apply(null, ct.subarray(i, i + 0x8000));
+  return btoa(s);
+}
+
+/** 按通道发一条。{ title, text, chatId }。失败只报回来，不影响那条消息已经存好 */
+export async function sendChannel(ch, { title, text, chatId }) {
+  const body = ch.hide ? '发来一条消息' : preview(text);
+  if (ch.kind === 'bark') {
+    const t = barkTarget(ch.url);
+    if (!t) return { ok: false, error: 'Bark 地址不对' };
+    const msg = { title, body, group: 'Eira', ...(ch.icon ? { icon: ch.icon } : {}),
+      ...(chatId ? { url: `eira://chat/${encodeURIComponent(chatId)}` } : {}) };
+    let res;
+    if (ch.key && ch.iv) {
+      const form = new URLSearchParams({ ciphertext: await barkCipher(ch.key, ch.iv, msg), iv: ch.iv });
+      res = await fetch(`${t.base}/${t.key}`, { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: form.toString() });
+    } else {
+      res = await fetch(`${t.base}/push`, { method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ device_key: t.key, ...msg }) });
+    }
+    return res.ok ? { ok: true } : { ok: false, error: `Bark ${res.status}` };
+  }
+  if (ch.kind === 'pushplus') {
+    if (!ch.token) return { ok: false, error: '没有填 PushPlus 的 token' };
+    const res = await fetch('https://www.pushplus.plus/send', { method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ token: ch.token, title, content: body, template: 'txt' }) });
+    const j = await res.json().catch(() => ({}));
+    return res.ok && Number(j.code) === 200 ? { ok: true } : { ok: false, error: `PushPlus ${j.msg || res.status}` };
+  }
+  return { ok: false, error: '不认识的通知通道' };
+}
+
 /** 推一条。回来 { ok, gone }：gone 是订阅已经作废（用户退订、清了数据），这台设备可以删了 */
 async function sendPush(env, sub, message) {
   const body = await encryptPayload(sub, JSON.stringify(message));
@@ -204,7 +257,7 @@ async function runDue(env) {
   const devices = new Map();
   for (const job of due || []) {
     if (!devices.has(job.device_id)) {
-      const [d] = await db(env, 'GET', `push_devices?id=eq.${job.device_id}&select=id,sub,seen_at`) || [];
+      const [d] = await db(env, 'GET', `push_devices?id=eq.${job.device_id}&select=id,sub,notify,seen_at`) || [];
       devices.set(job.device_id, d || null);
     }
     const dev = devices.get(job.device_id);
@@ -236,6 +289,11 @@ async function runJob(env, job, dev, now) {
     });
     if (sent.gone) { await db(env, 'DELETE', `push_devices?id=eq.${dev.id}`); return; }
   }
+  // 通知通道（Bark、PushPlus）。没发成不要紧，消息已经存好，打开应用时照样取得回
+  if (dev.notify) {
+    const ch = await unseal(env, dev.notify).catch(() => null);
+    if (ch) await sendChannel(ch, { title: data.title || 'Eira', text, chatId: data.chatId }).catch(() => {});
+  }
   // 还有下一次：把这一句接进对话，再由角色接着开口
   const rest = data.rest || [];
   if (rest.length) {
@@ -256,7 +314,7 @@ async function runJob(env, job, dev, now) {
 async function deviceOf(env, req) {
   const m = String(req.headers.get('authorization') || '').match(/^Bearer\s+([0-9a-f-]{36})\.(\S+)$/i);
   if (!m) return null;
-  const [d] = await db(env, 'GET', `push_devices?id=eq.${m[1]}&select=id,token_hash,sub`) || [];
+  const [d] = await db(env, 'GET', `push_devices?id=eq.${m[1]}&select=id,token_hash,sub,notify`) || [];
   if (!d || d.token_hash !== await sha256(m[2])) return null;
   return d;
 }
@@ -332,13 +390,19 @@ async function handle(req, env) {
     return json(h, { ok: true });
   }
   if (route === 'POST /test') {
+    // 带着通道来的就试那个通道（设置页上刚填的，可能还没交过任务）
+    const { channel } = await req.json().catch(() => ({}));
+    if (channel && channel.kind) {
+      const r = await sendChannel(channel, { title: 'Eira', text: '通知通道工作正常', chatId: '' });
+      return r.ok ? json(h, { ok: true }) : json(h, { error: r.error }, 502);
+    }
     if (!dev.sub) return json(h, { error: '这台设备没有推送订阅（安装版应用），消息在打开应用时出现' }, 400);
     const sent = await sendPush(env, await unseal(env, dev.sub), { title: 'Eira', body: '推送服务器工作正常', tag: 'bg-test' });
     if (sent.gone) await db(env, 'DELETE', `push_devices?id=eq.${dev.id}`);
     return sent.ok ? json(h, { ok: true }) : json(h, { error: `推送服务返回 ${sent.status}` }, 502);
   }
   if (route === 'POST /plan') {
-    const { away = false, jobs = [] } = await req.json().catch(() => ({}));
+    const { away = false, jobs = [], channel } = await req.json().catch(() => ({}));
     await db(env, 'DELETE', `push_jobs?device_id=eq.${dev.id}&status=eq.pending`);
     const rows = [];
     for (const j of Array.isArray(jobs) ? jobs : []) {
@@ -353,7 +417,10 @@ async function handle(req, env) {
       });
     }
     if (rows.length) await db(env, 'POST', 'push_jobs', rows);
-    await db(env, 'PATCH', `push_devices?id=eq.${dev.id}`, { seen_at: away ? null : iso(Date.now()) });
+    const patch = { seen_at: away ? null : iso(Date.now()) };
+    // 通知通道跟着任务一起交来：设置页上改了，下一次交任务就换过来。null 是关掉
+    if (channel !== undefined) patch.notify = channel && channel.kind ? await seal(env, channel) : null;
+    await db(env, 'PATCH', `push_devices?id=eq.${dev.id}`, patch);
     return json(h, { ok: true, jobs: rows.length });
   }
   if (route === 'GET /results') {
