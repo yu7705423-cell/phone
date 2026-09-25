@@ -90,7 +90,7 @@ export function create(fields = {}) {
     perDay: fields.perDay || 0, mlPer: 0, level: null,
     buyAt: fields.buyAt || '', openedAt: fields.openedAt || '', expireAt: fields.expireAt || '',
     pao: fields.pao ?? (meta.pao || 0), shelf: fields.shelf || 0,
-    alertAt: 0,
+    alertAt: 0, auto: fields.auto === true,
     createdAt: Date.now(),
   });
 }
@@ -99,7 +99,8 @@ export function create(fields = {}) {
 export function update(id, patch) {
   const cur = closet.get(id);
   if (!cur) return null;
-  const next = { ...patch };
+  // 动过一次就算我收下的了，重新生成那一轮也不撤（dropAutoGift）
+  const next = { ...patch, auto: false };
   if ((patch.group && patch.group !== cur.group) || (patch.sub && patch.sub !== cur.sub)) {
     const g = groupOf(patch.group || cur.group);
     if (g) next.side = g.side;
@@ -301,6 +302,59 @@ export function fromGift(msg) {
 }
 /** 这条礼物已经收进衣帽间了吗（按消息 id 认） */
 export const giftItem = msgId => closet.all().find(r => r.giftMsgId === msgId) || null;
+
+// ---- 按名字猜分类（本地词表，不调接口） ----
+//
+// 小类名本身就是词（「耳饰」「口红」），另外补几个常见的叫法。认得出就给 { group, sub }，
+// 认不出给 null。礼物自动收进角色衣帽间时靠它挡一道：「一盒糖」「一张纸条」认不出，就不收
+const ALIASES = [
+  ['耳环', 'jewelry', '耳饰'], ['耳钉', 'jewelry', '耳饰'], ['耳坠', 'jewelry', '耳饰'],
+  ['手镯', 'jewelry', '手链 / 手镯'], ['手链', 'jewelry', '手链 / 手镯'], ['吊坠', 'jewelry', '项链'],
+  ['发夹', 'acc', '发饰'], ['发卡', 'acc', '发饰'], ['发圈', 'acc', '发饰'], ['墨镜', 'acc', '眼镜'],
+  ['毛衣', 'top', '针织 / 毛衣'], ['针织', 'top', '针织 / 毛衣'], ['T恤', 'top', 'T 恤'],
+  ['吊带', 'top', '背心 / 吊带'], ['背心', 'top', '背心 / 吊带'], ['裙子', 'onepiece', '连衣裙'],
+  ['裤', 'bottom', '长裤'], ['球鞋', 'shoes', '运动鞋'], ['高跟', 'shoes', '高跟鞋'], ['拖鞋', 'shoes', '凉拖'],
+  ['包包', 'bag', '手提'], ['背包', 'bag', '双肩'], ['钱包', 'bag', '手拿'],
+  ['唇膏', 'lip', '口红'], ['唇釉', 'lip', '唇釉'], ['面霜', 'skin', '乳霜'], ['粉底液', 'base', '粉底'],
+  ['眼影盘', 'eye', '眼影'], ['香氛', 'scent', '香水'], ['化妆刷', 'tool', '刷具'],
+  ['外套', 'outer', '夹克'], ['围巾', 'acc', '围巾'], ['帽', 'acc', '帽子'], ['手表', 'acc', '手表'],
+  ['鞋', 'shoes', ''], ['包', 'bag', ''], ['裙', 'onepiece', '连衣裙'],
+];
+// 太泛的几个小类名单独出现时不认：「平底锅」不是鞋，「茶具套装」不是衣服
+const LOOSE = new Set(['造型', '平底', '套装', '手提', '高光', '修容', '洗护', '贴身']);
+export function guessKind(name) {
+  const t = String(name || '');
+  if (!t) return null;
+  // 先认小类名：长的先认，「针织 / 毛衣」这种拆开认
+  const subs = GROUPS.flatMap(g => subsOf(g.id).flatMap(s => s.label.split(' / ')
+    .map(w => ({ w: w.replace(/\s+/g, ''), group: g.id, sub: s.label }))))
+    .filter(x => x.w.length >= 2 && !LOOSE.has(x.w))
+    .sort((a, b) => b.w.length - a.w.length);
+  const hit = subs.find(x => t.replace(/\s+/g, '').includes(x.w));
+  if (hit) return { group: hit.group, sub: hit.sub };
+  const al = ALIASES.find(([w]) => t.includes(w));
+  return al ? { group: al[1], sub: al[2] } : null;
+}
+
+/**
+ * 我送的礼物，角色拆开收下了：认得出是衣帽间里的东西，就直接收进它的衣帽间，
+ * 用不着我再去点。认不出（一盒糖、一张纸条）就不收；气泡上的「收进衣帽间」还在，想收可以手动点。
+ * 自动收的记一个 auto，整轮重新生成把礼物退回待拆时一并撤掉（gift.unsettle）
+ */
+export function keepGift(msg) {
+  if (!msg || msg.kind !== 'gift' || msg.role !== 'user' || giftItem(msg.id)) return null;
+  const fields = fromGift(msg);
+  if (!fields) return null;
+  const kind = guessKind(fields.name) || guessKind(msg.cover);
+  if (!kind) return null;
+  return create({ ...fields, ...kind, auto: true });
+}
+
+/** 撤掉自动收进去的那一件。手动收的、改过的不动 */
+export function dropAutoGift(msgId) {
+  const row = giftItem(msgId);
+  if (row && row.auto) remove(row.id);
+}
 
 // ---- 给角色看的清单 ----
 

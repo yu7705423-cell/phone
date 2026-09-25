@@ -1,5 +1,6 @@
 import { messages, chats, characters, settings } from './db/index.js';
 import * as accounts from './accounts.js';
+import { keepGift, dropAutoGift } from './closet.js';
 
 // 礼物。
 //
@@ -115,6 +116,8 @@ export function settle(msgId, open, extra = {}) {
     status: 'done', ...extra,
   });
   chats.update(m.chatId, { lastMessageAt: Date.now() });
+  // 我送的，角色拆开了：是衣帽间里的东西就直接收进它的衣帽间（system/closet.js 的 keepGift）
+  if (open && m.role === 'user') keepGift(messages.get(msgId));
   return notice;
 }
 
@@ -128,5 +131,6 @@ export function unsettle(noticeId) {
     gift: PENDING,
     content: contentOf({ cover: m.cover, inner: m.inner, state: PENDING, hide: blind() }),
   });
+  dropAutoGift(m.id);
   return true;
 }

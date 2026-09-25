@@ -201,6 +201,40 @@ await page.waitForTimeout(800);
 const g2 = await ev(async id => (await import('/src/system/db/index.js')).db.closet.all().filter(r => r.giftMsgId === id).length, giftId);
 ok('再点一次：打开已收的那件，不重复收', g2 === 1, g2);
 
+// ---- 我送的礼物，角色拆开：直接收进它的衣帽间 ----
+const auto = await ev(async ({ chat, char }) => {
+  const gift = await import('/src/system/gift.js');
+  const cl = await import('/src/system/closet.js');
+  const { db } = await import('/src/system/db/index.js');
+  const give = (cover, inner) => {
+    gift.send({ chatId: chat, role: 'user', authorId: 'me', cover, inner });
+    return db.messagesOf(chat).filter(x => x.kind === 'gift' && x.role === 'user').pop();
+  };
+  const ring = give('一个小盒子', '情侣戒指');
+  const note = gift.settle(ring.id, true);
+  const kept = cl.giftItem(ring.id);
+  const candy = give('一盒糖', '');
+  gift.settle(candy.id, true);
+  const pan = give('平底锅', '');
+  gift.settle(pan.id, true);
+  const guesses = ['珍珠耳环', '白色毛衣', '一双高跟鞋', '木质香水', '平底锅', '茶具套装', '一束花']
+    .map(n => [n, cl.guessKind(n)?.group || '']);
+  // 整轮重新生成：礼物退回待拆，自动收的那件一并撤掉
+  gift.unsettle(note.id);
+  return {
+    kept: kept && { owner: kept.owner, group: kept.group, sub: kept.sub, name: kept.name, giver: kept.giver, auto: kept.auto },
+    candy: !!cl.giftItem(candy.id), pan: !!cl.giftItem(pan.id), guesses,
+    afterUndo: !!cl.giftItem(ring.id),
+  };
+}, ids);
+ok('我送的戒指，角色拆开：直接收进它的衣帽间，分好类', auto.kept && auto.kept.owner === ids.char && auto.kept.group === 'jewelry'
+  && auto.kept.sub === '戒指' && auto.kept.giver === 'me' && auto.kept.name === '情侣戒指', JSON.stringify(auto));
+ok('一盒糖、平底锅认不出是穿戴的东西：不收', !auto.candy && !auto.pan, JSON.stringify(auto));
+ok('按名字猜分类：耳环、毛衣、高跟鞋、香水认得出，平底锅、茶具套装、一束花不认',
+  JSON.stringify(auto.guesses) === JSON.stringify([['珍珠耳环', 'jewelry'], ['白色毛衣', 'top'], ['一双高跟鞋', 'shoes'],
+    ['木质香水', 'scent'], ['平底锅', ''], ['茶具套装', ''], ['一束花', '']]), JSON.stringify(auto.guesses));
+ok('重新生成那一轮、礼物退回待拆：自动收的那件撤掉', !auto.afterUndo, JSON.stringify(auto));
+
 // ---- 登记 ----
 const reg = await ev(async ({ char }) => {
   const cl = await import('/src/system/closet.js');
