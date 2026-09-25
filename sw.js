@@ -15,12 +15,33 @@
 //   - 跨域的（接口、网易云、字体）一律不碰
 //
 // 地址上带 cache=0 时不缓存，只管通知：自动化测试里默认这样（见 system/offline.js）。
+//
+// ---- 不许把上一版存进这一版（ARCHITECTURE 4.230）----
+//
+// 从网络取、准备存进缓存的那一份，**一律先跟服务器核对一次**（cache: 'no-cache'）。
+// 从前直接 fetch(req)，走浏览器的 HTTP 缓存：GitHub Pages 给十分钟，发版之后十分钟内点开
+// 某个 app，它的 js 从 HTTP 缓存里拿到的是上一版，还被存进新版的缓存，此后每次打开都是它。
+// 核对一次多数只回一个 304，不贵。
+//
+// 页面是哪一版，从它那份 index.html 里读。**页面比这个 Service Worker 新**（刚发了版，
+// 新的 Service Worker 还没接管）时，这一页的文件一律走网络，也不存进这份缓存 ——
+// 这份缓存是上一版的，从里面拿就是新旧混着。
 
 const params = new URL(self.location.href).searchParams;
 const BUILD = params.get('b') || 'dev';
 const CACHING = params.get('cache') !== '0';
 const CACHE = `eira-${BUILD}`;
 const STATIC = /\.(m?js|css|json|png|svg|jpe?g|webp|gif|ico|woff2?|ttf|otf|webmanifest|wasm|txt)$/i;
+
+// 每个页面是哪一版（clientId -> 构建号），导航时从拿到的 index.html 里读
+const pageBuild = new Map();
+const buildIn = html => (String(html).match(/<meta\s+name="build"\s+content="([^"]*)"/) || [])[1] || '';
+function notePage(id, build) {
+  if (!id || !build) return;
+  pageBuild.set(id, build);
+  // 只留最近这些。关掉的页面不会来说一声
+  if (pageBuild.size > 30) pageBuild.delete(pageBuild.keys().next().value);
+}
 
 self.addEventListener('install', () => self.skipWaiting());
 // 激活时只做一件事：接管页面。**不等删旧缓存** —— 激活期间页面的请求全被挂起，
@@ -32,9 +53,15 @@ self.addEventListener('activate', e => {
     .catch(() => {});
 });
 
-async function network(req) {
-  const res = await fetch(req);
-  if (res.ok && res.type === 'basic') {
+// 强制更新那一遍带着 reload，照它的；其余一律 no-cache：取之前先跟服务器核对
+function fresh(req) {
+  if (req.mode === 'navigate' || req.cache === 'reload' || req.cache === 'no-store') return fetch(req);
+  return fetch(new Request(req, { cache: 'no-cache' }));
+}
+
+async function network(req, store = true) {
+  const res = await fresh(req);
+  if (store && res.ok && res.type === 'basic') {
     const copy = res.clone();
     caches.open(CACHE).then(c => c.put(req.url.split('#')[0], copy)).catch(() => {});
   }
@@ -51,16 +78,30 @@ self.addEventListener('fetch', event => {
 
   // 页面本身：先问网络，断网才用缓存里的
   if (req.mode === 'navigate') {
-    event.respondWith(network(req).catch(async () =>
-      (await caches.match(req, { ignoreSearch: true }))
-      || (await caches.match(new URL('./index.html', self.location.href).href))
-      || Response.error()));
+    event.respondWith((async () => {
+      try {
+        const res = await network(req);
+        // 读完这份页面再交出去：它的子文件马上就到，要先知道它是哪一版
+        if (res.ok) notePage(event.resultingClientId, buildIn(await res.clone().text()));
+        return res;
+      } catch {
+        return (await caches.match(req, { ignoreSearch: true }))
+          || (await caches.match(new URL('./index.html', self.location.href).href))
+          || Response.error();
+      }
+    })());
     return;
   }
   if (!STATIC.test(url.pathname)) return;
   // 强制更新那一遍：走网络，覆盖缓存
   if (req.cache === 'reload' || req.cache === 'no-store' || req.cache === 'no-cache') {
     event.respondWith(network(req));
+    return;
+  }
+  // 页面比这份缓存新：走网络，不存
+  const want = pageBuild.get(event.clientId);
+  if (want && want !== BUILD) {
+    event.respondWith(network(req, false));
     return;
   }
   event.respondWith((async () => {
@@ -81,7 +122,7 @@ self.addEventListener('message', event => {
         const url = new URL(u, self.location.href);
         if (url.origin !== self.location.origin || !STATIC.test(url.pathname)) continue;
         if (await c.match(url.href)) continue;
-        const res = await fetch(url.href);
+        const res = await fetch(url.href, { cache: 'no-cache' });
         if (res.ok) await c.put(url.href, res);
       } catch { /* 一个取不到不影响别的 */ }
     }

@@ -7,7 +7,7 @@
 <!-- 构建号。和 src/version.js 里的必须一致，由 scripts/check-build.mjs 拦着。
      HTML 比 js 子资源更容易被浏览器重新验证，所以拿它当「真实版本」，
      启动时和 version.js 一比就知道缓存里的 js 是不是旧的。见 src/main.js -->
-<meta name="build" content="2026-09-25.169">
+<meta name="build" content="2026-09-25.170">
 <meta name="theme-color" content="#F2F3F5" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0D0E10" media="(prefers-color-scheme: dark)">
 <meta name="mobile-web-app-capable" content="yes">
@@ -22,12 +22,15 @@
 <link rel="icon" type="image/png" href="icon-192.png">
 <title>Eira</title>
 <!-- 这五个必须留在 head 里：美化、自定义 CSS、字体都是往 head 末尾追加 <style>，
-     靠排在它们后面才压得过。挪进 body 就反过来了（ARCHITECTURE 4.206） -->
-<link rel="stylesheet" href="styles/tokens.css">
-<link rel="stylesheet" href="styles/base.css">
-<link rel="stylesheet" href="styles/ui.css">
-<link rel="stylesheet" href="styles/shell.css">
-<link rel="stylesheet" href="styles/app.css">
+     靠排在它们后面才压得过。挪进 body 就反过来了（ARCHITECTURE 4.206）
+     地址带着构建号（?v=），和上面那行 meta 一起改，由 scripts/check-build.mjs 拦着：
+     样式表因此永远和这份页面是同一版。图标与壁纸的图是样式表读变量画的，
+     新代码配上一版的样式表，图就一起消失（ARCHITECTURE 4.230） -->
+<link rel="stylesheet" href="styles/tokens.css?v=2026-09-25.170">
+<link rel="stylesheet" href="styles/base.css?v=2026-09-25.170">
+<link rel="stylesheet" href="styles/ui.css?v=2026-09-25.170">
+<link rel="stylesheet" href="styles/shell.css?v=2026-09-25.170">
+<link rel="stylesheet" href="styles/app.css?v=2026-09-25.170">
 </head>
 <body>
 <!-- 代码版本对不上、而且自愈过两次仍然对不上时露出来的那一条。
