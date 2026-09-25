@@ -376,6 +376,18 @@ export function listLines(owner, personaId, side, limit) {
   return lines;
 }
 
+// ---- 描述里只留东西本身（ARCHITECTURE 4.215） ----
+//
+// 存衣服的照片常常是模特穿着的。识图照理只写衣服，但描述里只要混进一句「长发模特」，
+// 这一句跟着进了生图提示词，画出来的脸就可能是模特的，不是角色的。
+// 所以凡是要拿描述去给别人读的地方（生图、给角色看的今天穿的），先把提到人的那几句去掉。
+// 宁可多删一句，不能让别人的脸混进来
+const PERSON = /模特|人台|假人|穿着者|试穿者|脸|面容|五官|长相|发型|长发|短发|卷发|肤色|身材|表情|姿势|\b(models?|mannequins?|wearer|faces?|hair|skin|pose[sd]?|posing)\b/i;
+export const garmentOnly = desc => String(desc || '')
+  .split(/(?<=[。！？；!?;\n]|\.\s)/)
+  .filter(x => x.trim() && !PERSON.test(x))
+  .join('').replace(/\s+/g, ' ').trim();
+
 // ---- 套装（ARCHITECTURE 4.214） ----
 //
 // 一套就是几件单品的组合，和单品存在同一个域里，side 记作 'outfit'：

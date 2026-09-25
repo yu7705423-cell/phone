@@ -1659,6 +1659,10 @@ To attach one song to the post, add a "song" field to the JSON, written as
 `Identify the single item in this photo, for a personal wardrobe and dressing-table
 record.
 
+The photo may show the item worn by a model or placed on a mannequin. The record
+is of the item alone: "name" and "desc" never mention the person wearing it, and
+never describe a face, hair, skin, body, pose or expression.
+
 Categories (id: name — subcategories):
 {{groups}}
 
@@ -1693,7 +1697,8 @@ Occasion ids: {{occasions}}
 - Every item belongs to one category id from the list, and "sub" is one
   subcategory name from that category, copied exactly
 - "name" is a short name for the item; "desc" is one or two sentences on
-  material, cut, colour and details
+  material, cut, colour and details; "desc" describes the item alone and
+  never a person wearing it
 - "shade" is the shade name for makeup, otherwise empty
 - No two items may share a name
 - Write "name" and "desc" in the same language as the settings above

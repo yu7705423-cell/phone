@@ -150,6 +150,10 @@ export function appearanceOf(text, char) {
 
 /**
  * 画面里有谁，就把谁今天穿的（衣帽间里勾了的那几件）接在后面。
+ *
+ * **只传文字，衣物的照片永远不当参考图发给生图接口。** 存衣服的照片常常是模特穿着的，
+ * 参考图一旦带上它，画出来的就是模特的脸。描述也先过一遍 garmentOnly，提到人的句子去掉
+ * （ARCHITECTURE 4.215）。
  * 衣帽间设置里「生图时参考今天穿的」打开才有，默认关着 —— 不多调接口，
  * 但会改变画出来的衣服，开不开是用户的事。
  *
@@ -162,7 +166,7 @@ function wearOf(text, char) {
   const t = String(text || '');
   const pair = PAIR.test(t);
   const line = (name, rows) => (rows.length
-    ? `${name} is wearing: ${rows.map(r => [r.name, String(r.desc || '').replace(/\s+/g, ' ').trim()]
+    ? `${name} is wearing: ${rows.map(r => [r.name, closet.garmentOnly(r.desc)]
       .filter(Boolean).join(', ')).join('; ')}`
     : '');
   const out = [];
@@ -175,6 +179,11 @@ function wearOf(text, char) {
   if (pair || (mn.length >= 2 && t.includes(mn))) {
     const l = line(mn || 'The other person', closet.wornToday(closet.ME));
     if (l) out.push({ from: '我今天穿的（衣帽间）', text: l });
+  }
+  // 衣服的照片多半是模特穿着的。这一句钉死：这几行只管衣服，脸和身形按上面的外貌来
+  if (out.length) {
+    out.push({ from: '衣帽间：只取衣物', text: 'The clothing lines above describe garments only.'
+      + ' Faces, hair and bodies follow the appearance of each named person, never a model the garments were photographed on.' });
   }
   return out;
 }

@@ -48,7 +48,7 @@ function originOf(r, char, userName) {
 function itemLine(r, char, userName) {
   const tags = tagsOf(r);
   const origin = originOf(r, char, userName);
-  const desc = String(r.desc || '').replace(/\s+/g, ' ').trim().slice(0, 60);
+  const desc = closet.garmentOnly(r.desc).slice(0, 60);
   return `- ${r.name}${tags ? ` (${tags})` : ''}${desc ? `: ${desc}` : ''}${origin ? `; ${origin}` : ''}`;
 }
 

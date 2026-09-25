@@ -7,7 +7,7 @@ import { parseJSON } from '../sse.js';
 import { generate, isImageReady } from '../image.js';
 import { images } from '../../db/images.js';
 import { toDataUrl } from '../../audio.js';
-import { subsOf, setImage, itemsOf, isOutfit, create } from '../../closet.js';
+import { subsOf, setImage, itemsOf, isOutfit, create, garmentOnly } from '../../closet.js';
 import { GROUPS, COLORS, SEASONS, OCCASIONS, groupOf } from '../../closet-kinds.js';
 import { runJSONTask } from '../engine.js';
 
@@ -50,7 +50,8 @@ export async function recognize(id) {
   }
   const name = String(j.name || '').trim().slice(0, 40);
   if (name && (!cur.name || cur.name === '未命名')) patch.name = name;
-  const desc = String(j.desc || '').trim();
+  // 照片常是模特穿着的：提到人的句子不存（ARCHITECTURE 4.215）
+  const desc = garmentOnly(j.desc);
   if (desc && !cur.desc) patch.desc = desc.slice(0, 300);
   if (!(cur.colors || []).length) patch.colors = pick(j.colors, COLORS);
   if (!(cur.seasons || []).length) patch.seasons = pick(j.seasons, SEASONS);
@@ -125,7 +126,7 @@ export async function wardrobe(charId, { count = 20, side = 'wear' } = {}) {
     seen.add(norm(name));
     return {
       group: g.id, side: g.side, sub: sub ? sub.label : '', name,
-      desc: str(x?.desc).slice(0, 300), shade: side === 'beauty' ? str(x?.shade).slice(0, 30) : '',
+      desc: garmentOnly(x?.desc).slice(0, 300), shade: side === 'beauty' ? str(x?.shade).slice(0, 30) : '',
       colors: pick(x?.colors, COLORS),
       seasons: side === 'wear' ? pick(x?.seasons, SEASONS) : [],
       occasions: side === 'wear' ? pick(x?.occasions, OCCASIONS) : [],
