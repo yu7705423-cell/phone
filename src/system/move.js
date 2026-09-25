@@ -24,7 +24,11 @@ const slash = u => String(u || '').replace(/\/?$/, '/');
 
 export const fromOrigin = () => originOf(SITE.moveFrom);
 export const toOrigin = () => originOf(SITE.moveTo);
-const both = () => !!fromOrigin() && !!toOrigin() && fromOrigin() !== toOrigin();
+// **app 外壳里不搬。** 安卓、iPhone 的 app 是一个 WebView，打开哪个网址是打包时定死的，
+// 开不出第二个窗口：点了「搬家」，新网址会被当成站外链接扔给系统浏览器，数据落到浏览器那边，
+// 这边干等十分钟超时。外壳自己的网址另外换（重新打包），换之前旧网址照常能用
+const inShell = () => typeof window !== 'undefined' && !!window.phoneAppVersion;
+const both = () => !inShell() && !!fromOrigin() && !!toOrigin() && fromOrigin() !== toOrigin();
 
 /** 这里是旧网址：该提示搬到新网址 */
 export const isOld = () => both() && location.origin === fromOrigin();

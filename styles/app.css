@@ -1293,6 +1293,59 @@ button.search-bar { width: 100%; border: none; }
 }
 .call-self video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
 
+/* ---- 通话缩小（CallLayer 的 CallBall） ---- */
+/* 左上角两个小按钮：缩成悬浮球、桌面悬浮窗 */
+.call-tools {
+  position: absolute; z-index: 2;
+  top: calc(var(--safe-top) + var(--sp-4)); left: var(--sp-4);
+  display: flex; gap: var(--sp-2);
+}
+.call-tool {
+  width: 38px; height: 38px; border-radius: var(--r-full); border: none;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--group-fill); color: var(--text-2);
+}
+.call-tool.is-on { background: var(--accent); color: var(--on-accent); }
+.call-layer.is-video .call-tool { background: rgba(255, 255, 255, .2); color: var(--on-scrim); }
+.call-layer.is-video .call-tool.is-on { background: var(--scrim-fill); color: var(--on-scrim-fill); }
+
+/* 缩起来时整层留着，只是看不见、点不到（摄像头取帧还要用这一层里的小窗）。
+   不用 display:none —— 浏览器会把看不见的静音视频停掉，角色就看不到画面了 */
+.call-layer.is-mini { opacity: 0; pointer-events: none; }
+
+.call-ball {
+  position: absolute; left: 0; top: 0; z-index: var(--z-call);
+  transform: translate(var(--ball-x, 0), var(--ball-y, 0));
+  transition: transform var(--dur) var(--ease);
+  touch-action: none; user-select: none; -webkit-user-select: none;
+  display: flex; flex-direction: column; align-items: center; gap: var(--sp-1);
+  padding: var(--sp-2); border: none; border-radius: var(--r-lg);
+  background: var(--surface); color: var(--text); box-shadow: var(--shadow-2);
+}
+.call-ball.is-dragging { transition: none; }
+.call-ball.is-placing { visibility: hidden; }
+.call-ball-face { display: flex; border-radius: var(--r-full); }
+/* 对方正在说：头像外面一圈描边，一明一暗 */
+.call-ball.is-talking .call-ball-face { animation: call-ball-talk 1.2s var(--ease) infinite; }
+@keyframes call-ball-talk {
+  0%, 100% { box-shadow: 0 0 0 0 var(--accent); }
+  50% { box-shadow: 0 0 0 3px var(--accent); }
+}
+.call-ball-scene {
+  display: block; width: 84px; height: 112px; border-radius: var(--r-md);
+  background-size: cover; background-position: center;
+}
+.call-ball.is-video.is-talking .call-ball-scene { animation: call-ball-talk 1.2s var(--ease) infinite; }
+.call-ball-time {
+  font-size: var(--fs-12); color: var(--text-2); font-variant-numeric: tabular-nums;
+}
+
+/* 画中画的画面来源：一段藏起来的视频，只给系统拿去弹成小窗（system/callfloat.js） */
+.pip-source {
+  position: fixed; left: 0; top: 0; width: 2px; height: 2px;
+  opacity: 0; pointer-events: none;
+}
+
 /* 角色卡上的视频画面预览 */
 .call-scene-preview {
   margin-top: var(--sp-3); height: 140px; border-radius: var(--r-md);

@@ -2,12 +2,14 @@ package com.eira.phone
 
 import android.content.ContentValues
 import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.os.Handler
 import android.os.Looper
 import android.provider.MediaStore
+import android.provider.Settings
 import android.util.Base64
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
@@ -31,6 +33,7 @@ import java.util.concurrent.atomic.AtomicInteger
  *    网页里连不上，用系统自己的网络栈发同样的请求就通。与 ios/Sources/NetBridge.swift 同一个约定：
  *    只做转发，状态码、响应头、响应体原样交回，错误也原样报。
  * 二、把网页导出的文件（备份）写进系统的「下载」。
+ * 三、通话的桌面悬浮窗（见 CallFloat 与网页的 src/system/callfloat.js）。
  */
 class NativeBridge(private val context: Context, private val web: WebView) {
 
@@ -55,6 +58,29 @@ class NativeBridge(private val context: Context, private val web: WebView) {
             val text = JSONObject.quote(reply.toString())
             main.post { web.evaluateJavascript("window.__eiraReply && window.__eiraReply($id, $text)", null) }
         }
+    }
+
+    // ---- 通话的桌面悬浮窗 ----
+
+    /** 系统给没给「显示在其他应用上层」 */
+    @JavascriptInterface
+    fun floatAllowed(): Boolean = CallFloat.allowed(context)
+
+    /** 带人去系统设置里给这个权限。给不给由人决定，回来之后网页再问一次 floatAllowed */
+    @JavascriptInterface
+    fun askFloat() {
+        main.post {
+            val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:${context.packageName}"))
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            runCatching { context.startActivity(intent) }
+        }
+    }
+
+    /** 网页按时交过来的通话状态：{ on, title, status, line, image? } */
+    @JavascriptInterface
+    fun setFloat(json: String) {
+        val msg = runCatching { JSONObject(json) }.getOrNull() ?: return
+        main.post { CallFloat.update(context, msg) }
     }
 
     // ---- 发请求 ----

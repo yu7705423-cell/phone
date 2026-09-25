@@ -47,6 +47,7 @@ export const call = createStore({
   mic: false,             // 我用嘴还是打字
   outcome: '',            // 结束原因
   error: '',
+  mini: false,            // 缩成悬浮球：通话照常进行，界面让出来（见 CallLayer 的 CallBall）
 });
 
 // 喇叭和麦克风是通话控件，不是设置项，但要记住上次怎么用的。
@@ -227,7 +228,7 @@ function reset(patch) {
   camera.stop();
   call.set({
     phase: 'idle', chatId: '', charId: '', lines: [], draft: '', heard: '',
-    thinking: false, listening: false, camera: false, outcome: '', error: '', ...patch,
+    thinking: false, listening: false, camera: false, outcome: '', error: '', mini: false, ...patch,
   });
 }
 
@@ -245,7 +246,7 @@ export function dial(chatId, { video = false } = {}) {
 
   ended = false;
   call.set({ ...prefs(char), phase: 'dialing', chatId, charId: char.id, direction: 'out',
-    video, camera: false, lines: [], draft: '', heard: '', outcome: '', error: '' });
+    video, camera: false, lines: [], draft: '', heard: '', outcome: '', error: '', mini: false });
   framedAt = 0;
 
   // 拨出去总要响一会儿，立刻接通反而假
@@ -266,7 +267,7 @@ export function ring(chatId, { video = false } = {}) {
 
   ended = false;
   call.set({ ...prefs(char), phase: 'ringing', chatId, charId: char.id, direction: 'in',
-    video, camera: false, lines: [], draft: '', heard: '', outcome: '', error: '' });
+    video, camera: false, lines: [], draft: '', heard: '', outcome: '', error: '', mini: false });
   framedAt = 0;
 
   notify({
@@ -306,6 +307,16 @@ export async function toggleSelf() {
     settings.set({ callSelfReal: false });
   }
 }
+
+// 缩成悬浮球 / 展开回全屏。
+//
+// 只是界面让出来：回合、声音、麦克风、秒表都照常走。响铃时不许缩 ——
+// 接还是不接要当场决定，缩起来就等于替人把电话晾到超时。
+export function shrink() {
+  const { phase } = call.get();
+  if (phase === 'dialing' || phase === 'active') call.set({ mini: true });
+}
+export function expand() { call.set({ mini: false }); }
 
 // 拨号中挂掉是「已取消」，通话中挂掉是正常结束
 export function hangUp() {

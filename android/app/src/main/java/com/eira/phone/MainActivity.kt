@@ -129,7 +129,19 @@ class MainActivity : ComponentActivity() {
         load()
     }
 
+    // 通话的桌面悬浮窗只在 Eira 退到后台时出现（见 CallFloat）
+    override fun onStart() {
+        super.onStart()
+        CallFloat.setBackground(this, false)
+    }
+
+    override fun onStop() {
+        CallFloat.setBackground(this, true)
+        super.onStop()
+    }
+
     override fun onDestroy() {
+        CallFloat.hide(this)
         main.removeCallbacks(retryRun)
         web.destroy()
         super.onDestroy()

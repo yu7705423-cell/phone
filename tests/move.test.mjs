@@ -129,6 +129,22 @@ const none = await plain.evaluate(async () => { const mv = await import('/src/sy
 ok('site.js 没配搬家：两边都不是', none === false, String(none));
 await plain.close();
 
+// ---- app 外壳里不搬：WebView 开不出第二个窗口，新网址会被扔给系统浏览器 ----
+const shellCtx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+await shellCtx.route('**/src/site.js*', r => r.fulfill({ status: 200, contentType: 'text/javascript',
+  body: `export const SITE = ${JSON.stringify({ neteaseApi: '', neteaseRealIP: '', neteaseWorker: '', accounts: '',
+    moveFrom: `${OLD}/`, moveTo: `${NEW}/` })};` }));
+await shellCtx.addInitScript(() => { window.phoneAppVersion = 'Android 1.0.0 (1)'; });
+const shell = await shellCtx.newPage();
+await shell.goto(`${OLD}/index.html`, { waitUntil: 'domcontentloaded' });
+await shell.waitForTimeout(1500);
+const inShell = await shell.evaluate(async () => {
+  const mv = await import('/src/system/move.js');
+  return { old: mv.isOld(), isNew: mv.isNew(), modal: document.querySelector('.modal')?.textContent || '' };
+});
+ok('app 外壳里打开旧网址：不提醒搬家，也不认作旧网址', !inShell.old && !inShell.isNew && !/新网址/.test(inShell.modal), JSON.stringify(inShell));
+await shellCtx.close();
+
 ok('全程没有运行时报错', errs.length === 0, errs.join(' | '));
 await browser.close();
 const n = R.filter(x => !x.pass).length;

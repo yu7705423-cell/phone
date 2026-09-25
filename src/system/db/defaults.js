@@ -133,6 +133,7 @@ export const DEFAULT_SETTINGS = {
   callSpeak: null,
   callMic: false,                 // 通话默认打字，不开麦克风
   callSelfReal: false,            // 视频通话默认用虚拟头像，不开摄像头
+  callDesk: false,                // 安卓 app：离开 Eira 时通话以桌面悬浮窗显示（system/callfloat.js）
 
   // ---- 用量与上限。见 CLAUDE.md 第 13 条：0 一律表示「不限 / 全都要」 ----
   callMaxTokens: 400,             // 通话里每轮回复的上限。电话里说一两句就停

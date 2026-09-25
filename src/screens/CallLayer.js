@@ -1,11 +1,12 @@
 import { html, useState, useEffect, useRef } from '../lib.js';
 import { useStore } from '../system/store.js';
-import { characters } from '../system/db/index.js';
+import { characters, settings } from '../system/db/index.js';
 import { useImage } from '../system/db/useImage.js';
 import * as call from '../system/call.js';
 import * as accounts from '../system/accounts.js';
 import * as camera from '../system/camera.js';
-import { Avatar, Icon } from '../ui/index.js';
+import * as float from '../system/callfloat.js';
+import { Avatar, Icon, toast } from '../ui/index.js';
 
 // 通话界面。挂在外壳上而不是聊天 app 里 —— 电话要能盖住任何页面，
 // 在主界面、在别的 app、在锁屏上接到都是同一回事。
@@ -54,6 +55,97 @@ function SelfView({ real, avatar, name }) {
     </div>`;
 }
 
+// ---- 悬浮球 ----
+//
+// 缩起来之后通话照常进行，屏幕让给别的页面。球可以拖，松手贴到近的那一边；
+// 点一下展开回全屏。上次停在哪儿，这一次打开应用期间记着。
+let ballAt = null;
+const EDGE = 12;
+
+function CallBall({ s, avatar, scene, name }) {
+  const ref = useRef(null);
+  const drag = useRef(null);
+  const [at, setAt] = useState(ballAt);
+  const [dragging, setDragging] = useState(false);
+
+  const box = () => {
+    const el = ref.current;
+    const parent = el?.offsetParent;
+    return el && parent ? { el, w: el.offsetWidth, h: el.offsetHeight, W: parent.clientWidth, H: parent.clientHeight } : null;
+  };
+  const settle = (x, y) => {
+    const b = box();
+    if (!b) return;
+    const top = (parseFloat(getComputedStyle(b.el).getPropertyValue('--safe-top')) || 0) + EDGE * 3;
+    const next = {
+      x: x + b.w / 2 < b.W / 2 ? EDGE : b.W - b.w - EDGE,
+      y: Math.min(Math.max(y, top), b.H - b.h - EDGE * 6),
+    };
+    ballAt = next;
+    setAt(next);
+  };
+  // 第一次出现：贴右边、屏幕上方五分之一处
+  useEffect(() => {
+    if (at) return;
+    const b = box();
+    if (b) settle(b.W, Math.round(b.H * 0.2));
+  }, []);
+
+  const down = e => {
+    drag.current = { id: e.pointerId, sx: e.clientX, sy: e.clientY, x0: at?.x || 0, y0: at?.y || 0, moved: false };
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* */ }
+  };
+  const move = e => {
+    const d = drag.current;
+    if (!d || d.id !== e.pointerId) return;
+    const dx = e.clientX - d.sx, dy = e.clientY - d.sy;
+    if (!d.moved && Math.hypot(dx, dy) < 6) return;
+    if (!d.moved) { d.moved = true; setDragging(true); }
+    setAt({ x: d.x0 + dx, y: d.y0 + dy });
+  };
+  const up = e => {
+    const d = drag.current;
+    drag.current = null;
+    if (!d || d.id !== e.pointerId) return;
+    setDragging(false);
+    if (!d.moved) { call.expand(); return; }
+    settle(d.x0 + (e.clientX - d.sx), d.y0 + (e.clientY - d.sy));
+  };
+
+  const video = s.video && !!(scene || avatar);
+  const talking = !!s.draft || s.thinking;
+  const cls = `call-ball${video ? ' is-video' : ''}${talking ? ' is-talking' : ''}`
+    + `${dragging ? ' is-dragging' : ''}${at ? '' : ' is-placing'}`;
+  return html`
+    <button ref=${ref} class=${cls} aria-label=${`展开通话：${name || ''}`}
+      style=${at ? `--ball-x:${Math.round(at.x)}px;--ball-y:${Math.round(at.y)}px` : ''}
+      onPointerDown=${down} onPointerMove=${move} onPointerUp=${up}
+      onPointerCancel=${() => { drag.current = null; setDragging(false); }}
+      onKeyDown=${e => { if (e.key === 'Enter' || e.key === ' ') call.expand(); }}>
+      ${video
+        ? html`<span class="call-ball-scene" style=${`background-image:url(${scene || avatar})`}></span>`
+        : html`<span class="call-ball-face"><${Avatar} src=${avatar} name=${name} size=${56} radius=${28}/></span>`}
+      <span class="call-ball-time">${float.statusOf(s)}</span>
+    </button>`;
+}
+
+// 桌面悬浮窗那个按钮按下去之后说什么
+function deskTap() {
+  const k = float.kind();
+  if (k === 'native') {
+    const r = float.toggleNative();
+    if (r === 'asked') toast('请在系统设置中允许 Eira 显示在其他应用上层，返回后再点一次', 'plain', 6000);
+    else if (r === 'on') toast('桌面悬浮窗已开启。离开 Eira 时，通话以小窗显示在桌面上', 'ok', 4000);
+    else toast('桌面悬浮窗已关闭', 'ok', 2500);
+    return;
+  }
+  if (k === 'pip') {
+    float.togglePip()
+      .then(() => { if (float.desk.get().pip) call.shrink(); })
+      .catch(err => toast(`无法打开悬浮窗：${err.message || err}`, 'error', 5000));
+  }
+}
+
 export function CallLayer() {
   const s = useStore(call.call);
   const [draft, setDraft] = useState('');
@@ -68,6 +160,13 @@ export function CallLayer() {
   const avatar = useImage(char?.avatar);
   const scene = useImage(char?.callImage);
   const myFace = useImage(me?.avatar);
+  const desk = useStore(float.desk);
+  useStore(settings.store);
+  // 桌面悬浮窗要的那几样随时备好（画中画必须在点击那一刻同步进去，见 system/callfloat.js）
+  useEffect(() => {
+    if (!live) return;
+    float.prepare({ name: char?.name || '', image: s.video ? (scene || avatar || '') : (avatar || ''), video: s.video });
+  }, [live, char?.name, avatar, scene, s.video]);
   if (!live) return null;
 
   const video = s.video;
@@ -89,8 +188,26 @@ export function CallLayer() {
   const back = video ? (scene || avatar) : null;
   const dark = video && !!back;
 
+  const deskKind = float.kind();
+  const deskOn = deskKind === 'native' ? float.nativeOn() : desk.pip;
+  const canShrink = s.phase === 'dialing' || s.phase === 'active';
+  const mini = s.mini && canShrink;
+
+  // 缩起来时整层还留着，只是看不见、点不到：摄像头取帧靠的是这一层里的小窗
+  // （camera.attach），拆掉的话角色在缩小期间就看不见你了；打了一半的字也还在
   return html`
-    <div class=${`call-layer${dark ? ' is-video' : ''}`}>
+    ${mini && !desk.pip ? html`<${CallBall} s=${s} avatar=${avatar} scene=${scene} name=${char?.name}/>` : null}
+    <div class=${`call-layer${dark ? ' is-video' : ''}${mini ? ' is-mini' : ''}`}
+      inert=${mini} aria-hidden=${mini ? 'true' : null}>
+      ${canShrink ? html`
+        <div class="call-tools">
+          <button class="call-tool press" onClick=${call.shrink} aria-label="缩小为悬浮球">
+            <${Icon} name="minimize" size=${20}/></button>
+          ${deskKind ? html`
+            <button class=${`call-tool press${deskOn ? ' is-on' : ''}`} onClick=${deskTap}
+              aria-label=${deskOn ? '关闭桌面悬浮窗' : '桌面悬浮窗'}>
+              <${Icon} name="pip" size=${20}/></button>` : null}
+        </div>` : null}
       ${back ? html`<div class="call-back" style=${`background-image:url(${back})`}></div>` : null}
       ${dark ? html`<div class="call-scrim"></div>` : null}
 
