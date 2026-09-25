@@ -1719,6 +1719,26 @@ Output JSON only:
 Write "name" and "desc" in the same language as the category names above.`,
 
   // 衣帽间：按角色设定生成该角色衣帽间里的一批东西（ai/tasks/closet.js 的 wardrobe）
+  // 每天自动挑一次今天穿什么、带什么（见 ai/tasks/closet.js 的 pickToday）
+  'task.closet-daily':
+`Choose what {{charName}} wears and carries today, {{date}} (weekday: {{weekday}}).
+
+## Character
+{{charPersona}}
+
+## Clothing and accessories owned (id | category | name | seasons | occasions)
+{{clothes}}
+
+## Small items that can be carried (id | category | name)
+{{carry}}
+
+## Rules
+- Choose only from the lists above, by id. Do not invent items.
+- "wear" is what is worn today; "carry" is what is carried today. Either may be empty.
+
+## Output JSON only, with no other text
+{"wear":["id"],"carry":["id"]}`,
+
   'task.closet-wardrobe':
 `You are the author of {{charName}}'s settings. List {{count}} items this
 character owns, for the {{sideName}} section of their wardrobe record.

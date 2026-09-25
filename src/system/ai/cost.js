@@ -213,6 +213,14 @@ export const EXTRA_CALLS = [
     when: '每个开了的角色，每天一次（走副用接口）；当天已有内容时不生成',
   },
   {
+    // 挂在角色身上（衣帽间里那个角色的页面），不是全局设置
+    id: 'closetDaily',
+    label: '角色的每日穿搭',
+    setting: null,
+    on: () => characters.all().some(c => c.closetDaily === true),
+    when: '每个开了的角色，每天一次，从该角色衣帽间已有的东西里挑；当天已经穿着东西时不生成',
+  },
+  {
     id: 'dayOn',
     label: '角色的当日日程',
     setting: null,

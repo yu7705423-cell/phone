@@ -55,6 +55,7 @@ export const TASKS = {
   'card.appearance':     { label: '外貌' },
   'event.batch':         { label: '生成随机事件' },
   'health.day':          { label: '角色身体状态', auto: true },
+  'closet.daily':        { label: '角色每日穿搭', auto: true },
   'recipe.batch':        { label: '生成食谱' },
   'shelf.batch':         { label: '生成书架' },
   'closet.wardrobe':     { label: '生成角色衣帽间' },

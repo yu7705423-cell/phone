@@ -120,8 +120,35 @@ const memoryPreset = () => (memoryMode() === 'api'
   ? usable(asConfig({ id: 'memory', name: '记忆接口', ...memoryConfig() }))
   : null);
 
+// ---- 几件事可以自己挑用哪套（「设置 - 任务用哪套接口」，settings.taskRoutes）----
+//
+// 用户要求：主动发消息、总结记忆、每日搭配这三件，各自单独选一套，而不是一律按上面的分法。
+// 值是 '' 表示照默认，'main' 主用、'fallback' 副用、'memory' 记忆接口，其余是某一套预设的 id。
+// 挑的那一套没填全（缺密钥或模型）就照默认走，不因此失败 —— 那是配置没跟上，不是这件事不该做
+export const ROUTE_GROUPS = [
+  { id: 'proactive', label: '角色主动发消息', tasks: ['chat.proactive'],
+    def: '默认用副用接口，副用没配时用主用' },
+  { id: 'memory', label: '总结记忆', tasks: [...MEMORY_TASKS],
+    def: '默认用记忆接口，没单独配时用副用' },
+  { id: 'closetDaily', label: '角色的每日穿搭', tasks: ['closet.daily'],
+    def: '默认用副用接口，副用没配时用主用' },
+];
+
+function routedPreset(taskId) {
+  const g = ROUTE_GROUPS.find(x => x.tasks.includes(taskId));
+  const pick = g ? String(settings.get().taskRoutes?.[g.id] || '') : '';
+  if (!pick) return null;
+  if (pick === 'main') return config();
+  if (pick === 'fallback') return fallbackConfig();
+  if (pick === 'memory') return memoryPreset();
+  const p = chatPresets().find(x => x.id === pick);
+  return p ? usable(asConfig(p)) : null;
+}
+
 /** 这个任务该用哪套。挑不出来就是一套都没配全。 */
 export function presetFor(taskId) {
+  const routed = routedPreset(taskId);
+  if (routed) return routed;
   if (MAIN_TASKS.has(taskId)) return config() || fallbackConfig();
   if (MEMORY_TASKS.has(taskId)) {
     const m = memoryPreset();
@@ -985,6 +1012,8 @@ export function streamReply({ chat, char, onDelta }) {
     await import('./tasks/day.js').then(m => m.ensureToday(char.id)).catch(() => {});
     // 身体状态：角色开了「每天自动生成」、今天还空着，就先生成一份（每天一次，见 tasks/health.js）
     await import('./tasks/health.js').then(m => m.ensureToday(char.id)).catch(() => {});
+    // 今天穿什么、带什么：角色开了「每日穿搭」、今天还什么都没穿，就先挑一次（每天一次，见 tasks/closet.js）
+    await import('./tasks/closet.js').then(m => m.ensureDaily(char.id)).catch(() => {});
     // 她在听什么：读角色那个音乐账号的真实播放记录。不调模型，只压自己
     // 部署的那个音乐接口，间隔由用户填，填 0 就只在手动点的时候拉。
     await import('../netease.js').then(m => m.pullIfDue(char.id)).catch(() => {});

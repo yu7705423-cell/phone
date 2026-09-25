@@ -53,7 +53,7 @@ const ROUTES = {
   skin: ['/', '/one/:skin', '/one/nope', '/contract', '/gen/:skin', '/gen/nope', '/size/:skin', '/size/nope', '/css/:skin', '/css/nope', '/app'],
   us: ['/', `/chat/:chat`, '/work/:work', '/work/:work/edit', '/work/nope',
     '/chapter/:chapter', '/chapter/nope', '/read/:chapter', '/read/nope'],
-  settings: ['/', '/weather', '/api', '/voice', '/image', '/embed', '/notify', '/lockpin', '/push-guide', '/music',
+  settings: ['/', '/weather', '/api', '/voice', '/image', '/embed', '/notify', '/lockpin', '/routes', '/push-guide', '/music',
     '/appearance', '/storage', '/storage/files', '/trace', '/vision', '/asr', '/limits', '/search', '/translate', '/memoryapi', '/rerank', '/ban', '/github', '/background'],
 };
 

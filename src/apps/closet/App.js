@@ -1,6 +1,6 @@
 import { html, useState, useEffect } from '../../lib.js';
 import { phone, useStore } from '../../sdk/index.js';
-import { Page, Segmented, Icon, IconButton, EmptyState, toast, prompt } from '../../ui/index.js';
+import { Page, Segmented, Icon, IconButton, EmptyState, List, ListItem, Switch, toast, prompt } from '../../ui/index.js';
 import { OwnerBar, Thumb, ownerNow, sideNow, ownerName } from './parts.js';
 import { AddSheet, TodaySheet } from './AddSheet.js';
 import { GroupPage } from './GroupPage.js';
@@ -36,6 +36,7 @@ function Home() {
   useStore(db.characters.store);
   const [adding, setAdding] = useState(false);
   const [picking, setPicking] = useState(false);
+  const [dailyBusy, setDailyBusy] = useState(false);
   const [packing, setPacking] = useState(false);
   const owner = ownerNow();
   const side = sideNow();
@@ -108,6 +109,31 @@ function Home() {
             </div>`
           : html`<div class="cl-strip-empty">包里带着的伞、耳机、相机这类小物，放在「随身」里，在这里勾选。</div>`}
         </div>` : null}
+
+      ${side === 'wear' && owner !== closet.ME ? (() => {
+        // 每日穿搭：开关挂在这个角色的衣帽间上（第 5 条），每天一次模型调用，默认关（第 15 条）
+        const char = db.characters.get(owner);
+        const on = char?.closetDaily === true;
+        const failed = on && char?.closetDailyError && char?.closetDailyAt === closet.today();
+        const now = async () => {
+          setDailyBusy(true);
+          try { toast(`已选好今天的 ${await closet.ai.pickToday(owner)} 件`, 'ok'); }
+          catch (err) { toast(String(err.message || err), 'error', 5000); }
+          finally { setDailyBusy(false); }
+        };
+        return html`
+          <${List}>
+            <${ListItem} title="每日自动穿搭" multiline
+              subtitle=${on ? '每天从该角色衣帽间已有的衣物与随身物品里选一次今天穿什么、带什么，调用一次接口。当天已经选过的不再生成。关闭后不再自动选择'
+                : '关闭。开启后每天调用一次接口，从该角色衣帽间已有的东西里选出今天穿什么、带什么；所用接口可在「设置 - 任务用哪套接口」中选择'}
+              right=${html`<${Switch} checked=${on}
+                onChange=${v => db.characters.update(owner, { closetDaily: v, closetDailyAt: '', closetDailyError: '' })}/>`}/>
+            <${ListItem} title=${dailyBusy ? '正在选择' : '现在选一次'} multiline
+              subtitle="按该角色的设定从衣帽间里选出今天穿什么、带什么，调用一次接口。今天已选的几件保留，另外勾上选出的"
+              onClick=${dailyBusy ? null : now}/>
+          <//>
+          ${failed ? html`<div class="settings-foot is-error">今天的自动选择失败：${char.closetDailyError}</div>` : null}`;
+      })() : null}
 
       ${borrowed.length ? html`
         <div class="cl-strip">

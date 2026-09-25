@@ -341,6 +341,8 @@ import('../pace.js').then(m => { paceMod = m; }).catch(() => {});
 import('./tasks/snap.js').then(m => { snapMod = m; }).catch(() => {});
 let healthMod = null;
 import('./tasks/health.js').then(m => { healthMod = m; }).catch(() => {});
+let closetMod = null;
+import('./tasks/closet.js').then(m => { closetMod = m; }).catch(() => {});
 const altReady = id => !!altMod && altMod.eligible(id);
 const altRolls = id => !!altMod && altMod.rolls(id);
 
@@ -367,6 +369,8 @@ export async function tick() {
 
     // 身体状态每天自动生成：不聊天也填上。不 await，一天只试一次（见 tasks/health.js）
     if (healthMod?.isAuto(char)) healthMod.ensureToday(char.id).catch(() => {});
+    // 每日穿搭同理：不聊天也每天挑上（见 tasks/closet.js）
+    if (closetMod?.isDaily(char)) closetMod.ensureDaily(char.id).catch(() => {});
 
     // 自己存照片那一档**不跟着主动消息走**：各有各的开关，
     // 一个只开了存照片、没开主动消息的角色照样该存（见 tasks/snap.js）

@@ -9,6 +9,7 @@ import { ImagePage } from './ImagePage.js';
 import { VideoPage } from './VideoPage.js';
 import { AppearancePage } from './AppearancePage.js';
 import { LockPinPage } from './LockPinPage.js';
+import { RoutesPage } from './RoutesPage.js';
 import { StoragePage } from './StoragePage.js';
 import { GitHubPage } from './GitHubPage.js';
 import { BackgroundPage } from './BackgroundPage.js';
@@ -221,6 +222,7 @@ export default function SettingsApp({ route }) {
   if (route === '/weather') return html`<${WeatherPage}/>`;
   if (route === '/translate') return html`<${TranslateApiPage}/>`;
   if (route === '/memoryapi') return html`<${MemoryApiPage}/>`;
+  if (route === '/routes') return html`<${RoutesPage}/>`;
   if (route === '/voice') return html`<${VoicePage}/>`;
   if (route === '/image') return html`<${ImagePage}/>`;
   if (route === '/video') return html`<${VideoPage}/>`;

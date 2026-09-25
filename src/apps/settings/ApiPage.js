@@ -218,12 +218,16 @@ export function ApiPage() {
           走副用：整理记忆、历史压缩、排当日日程、生成随机事件与食谱、
           导入角色卡、批量生成 NPC、主动消息、朋友圈动态与评论、心声、识图描述。<br/>
           主用接口报错时改用另一套重试，属于额外调用，默认关闭，
-          可在「用量与上限」中开启。
+          可在「用量与上限」中开启。<br/>
+          角色主动发消息、总结记忆、角色的每日穿搭三项可在「任务用哪套接口」中各自指定。
         </div>
 
         <${List} title="记忆整理的接口">
           <${ListItem} title="记忆接口" subtitle=${memDesc} arrow multiline
             onClick=${() => nav.push('/memoryapi')}/>
+          <${ListItem} title="任务用哪套接口" arrow multiline
+            subtitle="角色主动发消息、总结记忆、角色的每日穿搭，各自单独指定一套接口"
+            onClick=${() => nav.push('/routes')}/>
         <//>
         <div class="settings-foot">
           自动总结记忆、压缩关系底色、从文本导入记忆、历史压缩这四项可以再单独

@@ -199,6 +199,7 @@ export const phone = {
 
   ai: {
     isConfigured: engine.isConfigured,
+    routeGroups: engine.ROUTE_GROUPS,
     config: engine.config,
     buildChatSystem: engine.buildChatSystem,
     buildHistory: engine.buildHistory,

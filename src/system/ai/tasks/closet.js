@@ -1,5 +1,6 @@
-// 衣帽间里要调接口的那三样：识图、按描述生图、按角色设定生成一批。**都是用户点了才调**，
-// 按钮上写着要调几次（第 13、15 条）。见 ARCHITECTURE 4.213、4.214
+// 衣帽间里要调接口的几样：识图、按描述生图、按角色设定生成一批 —— **都是用户点了才调**，
+// 按钮上写着要调几次（第 13、15 条）。见 ARCHITECTURE 4.213、4.214。
+// 另有一样是每天自动的：角色今天穿什么、带什么（开关在角色的衣帽间页，默认关，4.237）
 import { closet, characters } from '../../db/index.js';
 import { template, fillTemplate } from '../templates.js';
 import { ask, isVisionReady } from '../vision.js';
@@ -7,7 +8,7 @@ import { parseJSON } from '../sse.js';
 import { generate, isImageReady } from '../image.js';
 import { images } from '../../db/images.js';
 import { toDataUrl } from '../../audio.js';
-import { subsOf, setImage, itemsOf, isOutfit, create, garmentOnly } from '../../closet.js';
+import { subsOf, setImage, itemsOf, isOutfit, create, garmentOnly, live, isCarry, today, wear, wornToday } from '../../closet.js';
 import { GROUPS, COLORS, SEASONS, OCCASIONS, groupOf } from '../../closet-kinds.js';
 import { runJSONTask } from '../engine.js';
 
@@ -136,3 +137,72 @@ export async function wardrobe(charId, { count = 20, side = 'wear' } = {}) {
 
 /** 勾选的那几件放进该角色的衣帽间。返回放进去的 */
 export const keepWardrobe = (charId, rows) => rows.map(r => create({ ...r, owner: charId }));
+
+// ---- 每天自动：今天穿什么、带什么（ARCHITECTURE 4.237）----
+//
+// 开关挂在角色身上（char.closetDaily），在衣帽间里那个角色的页面上（第 5 条）。
+// 每天一次模型调用，默认关，登记在 cost.js（第 15 条）。接口可以在「任务用哪套接口」里单独选。
+//
+// **只从这个角色衣帽间里已有的东西里挑**，不另造新衣服：挑出来的就勾成「今天穿着」「今天带着」，
+// 和手动勾的是同一件事，prompt 里「今天穿着」那一段照旧读它。
+//
+// 和身体状态、当日日程同一个规矩：**一天只试一次，失败也算试过**（closetDailyAt 记着日期），
+// 不然失败之后每发一条消息都再试一次；**今天已经穿着东西的不碰** —— 手动勾的、剧情里换上的，
+// 都不能被自动的盖掉。
+
+const dailyBusy = new Set();
+
+export const isDaily = char => !!(char && char.closetDaily === true);
+
+const line = r => `${r.id} | ${[groupOf(r.group)?.label, r.sub].filter(Boolean).join(' / ')} | ${r.name}`
+  + `${(r.seasons || []).length ? ` | ${r.seasons.map(x => SEASONS.find(y => y.id === x)?.label || x).join('、')}` : ''}`
+  + `${(r.occasions || []).length ? ` | ${r.occasions.map(x => OCCASIONS.find(y => y.id === x)?.label || x).join('、')}` : ''}`;
+
+/** 挑一次，勾上。回来的是勾上了几件 */
+export async function pickToday(charId) {
+  const char = characters.get(charId);
+  if (!char) throw new Error('角色不存在');
+  const all = itemsOf(charId).filter(r => live(r) && !isOutfit(r) && r.side === 'wear' && !(r.lent && r.lent.to));
+  const clothes = all.filter(r => !isCarry(r));
+  const carry = all.filter(isCarry);
+  if (!clothes.length && !carry.length) throw new Error('该角色的衣帽间里还没有衣物或随身物品');
+  const now = new Date();
+  const out = await runJSONTask('closet.daily', {
+    system: fillTemplate(template('task.closet-daily'), {
+      charName: char.name || '该角色',
+      charPersona: [char.persona, char.appearance].filter(Boolean).join('\n\n') || '（角色卡里还没有写人设）',
+      date: `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`,
+      weekday: '日一二三四五六'[now.getDay()],
+      clothes: clothes.map(line).join('\n') || '（没有）',
+      carry: carry.map(line).join('\n') || '（没有）',
+    }),
+    key: `closet-daily:${charId}:${today()}`,
+    maxTokens: 400,
+  });
+  const ids = new Set(all.map(r => r.id));
+  const chosen = [...(Array.isArray(out?.wear) ? out.wear : []), ...(Array.isArray(out?.carry) ? out.carry : [])]
+    .map(String).filter(id => ids.has(id));
+  if (!chosen.length) throw new Error('模型没有从衣帽间里选出任何一件');
+  chosen.forEach(id => wear(id, true));
+  return chosen.length;
+}
+
+/** 开了、今天还没试过、今天还什么都没穿：挑一次。不抛错，错误记在角色身上 */
+export async function ensureDaily(charId) {
+  const char = characters.get(charId);
+  if (!isDaily(char) || dailyBusy.has(charId)) return null;
+  const d = today();
+  if (char.closetDailyAt === d) return null;
+  if (wornToday(charId).length) return null;
+  dailyBusy.add(charId);
+  characters.update(charId, { closetDailyAt: d, closetDailyError: '' });
+  try {
+    return await pickToday(charId);
+  } catch (err) {
+    characters.update(charId, { closetDailyError: String(err.message || err) });
+    console.warn('[closet] 今天的穿搭没自动生成:', err.message || err);
+    return null;
+  } finally {
+    dailyBusy.delete(charId);
+  }
+}
