@@ -466,13 +466,30 @@ export function start() {
   }
   if (dirty) writeMap(m);
 
+  // **同一个网址同时开着几个页面时，只让一个页面跑巡检。**
+  //
+  // 主屏幕上的应用和浏览器标签页、或者两个标签页，是同一份数据、各自一套定时器。
+  // 各跑各的话，到点的主动消息、自己存照片、每日穿搭、延迟回复会各发一次，
+  // 每一次都是一整次接口调用。用 Web Locks 选一个：拿到锁的页面跑，其余的等它关掉再接手。
+  // 不支持 Web Locks 的浏览器照旧各跑各的（从前就是这样）
+  let leader = !(typeof navigator !== 'undefined' && navigator.locks?.request);
+  let release = null;
+  if (!leader) {
+    navigator.locks.request('eira-sweep', () => {
+      leader = true;
+      return new Promise(r => { release = r; });
+    }).catch(() => { leader = true; });
+  }
+
   // 串起来跑，不用 setInterval：tick 是异步的，上一轮还没跑完就再进一轮，
   // 同一个角色会被安排两次。跑完再定下一次，顺便按最近的落点决定隔多久。
   let stopped = false;
   const loop = delay => {
     timer = setTimeout(async () => {
       let next = 0;
-      try { next = await tick(); } catch (err) { console.warn('[proactive] tick 出错:', err.message || err); }
+      if (leader) {
+        try { next = await tick(); } catch (err) { console.warn('[proactive] tick 出错:', err.message || err); }
+      }
       if (!stopped) loop(gapUntil(next));
     }, delay);
   };
@@ -480,5 +497,5 @@ export function start() {
   // 该回的话，不该让它们再等一分钟
   loop(MIN_GAP);
 
-  return () => { stopped = true; clearTimeout(timer); timer = null; };
+  return () => { stopped = true; clearTimeout(timer); timer = null; if (release) release(); };
 }

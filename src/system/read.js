@@ -73,6 +73,15 @@ export function due() {
   return s.pages - s.saidPage >= gap();
 }
 
+/**
+ * 要开口了（请求发出之前）：记下翻到哪一页，不计数。
+ * 失败了也算试过，要再翻够间隔才再试 —— 否则失败之后每翻一页就再调一次接口（见 watch.markTried）
+ */
+export function markTried() {
+  const s = read.get();
+  if (s.active) read.set({ saidPage: s.pages });
+}
+
 export function markSaid() {
   const s = read.get();
   if (!s.active) return;

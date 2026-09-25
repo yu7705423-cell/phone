@@ -42,7 +42,7 @@ export function CharacterEdit({ id }) {
     try {
       const imgId = await db.images.put(file);
       if (char.faceImage) db.images.remove(char.faceImage);
-      patch({ faceImage: imgId, faceDesc: '' });
+      patch({ faceImage: imgId, faceDesc: '', faceDescFailed: '' });
     } catch (err) { toast('图片处理失败：' + (err.message || err), 'error'); }
   };
 
@@ -253,7 +253,7 @@ export function CharacterEdit({ id }) {
             onClick=${() => faceRef.current?.click()}>${char.faceImage ? '更换照片' : '选择照片'}<//>
           ${char.faceImage ? html`
             <${Button} size="sm" variant="ghost" icon="refresh"
-              onClick=${() => { patch({ faceDesc: '' }); toast('已清除，下次生成时重新读取'); }}>重新读取<//>
+              onClick=${() => { patch({ faceDesc: '', faceDescFailed: '' }); toast('已清除，下次生成时重新读取'); }}>重新读取<//>
             <${Button} size="sm" variant="ghost" icon="trash"
               onClick=${() => { db.images.remove(char.faceImage); patch({ faceImage: null, faceDesc: '' }); }}>移除<//>` : null}
         </div>

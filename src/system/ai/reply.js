@@ -1689,7 +1689,10 @@ async function generateImage(msgId, prompt, char) {
         }
       } catch (err) {
         if (isAbort(err)) throw err;
-        console.warn('[image] 参考图那条路没走通，改用外貌描述:', err.message || err);
+        // 只有「接口不支持参考图」才退回去再画。从前任何错误都退，超时、余额不足、
+        // 服务器 500 也立刻再画一张，一条消息扣两张图的钱（见 image.refUnsupported）
+        if (!imageSvc.refUnsupported(err)) throw err;
+        console.warn('[image] 接口不支持参考图，改用外貌描述:', err.message || err);
       }
       // 存这一步放在 try 外面：它失败不该把我们送去再画一张
       if (blob) {

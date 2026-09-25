@@ -293,12 +293,26 @@ async function asError(res) {
   } catch { detail = await res.text().catch(() => ''); }
   const said = detail || res.statusText;
   if (WANTS_IMAGE.test(said)) {
-    throw new Error(`生图接口 ${res.status}: ${said}\n`
+    throw Object.assign(new Error(`生图接口 ${res.status}: ${said}\n`
       + '这一家在要一张输入图，多半是把生图转给了一个只做图像编辑的'
       + '对话式模型，它不做纯文生图。换一个真正的生图模型，'
-      + '或者换一套接口。');
+      + '或者换一套接口。'), { status: res.status });
   }
-  throw new Error(`生图接口 ${res.status}: ${said}`);
+  throw Object.assign(new Error(`生图接口 ${res.status}: ${said}`), { status: res.status });
+}
+
+/**
+ * 这次失败是不是「这家接口不支持带参考图」。只有这一种才值得退回纯文字那条路再画一张。
+ *
+ * 其余的 —— 超时、连不上、密钥不对、余额不足、限流、服务器 500 —— 退回去再画一张
+ * 只是把同一个错误再付一次钱（超时那种对方可能已经画完、已经扣了）。照实报错
+ */
+export function refUnsupported(err) {
+  if (err?.unsupported) return true;
+  const st = Number(err?.status) || 0;
+  if ([404, 405, 501].includes(st)) return true;
+  return (st === 400 || st === 415 || st === 422)
+    && /edit|image|multipart|unsupported|not support|不支持|参考图/i.test(String(err?.message || ''));
 }
 
 function editEndpoint(preset) {
@@ -314,10 +328,11 @@ export function generateWithRef({ prompt, refBlob, preset, key, parts }) {
   const text = needPrompt(prompt);
 
   return enqueue(key || `imgref:${Date.now()}`, async signal => {
-    note('image');
     // NovelAI 那套的「照着一张脸画」是另一条路（img2img / vibe transfer），
-    // 参数和这条完全不同。还没接，所以照实抛 —— 上层会退回纯文字那条
-    if (kindOf(p.kind).id === 'nai') throw new Error('NovelAI 这一档还不支持参考图');
+    // 参数和这条完全不同。还没接，所以照实抛 —— 上层会退回纯文字那条。
+    // 这一句在记账之前：一个请求都没发出去
+    if (kindOf(p.kind).id === 'nai') throw Object.assign(new Error('NovelAI 这一档还不支持参考图'), { unsupported: true });
+    note('image');
     const form = new FormData();
     form.append('model', p.model);
     form.append('prompt', text);

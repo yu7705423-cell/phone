@@ -62,6 +62,8 @@ export function TogetherPage({ chatId, bookId }) {
   const speak = async () => {
     if (busy || !ai.isConfigured()) return;
     setBusy(true);
+    // 先记「试过」再发：失败了也要再翻够间隔才再试，不然每翻一页扣一次费
+    read.markTried();
     try {
       const raw = await ai.streamReply({ chat, char });
       const clean = String(raw || '').trim();

@@ -42,26 +42,37 @@ export async function ensureFaceDesc(char) {
   if (!char?.faceImage) return '';
   const cached = String(char.faceDesc || '').trim();
   if (cached) return cached;
+  // 这张脸图已经读失败过：不再自动读。不记的话，之后每画一张锁脸的图都再读一次、
+  // 再扣一次识图的钱。换脸图、或在角色卡上点「重新读取」会清掉这个记号
+  if (char.faceDescFailed && char.faceDescFailed === char.faceImage) return '';
   // 识图那一档关着或者没配全，就没法读 —— 不报错，安静地退回没有描述
   if (visionMode() === 'off' || (visionMode() === 'api' && !visionReady())) return '';
 
   const blob = await images.blob(char.faceImage);
   if (!blob) return '';
   const dataUrl = await toDataUrl(blob);
+  const failed = () => characters.update(char.id, { faceDescFailed: char.faceImage });
   let text = '';
-  if (visionMode() === 'api') {
-    text = await visionDescribe({ dataUrl, key: `face:${char.id}` });
-  } else {
-    // 交给聊天模型那一档：它自己能看图，用同一条路
-    text = await runTextTask('chat.face-describe', {
-      system: fillTemplate(template('task.face-describe'), { sample: langSample(char) }),
-      user: 'Describe this person as instructed.',
-      image: { dataUrl, mediaType: blob.type || 'image/png' },
-      key: `face:${char.id}`, maxTokens: 400,
-    });
+  try {
+    if (visionMode() === 'api') {
+      text = await visionDescribe({ dataUrl, key: `face:${char.id}` });
+    } else {
+      // 交给聊天模型那一档：它自己能看图，用同一条路
+      text = await runTextTask('chat.face-describe', {
+        system: fillTemplate(template('task.face-describe'), { sample: langSample(char) }),
+        user: 'Describe this person as instructed.',
+        image: { dataUrl, mediaType: blob.type || 'image/png' },
+        key: `face:${char.id}`, maxTokens: 400,
+      });
+    }
+  } catch (err) {
+    // 取消不算读失败：人不要这张图了，不是脸图读不出来
+    if (!(err?.name === 'AbortError' || /已取消/.test(err?.message || ''))) failed();
+    throw err;
   }
   const out = String(text || '').trim();
-  if (out) characters.update(char.id, { faceDesc: out });
+  if (out) characters.update(char.id, { faceDesc: out, faceDescFailed: '' });
+  else failed();
   return out;
 }
 

@@ -108,7 +108,12 @@ export function ReadAheadWatch({ bookId, at, span }) {
       const r = await task.run({ bookId, charId: s.charId, from: s.at });
       ahead.advance(bookId, r.to, { auto });
       if (!auto) toast(r.added ? `又读了一段，留下 ${r.added} 处` : '又读了一段，没有想说的', 'ok');
-    } catch (err) { toast(String(err.message || err), 'error', 6000); }
+    } catch (err) {
+      // 自动续读失败一次就停下，改回每次先问。不停的话，重开这本书、来回翻页时
+      // 又会自动再读一次，失败一次扣一次
+      if (auto) ahead.setAlways(bookId, false);
+      toast(`${String(err.message || err)}${auto ? '。已停止自动续读' : ''}`, 'error', 6000);
+    }
     finally { running.current = false; setBusy(false); }
   };
 

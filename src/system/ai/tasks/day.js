@@ -125,12 +125,18 @@ export async function makeToday(charId, { force = false, rng } = {}) {
  */
 // 一天只自动排一次。**排失败了也算排过** —— 见 makeToday 里那段。
 // 想再试走「日常 - 今天」里的「重新安排」，那是 force。
+// 正在排的那几个角色。回复之前与主动消息的巡检会同时来问：今天那条记录要等查完天气才落下，
+// 这中间第二个来问的看到的还是「今天没排」，会再排一次、再调一次接口
+const inFlight = new Set();
+
 export async function ensureToday(charId) {
   const char = characters.get(charId);
-  if (!char || !dayStore.isOn(char)) return null;
+  if (!char || !dayStore.isOn(char) || inFlight.has(charId)) return null;
   if (dayStore.today(charId)) return null;
+  inFlight.add(charId);
   try { return await makeToday(charId); }
   catch (err) { console.warn('[day] 今天的日程没排出来:', err.message || err); return null; }
+  finally { inFlight.delete(charId); }
 }
 
 /** 只重查今天的天气，不重排日程。「日常 - 今天」那一行上的刷新 */

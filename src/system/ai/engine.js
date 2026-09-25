@@ -1261,6 +1261,9 @@ function langSampleOf(msgId) {
 // 这一档本来就是「聊天模型自己能看图」，所以描述也用聊天模型，不需要另配接口。
 async function describeCarried(pics) {
   for (const [msgId, pic] of pics) {
+    // 这张已经描述失败过一次（同一轮里重新生成回复时会再带上它）：不再描述。
+    // 原图照样随这一轮发给模型，只是不再为它多付一次描述的钱
+    if (messages.get(msgId)?.vision === 'error') continue;
     try {
       const text = (await runTextTask('chat.vision-describe', {
         system: fillTemplate(template('task.vision-describe'), { sample: langSampleOf(msgId) }),

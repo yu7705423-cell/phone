@@ -80,8 +80,21 @@ export async function compressIfDue(sceneId) {
   const fresh = out.slice(since);
   if (!fresh.length) { scene.update(sceneId, { compressedTo: edge }); return false; }
 
-  const text = await summarize(row, fresh, { key: `scene-compress:${sceneId}`, maxTokens: 900 });
-  if (!text) return false;
-  scene.update(sceneId, { summary: text, compressedTo: edge });
+  // 上次压失败了：要再多出一个窗口的段落才重试。不记的话，edge 每写一段往前挪一格，
+  // compressedTo 永远对不上，**每写一段都先再压一次**，一段两次请求，而且不会自己停
+  if (row.compressFailedAt) {
+    const at = out.findIndex(b => b.id === row.compressFailedAt);
+    if (at >= 0 && out.length - 1 - at < n) return false;
+  }
+
+  let text = '';
+  try {
+    text = await summarize(row, fresh, { key: `scene-compress:${sceneId}`, maxTokens: 900 });
+  } catch (err) {
+    scene.update(sceneId, { compressFailedAt: edge });
+    throw err;
+  }
+  if (!text) { scene.update(sceneId, { compressFailedAt: edge }); return false; }
+  scene.update(sceneId, { summary: text, compressedTo: edge, compressFailedAt: '' });
   return true;
 }

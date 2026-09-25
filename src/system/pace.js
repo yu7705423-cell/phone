@@ -156,6 +156,9 @@ export async function runDue(now = Date.now()) {
   const grp = await import('./ai/group.js');
   const { isGroup } = await import('./group.js');
   for (const chat of list) {
+    // 上面等了几次 import，这期间会话页的定时器可能已经清掉并动手了：再确认一次还在等。
+    // 不确认的话两边各发一次，第二次还会把第一次顶掉（replace），第一次的钱白付
+    if (!pendingOf(chats.get(chat.id))) continue;
     // 群聊走群聊那一路：一次调用写整轮，或者按开关每人一次
     if (isGroup(chat)) {
       if (grp.isBusy(chat)) continue;

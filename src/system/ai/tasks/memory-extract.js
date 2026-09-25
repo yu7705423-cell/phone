@@ -45,7 +45,7 @@ export function pendingOf(chatId) {
 
 /** 这一批里最后一条消息、最后一段正文各是哪个。两条水位线各推各的。 */
 function marksOf(batch) {
-  const patch = { memoryTriedId: null };
+  const patch = {};
   for (let i = batch.length - 1; i >= 0; i--) {
     if (!batch[i].beat && !patch.memoryUpTo) patch.memoryUpTo = batch[i].id;
     if (batch[i].beat && !patch.memoryUpToBeat) patch.memoryUpToBeat = batch[i].id;
@@ -80,7 +80,7 @@ export function runsFor(chatId) {
 export function markCaughtUp(chatId) {
   const all = pendingOf(chatId);
   if (!all.length) return 0;
-  chats.update(chatId, marksOf(all));
+  chats.update(chatId, { ...marksOf(all), memoryTriedId: null });
   return all.length;
 }
 
@@ -137,6 +137,14 @@ export async function extract(chatId) {
     dialogue,
   });
 
+  // 自动总结的门槛从哪儿开始数：**这次动手时最新的那一条**，成功失败都记。
+  //
+  // 从前失败时记的是这一批的最后一条、成功时清空。设了「每次总结条数」又有积压时，
+  // 两种都会出事：失败了，这一批之后的积压全算「没试过」，下一条消息接着再试；
+  // 成功了，剩下的积压立刻又够一个间隔，于是每发一条消息都多总结一次，直到追平。
+  // 现在自动那一档每攒够一个间隔最多动一次；要一口气追平，用「立即总结」或调大批量
+  const tried = all[all.length - 1].id;
+
   let result;
   try {
     // 从前这里写死 1600。对话一长、记忆一多，JSON 就在半路断掉，
@@ -149,7 +157,7 @@ export async function extract(chatId) {
     // 记下这次试到哪儿了。不记的话，提取一旦失败，之后**每发一条消息**
     // 都会再提取一次 —— 未总结的消息只增不减，门槛永远是过的。
     // 一条回复两次请求，而且永远不会自己停。记下之后要再攒够一个间隔才重试。
-    chats.update(chatId, { memoryTriedId: pending[pending.length - 1].id });
+    chats.update(chatId, { memoryTriedId: tried });
     throw err;
   }
 
@@ -215,7 +223,7 @@ export async function extract(chatId) {
   try { spent = await catchSpending(chatId, result?.spending); }
   catch (err) { console.warn('[bill] 花销没记上:', err.message || err); }
 
-  chats.update(chatId, marksOf(pending));
+  chats.update(chatId, { ...marksOf(pending), memoryTriedId: tried });
   return { added, updated, gone, total: rows.length, spent };
 }
 

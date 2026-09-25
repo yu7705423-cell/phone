@@ -118,6 +118,8 @@ function Screen({ chatId, chat, char }) {
   async function generate() {
     if (busyRef.current || !ai.isConfigured()) return;
     busyRef.current = true; setBusy(true);
+    // 先记「试过」再发：失败了也要再等一个间隔，不然每五秒重试一次、每次都扣费
+    watch.markTried();
     try {
       const raw = await ai.streamReply({ chat, char });
       const clean = String(raw || '').trim();

@@ -538,7 +538,7 @@ function finish(outcome) {
     });
     lastMsgId = msg.id;
     chats.update(chatId, { lastMessageAt: Date.now() });
-    // 打完就总结。默认关着（第 15 条）：一通电话多一次调用
+    // 打完就总结。一通电话多一次调用；默认开着是用户要求的例外（见下方「总结」与 check-calls.mjs 的 ALLOW_ON）
     if (outcome === 'done' && log.length && settings.get().callSummary !== false) {
       summarize(msg.id).catch(err => console.warn('[call] 总结没生成:', err.message || err));
     }

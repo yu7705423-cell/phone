@@ -137,6 +137,18 @@ export function seek(sec) {
   watch.set({ at: Math.round(to) });
 }
 
+/**
+ * 要开口了（请求发出之前）：只记播到哪儿，不计数。
+ *
+ * **必须在请求之前记。** 从前只在说成了之后记（markSaid），失败时 saidAt 不动，
+ * due() 一直为真，页面每五秒问一次就每五秒再调一次接口 —— 视频放多久，
+ * 失败的请求就扣多久的钱。现在试过一次，就要再等一个间隔。
+ */
+export function markTried() {
+  const s = watch.get();
+  if (s.active) watch.set({ saidAt: s.at });
+}
+
 /** 她说完一句，记下说的时候播到哪儿。节奏判断要用。 */
 export function markSaid() {
   const s = watch.get();
