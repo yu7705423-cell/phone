@@ -28,6 +28,8 @@ export function ModelPicker({ open, preset, onPick, onClose, initialQuery = '' }
 
   if (!open) return null;
   const shown = phone.ai.filterModels(list, q);
+  // 这一套接口上用过的几个（services.switchModel 记的）。拉列表慢或拉不到时也能直接切
+  const recent = preset.recentModels || [];
 
   return html`
     <${Sheet} open=${true} onClose=${onClose} title="选择模型" height="82%">
@@ -43,6 +45,14 @@ export function ModelPicker({ open, preset, onPick, onClose, initialQuery = '' }
 
       ${!busy && !err && !list.length ? html`
         <${EmptyState} icon="layers" title="接口没有返回模型列表" desc="直接手填模型名即可。"/>` : null}
+
+      ${recent.length && !q ? html`
+        <div class="field-desc">最近用过</div>
+        <div class="chip-row model-recent">
+          ${recent.map(m => html`
+            <button key=${m} class=${`chip press${preset.model === m ? ' is-active' : ''}`}
+              onClick=${() => { onPick(m); onClose(); }}>${m}</button>`)}
+        </div>` : null}
 
       ${shown.length ? html`
         <div class="model-list">

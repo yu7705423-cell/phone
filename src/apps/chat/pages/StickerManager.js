@@ -391,7 +391,8 @@ export function StickerManager() {
       ${editing ? html`
         <${Sheet} open=${true} onClose=${() => setEditing(null)} title=${editing.name || '表情'}>
           <div class="stk-edit-preview"><${StickerImg} sticker=${editing} size=${96}/></div>
-          <${Field} label="名称">
+          <${Field} label="名称（描述词）"
+            desc="发出后，角色读到的是「[表情：名称]」，看不到图片本身。名称应写明这个表情表达的意思。发送表情的面板中显示在表情下方。">
             <${Input} value=${editing.name}
               onInput=${v => { db.stickers.update(editing.id, { name: v }); setEditing({ ...editing, name: v }); }}/>
           <//>

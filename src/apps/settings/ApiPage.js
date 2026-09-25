@@ -119,7 +119,7 @@ function Editor({ id, onClose }) {
       </div>
 
       <${ModelPicker} open=${picking} preset=${preset}
-        onPick=${m => set({ model: m })} onClose=${() => setPicking(false)}/>
+        onPick=${m => svc.switchModel(id, m)} onClose=${() => setPicking(false)}/>
     <//>`;
 }
 
@@ -130,6 +130,7 @@ export function ApiPage() {
     ? `单独的接口 · ${mem.model}`
     : mem.mode === 'api' ? '选了单独的接口，但还没填全' : '跟随副用接口';
   const [editing, setEditing] = useState(null);
+  const [switching, setSwitching] = useState(null);   // 正在给哪一套换模型
   const chat = svc.services().chat;
   const presets = chat.presets;
   const incomplete = p => !(p.apiKey || '').trim() || !(p.model || '').trim();
@@ -152,6 +153,17 @@ export function ApiPage() {
       </div>
 
       ${presets.length ? html`
+        <${List} title="切换模型">
+          ${presets.filter(p => p.id === chat.activeId || p.id === chat.fallbackId).map(p => html`
+            <${ListItem} key=${p.id} title=${p.model || '未选择模型'} arrow multiline
+              subtitle=${`${p.id === chat.activeId ? '主用' : '副用'} · ${p.name}`}
+              left=${html`<${Icon} name="layers" size=${18}/>`}
+              onClick=${() => setSwitching(p.id)}/>`)}
+        <//>
+        <div class="settings-foot">
+          只更换模型，接口地址与密钥保持不变。最近用过的模型列在选择列表顶部。
+        </div>
+
         <${List} title=${`已保存的接口 ${presets.length}`} cap>
           ${presets.map(p => {
             const isMain = p.id === chat.activeId;
@@ -222,5 +234,8 @@ export function ApiPage() {
           desc="可保存多个接口随时切换，并指定一个副用接口，在主用报错时自动接替。"/>`}
 
       ${editing ? html`<${Editor} id=${editing} onClose=${() => setEditing(null)}/>` : null}
+      <${ModelPicker} open=${!!switching} preset=${presets.find(p => p.id === switching)}
+        onPick=${m => { svc.switchModel(switching, m); toast(`已切换为 ${m}`, 'ok'); }}
+        onClose=${() => setSwitching(null)}/>
     <//>`;
 }

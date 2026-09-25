@@ -198,7 +198,10 @@ input[type="range"] {
 .conv-body { flex: 1; min-height: 0; padding: var(--sp-4) var(--sp-3); display: flex; flex-direction: column; gap: var(--bubble-gap); }
 .conv-hint { margin: auto; color: var(--text-3); font-size: var(--fs-12); }
 
-.msg { display: flex; gap: var(--sp-2); align-items: flex-start; }
+.msg { display: flex; gap: var(--sp-2); align-items: flex-start; transition: transform var(--dur-fast) var(--ease-out); }
+/* 左右滑一下引用这一条：跟着手指平移，松手弹回（Conversation.js 的 Bubble）。
+   位移由脚本写进 --swipe-x，不写内联 transform */
+.msg.is-swiping { transform: translateX(var(--swipe-x, 0)); transition: none; }
 .msg.is-mine { flex-direction: row-reverse; }
 /* 同一个人接着说的那一条，和上一条之间收紧。收紧到的距离跟着「同一轮里两个气泡之间」走，
    美化里改了那个间距，这里跟着变 */
@@ -833,7 +836,9 @@ input[type="range"] {
   gap: var(--sp-2); max-height: 214px; align-content: start;
 }
 .stk-manage { max-height: none; padding: 0 var(--sp-1); }
-.stk-cell { display: flex; align-items: center; justify-content: center; }
+.stk-cell { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-width: 0; }
+/* 表情下面那行名字：角色读到的就是它 */
+.stk-cap { max-width: 100%; font-size: var(--fs-11); color: var(--text-3); line-height: 1.3; }
 .stk-cell .stk-img, .stk-cell .stk-miss { width: 100%; height: auto; aspect-ratio: 1; }
 /* 整理分组时选中的那几个 */
 .stk-cell.is-picked { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: var(--r-xs); }

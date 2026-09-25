@@ -130,6 +130,13 @@ export function ComposerBar({ draft = '', live = false, busy = false, frozen = f
     </div>`;
 }
 
+// 滑一下引用：横着先走够 SW_OWN 才算这一下归气泡，走够 SW_GO 松手才引用，
+// 最多跟着手指走 SW_MAX。SW_EDGE 和页面的边缘返回同宽（ui/page.js 的 EDGE）
+const SW_OWN = 10;
+const SW_GO = 56;
+const SW_MAX = 72;
+const SW_EDGE = 40;
+
 // 两条消息中间居中的那一行时间。相隔五分钟以上才有（见 receipt.needSep）
 const TimeSep = ({ at }) => html`<div class="time-sep ph-time-sep">${receipt.sepOf(at)}</div>`;
 
@@ -157,7 +164,7 @@ function innerOf(msg) {
 
 export const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, onSwipe, onHold, onBind,
                   selecting, selected, onToggle, transOpen, onSettle, onOpenLog, onUnwrap,
-                  onPat, innerStyle, fold, foldCount, onScene, who = '', cont = false,
+                  onPat, innerStyle, fold, foldCount, onScene, onQuote, who = '', cont = false,
                   stampAt = 'off', readOn = false, readUpTo = 0 }) {
   const mine = msg.role === 'user';
   // 落点是几个标量属性算出来的，不在这里读设置 —— 这个组件是 memo 过的，
@@ -202,17 +209,61 @@ export const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, o
   const trans = (msg.translation || '').trim();
   const showTrans = trans && (transOpen === 'always' || openTrans);
 
-  const start = () => {
+  // ---- 左右滑一下：引用这一条 ----
+  //
+  // 长按菜单里那个「引用」要两下，而回一句话最常用的就是它。朝哪边滑都算，
+  // 滑够 SW_GO 松手就引用；没滑够弹回去。
+  //
+  // 两处让开：起手落在左右边缘那一条里的，归页面的边缘返回（ui/page.js 的 EDGE）；
+  // 竖着走得更多的，是在翻消息。位移走 --swipe-x，不在契约钩子上写内联声明（第 18 条）
+  const row = useRef(null);
+  const sw = useRef(null);
+  const moveRow = px => {
+    const el = row.current;
+    if (!el) return;
+    el.style.setProperty('--swipe-x', `${px}px`);
+    el.classList.toggle('is-swiping', px !== 0);
+  };
+  const start = e => {
     if (frozen || selecting) return;
     hold.current.fired = false;
     hold.current.timer = setTimeout(() => {
       hold.current.timer = null;
       hold.current.fired = true;
+      sw.current = null;
       onHold(msg);
     }, 460);
+    const p = e?.touches?.length === 1 ? e.touches[0] : null;
+    const wide = window.innerWidth || 0;
+    sw.current = p && onQuote && p.clientX > SW_EDGE && p.clientX < wide - SW_EDGE
+      ? { x: p.clientX, y: p.clientY, dx: 0, own: false } : null;
   };
   const end = () => {
     if (hold.current.timer) { clearTimeout(hold.current.timer); hold.current.timer = null; }
+  };
+  const move = e => {
+    const s = sw.current;
+    const p = e.touches?.[0];
+    if (!s || !p) { end(); return; }
+    const dx = p.clientX - s.x;
+    const dy = p.clientY - s.y;
+    if (!s.own) {
+      if (Math.abs(dy) > Math.abs(dx)) { sw.current = null; end(); return; }
+      if (Math.abs(dx) < SW_OWN) return;
+      s.own = true;
+      end();
+    }
+    e.preventDefault();
+    s.dx = Math.max(-SW_MAX, Math.min(SW_MAX, dx));
+    moveRow(s.dx);
+  };
+  const release = () => {
+    end();
+    const s = sw.current;
+    sw.current = null;
+    if (!s?.own) return;
+    moveRow(0);
+    if (Math.abs(s.dx) >= SW_GO) onQuote(msg);
   };
 
   // 多选时整条都是选择区，子元素的点击一律不放行。
@@ -239,8 +290,9 @@ export const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, o
   const body = html`
     <div id=${gone ? undefined : `msg-${msg.id}`}
       class=${`msg no-callout ph-msg ${mine ? 'ph-msg-mine is-mine' : 'ph-msg-theirs'}${selecting && !frozen ? ' is-picking' : ''}${selected ? ' is-picked' : ''}${hasMeta && slot === 'side' ? ' has-aside' : ''}${cont ? ' is-cont' : ''}${gone ? ' is-recalled' : ''}`}
+      ref=${row}
       onClickCapture=${capture}
-      onTouchStart=${start} onTouchEnd=${end} onTouchMove=${end} onTouchCancel=${end}
+      onTouchStart=${start} onTouchEnd=${release} onTouchMove=${move} onTouchCancel=${release}
       onContextMenu=${e => { e.preventDefault(); if (!selecting && !frozen) onHold(msg); }}>
 
       ${selecting && !frozen ? html`
@@ -450,6 +502,7 @@ export function Conversation({ chatId, focusId = '' }) {
     onPat: () => latest.current.onPat(),
     onScene: (kind, id) => latest.current.onScene(kind, id),
     onBind: m => latest.current.onBind(m),
+    onQuote: m => latest.current.onQuote(m),
     noop: () => {},
   }), []);
   const pickedSet = useMemo(() => new Set(picked || []), [picked]);
@@ -1156,6 +1209,8 @@ export function Conversation({ chatId, focusId = '' }) {
     : m.kind === 'trip' ? setGoing(m)
     : m.kind === 'request' ? setVoting(m) : setSettling(m));
   latest.current = { onRetry, onSwipe, togglePick, onSettle: settleAny,
+    // 滑一下引用（见 Bubble 里的 swipe）。和长按菜单里「引用」是同一件事
+    onQuote: m => { setQuoting(m); setPanel(null); try { navigator.vibrate?.(10); } catch { /* 不支持就算了 */ } },
     onOpenLog: openLog, onUnwrap: setUnwrap,
     // 拍一拍是对着一个人的，群里点头像只看心声
     onPat: () => { if (!isGroup) extras.pat({ chatId, role: 'user' }); },
@@ -1373,7 +1428,7 @@ export function Conversation({ chatId, focusId = '' }) {
             <${Bubble} key=${row.id} msg=${row.msg} char=${authorOf(row.msg.authorId)} chat=${chat}
               who=${whoOf(row.msg)} cont=${!sep && contOf(prev, row.msg)}
               onRetry=${stable.onRetry} onSwipe=${stable.onSwipe} onHold=${setHeld}
-              onBind=${stable.onBind}
+              onBind=${stable.onBind} onQuote=${stable.onQuote}
               selecting=${selecting} selected=${selecting && pickedSet.has(row.id)}
               onToggle=${stable.onToggle} transOpen=${settings.translateOpen}
               onSettle=${stable.onSettle} onOpenLog=${stable.onOpenLog}

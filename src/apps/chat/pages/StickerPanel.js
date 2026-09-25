@@ -5,6 +5,8 @@ import { StickerImg } from './StickerBits.js';
 
 const { db, nav, stickers: api } = phone;
 
+// 每个表情下面写着它的名字。发出去之后角色读到的就是这个名字（[表情：名字]），
+// 看图猜不出角色会怎么理解它。名字在「表情管理」里点开那一个就能改
 export function StickerPanel({ onSend }) {
   useStore(db.stickers.store);
   // 面板上只列真的有表情的分组。空分组是管理页上的半成品，摆在这里
@@ -35,6 +37,7 @@ export function StickerPanel({ onSend }) {
         ${list.map(s => html`
           <button key=${s.id} class="stk-cell press" onClick=${() => onSend(s)} title=${s.name}>
             <${StickerImg} sticker=${s}/>
+            <span class="stk-cap ellipsis">${s.name}</span>
           </button>`)}
       </div>
     </div>`;

@@ -118,6 +118,20 @@ export function updateChatPreset(id, patch) {
   write({ chat: { ...c, presets: c.presets.map(p => p.id === id ? { ...p, ...patch } : p) } });
 }
 
+/**
+ * 只换模型，地址与密钥不动。换下来的那个记进 recentModels（最多 8 个），
+ * 模型列表顶上排着，来回切不用每次重新拉列表、再从几百个里搜
+ */
+const RECENT_MODELS = 8;
+export function switchModel(id, model) {
+  const p = services().chat.presets.find(x => x.id === id);
+  const m = String(model || '').trim();
+  if (!p || !m) return;
+  const recent = [m, p.model, ...(p.recentModels || [])]
+    .filter((x, i, a) => x && a.indexOf(x) === i).slice(0, RECENT_MODELS);
+  updateChatPreset(id, { model: m, recentModels: recent });
+}
+
 export function removeChatPreset(id) {
   const c = services().chat;
   const presets = c.presets.filter(p => p.id !== id);
