@@ -163,9 +163,11 @@ await page.waitForTimeout(700);
 // 这一份带着头像框，所以导出前会先说一句体积
 const exDlg = await page.locator('.modal, .sheet, .confirm').innerText().catch(()=>'');
 ok('带图的那一份，导出前说得出它有多大', /内嵌/.test(exDlg) && /KB/.test(exDlg), exDlg.slice(0,240));
+await page.locator('button:has-text("继续导出")').last().click();
+await page.waitForTimeout(400);
 const [dl] = await Promise.all([
   page.waitForEvent('download', {timeout:10000}).catch(()=>null),
-  page.locator('button:has-text("继续导出")').last().click(),
+  page.locator('button:has-text("导出文件")').last().click(),
 ]);
 ok('库里就能导出，不必先找一段会话', !!dl, '没有 download 事件');
 ok('文件名是「美化-名字.json」', (await page.evaluate(()=>window.__dl||[]))[0]==='美化-夜航.json',

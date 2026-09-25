@@ -380,12 +380,14 @@ export function assetsOf(css) {
   return out;
 }
 
-/** 导出成一段文本。 */
-export function pack(skin) {
+/** 导出成一段文本。name / author 是导出时的署名（见 skinfile.js），不改库里那一份 */
+export function pack(skin, { name, author } = {}) {
   if (!skin) throw new Error('这一份美化不存在');
   return JSON.stringify({
     kind: PACK_KIND, version: PACK_VERSION,
-    name: String(skin.name || '未命名'),
+    name: String(name || skin.name || '未命名'),
+    // 作者署名。老版本读包时不认这一项，照常导入（只认识的字段才留下），所以不用升版本号
+    ...(author ? { author: String(author) } : {}),
     tokens: skin.tokens || {},
     shape: String(skin.shape || ''),
     scope: scopeOf(skin),
@@ -431,7 +433,9 @@ export function unpack(text) {
   const frame = frameUrlOk(raw.frame) ? String(raw.frame) : '';
   const frameWho = FRAME_WHO.some(x => x.id === raw.frameWho) ? String(raw.frameWho) : 'both';
   return {
-    name: String(raw.name || '未命名').trim().slice(0, 40) || '未命名',
+    // 名字里带着「by 作者」，比从前长一截，放宽到 80
+    name: String(raw.name || '未命名').trim().slice(0, 80) || '未命名',
+    author: String(raw.author || '').trim().slice(0, 40),
     // 老包（v1）没有这一项，一律当「单段会话」—— 那是从前唯一的行为。
     // 默认成全局就等于替作者把影响面扩大了一圈，而他当初没这么写
     scope: scopeOf(raw),

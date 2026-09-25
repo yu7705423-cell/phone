@@ -1,4 +1,5 @@
 import { readZip } from './unzip.js';
+import { zip } from './zip.js';
 
 // 从 docx / txt 里把纯文字抠出来。表情包那边也解析 docx，但它要的是
 // 「一行一个表情」的结构；这里要的是整篇正文，所以单独一个函数。
@@ -32,4 +33,34 @@ export async function readText(file) {
     throw new Error('这看着是个压缩包。docx 请直接选 .docx 文件');
   }
   return text.replace(/\r\n/g, '\n').trim();
+}
+
+// ---- 写 ----
+// 世界书导出、美化包导出共用
+
+const xml = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+/** 文本写成一份最小的 docx：一行一段，# 与 ## 开头的行加粗 */
+export async function toDocx(text) {
+  const paras = String(text).split('\n').map(line => {
+    const head = /^#{1,2}\s/.test(line);
+    const run = `<w:r>${head ? '<w:rPr><w:b/></w:rPr>' : ''}<w:t xml:space="preserve">${xml(line)}</w:t></w:r>`;
+    return `<w:p>${line ? run : ''}</w:p>`;
+  }).join('');
+  const doc = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+    + '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
+    + `<w:body>${paras}</w:body></w:document>`;
+  return zip([
+    { name: '[Content_Types].xml', text: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+      + '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+      + '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+      + '<Default Extension="xml" ContentType="application/xml"/>'
+      + '<Override PartName="/word/document.xml" '
+      + 'ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>' },
+    { name: '_rels/.rels', text: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+      + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+      + '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" '
+      + 'Target="word/document.xml"/></Relationships>' },
+    { name: 'word/document.xml', text: doc },
+  ]).then(b => new Blob([b], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }));
 }

@@ -1,13 +1,13 @@
 import { html, useState, useRef } from '../../lib.js';
 import { phone, useStore } from '../../sdk/index.js';
-import { Page, List, ListItem, Button, Icon, Switch, Field, NumberInput, Textarea,
+import { Page, List, ListItem, Button, Icon, Switch, Field, NumberInput, Textarea, Input, Segmented, Sheet,
          EmptyState, toast, confirm, prompt } from '../../ui/index.js';
 import { Preview } from './Preview.js';
 import { ContractPage } from './ContractPage.js';
 import { GenPage } from './GenPage.js';
 import { AppSkinPage } from './AppSkinPage.js';
 
-const { db, nav, skin, intent } = phone;
+const { db, nav, skin, skinfile, intent } = phone;
 
 // 美化库。
 //
@@ -82,12 +82,10 @@ function ListPage() {
     nav.push(`/one/${row.id}`);
   };
 
-  const importOne = async e => {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file) return;
+  // 文件与粘贴走同一条路：读成美化包，先说一句网络地址，再新建一份
+  const importData = async read => {
     try {
-      const data = skin.unpack(await file.text());
+      const data = await read();
       const a = skin.assetsOf(data.css);
       const warn = a.remote
         ? `该美化引用了 ${a.remote} 处网络地址，套用后打开会话时会向其发起请求。` : '';
@@ -99,6 +97,16 @@ function ListPage() {
       toast(`已导入「${row.name}」`, 'ok');
       nav.push(`/one/${row.id}`);
     } catch (err) { toast(String(err.message || err), 'error', 6000); }
+  };
+  const importOne = e => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (file) importData(() => skinfile.readFile(file));
+  };
+  const importPaste = async () => {
+    const text = await prompt({ title: '粘贴导入', multiline: true, okText: '导入',
+      message: '粘贴美化包 txt 中两行标记之间的全部内容（连同标记），或 JSON 原文。' });
+    if (text && text.trim()) importData(() => skinfile.parse(text));
   };
 
   return html`
@@ -122,8 +130,12 @@ function ListPage() {
       <div class="pad">
         <${Button} full variant="ghost" icon="download"
           onClick=${() => fileRef.current?.click()}>导入美化包<//>
+        <div class="pad-t">
+          <${Button} full variant="ghost" icon="copy" onClick=${importPaste}>粘贴导入<//>
+        </div>
       </div>
-      <input type="file" accept=".json,application/json" ref=${fileRef}
+      <div class="settings-foot">可导入 JSON、TXT、DOCX 格式的美化包，或直接粘贴美化包的文字内容。</div>
+      <input type="file" accept=${skinfile.ACCEPT} ref=${fileRef}
         onChange=${importOne} style="display:none"/>
 
       <${List}>
@@ -150,6 +162,9 @@ function OnePage({ id }) {
   useStore(db.chats.store);
   useStore(db.characters.store);
   const [picking, setPicking] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [format, setFormat] = useState('json');
+  const [who, setWho] = useState('');
   const row = skin.get(id);
   if (!row) {
     return html`<${Page} title="美化" onBack=${nav.pop}>
@@ -188,6 +203,7 @@ function OnePage({ id }) {
     nav.replace(`/one/${made.id}`);
   };
 
+  // 导出之前先说清楚带走了什么，再打开选格式、填作者的那一页
   const exportOne = async () => {
     const a = skin.assetsOf(row.css);
     const lines = [];
@@ -204,15 +220,24 @@ function OnePage({ id }) {
       message: `${lines.join('')}美化包仅包含名称、尺寸、头像框与样式，`
         + '不包含它挂在哪些会话上。',
     })) return;
+    setWho(skinfile.author());
+    setExporting(true);
+  };
+  const doExport = async () => {
+    skinfile.setAuthor(who);
     try {
-      const blob = new Blob([skin.pack(row)], { type: 'application/json' });
-      const a2 = document.createElement('a');
-      a2.href = URL.createObjectURL(blob);
-      a2.download = `美化-${row.name}.json`;
-      a2.click();
-      setTimeout(() => URL.revokeObjectURL(a2.href), 4000);
-      toast('已导出', 'ok');
+      const file = await skinfile.exportSkin(row, format, who.trim());
+      setExporting(false);
+      toast(`已导出 ${file}`, 'ok');
     } catch (err) { toast('导出失败：' + (err.message || err), 'error', 5000); }
+  };
+  const copyText = async () => {
+    skinfile.setAuthor(who);
+    try {
+      await navigator.clipboard.writeText(skinfile.toText(row, who.trim()));
+      setExporting(false);
+      toast('已复制美化包文字，对方可在「粘贴导入」中粘贴', 'ok', 3000);
+    } catch { toast('复制失败，浏览器未允许访问剪贴板', 'error'); }
   };
 
   const del = async () => {
@@ -296,7 +321,7 @@ function OnePage({ id }) {
           left=${html`<${Icon} name="copy" size=${18}/>`}
           onClick=${copy}/>
         <${ListItem} title="导出美化包" multiline
-          subtitle="导出为一个文件，可分享给他人导入。不包含它挂在哪些会话上。"
+          subtitle="导出为 JSON、TXT 或 DOCX 文件，或复制为文字，可分享给他人导入。不包含它挂在哪些会话上。"
           left=${html`<${Icon} name="download" size=${18}/>`}
           onClick=${exportOne}/>
       <//>
@@ -304,6 +329,23 @@ function OnePage({ id }) {
       <div class="pad">
         <${Button} full variant="danger" onClick=${del}>删除这一份<//>
       </div>
+
+      <${Sheet} open=${exporting} onClose=${() => setExporting(false)} title="导出美化包">
+        <div class="pad-x">
+          <${Field} label="作者"
+            desc=${who.trim() ? `导出的名称为「${skinfile.signed(row.name, who)}」。作者名会被记住，之后导出自动带上` : '填写后，导出的名称后缀「by 作者」，并记住供之后的导出使用。留空则不署名'}>
+            <${Input} value=${who} placeholder="作者名" maxlength="40" onInput=${setWho}/>
+          <//>
+          <${Field} label="格式"
+            desc=${format === 'json' ? 'JSON 以文件形式分享时可靠；经聊天软件复制粘贴时，引号可能被改动而无法导入'
+              : 'TXT 与 DOCX 中的内容经过编码，复制粘贴、转发时不受引号与换行改动的影响'}>
+            <${Segmented} items=${skinfile.FORMATS.map(f => ({ value: f.id, label: f.label }))}
+              value=${format} onChange=${setFormat}/>
+          <//>
+          <div class="pad-t"><${Button} full icon="download" onClick=${doExport}>导出文件<//></div>
+          <div class="pad-t pad-b"><${Button} full variant="ghost" icon="copy" onClick=${copyText}>复制为文字<//></div>
+        </div>
+      <//>
 
       ${picking ? html`
         <${Page} title="挂到哪段会话" onBack=${() => setPicking(false)} overlay>

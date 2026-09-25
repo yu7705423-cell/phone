@@ -101,9 +101,12 @@ await page.evaluate(() => {
     return orig.apply(this, arguments);
   };
 });
+// 点「导出美化包」先出一页：填作者、选格式（ARCHITECTURE 4.239），默认 JSON、不署名
+await page.locator('.list-item').filter({hasText:'导出美化包'}).first().click();
+await page.waitForTimeout(400);
 const [dl] = await Promise.all([
   page.waitForEvent('download', {timeout:10000}).catch(()=>null),
-  page.locator('.list-item').filter({hasText:'导出美化包'}).first().click(),
+  page.locator('button:has-text("导出文件")').last().click(),
 ]);
 ok('点了真的下载出一个文件', !!dl, '没有 download 事件');
 const dlNames = await page.evaluate(() => window.__dl || []);

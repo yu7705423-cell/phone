@@ -118,7 +118,7 @@ export function SkinPage({ chatId }) {
     e.target.value = '';
     if (!file) return;
     try {
-      const data = skin.unpack(await file.text());
+      const data = await phone.skinfile.readFile(file);
       const a = skin.assetsOf(data.css);
       // 远程地址值得先说一句：打开这段会话时那台服务器会知道
       const warn = a.remote
@@ -182,7 +182,7 @@ export function SkinPage({ chatId }) {
         <${Button} variant="ghost" icon="download"
           onClick=${() => fileRef.current?.click()}>导入美化包<//>
       </div>
-      <input type="file" accept=".json,application/json" ref=${fileRef}
+      <input type="file" accept=${phone.skinfile.ACCEPT} ref=${fileRef}
         onChange=${importOne} style="display:none"/>
 
       <${MsgGroup}/>

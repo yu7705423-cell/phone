@@ -9091,3 +9091,25 @@ Supabase 新版后台的密钥换成了 `sb_secret_…` / `sb_publishable_…`�
 测试 `tests/pushworker.test.mjs` 末尾：模拟 Supabase 网关认密钥；`sb_secret_` 带空格引号也能用且不进 Authorization；
 五种填错各自说得出来；旧版 `eyJ` 照旧能用；应用打开后台消息时的报错带着这句说明。
 
+### 4.239 美化包导出成 TXT / DOCX、粘贴导入、作者署名
+
+用户要求：「有的人是一键复制，json 的话会解析出问题」「导出时填写作者名，填一次之后都自动后缀 by 作者名」。
+
+**格式。** `system/skinfile.js`。导出页（点「导出美化包」后的底部弹层）选 JSON、TXT、DOCX，或「复制为文字」。
+TXT / DOCX 里不是 JSON 原文：同一份美化包（`skin.pack`）UTF-8 后 base64，按 76 字一行，夹在
+`-----BEGIN EIRA SKIN-----` 与 `-----END EIRA SKIN-----` 两行之间；标记之外是给人看的名称、作者、导入方法，读的时候不看。
+base64 没有引号可被换成弯引号；读时标记之间除 base64 字符外一律丢掉，折行、多空格、`\r\n` 都不影响。
+取**最后一个**开头标记：说明文字与聊天记录里可能也提到它（第一版的说明行里写了标记原文，读到的是空的，测试抓住了）。
+
+**读。** `parse(text)`：有标记读标记；否则按 JSON 读；再不行，截取第一个 `{` 到最后一个 `}`、把弯双引号换回直引号再读一次，
+都不行报第一次的错。`readFile` 认 json、txt、docx（docx 走 `doctext.readText`）。两处导入（美化 app 的库、会话的美化页）
+都换成它，另在库里加「粘贴导入」。
+
+**docx 写。** 从 `lorefile.js` 搬进 `doctext.js` 的 `toDocx`，世界书导出与这里共用。
+
+**作者。** 存在 `settings.skinAuthor`，导出页预填。导出时名字变成「名称 by 作者」（`signed`；已是同一作者的后缀不再加，
+改了别人的再导出会写成「名称 by 原作者 by 自己」），包里另带 `author`。**只改导出去的那一份**，库里自己的不改名。
+`unpack` 名字上限从 40 放宽到 80；`author` 是新字段，老版本读包时只认识的字段才留下，所以不升 `PACK_VERSION`。
+
+测试 `tests/skinfile.test.mjs`；`skinpack`、`skinapp` 改成导出页上再点「导出文件」。
+

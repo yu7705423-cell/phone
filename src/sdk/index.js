@@ -118,6 +118,7 @@ import * as sceneApi from '../system/scene.js';
 import * as workApi from '../system/work.js';
 import * as stageApi from '../system/stage.js';
 import * as skinApi from '../system/skin.js';
+import * as skinfileApi from '../system/skinfile.js';
 import * as receiptApi from '../system/receipt.js';
 import * as toneApi from '../system/tone.js';
 import * as alarmApi from '../system/alarm.js';
@@ -338,6 +339,7 @@ export const phone = {
   work: workApi,
   stage: stageApi,
   skin: skinApi,
+  skinfile: skinfileApi,
   receipt: receiptApi,
   tone: toneApi,
   alarm: alarmApi,
