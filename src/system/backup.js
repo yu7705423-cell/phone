@@ -1,6 +1,6 @@
 import { db } from './db/index.js';
 import { DATA_VERSION, KV, runMigrations } from './db/schema.js';
-import { idb } from './db/idb.js';
+import { idb, flushWrites } from './db/idb.js';
 import { images } from './db/images.js';
 import { files } from './db/files.js';
 import { zip, unzip, verify } from './zip.js';
@@ -223,6 +223,11 @@ export async function restore(file, { onProgress } = {}) {
     await idb.put('kv', { k: KV.schemaVersion, v: to });
     migrated = to - from;
   }
+
+  // 等全部落盘再说完成。collection 的行是攒到下一拍才写的（db/idb.js），
+  // 恢复完常常紧跟着刷新页面（搬家就是），不等的话最后那一批会被刷新吞掉 ——
+  // 图片在、角色和聊天记录却没了
+  await flushWrites();
 
   return {
     rows: COLLECTIONS.reduce((n, name) => n + ((data[name] || []).length), 0),
