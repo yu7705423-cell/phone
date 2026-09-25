@@ -20,7 +20,7 @@ set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$HERE/.." && pwd)"
 
-APP_URL="${APP_URL:-https://yu7705423-cell.github.io/phone/}"
+APP_URL="${APP_URL:-https://eiraphone.cn/}"
 BUNDLE_ID="${BUNDLE_ID:-com.example.xiaoshouji}"
 DISPLAY_NAME="${DISPLAY_NAME:-Eira}"
 VERSION="${VERSION:-1.0.0}"

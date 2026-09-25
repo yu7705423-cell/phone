@@ -51,12 +51,12 @@
 
   <!-- 站点地址。打包脚本会改写这里，运行时也可以在外壳设置里覆盖 -->
   <key>PhoneSiteURL</key>
-  <string>https://yu7705423-cell.github.io/phone/</string>
+  <string>https://eiraphone.cn/</string>
 
   <!-- 站点在这份名单里，WebKit 才不会按七天未访问清掉 IndexedDB。
        打包脚本按 PhoneSiteURL 的主机名改写这里。最多十个。 -->
   <key>WKAppBoundDomains</key>
-  <array><string>yu7705423-cell.github.io</string></array>
+  <array><string>eiraphone.cn</string></array>
 
   <!-- 允许指向局域网内自己起的静态服务器（http://192.168.x.x:8000 这种）。
        公网地址仍然必须是 https。 -->

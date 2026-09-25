@@ -8758,3 +8758,12 @@ IndexedDB 与 localStorage：测试版的数据迁移会改掉正式数据，`DB
 现在 `charpack.install` 在消息与正文都放好之后，按两张 id 表把会话上的 `memoryUpTo`、`memoryUpToBeat`、
 `memoryTriedId` 换到新 id；包里没带那一条（导出时不带聊天记录）就清空。整份备份、GitHub 备份、搬家
 一律原 id 恢复，本来就不受影响。测试 `tests/packmark.test.mjs`。
+
+### 4.225 app 外壳改开新网址
+
+安卓与 iPhone 外壳默认打开的网址从 GitHub Pages 换成 `https://eiraphone.cn/`（`android/app/build.gradle.kts`、
+`ios/Info.plist` 与 `ios/build.sh`、两份打包流程的默认值；iPhone 的 app-bound 域名跟着换成 `eiraphone.cn`）。
+
+**不做 app 里的自动搬家。** 外壳里开不出第二个窗口，自动搬要外壳当中转、两边各跑一套，换来的只是省一次
+导出与恢复。改为让用户在旧版里导出完整备份、装新版后恢复（两份 README 里写明）。外壳里的新网址照旧不提醒
+搬家（4.223 末尾的 `inShell`），提醒了也搬不成。

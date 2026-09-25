@@ -8,7 +8,7 @@ on:
       app_url:
         description: 网页地址
         required: false
-        default: https://yu7705423-cell.github.io/phone/
+        default: https://eiraphone.cn/
       bundle_id:
         description: 包标识
         required: false
@@ -54,7 +54,7 @@ jobs:
 
       - name: 打包
         env:
-          APP_URL: ${{ inputs.app_url || 'https://yu7705423-cell.github.io/phone/' }}
+          APP_URL: ${{ inputs.app_url || 'https://eiraphone.cn/' }}
           BUNDLE_ID: ${{ inputs.bundle_id || 'com.example.xiaoshouji' }}
           VERSION: ${{ steps.meta.outputs.version }}
           BUILD_NUM: ${{ github.run_number }}

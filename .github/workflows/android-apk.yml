@@ -11,7 +11,7 @@ on:
       app_url:
         description: 网页地址
         required: false
-        default: https://yu7705423-cell.github.io/phone/
+        default: https://eiraphone.cn/
       version:
         description: 版本号。留空则按构建序号自动递增
         required: false
@@ -65,7 +65,7 @@ jobs:
         working-directory: android
         run: |
           gradle assembleRelease --no-daemon --stacktrace \
-            -PsiteUrl="${{ inputs.app_url || 'https://yu7705423-cell.github.io/phone/' }}" \
+            -PsiteUrl="${{ inputs.app_url || 'https://eiraphone.cn/' }}" \
             -PappVersion="${{ steps.meta.outputs.version }}" \
             -PappBuild="${{ github.run_number }}"
           SUFFIX=""

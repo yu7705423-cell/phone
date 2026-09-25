@@ -7,7 +7,7 @@ plugins {
 
 // 打包时可以用 -P 覆盖：站点地址、版本号、构建序号、包名
 fun prop(name: String, fallback: String) = (project.findProperty(name) as String?)?.takeIf { it.isNotBlank() } ?: fallback
-val siteUrl = prop("siteUrl", "https://yu7705423-cell.github.io/phone/")
+val siteUrl = prop("siteUrl", "https://eiraphone.cn/")
 val appVersion = prop("appVersion", "1.0.0")
 val appBuild = prop("appBuild", "1").toInt()
 val appId = prop("appId", "com.eira.phone")

@@ -43,8 +43,10 @@ IndexedDB 里。`Info.plist` 的 `WKAppBoundDomains` 就是为它写的。
 仓库的 Actions 里有「打包 ipa」。手动运行，填好网页地址即可，产物在运行记录的
 artifact 里。推一个 `ios-v1.0.0` 这样的标签会同时建一个 Release。
 
-网页地址默认指向 GitHub Pages（`https://yu7705423-cell.github.io/phone/`）。
-使用前需要先在仓库设置的 Pages 一节里把来源设为本分支，否则该地址不存在。
+网页地址默认指向正式版 `https://eiraphone.cn/`（Cloudflare Pages，连 `release` 分支）。
+
+**从旧版 app 换过来要自己搬数据。** 旧版打开的是 GitHub Pages 的旧网址，数据按网址分开存，
+新版打开新网址是空的：先在旧版里「设置 - 存储与备份」导出完整备份，装新版后在同一页恢复。
 
 ### 在自己的 Mac 上打
 
