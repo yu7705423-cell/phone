@@ -17,10 +17,10 @@ export const SITE = {
   neteaseRealIP: '',
   // 本站的网易云转发 Worker（worker/netease.js 部署到 Cloudflare 之后的地址），例如 https://ne.xxx.workers.dev
   // 没有服务器时用它。和上面的 neteaseApi 二选一，两个都填时用 neteaseApi
-  neteaseWorker: 'https://phone-netease.yu864249.workers.dev',
+  neteaseWorker: 'https://api.eiraphone.cn',
   // 登录账号服务的地址。通常就是上面那个 Worker（它同时管登录，见 worker/README.md「登录账号」）。
   // 填了、而且那边开了账号功能，应用一打开就要登录；那边还没开时照常放行。留空表示不要登录
-  accounts: 'https://phone-netease.yu864249.workers.dev',
+  accounts: 'https://api.eiraphone.cn',
   // 换网址（搬家，见 ARCHITECTURE 4.220）。两个都填完整网址，以 / 结尾，例如
   //   moveFrom: 'https://yu7705423-cell.github.io/phone/'   旧网址
   //   moveTo:   'https://eira.example.cn/'                   新网址
