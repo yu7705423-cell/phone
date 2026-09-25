@@ -136,7 +136,12 @@ const hist = body.messages.filter(m=>m.role!=='system' || m.content.includes('�
 const all = body.messages;
 const deepIdx = all.findIndex(m=>m.content.includes('不许提起那场火'));
 ok('有深度的那条插进了对话', deepIdx>0, String(deepIdx));
-ok('插在最后一条之前', deepIdx===all.length-2, `${deepIdx} / ${all.length}`);
+// 这段对话以角色那一条收尾，末尾补了「对方还没回」（engine.withFollowUp）。深度 1 贴在它前面；
+// 中间的设定以 user 身份发，和那一行相邻就并成同一条 —— 设定在前、那一行在后
+const last = all[all.length-1]?.content || '';
+ok('插在最后一条之前', deepIdx===all.length-2
+  || (deepIdx===all.length-1 && last.indexOf('不许提起那场火') < last.indexOf('No new message from the other party')),
+  `${deepIdx} / ${all.length}`);
 // 中间的设定默认以 user 身份、用 <context> 包着发（见 providers/midsystem.js）：
 // 中转转给 Claude、Gemini 时中途的 system 常被丢掉
 ok('它以 user 身份、用 <context> 包着插入', all[deepIdx]?.role==='user' && all[deepIdx].content.includes('<context>'), all[deepIdx]?.role);

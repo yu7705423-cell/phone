@@ -1,7 +1,7 @@
 import { chats, characters, messages as messagesDb, settings } from '../db/index.js';
 import * as accounts from '../accounts.js';
 
-import { template, buildChatSystem, buildHistory, mergeAdjacent, isConfigured, isReplying, runTextTask, queryVecFor,
+import { template, buildChatSystem, buildHistory, isConfigured, isReplying, runTextTask, queryVecFor,
   streamGroupReply } from './engine.js';
 import * as group from '../group.js';
 import * as groupTurn from './group.js';
@@ -197,10 +197,9 @@ export async function sendProactive(chatId, charId, { mood = false } = {}) {
     time: new Date().toLocaleString('zh-CN', { hour12: false }),
     gap: gapText(last ? Date.now() - last.createdAt : 0),
   });
-  const history = mergeAdjacent([
-    ...buildHistory(chat, char, msgs, { volatile: hot }),
-    { role: 'user', content: '(No new messages. You are the one opening this time.)' },
-  ]);
+  const history = buildHistory(chat, char, msgs, {
+    volatile: hot, closing: '(No new messages. You are the one opening this time.)',
+  });
 
   const raw = await runTextTask('chat.proactive', {
     system: [system, instruction].filter(Boolean).join('\n\n'),

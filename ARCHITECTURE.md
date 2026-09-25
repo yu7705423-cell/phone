@@ -8353,9 +8353,11 @@ IndexedDB 与 localStorage：测试版的数据迁移会改掉正式数据，`DB
 **原因**：请求以角色自己那几句（assistant）收尾，前面最近的一条 user 还是上一轮我那句。
 模型就当作还在回那一句。有的接口还会把收尾的 assistant 当成要续写的半句。
 
-**改法**：`engine.withFollowUp`：跳过末尾插进去的 system 块，最后一条对话是 assistant 时，
-补一条 user：`skeleton.follow-up`（对方还没回，这次写的排在那几句后面）。只陈述事实（第 16 条）。
-单聊 `streamReply`、群聊 `streamGroupReply`（不是「成员先开口」那一种时）都过它。我刚说完的正常情况下末尾就是我那句，不补。
+**改法**：`buildHistory` / `buildGroupHistory` 收 `followUp: true` 时（`engine.withFollowUp`），
+最后一条对话是 assistant 就补一条 user：`skeleton.follow-up`（对方还没回，这次写的排在那几句后面）。只陈述事实（第 16 条）。
+**在按深度插世界书、现在几点、本轮召回之前补**：深度数的是离末尾几条，补在后面的话本该贴着
+最后一条的那几块就隔了一条（`lore`、`midsystem` 两个测试当时就是这么挂的）。
+单聊 `streamReply`、群聊 `streamGroupReply`（不是「成员先开口」那一种时）都传。我刚说完的正常情况下末尾就是我那句，不补。
 
 **主动发起**（`proactive.sendProactive`，含「情绪来了」那一档）从前**一条聊天记录都不带**：
 只有设定区加一句「这次由你开口」。角色不知道聊到哪儿，也不记得自己上次主动发过什么，

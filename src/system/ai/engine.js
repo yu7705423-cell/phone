@@ -412,10 +412,9 @@ function songLyricOf(m, s) {
  * 它把刚才的话又说了一遍」。有的接口还会把收尾的 assistant 当成要续写的半句。
  * 只陈述事实：对方没回，这一轮排在那几句后面（第 16 条）。
  */
-export function withFollowUp(list) {
-  let i = list.length - 1;
-  while (i >= 0 && list[i].role === 'system') i--;
-  if (i < 0 || list[i].role !== 'assistant') return list;
+function withFollowUp(list) {
+  const last = list[list.length - 1];
+  if (!last || last.role !== 'assistant') return list;
   return [...list, { role: 'user', content: template('skeleton.follow-up') }];
 }
 
@@ -485,7 +484,13 @@ export function buildHistory(chat, char, msgs, opts = {}) {
     inlineTrans ? fillTemplate(template('skeleton.translate-tail'), { lang: chat.translateTo }) : '',
   ].filter(Boolean).join('\n\n');
   if (tail) depths.set(md || 1, [...(depths.get(md || 1) || []), { content: tail, raw: true }]);
-  return insertLore(mergeAdjacent(view2), depths);
+  // 「对方还没回」那一行要在按深度插之前补上：深度数的是离末尾几条，
+  // 补在后面的话，本该贴着最后一条的那几块就隔了一条
+  // closing：调用方自己的收尾一句（主动发起的「这次由你开口」），同样要在插之前补
+  const convo = mergeAdjacent(view2);
+  const closed = opts.closing ? mergeAdjacent([...convo, { role: 'user', content: opts.closing }])
+    : opts.followUp ? withFollowUp(convo) : convo;
+  return insertLore(closed, depths);
 }
 
 // 合并相邻同角色消息,部分接口不接受连续同角色。
@@ -990,7 +995,7 @@ export function streamReply({ chat, char, onDelta }) {
     });
     // 先拼 system：每轮都变的那几块由它挑出来，交给 buildHistory 插到对话末尾
     const { system, volatile: hot } = buildChatSystem(chat, char, msgs, { queryVec, lore, recall });
-    const history = withFollowUp(buildHistory(chat, char, msgs, { images: pics, lore, recall, volatile: hot }));
+    const history = buildHistory(chat, char, msgs, { images: pics, lore, recall, volatile: hot, followUp: true });
     // 流式 / 一次返回。流式能看见字一个个出来，但**自检那一段也是流式吐的**，
     // 剥掉之后前面几秒气泡是空的，看着像卡住。一次返回则是等齐了整段才出现，
     // 中间只有「正在输入」。两种都有人要，所以给开关。
@@ -1131,7 +1136,8 @@ export function buildGroupHistory(chat, members, msgs, opts = {}) {
     inlineTrans ? fillTemplate(template('skeleton.translate-tail'), { lang: chat.translateTo }) : '',
   ].filter(Boolean).join('\n\n');
   if (tail) depths.set(1, [...(depths.get(1) || []), { content: tail, raw: true }]);
-  return insertLore(mergeAdjacent(list), depths);
+  const convo = mergeAdjacent(list);
+  return insertLore(opts.followUp ? withFollowUp(convo) : convo, depths);
 }
 
 export const groupKey = chatId => `reply:${chatId}:group`;
@@ -1165,13 +1171,13 @@ export function streamGroupReply({ chat, onDelta, opening = '' }) {
       }));
     }
     const { system, volatile: hot, lore } = buildGroupSystem(chat, members, msgs, { queryVec, recalls });
-    let history = buildGroupHistory(chat, members, msgs, {
+    // 群里同一回事：最后说话的是成员、我没再开口，就写明「对方还没回」（见 withFollowUp）。
+    // 成员先开口的那一种末尾另有一句，不补
+    const history = buildGroupHistory(chat, members, msgs, {
       images: pics, lore, volatile: [hot, opening].filter(Boolean).join('\n\n'),
-      mentions: opening ? [] : group.pendingMentions(msgs),
+      mentions: opening ? [] : group.pendingMentions(msgs), followUp: !opening,
     });
-    // 群里同一回事：最后说话的是成员、我没再开口，就写明「对方还没回」（见 withFollowUp）
     if (opening) history.push({ role: 'user', content: '(No new messages. The members are the ones opening this time.)' });
-    else history = withFollowUp(history);
     const oneShot = s0.streamMode === 'once';
     const text = await runWith('chat.reply', c => send('chat.reply', c,
       { system, messages: history, maxTokens: c.maxTokens, signal, onDelta: oneShot ? undefined : onDelta },
