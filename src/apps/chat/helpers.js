@@ -50,10 +50,12 @@ export function quoteOf(msg, { char, chat } = {}) {
 
   const role = src ? src.role : msg.quoteRole;
   const authorId = src ? src.authorId : msg.quoteAuthorId;
+  // 角色那一边：设了备注就写备注，和会话标题、会话列表同一个名字（system/remark.js）
+  const who = role === 'char' ? (db.characters.get(authorId) || char) : null;
   const name = role === 'user'
     ? (phone.accounts.get(chat?.personaId)?.name || phone.accounts.current()?.name || '我')
     : role === 'char'
-      ? (db.characters.get(authorId)?.name || char?.name || '对方')
+      ? (phone.remark.nameOf(who) || '对方')
       : '';
 
   return { id: src ? src.id : null, name, text: phone.ai.reply.snippet(text) };

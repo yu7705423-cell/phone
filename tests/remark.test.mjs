@@ -102,6 +102,18 @@ await turn();
 await page.waitForTimeout(600);
 ok('关掉之后：写了也不改', await page.evaluate(async id => (await import('/src/system/db/index.js')).db.chats.get(id).charRemark, ids.chat) === '小笨蛋');
 
+// 引用条上的名字：角色那一边同样写备注
+await page.evaluate(async ({ chat, char }) => {
+  const { db } = await import('/src/system/db/index.js');
+  const reply = await import('/src/system/ai/reply.js');
+  const src = db.messages.create({ chatId: chat, role: 'char', authorId: char, kind: 'text', content: '明天去看海吗', status: 'done', createdAt: Date.now() });
+  db.messages.create({ chatId: chat, role: 'user', authorId: 'me', kind: 'text', content: '去', status: 'done',
+    ...reply.quoteFields(chat, '明天去看海吗'), createdAt: Date.now() + 1 });
+}, ids);
+await go('chat', `/chat/${ids.chat}`);
+const qn = await page.evaluate(() => [...document.querySelectorAll('.ph-quote .quote-name')].map(e => e.textContent));
+ok('引用条上角色的名字写备注', qn.length > 0 && qn.every(n => n === '小岚'), JSON.stringify(qn));
+
 ok('全程没有运行时报错', errs.length === 0, errs.join(' | '));
 await browser.close();
 const bad = R.filter(x => !x.pass).length;
