@@ -5,6 +5,7 @@ import { Page, List, ListItem, Button, Icon, Switch, Field, NumberInput, Textare
 import { Preview } from './Preview.js';
 import { ContractPage } from './ContractPage.js';
 import { GenPage } from './GenPage.js';
+import { AppSkinPage } from './AppSkinPage.js';
 
 const { db, nav, skin, intent } = phone;
 
@@ -69,8 +70,10 @@ function CssPage({ id }) {
 function ListPage() {
   useStore(db.skins.store);
   useStore(db.chats.store);
+  useStore(db.settings.store);
   const fileRef = useRef(null);
   const rows = skin.all();
+  const appSkin = skin.globalSkin();
 
   const add = async () => {
     const name = await prompt({ title: '新建一份美化', placeholder: '给它起个名字', okText: '新建' });
@@ -124,6 +127,10 @@ function ListPage() {
         onChange=${importOne} style="display:none"/>
 
       <${List}>
+        <${ListItem} title="应用美化" arrow multiline
+          subtitle=${appSkin ? `当前启用「${appSkin.name}」` : '消息列表、联系人、朋友圈、主页等。当前为默认样式'}
+          left=${html`<${Icon} name="grid" size=${18}/>`}
+          onClick=${() => nav.push('/app')}/>
         <${ListItem} title="写给作者" arrow multiline
           subtitle=${`可用的类名与变量，以及编写须知。契约版本 ${skin.CONTRACT_VERSION}`}
           left=${html`<${Icon} name="book" size=${18}/>`}
@@ -312,6 +319,7 @@ function OnePage({ id }) {
 
 export default function SkinApp({ route }) {
   if (route === '/contract') return html`<${ContractPage}/>`;
+  if (route === '/app') return html`<${AppSkinPage}/>`;
   const sz = route?.match(/^\/size\/(.+)$/);
   if (sz) return html`<${SizePage} id=${sz[1]}/>`;
   const cs = route?.match(/^\/css\/(.+)$/);

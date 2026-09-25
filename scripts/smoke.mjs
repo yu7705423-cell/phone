@@ -50,7 +50,7 @@ const ROUTES = {
     '/outfits', '/outfit/:clFit', '/outfit/nope', '/fit/:fitMsg', '/fit/nope', '/generate',
     '/remember/:fitMsg', '/remember/nope'],
   todo: ['/', '/detect', '/alarm', '/notes'],
-  skin: ['/', '/one/:skin', '/one/nope', '/contract', '/gen/:skin', '/gen/nope', '/size/:skin', '/size/nope', '/css/:skin', '/css/nope'],
+  skin: ['/', '/one/:skin', '/one/nope', '/contract', '/gen/:skin', '/gen/nope', '/size/:skin', '/size/nope', '/css/:skin', '/css/nope', '/app'],
   us: ['/', `/chat/:chat`, '/work/:work', '/work/:work/edit', '/work/nope',
     '/chapter/:chapter', '/chapter/nope', '/read/:chapter', '/read/nope'],
   settings: ['/', '/weather', '/api', '/voice', '/image', '/embed', '/notify', '/push-guide', '/music',

@@ -32,7 +32,7 @@ export function GroupFace({ chat, size = 46 }) {
   const list = phone.group.members(chat).slice(0, 4);
   const cell = list.length > 1 ? Math.floor((size - 6) / 2) : size;
   return html`
-    <div class=${`group-face n-${list.length}`} style=${`--gf-size:${size}px`}>
+    <div class=${`group-face n-${list.length} ph-group-face`} style=${`--gf-size:${size}px`}>
       ${list.map(c => html`<${Face} key=${c.id} char=${c} size=${cell} radius=${Math.round(cell / 5)}/>`)}
     </div>`;
 }

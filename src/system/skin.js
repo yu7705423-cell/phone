@@ -3,7 +3,7 @@ import { compressFit } from './db/images.js';
 import { SCOPES, scopeOf, isGlobal } from './skin-contract.js';
 import { emit as emitGen } from './skin-gen.js';
 
-export { SCOPES, scopeOf, isGlobal, HOOKS, VARS, CONTRACT_VERSION } from './skin-contract.js';
+export { SCOPES, scopeOf, isGlobal, HOOKS, GROUPS, VARS, CONTRACT_VERSION } from './skin-contract.js';
 export * as gen from './skin-gen.js';
 export { buildStage, SAMPLE, hooksInStage, stageCss } from './skin-stage.js';
 

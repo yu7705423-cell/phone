@@ -12,7 +12,7 @@ const { db, ai } = phone;
 export function Photo({ id }) {
   // 九宫格一格才 120 逻辑像素宽，用缩略图
   const url = useThumb(id);
-  return html`<div class="mo-photo" style=${url ? `background-image:url(${url})` : ''}></div>`;
+  return html`<div class="mo-photo ph-moment-photo" style=${url ? `--mo-img:url(${url})` : ''}></div>`;
 }
 
 export const authorOf = id =>
@@ -36,14 +36,14 @@ export async function removeMoment(mo) {
 export function MomentSong({ mo, cls = '' }) {
   if (!mo.songId && mo.songState !== 'pending') return null;
   return html`<${SongCard} songId=${mo.songId} query=${mo.songQuery} state=${mo.songState}
-    layout="row" cls=${`mo-song ${cls}`}/>`;
+    layout="row" cls=${`mo-song ph-moment-song ${cls}`}/>`;
 }
 
 export function CommentList({ comments }) {
   return html`
-    <div class="mo-comment-list">
+    <div class="mo-comment-list ph-moment-comment-list">
       ${(comments || []).map(c => html`
-        <div key=${c.id} class="mo-comment"><b>${nameOf(c.authorId)}</b>：${c.text}</div>`)}
+        <div key=${c.id} class="mo-comment ph-moment-comment"><b class="ph-moment-comment-name">${nameOf(c.authorId)}</b>：${c.text}</div>`)}
     </div>`;
 }
 
@@ -65,8 +65,8 @@ export function MomentCard(props) {
   const { mo } = props;
   if (!phone.recall.momentRecalled(mo)) return html`<${MomentBody} ...${props}/>`;
   return html`
-    <div class=${`mo-recalled${open ? ' is-open' : ''}`}>
-      <button class="mo-recalled-line press" onClick=${() => setOpen(!open)}>
+    <div class=${`mo-recalled ph-moment-recalled${open ? ' is-open' : ''}`}>
+      <button class="mo-recalled-line press ph-moment-recalled-line" onClick=${() => setOpen(!open)}>
         <span>${nameOf(mo.authorId)}撤回了一条动态</span>
         <${Icon} name=${open ? 'chevronUp' : 'chevronDown'} size=${13}/>
       </button>
@@ -82,39 +82,39 @@ function MomentBody({ mo, onComment, onOpen, gone = false }) {
   const open = onOpen && !gone ? () => onOpen(mo) : null;
 
   return html`
-    <div class=${`mo-card${gone ? ' is-gone' : ''}`}>
+    <div class=${`mo-card ph-moment${isMe ? ' ph-moment-mine' : ''}${gone ? ' is-gone' : ''}`}>
       <${Avatar} src=${avatar} name=${author?.name} size=${40} radius=${8}/>
-      <div class="mo-main">
-        <div class="mo-name">${author?.name || '已删除'}</div>
-        ${mo.text ? html`<div class=${`mo-text${open ? ' press' : ''}`} onClick=${open}>${mo.text}</div>` : null}
+      <div class="mo-main ph-moment-main">
+        <div class="mo-name ph-moment-name">${author?.name || '已删除'}</div>
+        ${mo.text ? html`<div class=${`mo-text ph-moment-text${open ? ' press' : ''}`} onClick=${open}>${mo.text}</div>` : null}
         <${MomentSong} mo=${mo}/>
         ${mo.imagePending ? html`
           <div class="mo-genning"><span class="spinner"></span>正在配图</div>` : null}
         ${mo.imageError ? html`<div class="mo-genfail">配图没生成出来：${mo.imageError}</div>` : null}
         ${(mo.images || []).length ? html`
-          <div class=${`mo-photos n${Math.min(mo.images.length, 9)}${open ? ' press' : ''}`} onClick=${open}>
+          <div class=${`mo-photos ph-moment-photos n${Math.min(mo.images.length, 9)}${open ? ' press' : ''}`} onClick=${open}>
             ${mo.images.slice(0, 9).map(id => html`<${Photo} key=${id} id=${id}/>`)}
           </div>` : null}
-        <div class="mo-foot">
-          <span class="mo-time">${relTime(mo.createdAt)}${isMe && Array.isArray(mo.visibleTo)
+        <div class="mo-foot ph-moment-foot">
+          <span class="mo-time ph-moment-time">${relTime(mo.createdAt)}${isMe && Array.isArray(mo.visibleTo)
             ? (mo.visibleTo.length ? ` · ${mo.visibleTo.length} 位角色可见` : ' · 仅自己可见') : ''}</span>
-          <div class="mo-actions">
+          <div class="mo-actions ph-moment-actions">
             ${gone ? null : html`
-            <button class=${`mo-act press${liked ? ' is-on' : ''}`}
+            <button class=${`mo-act press ph-moment-act ph-moment-like${liked ? ' is-on' : ''}`}
               onClick=${() => ai.moments.toggleLike(mo.id)}>
               <${Icon} name="heart" size=${14} fill=${liked ? 'currentColor' : 'none'}/>
               ${(mo.likes || []).length || ''}
             </button>
-            <button class="mo-act press" onClick=${() => onComment(mo)}>
+            <button class="mo-act press ph-moment-act ph-moment-comment-btn" onClick=${() => onComment(mo)}>
               <${Icon} name="message" size=${14}/>${(mo.comments || []).length || ''}
             </button>`}
-            <button class="mo-act press" aria-label="删除" onClick=${() => removeMoment(mo)}>
+            <button class="mo-act press ph-moment-act ph-moment-delete" aria-label="删除" onClick=${() => removeMoment(mo)}>
               <${Icon} name="trash" size=${14}/></button>
           </div>
         </div>
 
         ${(mo.comments || []).length ? html`
-          <div class="mo-comments"><${CommentList} comments=${mo.comments}/></div>` : null}
+          <div class="mo-comments ph-moment-comments"><${CommentList} comments=${mo.comments}/></div>` : null}
       </div>
     </div>`;
 }

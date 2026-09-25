@@ -20,18 +20,18 @@ const { db, nav, ai } = phone;
 function Cell({ mo, onOpen }) {
   const url = useThumb(mo.images[0]);
   return html`
-    <button class="ig-cell press" onClick=${() => onOpen(mo)}
-      style=${url ? `background-image:url(${url})` : ''} aria-label="打开这条动态">
-      ${mo.images.length > 1 ? html`<span class="ig-cell-multi"><${Icon} name="layers" size=${13}/></span>` : null}
+    <button class="ig-cell press ph-profile-cell" onClick=${() => onOpen(mo)}
+      style=${url ? `--cell-img:url(${url})` : ''} aria-label="打开这条动态">
+      ${mo.images.length > 1 ? html`<span class="ig-cell-multi ph-profile-cell-multi"><${Icon} name="layers" size=${13}/></span>` : null}
     </button>`;
 }
 
 function Ring({ item, onOpen }) {
   const url = useThumb(item.imageId);
   return html`
-    <button class="ig-hl-item press" onClick=${() => onOpen(item)}>
-      <div class="ig-hl-ring"><div class="ig-hl-img" style=${url ? `background-image:url(${url})` : ''}></div></div>
-      <span>${item.title || ' '}</span>
+    <button class="ig-hl-item press ph-profile-highlight" onClick=${() => onOpen(item)}>
+      <div class="ig-hl-ring ph-profile-highlight-ring"><div class="ig-hl-img ph-profile-highlight-img" style=${url ? `--hl-img:url(${url})` : ''}></div></div>
+      <span class="ph-profile-highlight-name">${item.title || ' '}</span>
     </button>`;
 }
 
@@ -152,9 +152,9 @@ export function Profile({ subjectId, embedded }) {
     && c.characterIds[0] === subjectId && (c.personaId || meId) === meId) || null;
 
   const body = html`
-    <div class="ig">
-      <div class="ig-head">
-        <div class="ig-face">
+    <div class=${`ig ph-profile${isMe ? ' ph-profile-me' : ''}`}>
+      <div class="ig-head ph-profile-head">
+        <div class="ig-face ph-profile-face">
           <${LevelRing} chat=${pair} size=${84}>
             <button class="press" onClick=${() => isMe && avatarRef.current?.click()}
               aria-label=${isMe ? '更换头像' : '头像'}>
@@ -162,29 +162,29 @@ export function Profile({ subjectId, embedded }) {
             </button>
           <//>
           ${faces.changed ? html`
-            <button class="ig-face-base press" onClick=${restore} aria-label="换回原本的头像">
+            <button class="ig-face-base press ph-profile-face-base" onClick=${restore} aria-label="换回原本的头像">
               <${Avatar} src=${baseFace} name=${subject.name} size=${28} radius=${14}/>
             </button>` : null}
         </div>
         <input type="file" accept="image/*" ref=${avatarRef} onChange=${pickAvatar} style="display:none"/>
-        <div class="ig-stats">
-          <button class="ig-stat press" onClick=${() => setTab('list')}>
-            <b>${mine.length}</b><span>动态</span></button>
-          <button class="ig-stat press" onClick=${() => setTab('grid')}>
-            <b>${photoCount}</b><span>照片</span></button>
-          <button class="ig-stat press" onClick=${openRel}>
-            <b>${relCount}</b><span>${isMe ? '联系人' : '关系'}</span></button>
+        <div class="ig-stats ph-profile-stats">
+          <button class="ig-stat press ph-profile-stat" onClick=${() => setTab('list')}>
+            <b class="ph-profile-stat-num">${mine.length}</b><span class="ph-profile-stat-label">动态</span></button>
+          <button class="ig-stat press ph-profile-stat" onClick=${() => setTab('grid')}>
+            <b class="ph-profile-stat-num">${photoCount}</b><span class="ph-profile-stat-label">照片</span></button>
+          <button class="ig-stat press ph-profile-stat" onClick=${openRel}>
+            <b class="ph-profile-stat-num">${relCount}</b><span class="ph-profile-stat-label">${isMe ? '联系人' : '关系'}</span></button>
         </div>
       </div>
 
-      <div class="ig-bio">
-        <div class="ig-name">${subject.name}</div>
-        ${subject.signature ? html`<div class="ig-sign">${subject.signature}</div>` : null}
+      <div class="ig-bio ph-profile-bio">
+        <div class="ig-name ph-profile-name">${subject.name}</div>
+        ${subject.signature ? html`<div class="ig-sign ph-profile-sign">${subject.signature}</div>` : null}
       </div>
 
       <${BadgeStrip} chat=${pair}/>
 
-      <div class="ig-acts">
+      <div class="ig-acts ph-profile-acts">
         ${isMe
           ? html`<${Button} size="sm" variant="ghost"
               onClick=${() => phone.intent.open('contact', { route: `/me/${me.id}` })}>编辑本人人设<//>`
@@ -195,25 +195,25 @@ export function Profile({ subjectId, embedded }) {
               onClick=${() => phone.intent.open('contact', { route: `/edit/${subjectId}` })}>编辑资料<//>`}
       </div>
 
-      <div class="ig-hl">
+      <div class="ig-hl ph-profile-highlights">
         ${hls.map(item => html`<${Ring} key=${item.id} item=${item} onOpen=${setHl}/>`)}
-        <button class="ig-hl-item press" onClick=${() => hlRef.current?.click()} aria-label="新建精选">
-          <div class="ig-hl-ring is-add"><div class="ig-hl-img"><${Icon} name="plus" size=${20}/></div></div>
-          <span>新建</span>
+        <button class="ig-hl-item press ph-profile-highlight ph-profile-highlight-add" onClick=${() => hlRef.current?.click()} aria-label="新建精选">
+          <div class="ig-hl-ring is-add ph-profile-highlight-ring"><div class="ig-hl-img ph-profile-highlight-img"><${Icon} name="plus" size=${20}/></div></div>
+          <span class="ph-profile-highlight-name">新建</span>
         </button>
         <input type="file" accept="image/*" ref=${hlRef} onChange=${addHl} style="display:none"/>
       </div>
 
-      <div class="ig-tabs">
-        <button class=${`ig-tab press${tab === 'grid' ? ' is-on' : ''}`}
+      <div class="ig-tabs ph-profile-tabs">
+        <button class=${`ig-tab press ph-profile-tab${tab === 'grid' ? ' is-on ph-profile-tab-on' : ''}`}
           onClick=${() => setTab('grid')} aria-label="网格"><${Icon} name="grid" size=${20}/></button>
-        <button class=${`ig-tab press${tab === 'list' ? ' is-on' : ''}`}
+        <button class=${`ig-tab press ph-profile-tab${tab === 'list' ? ' is-on ph-profile-tab-on' : ''}`}
           onClick=${() => setTab('list')} aria-label="列表"><${Icon} name="notes" size=${20}/></button>
       </div>
 
       ${tab === 'grid'
         ? (withPics.length
-          ? html`<div class="ig-grid">
+          ? html`<div class="ig-grid ph-profile-grid">
               ${withPics.map(m => html`<${Cell} key=${m.id} mo=${m} onOpen=${openMoment}/>`)}
             </div>`
           : html`<${EmptyState} icon="image" title="暂无照片" desc="带图片的动态会显示在这里。"/>`)

@@ -11,7 +11,7 @@ const { db, nav, ai } = phone;
 
 function Big({ id }) {
   const url = useImage(id);
-  return html`<div class="ig-slide" style=${url ? `background-image:url(${url})` : ''}></div>`;
+  return html`<div class="ig-slide ph-moment-detail-slide" style=${url ? `--mo-img:url(${url})` : ''}></div>`;
 }
 
 export function MomentPage({ id }) {
@@ -44,38 +44,38 @@ export function MomentPage({ id }) {
   return html`
     <${Page} title="动态" onBack=${nav.pop}
       right=${html`<${IconButton} name="trash" label="删除" onClick=${del}/>`}>
-      <div class="ig-author press" onClick=${() => nav.push(`/profile/${mo.authorId}`)}>
+      <div class="ig-author press ph-moment-detail-author" onClick=${() => nav.push(`/profile/${mo.authorId}`)}>
         <${Avatar} src=${avatar} name=${author?.name} size=${36} radius=${18}/>
         <div>
-          <div class="ig-author-name">${author?.name || '已删除'}</div>
-          <div class="ig-author-time">${relTime(mo.createdAt)}</div>
+          <div class="ig-author-name ph-moment-detail-name">${author?.name || '已删除'}</div>
+          <div class="ig-author-time ph-moment-detail-time">${relTime(mo.createdAt)}</div>
         </div>
       </div>
 
       ${imgs.length ? html`
-        <div class="ig-pager" onScroll=${onScroll}>
+        <div class="ig-pager ph-moment-detail-pager" onScroll=${onScroll}>
           ${imgs.map(pid => html`<${Big} key=${pid} id=${pid}/>`)}
         </div>
         ${imgs.length > 1 ? html`
-          <div class="ig-dots">
-            ${imgs.map((pid, i) => html`<span key=${pid} class=${`ig-dot${i === at ? ' is-on' : ''}`}></span>`)}
+          <div class="ig-dots ph-moment-detail-dots">
+            ${imgs.map((pid, i) => html`<span key=${pid} class=${`ig-dot ph-moment-detail-dot${i === at ? ' is-on' : ''}`}></span>`)}
           </div>` : null}` : null}
       ${mo.imagePending ? html`<div class="mo-genning pad-x"><span class="spinner"></span>正在配图</div>` : null}
 
-      ${gone ? html`<div class="mo-gone-note">${author?.name || '对方'}已撤回这条动态。以下是撤回前的内容。</div>` : null}
-      <div class="ig-foot">
-        <button class=${`mo-act press${liked ? ' is-on' : ''}`} disabled=${gone}
+      ${gone ? html`<div class="mo-gone-note ph-moment-detail-gone">${author?.name || '对方'}已撤回这条动态。以下是撤回前的内容。</div>` : null}
+      <div class="ig-foot ph-moment-detail-foot">
+        <button class=${`mo-act press ph-moment-act ph-moment-like${liked ? ' is-on' : ''}`} disabled=${gone}
           onClick=${() => ai.moments.toggleLike(mo.id)}>
           <${Icon} name="heart" size=${20} fill=${liked ? 'currentColor' : 'none'}/>
           ${(mo.likes || []).length || ''}
         </button>
-        <span class="mo-act"><${Icon} name="message" size=${20}/>${(mo.comments || []).length || ''}</span>
+        <span class="mo-act ph-moment-act"><${Icon} name="message" size=${20}/>${(mo.comments || []).length || ''}</span>
       </div>
 
-      ${mo.text ? html`<div class="ig-text">${mo.text}</div>` : null}
+      ${mo.text ? html`<div class="ig-text ph-moment-detail-text">${mo.text}</div>` : null}
       <div class="pad-x"><${MomentSong} mo=${mo}/></div>
 
-      <div class="ig-comments">
+      <div class="ig-comments ph-moment-detail-comments">
         <${CommentList} comments=${mo.comments}/>
         ${gone ? null : html`
         <div class="composer composer-inline">

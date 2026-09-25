@@ -44,8 +44,12 @@ const Row = memo(function Row({ chat, onHold }) {
   const start = () => { holdTimer = setTimeout(() => { holdTimer = null; onHold(chat); }, 500); };
   const end = () => { if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; } };
 
+  // 契约钩子：行本身，以及置顶、未读、免打扰、群聊各自另带一个
+  const rowCls = ['msg-row no-callout press ph-chat-row', chat.pinned && 'ph-chat-row-pinned',
+    chat.unread && 'ph-chat-row-unread', chat.muted && 'ph-chat-row-muted', isGroup && 'ph-chat-row-group']
+    .filter(Boolean).join(' ');
   return html`
-    <div class="msg-row no-callout press"
+    <div class=${rowCls}
       onClick=${() => nav.push(`/chat/${chat.id}`)}
       onMouseDown=${start} onMouseUp=${end} onMouseLeave=${end}
       onTouchStart=${start} onTouchEnd=${end} onTouchMove=${end}
@@ -53,19 +57,19 @@ const Row = memo(function Row({ chat, onHold }) {
       ${isGroup
         ? html`<${GroupFace} chat=${chat} size=${46}/>`
         : html`<${Avatar} src=${avatar} name=${title} size=${46} radius=${23}/>`}
-      <div class="msg-main">
-        <div class="msg-line">
+      <div class="msg-main ph-chat-row-main">
+        <div class="msg-line ph-chat-row-top">
           ${!isGroup && phone.extras.isStarred(char) ? html`
-            <${Icon} name="star" size=${13} class="msg-star"/>` : null}
+            <${Icon} name="star" size=${13} class="msg-star ph-chat-row-star"/>` : null}
           <span class="msg-name-wrap">
-            <span class="msg-name ellipsis">${title}</span>
+            <span class="msg-name ellipsis ph-chat-row-name">${title}</span>
             <${ListBadges} chat=${chat}/>
           </span>
-          <span class="msg-time">${relTime(chat.lastMessageAt)}</span>
+          <span class="msg-time ph-chat-row-time">${relTime(chat.lastMessageAt)}</span>
         </div>
-        <div class="msg-line">
-          <span class="msg-preview ellipsis">${chat.muted ? '[免打扰] ' : ''}${who}${preview}</span>
-          ${chat.unread ? html`<span class="badge">${chat.unread > 99 ? '99+' : chat.unread}</span>` : null}
+        <div class="msg-line ph-chat-row-bottom">
+          <span class="msg-preview ellipsis ph-chat-row-preview">${chat.muted ? '[免打扰] ' : ''}${who}${preview}</span>
+          ${chat.unread ? html`<span class="badge ph-chat-row-count">${chat.unread > 99 ? '99+' : chat.unread}</span>` : null}
         </div>
       </div>
     </div>`;
@@ -75,9 +79,9 @@ const Row = memo(function Row({ chat, onHold }) {
 function Capsule({ title, chats, onHold }) {
   if (!chats.length) return null;
   return html`
-    <div class="cap-wrap">
-      ${title ? html`<div class="cap-title">${title}</div>` : null}
-      <div class="capsule">
+    <div class="cap-wrap ph-chats-section">
+      ${title ? html`<div class="cap-title ph-chats-section-title">${title}</div>` : null}
+      <div class="capsule ph-chats-group">
         ${chats.map(c => html`<${Row} key=${c.id} chat=${c} onHold=${onHold}/>`)}
       </div>
     </div>`;
@@ -111,8 +115,8 @@ export function MessagesTab() {
   }
 
   return html`
-    <div class="msg-list">
-      <button class="search-bar press" onClick=${() => nav.push('/search')}>
+    <div class="msg-list ph-chats">
+      <button class="search-bar press ph-chats-search" onClick=${() => nav.push('/search')}>
         <${Icon} name="search" size=${16}/>
         <span class="search-hint">搜索聊天记录</span>
       </button>

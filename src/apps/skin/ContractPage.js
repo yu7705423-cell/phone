@@ -36,11 +36,15 @@ function markdown() {
   L.push('');
   L.push('## 类名');
   L.push('');
-  L.push('| 类名 | 是什么 | 范围 | 条件 |');
-  L.push('|---|---|---|---|');
-  skin.HOOKS.forEach(h => L.push(
-    `| \`.ph-${h.hook}\` | ${h.label}${h.note ? '。' + h.note : ''} | ${scopeLabel(h.on)} | ${h.needs || '始终存在'} |`));
-  L.push('');
+  skin.GROUPS.forEach(g => {
+    L.push(`### ${g.label}`);
+    L.push('');
+    L.push('| 类名 | 是什么 | 范围 | 条件 |');
+    L.push('|---|---|---|---|');
+    skin.HOOKS.filter(h => h.group === g.id).forEach(h => L.push(
+      `| \`.ph-${h.hook}\` | ${h.label}${h.note ? '。' + h.note : ''} | ${scopeLabel(h.on)} | ${h.needs || '始终存在'} |`));
+    L.push('');
+  });
   L.push('## 变量');
   L.push('');
   L.push('| 变量 | 是什么 | 默认值 | 范围 |');
@@ -124,12 +128,13 @@ export function ContractPage() {
       </div>
 
       ${tab === 'hooks' ? html`
-        ${skin.SCOPES.map(sc => html`
-          <${List} key=${sc.id} title=${sc.label}>
-            ${skin.HOOKS.filter(h => h.on[0] === sc.id).map(h => html`
+        ${skin.GROUPS.map(g => html`
+          <${List} key=${g.id} title=${g.label}>
+            ${skin.HOOKS.filter(h => h.group === g.id).map(h => html`
               <${ListItem} key=${h.hook} title=${`.ph-${h.hook}`} multiline
                 subtitle=${`${h.label}${h.note ? '。' + h.note : ''}`
-    + `${h.needs ? `。需要${h.needs}` : ''}`}
+    + `${h.needs ? `。需要${h.needs}` : ''}`
+    + `${h.on.includes('chat') ? '' : '。仅整个应用这一档可用'}`}
                 right=${html`<${Icon} name="copy" size=${16}/>`}
                 onClick=${() => copy(`.ph-${h.hook}`, '类名')}/>`)}
           <//>`)}` : null}

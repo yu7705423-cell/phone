@@ -12,19 +12,19 @@ function Row({ char, onHold }) {
   const end = () => { if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; } };
 
   return html`
-    <div class="msg-row no-callout press"
+    <div class=${`msg-row no-callout press ph-contact-row${char.pinned ? ' ph-contact-row-pinned' : ''}${char.isNpc ? ' ph-contact-row-npc' : ''}`}
       onClick=${() => nav.push(`/profile/${char.id}`)}
       onMouseDown=${start} onMouseUp=${end} onMouseLeave=${end}
       onTouchStart=${start} onTouchEnd=${end} onTouchMove=${end}
       onContextMenu=${e => { e.preventDefault(); onHold(char); }}>
       <${Avatar} src=${avatar} name=${char.name} size=${42} radius=${21}/>
-      <div class="msg-main">
-        <div class="msg-name ellipsis">${phone.remark.nameOf(char)}</div>
-        <div class="msg-preview ellipsis">
+      <div class="msg-main ph-contact-row-main">
+        <div class="msg-name ellipsis ph-contact-row-name">${phone.remark.nameOf(char)}</div>
+        <div class="msg-preview ellipsis ph-contact-row-sign">
           ${char.signature || ''}
         </div>
       </div>
-      <${Icon} name="chevronRight" size=${16} class="li-arrow"/>
+      <${Icon} name="chevronRight" size=${16} class="li-arrow ph-contact-row-arrow"/>
     </div>`;
 }
 
@@ -70,8 +70,8 @@ export function ContactsTab() {
   }
 
   return html`
-    <div class="msg-list">
-      <div class="search-bar">
+    <div class="msg-list ph-contacts">
+      <div class="search-bar ph-contacts-search">
         <${Icon} name="search" size=${16}/>
         <input value=${q} placeholder="搜索姓名、签名、人设或分组"
           onInput=${e => setQ(e.target.value)}/>
@@ -81,22 +81,22 @@ export function ContactsTab() {
 
       ${names.length || npcs.length ? html`
         ${names.map(g => html`
-          <div key=${g} class="cap-wrap">
-            <div class="cap-title">${g} · ${groups.get(g).length}</div>
-            <div class="capsule">
+          <div key=${g} class="cap-wrap ph-contacts-section">
+            <div class="cap-title ph-contacts-section-title">${g} · ${groups.get(g).length}</div>
+            <div class="capsule ph-contacts-group">
               ${groups.get(g).map(c => html`<${Row} key=${c.id} char=${c} onHold=${setHeld}/>`)}
             </div>
           </div>`)}
         ${npcs.length ? html`
-          <div class="cap-wrap">
-            <div class="cap-title">NPC · ${npcs.length}</div>
-            <div class="capsule">
+          <div class="cap-wrap ph-contacts-section">
+            <div class="cap-title ph-contacts-section-title">NPC · ${npcs.length}</div>
+            <div class="capsule ph-contacts-group">
               ${npcs.map(c => html`<${Row} key=${c.id} char=${c} onHold=${setHeld}/>`)}
             </div>
           </div>` : null}`
       : html`<${EmptyState} icon="search" title="无匹配的角色"/>`}
 
-      <div class="pad">
+      <div class="pad ph-contacts-add">
         <${Button} full variant="ghost" icon="plus" onClick=${add}>新建角色卡<//>
       </div>
 

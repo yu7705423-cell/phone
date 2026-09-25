@@ -1,7 +1,7 @@
 import { html, useEffect } from '../lib.js';
 import { useStore } from '../system/store.js';
 import { nav, setSwitcher, goHome, back } from '../system/nav.js';
-import { settings } from '../system/db/index.js';
+import { settings, skins } from '../system/db/index.js';
 import { StatusBar } from './StatusBar.js';
 import { Dock } from './Dock.js';
 import { NotifyBanner } from './NotifyBanner.js';
@@ -27,6 +27,28 @@ import { KeepAliveBanner } from './KeepAliveBanner.js';
 import { NavBack } from './NavBack.js';
 import * as goback from './goback.js';
 
+// 全局那一层美化的挂上与摘下，单独一个组件。
+//
+// 它要盯着美化库：那一份的样式改了（生成器、「应用美化」页里边写边看）就得重挂。
+// 放在 Root 里盯的话，美化库每变一次整棵树重画一遍 —— 在输入框里每敲一个字都是。
+// 从前 Root 只盯设置，改了样式要切一次页面才生效。
+function GlobalSkin({ off }) {
+  useStore(skins.store);
+  useStore(settings.store);
+  const row = off ? null : skin.globalSkin();
+  const gid = row?.id || '';
+  const gat = row?.updatedAt || 0;
+  useEffect(() => {
+    if (!gid) { skin.unmountGlobal(); return; }
+    skin.mountGlobal(skin.get(gid));
+    syncThemeColor();
+    // 活过这么久就认为它没把页面弄垮，把「上次崩在它身上」那个记号清掉
+    const t = setTimeout(() => skin.settle(), 1200);
+    return () => { clearTimeout(t); skin.unmountGlobal(); };
+  }, [gid, gat]);
+  return null;
+}
+
 export function Root() {
   const s = useStore(nav);
   const cfg = useStore(settings.store);
@@ -47,17 +69,9 @@ export function Root() {
   // **设置 app 打开时一律摘掉。** 这是全局美化唯一的逃生口：一份写坏了
   // 整个界面的美化，人还得进得去设置把它关掉。会话那一层的逃生口是
   // 「消息列表不上美化」，天然存在；全局这一层没有天然的地方，只能人为留。
-  const globalSkin = skin.globalSkin();
+  // 真正挂上摘下在下面的 GlobalSkin 里
   const inSettings = s.screen === 'app' && s.appId === 'settings';
-  const gid = inSettings ? '' : (globalSkin?.id || '');
-  const gat = inSettings ? 0 : (globalSkin?.updatedAt || 0);
-  useEffect(() => {
-    if (!gid) { skin.unmountGlobal(); return; }
-    skin.mountGlobal(skin.get(gid));
-    // 活过这么久就认为它没把页面弄垮，把「上次崩在它身上」那个记号清掉
-    const t = setTimeout(() => skin.settle(), 1200);
-    return () => { clearTimeout(t); skin.unmountGlobal(); };
-  }, [gid, gat]);
+  const gid = inSettings ? '' : (skin.globalSkin()?.id || '');
 
   useEffect(() => { applyLook(cfg); },
     [cfg.iconColor, cfg.iconShadow, cfg.iconLabels, cfg.iconLabelColor, cfg.bottomLift, cfg.glass]);
@@ -65,7 +79,7 @@ export function Root() {
   useEffect(() => { applyCustomCSS(cfg.customCSS); }, [cfg.customCSS]);
 
   // 放在主题、美化、自定义 CSS 之后：它们都可能改底色
-  useEffect(() => { syncThemeColor(); }, [cfg.theme, gid, gat, cfg.customCSS]);
+  useEffect(() => { syncThemeColor(); }, [cfg.theme, gid, cfg.customCSS]);
 
   // 返回怎么做。两套只能有一套：样式里按这个属性藏掉另一套
   useEffect(() => {
@@ -130,6 +144,7 @@ export function Root() {
 
   return html`
     <div class="root">
+      <${GlobalSkin} off=${inSettings}/>
       ${wallpaper ? html`
         <div class="wallpaper ph-wallpaper" style=${`--wall:url(${wallpaper})`}></div>` : null}
       <${StatusBar}/>

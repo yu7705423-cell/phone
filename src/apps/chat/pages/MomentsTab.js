@@ -26,18 +26,18 @@ function MomentsHeader({ onPost, onRefresh, busy }) {
     } catch (err) { toast('图片处理失败：' + err.message, 'error'); }
   };
   return html`
-    <div class="mo-header" style=${cover ? `background-image:url(${cover})` : ''}>
-      <div class="mo-header-acts">
-        <button class="mo-header-btn press" onClick=${() => coverRef.current?.click()}
+    <div class="mo-header ph-moments-cover" style=${cover ? `--mo-cover:url(${cover})` : ''}>
+      <div class="mo-header-acts ph-moments-cover-acts">
+        <button class="mo-header-btn press ph-moments-cover-btn" onClick=${() => coverRef.current?.click()}
           aria-label="更换封面"><${Icon} name="image" size=${17}/></button>
-        <button class="mo-header-btn press" onClick=${onRefresh} disabled=${busy}
+        <button class="mo-header-btn press ph-moments-cover-btn" onClick=${onRefresh} disabled=${busy}
           aria-label="刷新"><${Icon} name="refresh" size=${17}/></button>
-        <button class="mo-header-btn press" onClick=${onPost}
+        <button class="mo-header-btn press ph-moments-cover-btn" onClick=${onPost}
           aria-label="发布"><${Icon} name="camera" size=${17}/></button>
       </div>
       <input type="file" accept="image/*" ref=${coverRef} onChange=${pickCover} style="display:none"/>
-      <div class="mo-header-me">
-        <div class="mo-header-name">${me.name || '我'}</div>
+      <div class="mo-header-me ph-moments-me">
+        <div class="mo-header-name ph-moments-me-name">${me.name || '我'}</div>
         <${Avatar} src=${avatar} name=${me.name} size=${62} radius=${14}/>
       </div>
     </div>`;
@@ -113,7 +113,7 @@ export function MomentsTab() {
   };
 
   return html`
-    <div class="moments">
+    <div class="moments ph-moments">
       <${MomentsHeader} onPost=${() => setComposing(true)} onRefresh=${genMoment} busy=${busy}/>
 
       ${list.length ? list.map(mo => html`

@@ -481,7 +481,7 @@ input[type="range"] {
 .ig-hl-ring.is-add { border-style: dashed; }
 .ig-hl-img {
   width: 100%; height: 100%; border-radius: var(--r-full);
-  background: var(--surface-3); background-size: cover; background-position: center;
+  background: var(--surface-3); background-image: var(--hl-img, none); background-size: cover; background-position: center;
   display: flex; align-items: center; justify-content: center; color: var(--text-3);
 }
 .ig-hl-item span { font-size: var(--fs-11); color: var(--text-2); max-width: 64px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -493,7 +493,7 @@ input[type="range"] {
 .ig-tab { flex: 1; display: flex; justify-content: center; padding: var(--sp-3) 0; color: var(--text-3); border-bottom: 1px solid transparent; margin-bottom: -1px; }
 .ig-tab.is-on { color: var(--text); border-bottom-color: var(--text); }
 .ig-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; }
-.ig-cell { position: relative; aspect-ratio: 1; background: var(--surface-3); background-size: cover; background-position: center; }
+.ig-cell { position: relative; aspect-ratio: 1; background: var(--surface-3); background-image: var(--cell-img, none); background-size: cover; background-position: center; }
 .ig-cell-multi {
   position: absolute; top: var(--sp-2); right: var(--sp-2);
   width: 22px; height: 22px; border-radius: var(--r-full);
@@ -506,7 +506,7 @@ input[type="range"] {
 .ig-author-name { font-size: var(--fs-14); font-weight: var(--fw-medium); }
 .ig-author-time { font-size: var(--fs-11); color: var(--text-3); }
 .ig-pager { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; aspect-ratio: 1; background: var(--surface-3); }
-.ig-slide { flex: none; width: 100%; height: 100%; scroll-snap-align: start; background-size: contain; background-repeat: no-repeat; background-position: center; }
+.ig-slide { flex: none; width: 100%; height: 100%; scroll-snap-align: start; background-image: var(--mo-img, none); background-size: contain; background-repeat: no-repeat; background-position: center; }
 .ig-dots { display: flex; justify-content: center; gap: 5px; padding: var(--sp-2) 0 0; }
 .ig-dot { width: 6px; height: 6px; border-radius: var(--r-full); background: var(--border-2); }
 .ig-dot.is-on { background: var(--text); }
@@ -519,7 +519,7 @@ input[type="range"] {
 .moments { padding-bottom: var(--sp-6); }
 .mo-header {
   position: relative; height: 210px; margin-bottom: 34px;
-  background: var(--surface-3); background-size: cover; background-position: center;
+  background: var(--surface-3); background-image: var(--mo-cover, none); background-size: cover; background-position: center;
 }
 .mo-header-acts {
   position: absolute; top: var(--sp-3); right: var(--sp-3);
@@ -550,7 +550,7 @@ input[type="range"] {
 .mo-photos { display: grid; gap: 3px; margin-top: var(--sp-2); grid-template-columns: repeat(3, 1fr); }
 .mo-photos.n1 { grid-template-columns: 1fr; max-width: 62%; }
 .mo-photos.n2, .mo-photos.n4 { grid-template-columns: repeat(2, 1fr); max-width: 76%; }
-.mo-photo { aspect-ratio: 1; background: var(--surface-3); background-size: cover; background-position: center; border-radius: var(--r-xs); }
+.mo-photo { aspect-ratio: 1; background: var(--surface-3); background-image: var(--mo-img, none); background-size: cover; background-position: center; border-radius: var(--r-xs); }
 .mo-foot { display: flex; align-items: center; justify-content: space-between; margin-top: var(--sp-2); }
 .mo-time { font-size: var(--fs-11); color: var(--text-3); }
 .mo-actions { display: flex; gap: var(--sp-3); }

@@ -62,9 +62,28 @@ export const isGlobal = skin => scopeOf(skin).includes('shell');
  *   on     它出现在哪些层。只写 'shell' 的，`scope` 里没有 shell 就够不着
  *   needs  要满足什么才看得见。没写的，样板间里必须能命中
  *   note   作者要知道的额外一句
+ *   group  在类名清单里归哪一组（GROUPS）。由下面的 sec() 统一填，不逐条写
  */
+const sec = (group, list) => list.map(h => ({ ...h, group }));
+
+/**
+ * 类名清单的分组。只管展示：「写给作者」与「应用美化」两页按它分组列出。
+ * 改组名、调顺序都不碰契约，契约只认类名本身。
+ */
+export const GROUPS = [
+  { id: 'convo', label: '会话：消息' },
+  { id: 'cards', label: '会话：卡片气泡' },
+  { id: 'composer', label: '会话：底栏与其他' },
+  { id: 'page', label: '页面外壳' },
+  { id: 'home', label: '主界面' },
+  { id: 'chats', label: '消息列表' },
+  { id: 'contacts', label: '联系人列表' },
+  { id: 'moments', label: '朋友圈' },
+  { id: 'profile', label: '主页' },
+];
+
 export const HOOKS = [
-  // ---- 会话：消息 ----
+  ...sec('convo', [
   { hook: 'chat', label: '会话页整体', on: ['chat'], since: 1 },
   { hook: 'chat-body', label: '消息列表', on: ['chat'], since: 1 },
   { hook: 'msg', label: '一条消息（含头像）', on: ['chat'], since: 1 },
@@ -101,8 +120,9 @@ export const HOOKS = [
   { hook: 'trans', label: '气泡里的译文', on: ['chat'], since: 2,
     needs: '这段会话开启了翻译，并已展开译文',
     note: '文字气泡与语音转写下面的译文共用它' },
+  ]),
 
-  // ---- 会话：各类卡片气泡 ----
+  ...sec('cards', [
   { hook: 'transfer', label: '转账卡片', on: ['chat'], since: 2, needs: '会话中出现转账',
     note: '已收款、已退还时另带内部类名 is-done' },
   { hook: 'voice', label: '语音气泡', on: ['chat'], since: 2, needs: '会话中出现语音消息' },
@@ -120,8 +140,9 @@ export const HOOKS = [
     note: '点开之后另带内部类名 is-done' },
   { hook: 'dresscode', label: '穿搭盲盒的主题卡片', on: ['chat'], since: 2, needs: '在角色的套装页选择「作为穿搭盲盒发出」',
     note: '揭晓之后另带内部类名 is-done' },
+  ]),
 
-  // ---- 会话：底栏 ----
+  ...sec('composer', [
   { hook: 'composer', label: '底栏', on: ['chat'], since: 1 },
   { hook: 'composer-input', label: '输入框', on: ['chat'], since: 1 },
   { hook: 'composer-btn', label: '底栏圆按钮', on: ['chat'], since: 1 },
@@ -136,14 +157,13 @@ export const HOOKS = [
     needs: '这段对话连续互发满三天，或解锁过标识' },
   { hook: 'award', label: '颁发标识的那一条', on: ['chat'], since: 2,
     needs: '会话中出现颁发标识的消息' },
-  { hook: 'level-ring', label: '头像外那一圈亲密度', on: ['shell'], since: 2,
-    needs: '角色主页，且该对话显示标识',
-    note: '圈是内联 svg，颜色读 currentColor' },
   { hook: 'toolbar', label: '会话里的各种条', on: ['chat'], since: 1,
     note: '多选、待办、节奏这几条共用它。各自另有一个内部类名区分',
     needs: '进入多选，或该会话开了待办与节奏' },
+  ]),
 
-  // ---- 页面外壳：每一页都有 ----
+  // 每一页都有
+  ...sec('page', [
   { hook: 'page', label: '一整页', on: ['chat', 'shell'], since: 1 },
   { hook: 'navbar', label: '顶栏', on: ['chat', 'shell'], since: 1 },
   { hook: 'nav-title', label: '顶栏标题', on: ['chat', 'shell'], since: 1 },
@@ -162,8 +182,9 @@ export const HOOKS = [
   { hook: 'list-title', label: '列表上方的小标题', on: ['shell'], since: 1 },
   { hook: 'sheet', label: '底部浮层', on: ['shell'], since: 1, needs: '有浮层打开' },
   { hook: 'modal', label: '弹窗', on: ['shell'], since: 1, needs: '有弹窗打开' },
+  ]),
 
-  // ---- 外壳：主界面 ----
+  ...sec('home', [
   { hook: 'screen', label: '整块屏幕', on: ['shell'], since: 1 },
   { hook: 'statusbar', label: '状态栏', on: ['shell'], since: 1,
     needs: '外观里把状态栏设为显示。触屏设备上默认不显示，那是系统自己那条' },
@@ -175,6 +196,130 @@ export const HOOKS = [
   { hook: 'tile-name', label: '图标下的名称', on: ['shell'], since: 1,
     needs: '外观里开着「显示图标名称」' },
   { hook: 'dock', label: '底部 Dock', on: ['shell'], since: 1 },
+  ]),
+
+  // 聊天 app 的「消息」分区。以下各组都只在整个应用这一档够得着
+  ...sec('chats', [
+    { hook: 'chats', label: '消息列表整页', on: ['shell'], since: 2 },
+    { hook: 'chats-search', label: '顶部的搜索框', on: ['shell'], since: 2 },
+    { hook: 'chats-section', label: '一个分区（置顶、会话等）', on: ['shell'], since: 2, needs: '至少有一段会话' },
+    { hook: 'chats-section-title', label: '分区的小标题', on: ['shell'], since: 2, needs: '该分区带标题' },
+    { hook: 'chats-group', label: '分区里那一块底板', on: ['shell'], since: 2, needs: '至少有一段会话' },
+    { hook: 'chat-row', label: '一段会话那一行', on: ['shell'], since: 2, needs: '至少有一段会话' },
+    { hook: 'chat-row-pinned', label: '置顶的那一行', on: ['shell'], since: 2, needs: '有置顶的会话' },
+    { hook: 'chat-row-unread', label: '有未读的那一行', on: ['shell'], since: 2, needs: '有未读消息' },
+    { hook: 'chat-row-muted', label: '免打扰的那一行', on: ['shell'], since: 2, needs: '有开启免打扰的会话' },
+    { hook: 'chat-row-group', label: '群聊那一行', on: ['shell'], since: 2, needs: '有群聊' },
+    { hook: 'chat-row-main', label: '行里头像右边的文字区', on: ['shell'], since: 2, needs: '至少有一段会话' },
+    { hook: 'chat-row-top', label: '文字区的上一行（名字与时间）', on: ['shell'], since: 2, needs: '至少有一段会话' },
+    { hook: 'chat-row-star', label: '名字前的星标', on: ['shell'], since: 2, needs: '角色设为星标' },
+    { hook: 'chat-row-name', label: '会话名称', on: ['shell'], since: 2, needs: '至少有一段会话' },
+    { hook: 'chat-row-time', label: '最后一条的时间', on: ['shell'], since: 2, needs: '至少有一段会话' },
+    { hook: 'chat-row-bottom', label: '文字区的下一行（预览与未读数）', on: ['shell'], since: 2, needs: '至少有一段会话' },
+    { hook: 'chat-row-preview', label: '最后一条的预览', on: ['shell'], since: 2, needs: '至少有一段会话' },
+    { hook: 'chat-row-count', label: '未读数的小圆点', on: ['shell'], since: 2, needs: '有未读消息' },
+    { hook: 'group-face', label: '群聊的拼图头像', on: ['shell'], since: 2, needs: '有群聊',
+      note: '大小走内部变量，要改就写 width 与 height' },
+  ]),
+
+  // 聊天 app 的「联系人」分区，不是联系 app
+  ...sec('contacts', [
+    { hook: 'contacts', label: '联系人列表整页', on: ['shell'], since: 2 },
+    { hook: 'contacts-search', label: '顶部的搜索框', on: ['shell'], since: 2 },
+    { hook: 'contacts-section', label: '一个分组', on: ['shell'], since: 2, needs: '至少有一个角色' },
+    { hook: 'contacts-section-title', label: '分组的小标题', on: ['shell'], since: 2, needs: '至少有一个角色' },
+    { hook: 'contacts-group', label: '分组里那一块底板', on: ['shell'], since: 2, needs: '至少有一个角色' },
+    { hook: 'contact-row', label: '一个联系人那一行', on: ['shell'], since: 2, needs: '至少有一个角色' },
+    { hook: 'contact-row-pinned', label: '置顶的联系人', on: ['shell'], since: 2, needs: '有置顶的角色' },
+    { hook: 'contact-row-npc', label: 'NPC 那一行', on: ['shell'], since: 2, needs: '有 NPC' },
+    { hook: 'contact-row-main', label: '行里头像右边的文字区', on: ['shell'], since: 2, needs: '至少有一个角色' },
+    { hook: 'contact-row-name', label: '名字', on: ['shell'], since: 2, needs: '至少有一个角色' },
+    { hook: 'contact-row-sign', label: '名字下面的签名', on: ['shell'], since: 2, needs: '至少有一个角色' },
+    { hook: 'contact-row-arrow', label: '行尾的箭头', on: ['shell'], since: 2, needs: '至少有一个角色' },
+    { hook: 'contacts-add', label: '列表底部新建按钮那一块', on: ['shell'], since: 2 },
+  ]),
+
+  ...sec('moments', [
+    { hook: 'moments', label: '朋友圈整页', on: ['shell'], since: 2 },
+    { hook: 'moments-cover', label: '顶部封面', on: ['shell'], since: 2,
+      note: '封面图走内部变量。要换成自己的图，直接写 background-image' },
+    { hook: 'moments-cover-acts', label: '封面右上角那排按钮', on: ['shell'], since: 2 },
+    { hook: 'moments-cover-btn', label: '封面上的一个圆按钮', on: ['shell'], since: 2 },
+    { hook: 'moments-me', label: '封面右下角的头像与名字', on: ['shell'], since: 2 },
+    { hook: 'moments-me-name', label: '封面上的名字', on: ['shell'], since: 2 },
+    { hook: 'moment', label: '一条动态', on: ['shell'], since: 2, needs: '至少有一条动态',
+      note: '主页的列表分栏里也是它' },
+    { hook: 'moment-mine', label: '我发的那一条', on: ['shell'], since: 2, needs: '发过动态' },
+    { hook: 'moment-main', label: '头像右边的正文区', on: ['shell'], since: 2, needs: '至少有一条动态' },
+    { hook: 'moment-name', label: '作者名字', on: ['shell'], since: 2, needs: '至少有一条动态' },
+    { hook: 'moment-text', label: '正文', on: ['shell'], since: 2, needs: '动态带文字' },
+    { hook: 'moment-photos', label: '九宫格', on: ['shell'], since: 2, needs: '动态带图片',
+      note: '另带内部类名 n1 到 n9，表示张数' },
+    { hook: 'moment-photo', label: '九宫格里的一张', on: ['shell'], since: 2, needs: '动态带图片',
+      note: '发布时的缩略图也是它' },
+    { hook: 'moment-song', label: '动态里带的歌', on: ['shell'], since: 2, needs: '动态带歌曲' },
+    { hook: 'moment-foot', label: '底部那一行（时间与按钮）', on: ['shell'], since: 2, needs: '至少有一条动态' },
+    { hook: 'moment-time', label: '发布时间', on: ['shell'], since: 2, needs: '至少有一条动态' },
+    { hook: 'moment-actions', label: '右下角那排按钮', on: ['shell'], since: 2, needs: '至少有一条动态' },
+    { hook: 'moment-act', label: '一个按钮（赞、评论、删除）', on: ['shell'], since: 2, needs: '至少有一条动态',
+      note: '详情页底部的赞与评论数也是它' },
+    { hook: 'moment-like', label: '点赞键', on: ['shell'], since: 2, needs: '至少有一条动态',
+      note: '已赞时另带内部类名 is-on' },
+    { hook: 'moment-comment-btn', label: '评论键', on: ['shell'], since: 2, needs: '至少有一条动态' },
+    { hook: 'moment-delete', label: '删除键', on: ['shell'], since: 2, needs: '至少有一条动态' },
+    { hook: 'moment-comments', label: '评论区那一块底', on: ['shell'], since: 2, needs: '动态有评论' },
+    { hook: 'moment-comment-list', label: '评论列表', on: ['shell'], since: 2, needs: '动态有评论',
+      note: '评论浮层与详情页里也是它' },
+    { hook: 'moment-comment', label: '一条评论', on: ['shell'], since: 2, needs: '动态有评论' },
+    { hook: 'moment-comment-name', label: '评论者的名字', on: ['shell'], since: 2, needs: '动态有评论' },
+    { hook: 'moment-recalled', label: '角色撤回的那一条', on: ['shell'], since: 2, needs: '角色撤回过动态',
+      note: '展开后另带内部类名 is-open' },
+    { hook: 'moment-recalled-line', label: '撤回留下的那一行', on: ['shell'], since: 2, needs: '角色撤回过动态' },
+    { hook: 'moment-detail-author', label: '详情页顶部的作者那一行', on: ['shell'], since: 2, needs: '打开一条动态' },
+    { hook: 'moment-detail-name', label: '详情页的作者名字', on: ['shell'], since: 2, needs: '打开一条动态' },
+    { hook: 'moment-detail-time', label: '详情页的发布时间', on: ['shell'], since: 2, needs: '打开一条动态' },
+    { hook: 'moment-detail-pager', label: '详情页的大图区', on: ['shell'], since: 2, needs: '打开一条带图的动态' },
+    { hook: 'moment-detail-slide', label: '大图区里的一张', on: ['shell'], since: 2, needs: '打开一条带图的动态' },
+    { hook: 'moment-detail-dots', label: '大图下面的页码点', on: ['shell'], since: 2, needs: '打开一条多图的动态' },
+    { hook: 'moment-detail-dot', label: '一个页码点', on: ['shell'], since: 2, needs: '打开一条多图的动态',
+      note: '当前那一张另带内部类名 is-on' },
+    { hook: 'moment-detail-foot', label: '详情页的赞与评论数那一行', on: ['shell'], since: 2, needs: '打开一条动态' },
+    { hook: 'moment-detail-text', label: '详情页的正文', on: ['shell'], since: 2, needs: '打开一条带文字的动态' },
+    { hook: 'moment-detail-comments', label: '详情页的评论区', on: ['shell'], since: 2, needs: '打开一条动态' },
+    { hook: 'moment-detail-gone', label: '详情页里已撤回的说明', on: ['shell'], since: 2, needs: '打开一条角色撤回的动态' },
+  ]),
+
+  // 我的主页与角色主页是同一个组件
+  ...sec('profile', [
+    { hook: 'profile', label: '主页整页', on: ['shell'], since: 2 },
+    { hook: 'profile-me', label: '我自己的主页', on: ['shell'], since: 2, needs: '打开的是我的主页' },
+    { hook: 'profile-head', label: '头像与三个数字那一行', on: ['shell'], since: 2 },
+    { hook: 'profile-face', label: '头像那一块', on: ['shell'], since: 2 },
+    { hook: 'profile-face-base', label: '头像右下角「换回原本的头像」', on: ['shell'], since: 2, needs: '换过头像' },
+    { hook: 'level-ring', label: '头像外那一圈亲密度', on: ['shell'], since: 2, needs: '角色主页，且该对话显示标识',
+      note: '圈是内联 svg，颜色读 currentColor' },
+    { hook: 'profile-stats', label: '三个数字那一组', on: ['shell'], since: 2 },
+    { hook: 'profile-stat', label: '一个数字（动态、照片、联系人）', on: ['shell'], since: 2 },
+    { hook: 'profile-stat-num', label: '数字本身', on: ['shell'], since: 2 },
+    { hook: 'profile-stat-label', label: '数字下面的字', on: ['shell'], since: 2 },
+    { hook: 'profile-bio', label: '名字与签名那一块', on: ['shell'], since: 2 },
+    { hook: 'profile-name', label: '名字', on: ['shell'], since: 2 },
+    { hook: 'profile-sign', label: '签名', on: ['shell'], since: 2, needs: '填写了签名' },
+    { hook: 'profile-acts', label: '并排的按钮那一行', on: ['shell'], since: 2 },
+    { hook: 'profile-highlights', label: '一排圆形精选', on: ['shell'], since: 2 },
+    { hook: 'profile-highlight', label: '一个精选', on: ['shell'], since: 2,
+      note: '末尾的「新建」也是它' },
+    { hook: 'profile-highlight-add', label: '末尾的「新建」', on: ['shell'], since: 2 },
+    { hook: 'profile-highlight-ring', label: '精选外面那一圈', on: ['shell'], since: 2 },
+    { hook: 'profile-highlight-img', label: '精选圈里的图', on: ['shell'], since: 2 },
+    { hook: 'profile-highlight-name', label: '精选下面的名字', on: ['shell'], since: 2 },
+    { hook: 'profile-tabs', label: '网格与列表两个分栏', on: ['shell'], since: 2 },
+    { hook: 'profile-tab', label: '一个分栏', on: ['shell'], since: 2 },
+    { hook: 'profile-tab-on', label: '选中的那个分栏', on: ['shell'], since: 2 },
+    { hook: 'profile-grid', label: '照片网格', on: ['shell'], since: 2, needs: '发过带图的动态' },
+    { hook: 'profile-cell', label: '网格里的一格', on: ['shell'], since: 2, needs: '发过带图的动态' },
+    { hook: 'profile-cell-multi', label: '多图那一格右上角的标记', on: ['shell'], since: 2, needs: '发过多图的动态' },
+  ]),
 ];
 
 /** 一个钩子的完整类名。写死 `ph-` 前缀，别处不要再拼。 */
