@@ -18,6 +18,7 @@ import { install as installFullscreen } from './system/fullscreen.js';
 import { install as installDiag } from './system/diag.js';
 import { install as markChannel } from './system/channel.js';
 import { install as installOffline } from './system/offline.js';
+import { install as installBgPush } from './system/bgpush.js';
 import * as move from './system/move.js';
 import './screens/home/widgets.js';
 import './screens/home/insWidgets.js';
@@ -60,6 +61,8 @@ function boot() {
     dropSplash();
     // 代码存到本机，下一次打开从本机取（sw.js，ARCHITECTURE 4.220）。版本对不上时不会走到这里
     installOffline();
+    // 后台消息：离开时把任务交给推送服务器，回来时把替你发出去的取回来（system/bgpush.js）
+    installBgPush();
     askToMove();
   }).catch(err => {
     console.error('[boot] 启动失败', err);

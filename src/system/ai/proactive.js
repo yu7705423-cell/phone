@@ -148,6 +148,33 @@ export function scheduleIn(charId, ms) {
   setNext(charId, Date.now() + Math.max(1000, ms));
 }
 
+/**
+ * 后台消息用：这个角色接下来 count 次主动开口的时间。
+ * 头一次就是本机排好的那个落点；之后照样按间隔随机掷；落进免打扰的挪到免打扰结束那一刻
+ */
+export function upcoming(charId, count, now = Date.now()) {
+  const cfg = configOf(characters.get(charId));
+  if (!cfg.proactive || !(count > 0)) return [];
+  let t = nextAt(charId) || now + rollDelay(cfg.proactiveMinutes);
+  if (t < now + 60000) t = now + 60000;
+  const out = [];
+  while (out.length < count) {
+    if (inQuiet(cfg, new Date(t))) t = quietEndsAt(cfg, new Date(t));
+    out.push(t);
+    t += rollDelay(cfg.proactiveMinutes);
+  }
+  return out;
+}
+
+/** 这个角色现在能不能被发（有单人会话、没在生成、未读没堆满）。能就给那段会话 */
+export const chatReady = charId => chatFor(charId);
+
+/** 还能再堆几条未读。0 表示不设上限 */
+export function roomLeft(chat) {
+  const cap = maxUnread();
+  return cap ? Math.max(0, cap - (chat.unread || 0)) : 0;
+}
+
 // 改了设置之后重新掷一次，不用等旧的落点
 export function reschedule(charId) {
   const cfg = configOf(characters.get(charId));
@@ -176,11 +203,14 @@ function chatFor(charId) {
   return chat;
 }
 
-export async function sendProactive(chatId, charId, { mood = false } = {}) {
-  const chat = chats.get(chatId);
-  const char = characters.get(charId);
-  if (!chat || !char) throw new Error('会话或角色不存在');
-
+/**
+ * 主动开口那一次请求的内容：{ system, messages, maxTokens }。
+ *
+ * 平时这里拼好就发（sendProactive）；后台消息拿同一份交给推送服务器，到点由服务器发
+ *（system/bgpush.js）。`time` 与 `gap` 可以指定 —— 服务器那边是几个小时之后才发，
+ * 「现在几点」「多久没说话」要按那一刻写，不能按拼的这一刻
+ */
+export async function proactivePayload(chat, char, { mood = false, time, gap } = {}) {
   const msgs = messagesDb.all()
     .filter(m => m.chatId === chat.id && m.status !== 'error')
     .sort((a, b) => a.createdAt - b.createdAt);
@@ -194,18 +224,26 @@ export async function sendProactive(chatId, charId, { mood = false } = {}) {
   const { system, volatile: hot } = buildChatSystem(chat, char, msgs, { queryVec: await queryVecFor(msgs) });
   const instruction = fillTemplate(template(mood ? 'task.emo' : 'task.proactive'), {
     charName: char.name || '你',
-    time: new Date().toLocaleString('zh-CN', { hour12: false }),
-    gap: gapText(last ? Date.now() - last.createdAt : 0),
+    time: time ?? new Date().toLocaleString('zh-CN', { hour12: false }),
+    gap: gap ?? gapText(last ? Date.now() - last.createdAt : 0),
   });
   const history = buildHistory(chat, char, msgs, {
-    volatile: hot, closing: '(No new messages. You are the one opening this time.)',
+    volatile: hot, closing: PROACTIVE_CLOSING,
   });
+  return { system: [system, instruction].filter(Boolean).join('\n\n'), messages: history, maxTokens: 800 };
+}
 
+// 对话末尾那一句：这一轮没有新消息，由角色开口。后台消息接着发第二条时也用它（见 bgpush.js）
+export const PROACTIVE_CLOSING = '(No new messages. You are the one opening this time.)';
+
+export async function sendProactive(chatId, charId, { mood = false } = {}) {
+  const chat = chats.get(chatId);
+  const char = characters.get(charId);
+  if (!chat || !char) throw new Error('会话或角色不存在');
+
+  const p = await proactivePayload(chat, char, { mood });
   const raw = await runTextTask('chat.proactive', {
-    system: [system, instruction].filter(Boolean).join('\n\n'),
-    messages: history,
-    key: `${mood ? 'emo' : 'proactive'}:${chat.id}:${char.id}`,
-    maxTokens: 800,
+    ...p, key: `${mood ? 'emo' : 'proactive'}:${chat.id}:${char.id}`,
   });
   if (!raw || !raw.trim()) throw new Error('模型返回了空内容');
 

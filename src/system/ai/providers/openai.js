@@ -80,6 +80,12 @@ export const openai = {
     return text;
   },
 
+  // 只把请求备好、不发（后台消息交给推送服务器替你发，见 system/bgpush.js）。
+  // 和 complete 同一份请求：地址、头、正文一个字都不差
+  prepare(cfg, { system, messages, maxTokens }) {
+    return { url: url(cfg), headers: headers(cfg), body: buildBody(cfg, { system, messages, maxTokens, stream: false }) };
+  },
+
   async complete(cfg, { system, messages, maxTokens, signal }) {
     const res = await fetch(url(cfg), {
       method: 'POST', headers: headers(cfg), signal,

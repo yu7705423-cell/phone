@@ -1,8 +1,8 @@
 import { html, useState, useRef, useEffect } from '../../lib.js';
 import { phone, useStore } from '../../sdk/index.js';
-import { Page, List, ListItem, Field, Input, Button, Switch, Icon, toast, confirm } from '../../ui/index.js';
+import { Page, List, ListItem, Field, Input, NumberInput, Button, Switch, Icon, toast, confirm } from '../../ui/index.js';
 
-const { db, nav, sound, notify, push } = phone;   // notify 就是 notify()，见 sdk/index.js
+const { db, nav, sound, notify, push, bgpush } = phone;   // notify 就是 notify()，见 sdk/index.js
 
 const PERM_TEXT = {
   granted: '已授权',
@@ -120,6 +120,32 @@ export function NotifyPage() {
 
   const pcfg = push.pushConfig();
 
+  // 后台消息（system/bgpush.js）。打开要问通知权限，所以必须在这一下点击里做
+  const bg = s.bgPush || {};
+  const toggleBg = async v => {
+    setBusy(true);
+    try {
+      if (v) {
+        await bgpush.enable();
+        setPerm(push.permission());
+        push.subscription().then(setSub).catch(() => {});
+        toast('后台消息已开启', 'ok');
+      } else {
+        await bgpush.disable();
+        toast('后台消息已关闭');
+      }
+    } catch (e) {
+      setPerm(push.permission());
+      toast(String(e.message || e), 'error', 6000);
+    } finally { setBusy(false); }
+  };
+  const testBg = async () => {
+    setBusy(true);
+    try { await bgpush.test(); toast('推送服务器已发出一条测试通知', 'ok', 4000); }
+    catch (e) { toast(String(e.message || e), 'error', 6000); }
+    finally { setBusy(false); }
+  };
+
   return html`
     <${Page} title="通知" onBack=${nav.pop}>
       <${List}>
@@ -187,11 +213,33 @@ export function NotifyPage() {
         <${Button} full disabled=${busy} onClick=${test}>试一条应用内横幅<//>
       </div>
 
+      ${bgpush.available() ? html`
+        <${List} title="后台消息">
+          <${ListItem} title="后台消息" multiline
+            subtitle="开启后，离开应用期间，已开启「主动找你」的角色由推送服务器按原定时间代为发出消息，并以系统通知送达；回到应用时，这些消息写入对应的会话。接口密钥与该段对话的上下文会加密后交给推送服务器保存，到时间后用于调用模型。关闭后，服务器上的任务与本机登记一并删除。"
+            right=${html`<${Switch} checked=${bg.on === true} disabled=${busy} onChange=${toggleBg}/>`}/>
+        <//>
+        ${bg.on ? html`
+          <div class="pad-x">
+            <${Field} label="每个角色离开期间最多发几次"
+              desc="每一次都是一次模型调用，费用与应用开着时角色主动发消息相同。未读条数达到「用量与上限」中设定的上限后不再发送。">
+              <${NumberInput} value=${bg.perChar || bgpush.PER_CHAR} min=${1} unit="次"
+                onChange=${v => db.settings.set({ bgPush: { ...bg, perChar: Math.max(1, Number(v) || bgpush.PER_CHAR) } })}/>
+            <//>
+          </div>
+          <div class="pad batch-acts">
+            <${Button} size="sm" disabled=${busy} onClick=${testBg}>发一条测试推送<//>
+          </div>` : null}
+        <div class="settings-foot">
+          应用开着时，角色的主动消息仍由本机发出，推送服务器不重复发送。
+          安装版应用（apk、ipa）没有 Web Push，此项仅在浏览器与添加到主屏幕的网页中可用。
+        </div>` : null}
+
       ${push.native() ? html`
         <div class="settings-foot">
           Web Push 需要浏览器的 Push API，已安装的应用里没有这一项，因此不显示。
           应用被系统完全结束之后的通知仍然需要一台服务器，那一条这里做不到。
-        </div>` : html`
+        </div>` : bgpush.available() ? null : html`
       <${List} title="Web Push">
         <${ListItem} title="订阅状态" multiline
           subtitle=${sub ? '已订阅。将订阅信息提供给服务端即可推送' : '未订阅'}

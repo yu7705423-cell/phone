@@ -107,6 +107,12 @@ export const anthropic = {
     return text;
   },
 
+  // 只把请求备好、不发（见 openai.js 的同名一项）。服务器那边发，浏览器直连那个头留着也无妨
+  prepare(cfg, { system, messages, maxTokens }) {
+    return { url: `${cfg.baseUrl || DEFAULT_BASE}/v1/messages`, headers: headers(cfg),
+      body: buildBody(cfg, { system, messages, maxTokens, stream: false }) };
+  },
+
   async complete(cfg, { system, messages, maxTokens, signal }) {
     const res = await fetch(`${cfg.baseUrl || DEFAULT_BASE}/v1/messages`, {
       method: 'POST', headers: headers(cfg), signal,

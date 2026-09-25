@@ -5,6 +5,7 @@ import * as notifyApi from '../system/notify.js';
 import * as accountsApi from '../system/accounts.js';
 import * as soundApi from '../system/sound.js';
 import * as pushApi from '../system/push.js';
+import * as bgpushApi from '../system/bgpush.js';
 import * as looksApi from '../system/looks.js';
 import * as fullApi from '../system/fullscreen.js';
 import * as chatLookApi from '../system/chatlook.js';
@@ -275,6 +276,7 @@ export const phone = {
   accounts: accountsApi,
   sound: soundApi,
   push: pushApi,
+  bgpush: bgpushApi,
   looks: looksApi,
   fonts: fontsApi,
   clock: clockApi,

@@ -63,6 +63,8 @@ export const DEFAULT_SETTINGS = {
 
   // Web Push。真要在 app 关着时叫醒手机必须有服务器，见 system/push.js
   push: { vapidPublicKey: '', reportUrl: '', endpoint: '' },
+  // 后台消息（system/bgpush.js）。默认关；perChar 是每个角色离开期间最多发几次，server 留空用 site.js 那个
+  bgPush: { on: false, perChar: 2, server: '' },
 
   // AI 服务配置。聊天与生图是「预设列表 + 当前选中」，语音只有一份。
   services: {

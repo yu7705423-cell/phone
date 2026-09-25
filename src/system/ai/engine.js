@@ -1269,6 +1269,19 @@ export async function runTextTask(taskId, { system, user, messages, key, image, 
     run(c => send(taskId, c, { system, messages: list, maxTokens, signal })), { retries: 1 });
 }
 
+/**
+ * 和 runTextTask 同一次请求，只备好、不发：{ provider, url, headers, body }。
+ * 后台消息把它交给推送服务器，到点由服务器替你发（system/bgpush.js）。
+ * 走的是这个任务平时那套接口（presetFor）；失败换下一套那一步在服务器上没有
+ */
+export function prepareTextTask(taskId, { system, messages, maxTokens = 900 }) {
+  const c = presetFor(taskId);
+  if (!c) throw new Error('还没有配置接口，或者配的那个没填全（缺密钥或模型）');
+  const provider = getProvider(c.provider);
+  if (typeof provider.prepare !== 'function') throw new Error('这种接口暂不支持后台消息');
+  return { provider: provider.id, ...provider.prepare(c, { system, messages, maxTokens }) };
+}
+
 // 指定一个预设跑一次结构化任务。会联网搜索的那套接口走这条路 ——
 // 它不在 chat 预设列表里，所以不能走 runJSONTask 的主用 / 副用那一套。
 export async function runJSONWithPreset(preset, { system, user, key, maxTokens = 1400, taskId }) {
