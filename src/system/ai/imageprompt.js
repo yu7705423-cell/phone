@@ -6,6 +6,8 @@ import { describe as visionDescribe } from './vision.js';
 import { toDataUrl } from '../audio.js';
 import { activateImage, textOf } from './context/lorebook.js';
 import { negativeBlock } from './image.js';
+import * as closet from '../closet.js';
+import * as accounts from '../accounts.js';
 
 // 生图提示词的拼装，外加锁脸。
 //
@@ -147,6 +149,37 @@ export function appearanceOf(text, char) {
 }
 
 /**
+ * 画面里有谁，就把谁今天穿的（衣帽间里勾了的那几件）接在后面。
+ * 衣帽间设置里「生图时参考今天穿的」打开才有，默认关着 —— 不多调接口，
+ * 但会改变画出来的衣服，开不开是用户的事。
+ *
+ * 认人和外貌那一段同一个办法：点了名就算。另外写着「合照」「我们」这类词的，
+ * 两个人都带上；角色的自拍带角色自己的
+ */
+const PAIR = /合照|合影|我们|两个人|俩人|一起|together|couple|both of us/i;
+function wearOf(text, char) {
+  if (!settings.get().closetInImage) return [];
+  const t = String(text || '');
+  const pair = PAIR.test(t);
+  const line = (name, rows) => (rows.length
+    ? `${name} is wearing: ${rows.map(r => [r.name, String(r.desc || '').replace(/\s+/g, ' ').trim()]
+      .filter(Boolean).join(', ')).join('; ')}`
+    : '');
+  const out = [];
+  const cn = String(char?.name || '').trim();
+  if (char && (pair || SELFISH.test(t) || (cn.length >= 2 && t.includes(cn)))) {
+    const l = line(cn || 'The character', closet.wornToday(char.id));
+    if (l) out.push({ from: `「${cn}」今天穿的（衣帽间）`, text: l });
+  }
+  const mn = String(accounts.current()?.name || '').trim();
+  if (pair || (mn.length >= 2 && t.includes(mn))) {
+    const l = line(mn || 'The other person', closet.wornToday(closet.ME));
+    if (l) out.push({ from: '我今天穿的（衣帽间）', text: l });
+  }
+  return out;
+}
+
+/**
  * 内置的生图预设。**默认全关**，开哪个由用户决定。
  *
  * 一个预设分两段，因为「画得好」这件事落在两个不同的地方：
@@ -189,6 +222,7 @@ export function parts({ prompt, char, face = '' }) {
   // 描述里点了名的那几位，各自的外貌
   raw.push(...appearanceOf(text, char));
   if (face) raw.push({ from: '角色外貌（锁脸读出来的）', text: `The appearance of the person in frame: ${face}` });
+  raw.push(...wearOf(text, char));
   const lore = loreFor(char, text);
   if (lore) raw.push({ from: '生图世界书', text: lore });
   const own = String(char?.imagePrompt || '').trim();

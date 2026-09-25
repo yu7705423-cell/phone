@@ -15,7 +15,7 @@ const PEEK = 6;
 // 非文字消息写成一个方括号标签，和消息列表那一行同一个写法
 const KIND = {
   sticker: '[表情]', image: '[图片]', voice: '[语音]', transfer: '[转账]', location: '[位置]',
-  gift: '[礼物]', trip: '[旅行]', takeout: '[外卖]', dice: '[骰子]', award: '[标识]',
+  gift: '[礼物]', trip: '[旅行]', takeout: '[外卖]', dice: '[骰子]', award: '[标识]', outfit: '[搭配]',
   listen: '[一起听]', watch: '[一起看]', read: '[一起读]', call: '[通话]', letter: '[信]',
   pact: '[约定]', request: '[申请]', excerpt: '[摘录]', video: '[视频]',
 };

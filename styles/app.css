@@ -3261,5 +3261,35 @@ button.conv-notice { background: none; border: 0; font: inherit; cursor: pointer
 }
 .cl-sub-edit { display: flex; flex-wrap: wrap; gap: var(--sp-2); padding: 0 var(--sp-4) var(--sp-3); }
 .cl-sub-edit .chip { display: inline-flex; align-items: center; gap: 4px; }
+/* 会话里的搭配卡片（OutfitBits.js）。一行四件，多了换行 */
+.bubble-outfit { min-width: 200px; max-width: 260px; padding: var(--sp-3) var(--sp-4) 0; }
+.bubble-outfit .tr-top { display: flex; align-items: center; gap: var(--sp-3); min-width: 0; }
+.bubble-outfit .tr-body { min-width: 0; }
+.fit-tag { font-size: var(--fs-12); opacity: .7; }
+.fit-name { font-size: var(--fs-15); font-weight: var(--fw-medium); margin-top: 2px; }
+.fit-pieces { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-top: var(--sp-3); }
+.fit-piece { flex: none; width: 48px; display: flex; flex-direction: column; gap: 3px; font-size: var(--fs-11); }
+.fit-piece.is-miss { opacity: .5; }
+.fit-img {
+  width: 48px; height: 48px; border-radius: var(--r-md); display: flex; align-items: center; justify-content: center;
+  background: var(--img) center / cover no-repeat, var(--surface-2); color: var(--text-3);
+}
+.fit-img.is-blank { background: var(--sw, var(--surface-2)); box-shadow: inset 0 0 0 1px var(--border); }
+/* 「今天穿的」右上角那两个按钮 */
+.cl-strip-acts { display: flex; gap: var(--sp-4); }
+/* 套装格子下面「谁搭配的」那一行 */
+.cl-fit-by { padding: 0 var(--sp-1); margin-top: calc(var(--sp-2) * -1); font-size: var(--fs-11); color: var(--text-3); }
+/* 按角色设定生成的结果：一行一件，点一下取消勾选 */
+.cl-gen { display: flex; flex-direction: column; gap: var(--sp-2); padding: 0 var(--sp-4); }
+.cl-gen-row {
+  position: relative; display: flex; gap: var(--sp-3); padding: var(--sp-3); border-radius: var(--r-lg);
+  background: var(--surface); text-align: left; opacity: .5;
+}
+.cl-gen-row.is-on { opacity: 1; box-shadow: inset 0 0 0 1.5px var(--accent); }
+.cl-gen-row .cl-tick { position: static; flex: none; }
+.cl-gen-row:not(.is-on) .cl-tick { background: var(--surface-2); color: var(--text-3); }
+.cl-gen-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; font-size: var(--fs-13); }
+.cl-gen-body span { font-size: var(--fs-12); color: var(--text-3); }
+.cl-gen-body em { font-style: normal; font-size: var(--fs-12); color: var(--text-2); line-height: 1.5; }
 /* 礼物气泡上的「收进衣帽间」（TransferBits.js 的 GiftBubble） */
 .gift-closet { margin-left: var(--sp-2); font-size: var(--fs-11); color: inherit; text-decoration: underline; text-underline-offset: 2px; }

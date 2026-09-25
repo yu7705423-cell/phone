@@ -25,6 +25,7 @@ import { SceneBlock, LookFloat } from './SceneInline.js';
 import { ChatLookSheet } from './ChatLook.js';
 import { MentionBar } from './GroupBits.js';
 import { AwardBubble, StreakMark, UnlockToast } from './BadgeBits.js';
+import { OutfitBubble } from './OutfitBits.js';
 
 // panel 这个名字在本文件里已经被「当前开着哪个面板」占了（见下面的 useState），
 // 所以模块换个名字进来 —— 同名会被局部变量盖掉，读出来是 null。
@@ -351,6 +352,8 @@ export const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, o
           ? html`<${TripBubble} msg=${msg} onSettle=${selecting ? null : onSettle}/>`
           : msg.kind === 'award'
           ? html`<${AwardBubble} msg=${msg} mine=${mine}/>`
+          : msg.kind === 'outfit'
+          ? html`<${OutfitBubble} msg=${msg} mine=${mine}/>`
           : msg.kind === 'sticker'
           ? html`<div class="bubble-sticker ph-sticker">
               ${sticker ? html`<${StickerImg} sticker=${sticker} size=${112}/>`

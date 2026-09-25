@@ -61,5 +61,22 @@ export function SettingsPage() {
       <div class="settings-foot">
         以上都是本地估算，不调用接口。角色能否看到衣帽间，由会话的「上下文」中的「衣帽间」一项控制。
       </div>
+
+      <${List} title="好久没穿"/>
+      <div class="pad-x">
+        <${Field} label="上次穿着距今超过" desc="穿过至少一次、上次穿着距今超过这么多天的衣物，算作好久没穿。填 0 表示不告诉角色。">
+          <${NumberInput} value=${s.closetIdleDays ?? 60} unit="天" onChange=${v => db.settings.set({ closetIdleDays: v })}/>
+        <//>
+        <${Field} label="两次告诉角色至少间隔"
+          desc="每次只告诉角色一件，只在当天出现。同一件东西再穿一次之后才会重新计算。">
+          <${NumberInput} value=${s.closetIdleGap ?? 7} unit="天" onChange=${v => db.settings.set({ closetIdleGap: v })}/>
+        <//>
+      </div>
+
+      <${List} title="生图">
+        <${ListItem} title="生图时参考今天穿的" multiline
+          subtitle="开启后，画面描述中出现角色或你的名字，或写着合照、我们、一起时，将此人今天穿着的名称与描述接在生图提示词后面。不增加接口调用；关闭后生图不读取衣帽间。"
+          right=${html`<${Switch} checked=${!!s.closetInImage} onChange=${v => db.settings.set({ closetInImage: v })}/>`}/>
+      <//>
     <//>`;
 }

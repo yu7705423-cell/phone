@@ -393,7 +393,19 @@ export async function install(pack) {
   byChar(data.meals, meals, 'ml', 'charId');
   byChar(data.health, health, 'hl', 'who');
   byChar(data.phones, phones, 'ph', 'charId');
-  byChar(data.closet, closet, 'cl', 'owner');
+  // 衣帽间：单品先放，记下新旧 id；套装（side 'outfit'）后放，里面的单品 id 换成新的
+  const clIds = new Map();
+  const clRows = (data.closet || []).filter(r => r && mine.has(r.owner));
+  clRows.filter(r => r.side !== 'outfit').forEach(r => {
+    const id = (copied || closet.has(r.id)) ? uid('cl') : r.id;
+    clIds.set(r.id, id);
+    closet.put({ ...r, id, owner: remap(r.owner) });
+  });
+  clRows.filter(r => r.side === 'outfit').forEach(r => {
+    const id = (copied || closet.has(r.id)) ? uid('cl') : r.id;
+    closet.put({ ...r, id, owner: remap(r.owner),
+      items: (r.items || []).map(x => clIds.get(x)).filter(Boolean) });
+  });
 
   (data.phoneChats || []).forEach(r => {
     if (!r || !mine.has(r.charId)) return;

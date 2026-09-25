@@ -46,7 +46,8 @@ const ROUTES = {
   album: ['/', '/album/:alb', '/photo/:pho', '/photo/:card'],
   health: ['/', '/log', '/cycle', '/meds', '/settings', '/char/:char'],
   closet: ['/', '/all', '/unsorted', '/settings', '/g/top', '/g/base', '/g/nope',
-    '/item/:clWear', '/item/:clBeauty', '/item/nope', '/gift/:giftMsg', '/gift/nope'],
+    '/item/:clWear', '/item/:clBeauty', '/item/nope', '/gift/:giftMsg', '/gift/nope',
+    '/outfits', '/outfit/:clFit', '/outfit/nope', '/fit/:fitMsg', '/fit/nope', '/generate'],
   todo: ['/', '/detect', '/alarm', '/notes'],
   skin: ['/', '/one/:skin', '/one/nope', '/contract', '/gen/:skin', '/gen/nope', '/size/:skin', '/size/nope', '/css/:skin', '/css/nope'],
   us: ['/', `/chat/:chat`, '/work/:work', '/work/:work/edit', '/work/nope',
@@ -261,12 +262,15 @@ const ids = await page.evaluate(async () => {
     openedAt: '2026-01-01', buyAt: '2025-12-20' });
   cl.create({ side: 'wear', name: '' });
   cl.create({ owner: a.id, group: 'outer', sub: '大衣', name: '灰色大衣' });
+  // 一套套装、会话里一张角色搭的卡片（一件认得出、一件认不出）
+  const clFit = cl.createOutfit({ name: '周末出门', items: [clWear.id] });
+  const fitMsg = cl.postOutfit({ chatId: chat.id, role: 'char', authorId: a.id, name: '降温', names: ['白色针织衫', '红色围巾'] });
   const giftMsg = db.messages.all().find(m => m.kind === 'gift');
   const skinRow = (await import('/src/system/skin.js')).create({ name: '样例美化',
     tokens: { bubbleR: 18 }, shape: 'round', css: '.bubble{opacity:.95}' });
   return { char: a.id, chat: chat.id, mem: mem.id, work: wkRow.id, chapter: cpRow.id, persona: me.id, book: bk.id, ebook: ebk.id, video: vid.id, lore: lore.id,
     alb: book1.id, pho: pho.id, card: cardPhoto.id, trip: trRow.id, scene: scRow.id,
-    skin: skinRow.id, group: grpRow.id, clWear: clWear.id, clBeauty: clBeauty.id, giftMsg: giftMsg ? giftMsg.id : 'nope' };
+    skin: skinRow.id, group: grpRow.id, clWear: clWear.id, clBeauty: clBeauty.id, clFit: clFit.id, fitMsg: fitMsg.id, giftMsg: giftMsg ? giftMsg.id : 'nope' };
 });
 await page.waitForTimeout(400);
 

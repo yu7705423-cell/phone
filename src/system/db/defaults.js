@@ -34,6 +34,9 @@ export const DEFAULT_SETTINGS = {
   closetLowPct: 15,               // 余量低于百分之几算快用完
   closetExpireWarn: 30,           // 离过期还有几天算快过期
   closetAlertCooldown: 30,        // 同一件东西两次告诉角色之间至少隔几天
+  closetIdleDays: 60,             // 上次穿是多少天以前算「好久没穿」（0 为不告诉角色）
+  closetIdleGap: 7,               // 两次告诉角色「好久没穿」之间至少隔几天
+  closetInImage: false,           // 生图时画面里有人，带上此人今天穿的（衣帽间设置里开）
   bottomLift: 0,                  // 底部整体上移的像素，见 styles/tokens.css
   fonts: [],                      // 自己传的字体，见 system/fonts.js
   fontBody: '',                   // 正文用哪一个，空 = 系统默认

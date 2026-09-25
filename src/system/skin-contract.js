@@ -111,6 +111,8 @@ export const HOOKS = [
   { hook: 'location', label: '位置卡片', on: ['chat'], since: 2, needs: '会话中出现位置' },
   { hook: 'gift', label: '礼物卡片', on: ['chat'], since: 2, needs: '会话中出现礼物',
     note: '拆开之后另带内部类名 is-done' },
+  { hook: 'outfit', label: '搭配卡片', on: ['chat'], since: 2, needs: '会话中出现衣帽间的搭配',
+    note: '自己发的另带内部类名 is-mine' },
 
   // ---- 会话：底栏 ----
   { hook: 'composer', label: '底栏', on: ['chat'], since: 1 },

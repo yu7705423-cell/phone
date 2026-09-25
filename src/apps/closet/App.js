@@ -1,11 +1,12 @@
 import { html, useState, useEffect } from '../../lib.js';
 import { phone, useStore } from '../../sdk/index.js';
-import { Page, Segmented, Icon, IconButton, EmptyState } from '../../ui/index.js';
+import { Page, Segmented, Icon, IconButton, EmptyState, toast, prompt } from '../../ui/index.js';
 import { OwnerBar, Thumb, ownerNow, sideNow, ownerName } from './parts.js';
 import { AddSheet, TodaySheet } from './AddSheet.js';
 import { GroupPage } from './GroupPage.js';
 import { ItemPage } from './ItemPage.js';
 import { SettingsPage } from './SettingsPage.js';
+import { OutfitsPage, OutfitPage, FromCard, GeneratePage } from './OutfitPages.js';
 
 const { db, nav, closet } = phone;
 const K = closet.kinds;
@@ -43,6 +44,14 @@ function Home() {
   const alerts = side === 'beauty' ? closet.alertsOf(owner) : [];
   const who = ownerName(owner);
 
+  const outfits = side === 'wear' ? closet.outfitsOf(owner) : [];
+  const saveToday = async () => {
+    const name = await prompt({ title: '存为套装', placeholder: '例如 周末出门' });
+    if (name == null) return;
+    const o = closet.outfitFromToday(owner, name);
+    if (o) toast(`已存为套装「${o.name}」`, 'ok');
+  };
+
   const alertText = f => [
     f.low ? `约剩 ${f.low.pct}%，约 ${f.low.daysLeft} 天用完` : '',
     f.exp ? (f.exp.daysLeft < 0 ? '已过期' : `${f.exp.daysLeft} 天后过期`) : '',
@@ -63,7 +72,10 @@ function Home() {
         <div class="cl-strip">
           <div class="cl-strip-head">
             <b>${owner === closet.ME ? '今天穿的' : `${who}今天穿的`}</b>
-            <button class="nav-text press" onClick=${() => setPicking(true)}>选择</button>
+            <span class="cl-strip-acts">
+              ${today.length ? html`<button class="nav-text press" onClick=${saveToday}>存为套装</button>` : null}
+              <button class="nav-text press" onClick=${() => setPicking(true)}>选择</button>
+            </span>
           </div>
           ${today.length ? html`
             <div class="cl-strip-row">
@@ -83,6 +95,20 @@ function Home() {
               <span class="ellipsis">${item.name}</span><em>${alertText(f)}</em>
             </button>`)}
         </div>` : null}
+
+      ${side === 'wear' ? html`
+        <button class="cl-unsorted press" onClick=${() => nav.push('/outfits')}>
+          <${Icon} name="layers" size=${18}/>
+          <span>${outfits.length ? `套装 ${outfits.length} 套` : '套装'}</span>
+          <em>${outfits.length ? '查看套装，或选择今天穿哪一套' : '把几件单品存成一套'}</em>
+        </button>` : null}
+
+      ${owner !== closet.ME ? html`
+        <button class="cl-unsorted press" onClick=${() => nav.push('/generate')}>
+          <${Icon} name="sparkle" size=${18}/>
+          <span>按角色设定生成</span>
+          <em>调用 1 次接口，只生成文字</em>
+        </button>` : null}
 
       ${unsorted.length ? html`
         <button class="cl-unsorted press" onClick=${() => nav.push('/unsorted')}>
@@ -135,6 +161,12 @@ export default function ClosetApp({ route }) {
   if (g) return html`<${GroupPage} groupId=${g[1]}/>`;
   const it = route?.match(/^\/item\/(.+)$/);
   if (it) return html`<${ItemPage} id=${it[1]}/>`;
+  if (route === '/outfits') return html`<${OutfitsPage}/>`;
+  if (route === '/generate') return html`<${GeneratePage}/>`;
+  const of = route?.match(/^\/outfit\/(.+)$/);
+  if (of) return html`<${OutfitPage} id=${of[1]}/>`;
+  const card = route?.match(/^\/fit\/(.+)$/);
+  if (card) return html`<${FromCard} msgId=${card[1]}/>`;
   const gift = route?.match(/^\/gift\/(.+)$/);
   if (gift) return html`<${FromGift} msgId=${gift[1]}/>`;
   return html`<${Home}/>`;

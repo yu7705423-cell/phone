@@ -599,6 +599,14 @@ To give the other party a badge, write a line on its own,
 The name is at most 24 characters; the reason may be left out.
 The badge is kept in their collection with your name and the date.`,
 
+  'skeleton.outfit':
+`[搭配]
+To put together an outfit from their wardrobe, write a line on its own,
+[搭配：outfit name | item、item、item], for example [搭配：周末出门 | 白色针织衫、牛仔裤、帆布鞋].
+Items are matched by name against their wardrobe in [衣帽间]; copy the names as listed there.
+A name not found in the wardrobe shows on the card as unmatched.
+They receive it as a card and may save it as an outfit.`,
+
   'skeleton.letter':
 `[写信]
 When something is better written down than said, write a line on its own,
@@ -1662,6 +1670,36 @@ Output JSON only:
 {"group":"a category id from the list","sub":"one subcategory name from that category, copied exactly","name":"a short name for the item","colors":["colour ids"],"seasons":["season ids, clothing only"],"occasions":["occasion ids, clothing only"],"shade":"the shade name for makeup, otherwise empty","desc":"one or two sentences on material, cut, colour and details"}
 
 Write "name" and "desc" in the same language as the category names above.`,
+
+  // 衣帽间：按角色设定生成该角色衣帽间里的一批东西（ai/tasks/closet.js 的 wardrobe）
+  'task.closet-wardrobe':
+`You are the author of {{charName}}'s settings. List {{count}} items this
+character owns, for the {{sideName}} section of their wardrobe record.
+
+## Who the character is
+{{charPersona}}
+
+## Already recorded. Do not repeat these
+{{existing}}
+
+## Categories (id: name — subcategories)
+{{groups}}
+
+Colour ids: {{colors}}
+Season ids: {{seasons}}
+Occasion ids: {{occasions}}
+
+## Requirements
+- Every item belongs to one category id from the list, and "sub" is one
+  subcategory name from that category, copied exactly
+- "name" is a short name for the item; "desc" is one or two sentences on
+  material, cut, colour and details
+- "shade" is the shade name for makeup, otherwise empty
+- No two items may share a name
+- Write "name" and "desc" in the same language as the settings above
+
+## Output JSON only, with no other text
+{"items":[{"group":"","sub":"","name":"","desc":"","colors":[],"seasons":[],"occasions":[],"shade":""}]}`,
 
   // 衣帽间：按描述画一件东西（ai/tasks/closet.js）
   'task.closet-image':

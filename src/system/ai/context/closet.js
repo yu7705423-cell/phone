@@ -10,16 +10,17 @@ import { dateKey } from '../../health.js';
 //   清单         **只在聊到穿搭、化妆的时候带**。按大类分行，每类几件在「用量与上限」里改
 //   快用完、快过期  低频：一件东西只在第一次递出去的那一天出现，之后隔冷却期（默认 30 天）
 //                才再出现一次（closet.takeAlerts）。频率是代码管的，不靠提示词去劝
+//   好久没穿     同样低频：一次一件，两次之间至少隔几天（closet.takeIdle，ARCHITECTURE 4.214）
 //
 // 带不带清单用一份本地词表认（「穿、搭配、口红……」），和能力目录的冷热同一个做法，不花钱
 
 export const meta = {
   id: 'closet',
   label: '衣帽间',
-  desc: '对方与角色今天穿的；聊到穿搭、化妆时带上衣帽间的清单；快用完或快过期的东西隔一段时间出现一次',
+  desc: '对方与角色今天穿的；聊到穿搭、化妆时带上衣帽间的清单；快用完、快过期与好久没穿的东西隔一段时间出现一次',
 };
 
-const WEAR_TOPIC = /穿|搭配|衣服|裙|裤|鞋|包包|外套|打扮|出门|约会|首饰|项链|耳环|耳饰|戒指|手链|帽子|围巾|outfit|wear|dress/i;
+const { WEAR_TOPIC } = closet;
 const BEAUTY_TOPIC = /化妆|妆|口红|唇|粉底|眼影|腮红|香水|护肤|面膜|防晒|makeup|lipstick|perfume/i;
 
 // 这一轮在聊什么：最近几条我说的话
@@ -87,6 +88,14 @@ export function build({ char, persona, messages, settings: s } = {}) {
 
   const alerts = closet.takeAlerts(pid);
   if (alerts.length) out.push(`## On ${user}'s dressing table`, ...alerts.map(x => alertLine(x.item, x.f)));
+
+  // 好久没穿：一次一件，两次之间隔几天，同一件一段闲置只递一次（closet.takeIdle）
+  const idle = closet.takeIdle(pid);
+  if (idle) {
+    const days = Math.floor((idle.idleAt - idle.lastWorn) / 86400000);
+    out.push(`## ${user} has not worn this for a while`,
+      `- ${idle.name}${tagsOf(idle) ? ` (${tagsOf(idle)})` : ''}: last worn ${dateKey(idle.lastWorn)}, ${days} days ago`);
+  }
 
   if (!out.length) return '';
   return `\n\n[衣帽间]\n${out.join('\n')}\n`

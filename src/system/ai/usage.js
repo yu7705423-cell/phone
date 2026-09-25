@@ -57,6 +57,7 @@ export const TASKS = {
   'health.day':          { label: '角色身体状态', auto: true },
   'recipe.batch':        { label: '生成食谱' },
   'shelf.batch':         { label: '生成书架' },
+  'closet.wardrobe':     { label: '生成角色衣帽间' },
   'shelf.impression':    { label: '书架读后感' },
   'trip.plan':           { label: '出行行程' },
   'trip.tickets':        { label: '出行找票' },

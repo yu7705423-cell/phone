@@ -1,19 +1,20 @@
-// 衣帽间里要调接口的那两样：识图、按描述生图。**都是用户点了才调**，一件一次，
-// 按钮上写着要调几次（第 13、15 条）。见 ARCHITECTURE 4.213
-import { closet } from '../../db/index.js';
+// 衣帽间里要调接口的那三样：识图、按描述生图、按角色设定生成一批。**都是用户点了才调**，
+// 按钮上写着要调几次（第 13、15 条）。见 ARCHITECTURE 4.213、4.214
+import { closet, characters } from '../../db/index.js';
 import { template, fillTemplate } from '../templates.js';
 import { ask, isVisionReady } from '../vision.js';
 import { parseJSON } from '../sse.js';
 import { generate, isImageReady } from '../image.js';
 import { images } from '../../db/images.js';
 import { toDataUrl } from '../../audio.js';
-import { subsOf, setImage } from '../../closet.js';
+import { subsOf, setImage, itemsOf, isOutfit, create } from '../../closet.js';
 import { GROUPS, COLORS, SEASONS, OCCASIONS, groupOf } from '../../closet-kinds.js';
+import { runJSONTask } from '../engine.js';
 
 export { isVisionReady, isImageReady };
 
 // 分类表摆给识图模型看。名字是数据，原样给
-const groupLines = () => GROUPS.map(g =>
+const groupLines = (side = '') => GROUPS.filter(g => !side || g.side === side).map(g =>
   `${g.id}: ${g.label} — ${subsOf(g.id).map(s => s.label).join(' / ')}`).join('\n');
 const idList = list => list.map(x => `${x.id} (${x.label})`).join(', ');
 
@@ -85,3 +86,52 @@ export async function draw(id) {
   await setImage(id, new File([blob], 'item.png', { type: blob.type || 'image/png' }));
   return closet.get(id);
 }
+
+// ---- 按角色设定生成一批（第 6 条的例外：结果先列出来看一眼再决定存不存） ----
+
+const str = v => String(v ?? '').trim();
+const norm = s => str(s).replace(/\s+/g, '').toLowerCase();
+
+/**
+ * 按角色设定生成该角色衣帽间里的一批东西。**一次调用**，只有文字；要图再逐件点「生成图片」。
+ * count 由用户填，不设上限（第 13 条）。已经有的同名的不再给
+ */
+export async function wardrobe(charId, { count = 20, side = 'wear' } = {}) {
+  const char = characters.get(charId);
+  if (!char) throw new Error('角色不存在');
+  const n = Math.max(1, Math.round(Number(count)) || 0);
+  const have = itemsOf(charId).filter(r => !isOutfit(r) && r.side === side);
+  const out = await runJSONTask('closet.wardrobe', {
+    system: fillTemplate(template('task.closet-wardrobe'), {
+      charName: char.name || '该角色',
+      charPersona: [char.persona, char.appearance, char.signature].filter(Boolean).join('\n\n')
+        || '（角色卡里还没有写人设）',
+      count: n,
+      sideName: side === 'beauty' ? 'dressing table (skincare, makeup, fragrance, tools)' : 'clothing and accessories',
+      existing: have.map(r => `- ${r.name}`).join('\n') || '（还是空的）',
+      groups: groupLines(side), colors: idList(COLORS), seasons: idList(SEASONS), occasions: idList(OCCASIONS),
+    }),
+    key: `closet-wardrobe:${charId}:${Date.now()}`,
+    maxTokens: 300 + n * 110,
+  });
+  const seen = new Set(have.map(r => norm(r.name)));
+  const rows = Array.isArray(out?.items) ? out.items : [];
+  return rows.map(x => {
+    const g = groupOf(str(x?.group));
+    if (!g || g.side !== side) return null;
+    const sub = subsOf(g.id).find(s => s.label === str(x?.sub));
+    const name = str(x?.name).slice(0, 40);
+    if (!name || seen.has(norm(name))) return null;
+    seen.add(norm(name));
+    return {
+      group: g.id, side: g.side, sub: sub ? sub.label : '', name,
+      desc: str(x?.desc).slice(0, 300), shade: side === 'beauty' ? str(x?.shade).slice(0, 30) : '',
+      colors: pick(x?.colors, COLORS),
+      seasons: side === 'wear' ? pick(x?.seasons, SEASONS) : [],
+      occasions: side === 'wear' ? pick(x?.occasions, OCCASIONS) : [],
+    };
+  }).filter(Boolean);
+}
+
+/** 勾选的那几件放进该角色的衣帽间。返回放进去的 */
+export const keepWardrobe = (charId, rows) => rows.map(r => create({ ...r, owner: charId }));

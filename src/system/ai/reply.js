@@ -37,12 +37,13 @@ import * as request from '../request.js';
 import * as theirs from '../theirs.js';
 import { cropKept } from './tasks/phone.js';
 import * as mcpTools from '../mcptools.js';
+import * as closetLib from '../closet.js';
 
 // 角色回复里可以带这几种标记，由模型自己决定什么时候用。
 // 中英文冒号都认，方括号也认全角。
 // 「约定完成」必须排在「约定」前面 —— 交替是从左往右试的，反过来写
 // 「约定完成：早点睡」会先被「约定」吃掉，剩下「完成：早点睡」当成内容。
-const MARK = /[[【]\s*(图片|照片|image|pic|视频|video|语音|voice|audio|表情|sticker|emoji|转账|transfer|位置|定位|location|礼物|gift|点歌|建歌单|加入歌单|分享歌曲|分享音乐|调用|tool|约定完成|约定|pact|信|letter|事项完成|事项取消|心声|换头像|改备注|备注|外卖|请客|代付|申请|亲属卡|旅行|攻略|待办|todo|授予|award)\s*[:：]\s*([^\]】]+)[\]】]/gi;
+const MARK = /[[【]\s*(图片|照片|image|pic|视频|video|语音|voice|audio|表情|sticker|emoji|转账|transfer|位置|定位|location|礼物|gift|点歌|建歌单|加入歌单|分享歌曲|分享音乐|调用|tool|约定完成|约定|pact|信|letter|事项完成|事项取消|心声|换头像|改备注|备注|外卖|请客|代付|申请|亲属卡|旅行|攻略|待办|todo|授予|award|搭配|outfit)\s*[:：]\s*([^\]】]+)[\]】]/gi;
 
 const IMAGE_KINDS = new Set(['图片', '照片', 'image', 'pic']);
 // 「视频通话」那一格叫 video，这里是会话里那一段片子，两回事。
@@ -59,6 +60,7 @@ const PACT_KINDS = new Set(['约定', 'pact']);
 const PACTDONE_KINDS = new Set(['约定完成']);
 const LETTER_KINDS = new Set(['信', 'letter']);
 const AWARD_KINDS = new Set(['授予', 'award']);
+const OUTFIT_KINDS = new Set(['搭配', 'outfit']);
 const ITEM_DONE_KINDS = new Set(['事项完成']);
 const ITEM_DROP_KINDS = new Set(['事项取消']);
 const INNER_KINDS = new Set(['心声']);
@@ -753,6 +755,10 @@ export function splitReply(raw) {
         const title = i < 0 ? '' : body.slice(0, i).trim();
         const text = (i < 0 ? body : body.slice(i + 1)).trim();
         if (text) push({ type: 'letter', title, text });
+      } else if (OUTFIT_KINDS.has(kind)) {
+        // 竖线前是这一套的名字，后面是几件单品。一件都没有就整条丢掉
+        const o = closetLib.parseOutfit(body);
+        if (o) push({ type: 'outfit', ...o });
       } else if (GIFT_KINDS.has(kind)) {
         const g = gift.parse(body);
         if (g) push({ type: 'gift', ...g });
@@ -1225,6 +1231,14 @@ export function materialize(part, base, char) {
     badges.addAward(base.chatId, { name, reason: part.reason, by: base.authorId, to: 'me', msgId: msg.id });
     return msg;
   }
+  if (part.type === 'outfit') {
+    // 角色替你搭的一套，从你的衣帽间里挑。群里不接：搭给谁说不清
+    if (base.role !== 'char' || (chats.get(base.chatId)?.characterIds || []).length > 1) return null;
+    return closetLib.postOutfit({
+      chatId: base.chatId, role: base.role, authorId: base.authorId,
+      name: part.name, names: part.names, extra: row,
+    });
+  }
   if (part.type === 'letter') {
     return space.sendLetter({
       chatId: base.chatId, role: base.role, authorId: base.authorId,
@@ -1286,7 +1300,7 @@ const BODY_OF = {
   location: '[位置]', call: '[通话]', listen: '[一起听]', watch: '[一起看]',
   takeout: '[外卖]', request: '[申请]', share: '[分享]', dice: '[骰子]', song: '[分享歌曲]', tool: '[调用工具]',
   trip: '[旅行]',
-  pact: '[约定]', letter: '[信]', vote: '[投票]',
+  pact: '[约定]', letter: '[信]', vote: '[投票]', outfit: '[搭配]',
 };
 const bodyOf = m => (m.kind === 'text' ? m.content : BODY_OF[m.kind]) || '发来一条消息';
 
