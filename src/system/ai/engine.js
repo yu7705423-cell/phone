@@ -57,9 +57,51 @@ function send(taskId, c, payload, kind = 'complete') {
     stream: kind === 'stream',
   });
   noteCall(taskId);
-  return provider[kind](cfg, payload)
-    .then(text => { t.done(text); return text; })
-    .catch(err => { t.fail(err); throw err; });
+  const hid = watchHidden();
+  let got = 0;
+  const onDelta = payload.onDelta;
+  const sent = onDelta ? { ...payload, onDelta: (piece, all) => { got = all.length; onDelta(piece, all); } } : payload;
+  return provider[kind](cfg, sent)
+    .then(text => { hid.stop(); t.done(text); return text; })
+    .catch(err => { const away = hid.stop(); t.fail(err); throw explainDrop(err, { away, got }); });
+}
+
+// ---- 连接中途断开 ----
+//
+// 用户报：「有的时候回复无法调用 api，会显示断开了连接」。浏览器在连接断掉时只给一句笼统的原话
+//（Safari 是 Load failed / 网络连接已中断，Chrome 是 Failed to fetch / network error），
+// 原样摆在气泡上，看不出是哪一种原因，也不知道这一次有没有扣费。
+//
+// 最常见的原因是**生成期间切到了后台或锁了屏**：iPhone 上系统会直接掐断这个页面的网络连接。
+// 其次是网络在 Wi-Fi 与流量之间切换、中转站自己超时断开。
+// 这里认出这一类，换成说得清楚的一句，原话留在括号里；请求期间页面进过后台就明说。
+// **断在回复中途的，对方多半已经在生成、已经计费**，也写明（用户花的每一分钱都要知情）。
+
+const DROP = /load failed|failed to fetch|network ?error|network connection was lost|网络连接已中断|连接已中断|net::err|err_(connection|network|internet)|econnreset|socket hang up|terminated|the operation couldn.t be completed|networkerror/i;
+
+function watchHidden() {
+  if (typeof document === 'undefined') return { stop: () => false };
+  let away = document.visibilityState !== 'visible';
+  const on = () => { if (document.visibilityState !== 'visible') away = true; };
+  document.addEventListener('visibilitychange', on);
+  return { stop: () => { document.removeEventListener('visibilitychange', on); return away; } };
+}
+
+export function explainDrop(err, { away = false, got = 0 } = {}) {
+  if (!err || isAbort(err) || err.status || err.dropped) return err;
+  const raw = String(err.message || err);
+  if (!(err instanceof TypeError) && !DROP.test(raw)) return err;
+  const why = away
+    ? '生成期间应用切到了后台或锁屏，系统断开了网络连接。生成完成之前请保持应用在前台'
+    : '常见原因：网络在 Wi-Fi 与移动数据之间切换、信号不稳定，或中转站超时断开';
+  const paid = got
+    ? `断开时已经收到 ${got} 字，这一次已经计费。`
+    : '如果对方已经开始生成，这一次可能已经计费。';
+  const out = new Error(`与接口的连接在回复完成之前断开。${why}。${paid}（原始错误：${raw}）`);
+  out.dropped = true;
+  out.away = away;
+  out.cause = err;
+  return out;
 }
 
 export { template };
