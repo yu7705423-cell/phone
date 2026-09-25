@@ -952,6 +952,11 @@ To rename them, write a line on its own, [备注：the new name]. The new name
 replaces the old one, and the other party is shown that you changed it.
 In the other party's contacts you are saved as: {{mine}}.`,
 
+  // 最后说话的是角色、对方没再开口时补在对话末尾（engine.withFollowUp）
+  'skeleton.follow-up':
+`(No new message from the other party. They have not replied since your last
+messages above; what you write now is sent after those messages.)`,
+
   'skeleton.recall':
 `[撤回]
 To withdraw a message you have sent, write a line on its own, [撤回], directly

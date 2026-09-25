@@ -50,6 +50,7 @@ const LABELS = {
   'task.inner': '任务 · 心声（单独生成）',
   'skeleton.pat': '骨架 · 拍一拍',
   'skeleton.remark': '骨架 · 改备注',
+  'skeleton.follow-up': '骨架 · 对方未回复时接着说',
   'skeleton.recall': '骨架 · 撤回',
   'skeleton.recall-post': '骨架 · 撤回动态',
   'skeleton.dice': '骨架 · 骰子',

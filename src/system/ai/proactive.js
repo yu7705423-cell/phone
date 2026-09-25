@@ -1,7 +1,7 @@
 import { chats, characters, messages as messagesDb, settings } from '../db/index.js';
 import * as accounts from '../accounts.js';
 
-import { template, buildChatSystem, isConfigured, isReplying, runTextTask, queryVecFor,
+import { template, buildChatSystem, buildHistory, mergeAdjacent, isConfigured, isReplying, runTextTask, queryVecFor,
   streamGroupReply } from './engine.js';
 import * as group from '../group.js';
 import * as groupTurn from './group.js';
@@ -186,18 +186,25 @@ export async function sendProactive(chatId, charId, { mood = false } = {}) {
     .sort((a, b) => a.createdAt - b.createdAt);
   const last = msgs[msgs.length - 1];
 
-  // 主动发起也不走 buildHistory，下沉的那几块要接回来 —— 少了它，角色就
-  // 不知道现在几点、今天排了什么，而这一条恰恰是挑时间发的
+  // **带着聊天记录发。** 从前这里只有设定区加一句「这次由你开口」，一条消息都不给：
+  // 角色不知道刚才聊到哪儿，也不知道自己上一次主动发过什么，于是每次都像第一次开口，
+  // 同一句问候隔几个小时再发一遍。现在和平时回复一样走 buildHistory，
+  // 条数、字数上限照「用量与上限」那几项（仍是一次调用，只是这一次带的字多了）。
+  // 每轮都变的那几块（现在几点、今天排了什么）照旧插到对话末尾
   const { system, volatile: hot } = buildChatSystem(chat, char, msgs, { queryVec: await queryVecFor(msgs) });
   const instruction = fillTemplate(template(mood ? 'task.emo' : 'task.proactive'), {
     charName: char.name || '你',
     time: new Date().toLocaleString('zh-CN', { hour12: false }),
     gap: gapText(last ? Date.now() - last.createdAt : 0),
   });
+  const history = mergeAdjacent([
+    ...buildHistory(chat, char, msgs, { volatile: hot }),
+    { role: 'user', content: '(No new messages. You are the one opening this time.)' },
+  ]);
 
   const raw = await runTextTask('chat.proactive', {
-    system: [system, hot, instruction].filter(Boolean).join('\n\n'),
-    user: '(No new messages. You are the one opening this time.)',
+    system: [system, instruction].filter(Boolean).join('\n\n'),
+    messages: history,
     key: `${mood ? 'emo' : 'proactive'}:${chat.id}:${char.id}`,
     maxTokens: 800,
   });

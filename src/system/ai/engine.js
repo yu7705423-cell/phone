@@ -404,6 +404,21 @@ function songLyricOf(m, s) {
   return lyricBlock(m, { on: s.songLyric !== false, lines: Number(s.songLyricLines) || 0 });
 }
 
+/**
+ * 最后说话的是角色：末尾补一行「对方还没回」。
+ *
+ * 不补的话，请求以角色自己的几句收尾，前面最近的一条 user 还是上一轮那句。
+ * 模型就当作还在回那一句，把上一轮换个说法再说一遍 —— 人看到的是「点了回复，
+ * 它把刚才的话又说了一遍」。有的接口还会把收尾的 assistant 当成要续写的半句。
+ * 只陈述事实：对方没回，这一轮排在那几句后面（第 16 条）。
+ */
+export function withFollowUp(list) {
+  let i = list.length - 1;
+  while (i >= 0 && list[i].role === 'system') i--;
+  if (i < 0 || list[i].role !== 'assistant') return list;
+  return [...list, { role: 'user', content: template('skeleton.follow-up') }];
+}
+
 // 历史消息转 API 格式。群聊时给非本人的发言加上说话人前缀。
 export function buildHistory(chat, char, msgs, opts = {}) {
   const s = settings.get();
@@ -975,7 +990,7 @@ export function streamReply({ chat, char, onDelta }) {
     });
     // 先拼 system：每轮都变的那几块由它挑出来，交给 buildHistory 插到对话末尾
     const { system, volatile: hot } = buildChatSystem(chat, char, msgs, { queryVec, lore, recall });
-    const history = buildHistory(chat, char, msgs, { images: pics, lore, recall, volatile: hot });
+    const history = withFollowUp(buildHistory(chat, char, msgs, { images: pics, lore, recall, volatile: hot }));
     // 流式 / 一次返回。流式能看见字一个个出来，但**自检那一段也是流式吐的**，
     // 剥掉之后前面几秒气泡是空的，看着像卡住。一次返回则是等齐了整段才出现，
     // 中间只有「正在输入」。两种都有人要，所以给开关。
@@ -1150,11 +1165,13 @@ export function streamGroupReply({ chat, onDelta, opening = '' }) {
       }));
     }
     const { system, volatile: hot, lore } = buildGroupSystem(chat, members, msgs, { queryVec, recalls });
-    const history = buildGroupHistory(chat, members, msgs, {
+    let history = buildGroupHistory(chat, members, msgs, {
       images: pics, lore, volatile: [hot, opening].filter(Boolean).join('\n\n'),
       mentions: opening ? [] : group.pendingMentions(msgs),
     });
+    // 群里同一回事：最后说话的是成员、我没再开口，就写明「对方还没回」（见 withFollowUp）
     if (opening) history.push({ role: 'user', content: '(No new messages. The members are the ones opening this time.)' });
+    else history = withFollowUp(history);
     const oneShot = s0.streamMode === 'once';
     const text = await runWith('chat.reply', c => send('chat.reply', c,
       { system, messages: history, maxTokens: c.maxTokens, signal, onDelta: oneShot ? undefined : onDelta },
@@ -1225,12 +1242,14 @@ export async function runJSONTask(taskId, { system, user, key, maxTokens = 1400 
 }
 
 // image 是 { dataUrl, mediaType }，各 provider 自己转成内容块。
-export async function runTextTask(taskId, { system, user, key, image, maxTokens = 900 }) {
+// messages 给了就用它（带着聊天记录的那几种任务，比如主动发起），没给就是一条 user
+export async function runTextTask(taskId, { system, user, messages, key, image, maxTokens = 900 }) {
   const run = runnerFor(taskId);
   const msg = { role: 'user', content: user || 'Produce the output as instructed.' };
   if (image) msg.image = image;
+  const list = messages && messages.length ? messages : [msg];
   return enqueue(key || `task:${taskId}:${Date.now()}`, signal =>
-    run(c => send(taskId, c, { system, messages: [msg], maxTokens, signal })), { retries: 1 });
+    run(c => send(taskId, c, { system, messages: list, maxTokens, signal })), { retries: 1 });
 }
 
 // 指定一个预设跑一次结构化任务。会联网搜索的那套接口走这条路 ——
