@@ -602,6 +602,16 @@ To give the other party a badge, write a line on its own,
 The name is at most 24 characters; the reason may be left out.
 The badge is kept in their collection with your name and the date.`,
 
+  'skeleton.narration':
+`[旁白]
+A line on its own, [旁白：text], is shown between the messages as narration: a
+separate line in a smaller font, not a message from you. Narration is written in
+the third person and describes what can be observed at this moment, such as
+expression, movement or surroundings. A reply may contain several narration
+lines, each on its own line and each shown where it is written; one line may
+hold more than one sentence. Narration lines do not count toward the number of
+messages in the reply.`,
+
   'skeleton.outfit':
 `[搭配]
 To put together an outfit from their wardrobe, write a line on its own,

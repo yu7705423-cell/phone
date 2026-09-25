@@ -44,7 +44,7 @@ import * as closetStory from '../closet-story.js';
 // 中英文冒号都认，方括号也认全角。
 // 「约定完成」必须排在「约定」前面 —— 交替是从左往右试的，反过来写
 // 「约定完成：早点睡」会先被「约定」吃掉，剩下「完成：早点睡」当成内容。
-const MARK = /[[【]\s*(图片|照片|image|pic|视频|video|语音|voice|audio|表情|sticker|emoji|转账|transfer|位置|定位|location|礼物|gift|点歌|建歌单|加入歌单|分享歌曲|分享音乐|调用|tool|约定完成|约定|pact|信|letter|事项完成|事项取消|心声|换头像|改备注|备注|外卖|请客|代付|申请|亲属卡|旅行|攻略|待办|todo|授予|award|搭配|outfit|换上|借走|借给你|归还)\s*[:：]\s*([^\]】]+)[\]】]/gi;
+const MARK = /[[【]\s*(图片|照片|image|pic|视频|video|语音|voice|audio|表情|sticker|emoji|转账|transfer|位置|定位|location|礼物|gift|点歌|建歌单|加入歌单|分享歌曲|分享音乐|调用|tool|约定完成|约定|pact|信|letter|事项完成|事项取消|心声|换头像|改备注|备注|外卖|请客|代付|申请|亲属卡|旅行|攻略|待办|todo|授予|award|搭配|outfit|换上|借走|借给你|归还|旁白|narration)\s*[:：]\s*([^\]】]+)[\]】]/gi;
 
 const IMAGE_KINDS = new Set(['图片', '照片', 'image', 'pic']);
 // 「视频通话」那一格叫 video，这里是会话里那一段片子，两回事。
@@ -62,6 +62,7 @@ const PACTDONE_KINDS = new Set(['约定完成']);
 const LETTER_KINDS = new Set(['信', 'letter']);
 const AWARD_KINDS = new Set(['授予', 'award']);
 const OUTFIT_KINDS = new Set(['搭配', 'outfit']);
+const NARRATION_KINDS = new Set(['旁白', 'narration']);
 // 剧情里的衣帽间：换上、借走、借给你、归还（system/closet-story.js，ARCHITECTURE 4.217）
 const CLOSET_ACT_KINDS = new Set(['换上', '借走', '借给你', '归还']);
 const ITEM_DONE_KINDS = new Set(['事项完成']);
@@ -758,6 +759,8 @@ export function splitReply(raw) {
         const title = i < 0 ? '' : body.slice(0, i).trim();
         const text = (i < 0 ? body : body.slice(i + 1)).trim();
         if (text) push({ type: 'letter', title, text });
+      } else if (NARRATION_KINDS.has(kind)) {
+        push({ type: 'narration', text: body });
       } else if (CLOSET_ACT_KINDS.has(kind)) {
         push({ type: 'closetact', kind, name: body });
       } else if (OUTFIT_KINDS.has(kind)) {
@@ -1266,6 +1269,10 @@ export function materialize(part, base, char) {
     badges.addAward(base.chatId, { name, reason: part.reason, by: base.authorId, to: 'me', msgId: msg.id });
     return msg;
   }
+  if (part.type === 'narration') {
+    // 旁白：一行夹在消息中间的小字（ARCHITECTURE 4.221）。正文照原样留着标记，历史里角色读到的就是它
+    return messages.create({ ...row, kind: 'narration', content: `[旁白：${part.text}]`, narration: part.text });
+  }
   if (part.type === 'closetact') {
     // 认得出是哪一件才做，并落一行提示（历史里角色也读得到）。认不出就当没写过。
     // 改之前的样子记在提示上：重新生成那一轮、删掉这一行时照着改回去（dropMessage）
@@ -1342,14 +1349,15 @@ const BODY_OF = {
   location: '[位置]', call: '[通话]', listen: '[一起听]', watch: '[一起看]',
   takeout: '[外卖]', request: '[申请]', share: '[分享]', dice: '[骰子]', song: '[分享歌曲]', tool: '[调用工具]',
   trip: '[旅行]',
-  pact: '[约定]', letter: '[信]', vote: '[投票]', outfit: '[搭配]', groom: '[动作]', dresscode: '[穿搭盲盒]', slip: '[包里多了一样东西]',
+  pact: '[约定]', letter: '[信]', vote: '[投票]', outfit: '[搭配]', groom: '[动作]', dresscode: '[穿搭盲盒]', slip: '[包里多了一样东西]', narration: '[旁白]',
 };
 const bodyOf = m => (m.kind === 'text' ? m.content : BODY_OF[m.kind]) || '发来一条消息';
 
 // 一条消息一条通知，不是一轮一条。由 renderTurn 在每条气泡落下的那一刻调，
 // 和气泡的节奏一致，而不是整轮说完之后一口气补三条。
 export function notifyMessage(chat, char, msg) {
-  if (!msg || !shouldNotify(chat.id)) return;
+  // 旁白不是谁发来的消息，不弹通知
+  if (!msg || msg.kind === 'narration' || !shouldNotify(chat.id)) return;
   // 群聊：标题是群名，谁说的写在正文前面
   const inGroup = group.isGroup(chat);
   notify({

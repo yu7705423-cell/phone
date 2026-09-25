@@ -52,12 +52,14 @@ export function lookOf(chat) {
     split: !!l.split,
     top,
     bottom: l.split ? barOf(l.bottom) : top,
+    // 旁白的文字颜色（ARCHITECTURE 4.221）。空串是默认那种灰
+    narr: typeof l.narr === 'string' && /^#[0-9a-fA-F]{6}$/.test(l.narr) ? l.narr : '',
   };
 }
 
 /** 这一栏动过没有。实色、跟随主题、跟随字色 —— 就是应用本来的样子 */
 export const barSet = b => b.style !== 'solid' || !!b.color || !!b.fg;
-export const isSet = chat => { const l = lookOf(chat); return !!l.bg || barSet(l.top) || barSet(l.bottom); };
+export const isSet = chat => { const l = lookOf(chat); return !!l.bg || barSet(l.top) || barSet(l.bottom) || !!l.narr; };
 
 /** 改一部分。top / bottom 按项合并 */
 export function setLook(chatId, patch) {
@@ -131,6 +133,7 @@ export function pageOf(chat, bgUrl) {
     if (b.style !== 'solid') cls.push(`float-${side}`);
     vars.push(...barVars(b, side));
   }
+  if (l.narr) vars.push(`--ph-narration-color:${l.narr}`);
   // 网页自己画状态栏的时候（安卓全屏、安卓安装包、电脑），状态栏那一行在 .page 外面，
   // 读不到上面这几个变量。顶栏换了颜色，那一行给同一个颜色，不然顶上一条白的
   const status = barSet(l.top) ? (l.top.color || '') : '';

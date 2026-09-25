@@ -1,6 +1,6 @@
 import { html } from '../../../lib.js';
 import { phone, useStore } from '../../../sdk/index.js';
-import { Page, List, ListItem, Field, Input, Segmented, Icon, EmptyState } from '../../../ui/index.js';
+import { Page, List, ListItem, Field, Input, Segmented, Icon, EmptyState, Switch } from '../../../ui/index.js';
 
 const { db, nav, extras } = phone;
 
@@ -40,6 +40,13 @@ export function ExtrasPage({ chatId }) {
 
   return html`
     <${Page} title="互动" onBack=${nav.pop}>
+      <${List} title="旁白">
+        <${ListItem} title="开启旁白" multiline
+          subtitle="开启后，角色可以在消息之间写一行旁白，描写此刻的神态、动作与环境，显示为居中的一行小字，不算作一条消息。不额外调用接口。颜色可在「聊天背景」中修改"
+          right=${html`<${Switch} checked=${extras.narrationOn(chat)}
+            onChange=${v => extras.setNarration(chatId, v)}/>`}/>
+      <//>
+
       <${List} title="心声"/>
       <div class="pad-x pad-b">
         <${Field} label="怎么产出" desc=${MODE_DESC}>

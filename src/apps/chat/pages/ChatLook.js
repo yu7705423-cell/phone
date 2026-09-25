@@ -28,10 +28,10 @@ function Cell({ photo, onPick }) {
     </button>`;
 }
 
-function Colors({ value, onChange }) {
+function Colors({ value, onChange, cls = '' }) {
   const custom = value && !look.COLORS.includes(value);
   return html`
-    <div class="look-colors">
+    <div class=${`look-colors${cls ? ` ${cls}` : ''}`}>
       ${look.COLORS.map(c => html`
         <button key=${c || 'theme'} aria-label=${c || '跟随主题'}
           class=${`look-color press${c ? '' : ' is-theme'}${value === c ? ' is-on' : ''}`}
@@ -127,6 +127,14 @@ export function ChatLookSheet({ chatId, onClose }) {
         数值越大，气泡外的文字越清晰。
       </div>
       <input type="file" accept="image/*" ref=${fileRef} onChange=${pickFile} style="display:none"/>
+
+      <${List} title="旁白文字颜色">
+        <${Colors} cls="is-narr" value=${l.narr} onChange=${v => look.setLook(chatId, { narr: v })}/>
+      <//>
+      <div class="settings-foot">
+        旁白是消息之间居中的那一行小字，在「互动」中开启。选「跟随主题」为默认的灰色；
+        背景较深或较花时，可以换成更醒目的颜色。
+      </div>
 
       <${List}>
         <${ListItem} title="上下栏分开设置" multiline

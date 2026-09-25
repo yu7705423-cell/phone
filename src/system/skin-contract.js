@@ -113,6 +113,7 @@ export const HOOKS = [
     note: '拆开之后另带内部类名 is-done' },
   { hook: 'outfit', label: '搭配卡片', on: ['chat'], since: 2, needs: '会话中出现衣帽间的搭配',
     note: '自己发的另带内部类名 is-mine；穿搭盲盒里未揭晓的另带 is-sealed' },
+  { hook: 'narration', label: '旁白那一行', on: ['chat'], since: 2, needs: '会话的「互动」里开启旁白，并且角色写了旁白' },
   { hook: 'groom', label: '衣帽间的动作卡片', on: ['chat'], since: 2, needs: '在衣帽间单品页选择「在会话中使用」',
     note: '自己发的另带内部类名 is-mine' },
   { hook: 'slip', label: '包里多出来的东西', on: ['chat'], since: 2, needs: '线下剧情中角色往你包里放了东西，并已收场',
@@ -208,6 +209,8 @@ export const VARS = [
   // 但同一段会话里用户自己设了的那一项以用户的为准
   { name: 'ph-chat-bg', label: '聊天背景图', unit: '', def: 'none', on: ['chat'], since: 2,
     note: '写 url(...)。只在页面带 .has-chat-bg 时画' },
+  { name: 'ph-narration-color', label: '旁白文字颜色', unit: '', def: 'var(--text-3)', on: ['chat'], since: 2,
+    note: '会话「聊天背景」里选了颜色时由应用写上' },
   { name: 'ph-chat-veil', label: '背景遮罩', unit: '', def: '0%', on: ['chat'], since: 2,
     note: '朝主题底色淡过去的比例，写百分数' },
   { name: 'ph-bar-top', label: '顶栏底色', unit: '', def: 'var(--bg)', on: ['chat'], since: 2,

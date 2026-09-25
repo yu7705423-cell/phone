@@ -278,6 +278,12 @@ export const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, o
   if (msg.kind === 'notice') {
     return html`<div id=${`msg-${msg.id}`}><${NoticeLine} msg=${msg}/></div>`;
   }
+  // 旁白：夹在消息中间的一行小字，没有头像、没有气泡（ARCHITECTURE 4.221）。
+  // 颜色走 --ph-narration-color，会话「聊天背景」里可以改
+  if (msg.kind === 'narration') {
+    const text = msg.narration || String(msg.content || '').replace(/^[[【]\s*旁白\s*[:：]\s*|[\]】]$/g, '');
+    return html`<div id=${`msg-${msg.id}`} class="msg-narration ph-narration">${text}</div>`;
+  }
 
   // 线下那一整场挂在这一条上。不把段落混进消息列表 —— 分页、多选、引用、
   // 搜索全按「一条消息」算，混流要各改一遍（见 ARCHITECTURE 4.110）

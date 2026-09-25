@@ -8682,3 +8682,19 @@ IndexedDB 与 localStorage：测试版的数据迁移会改掉正式数据，`DB
 **换网址时要做的**：新域名的 Cloudflare Pages 项目连 `release`；`site.js` 填好 `moveFrom` / `moveTo`；
 账号服务与网易云转发也绑到新域名的子域名上（`workers.dev` 在大陆常连不上），改 `site.js` 的 `accounts` / `neteaseWorker`。
 测试版仍在 `*.pages.dev`，不能和正式版同一个域名（CLAUDE.md 第 19 条）。
+
+### 4.221 线上旁白
+
+会话「互动」里的开关（`chat.narration`，`extras.narrationOn` / `setNarration`），每段会话单独，默认关。
+开着时能力 `narration` 常驻（它是这一段会话的写法，不是想用再用的功能），细则 `skeleton.narration`
+只说格式：单独一行 `[旁白：…]` 显示为消息之间的旁白，第三人称写此刻看得见的神态、动作、环境；一次回复可以
+有好几行，各自落在写它的位置，一行里可以有几句；旁白不算作回复里的消息条数。写不写、写几行由角色卡决定。
+不多调接口。
+
+`reply.js` 认 `旁白` / `narration`，落一条 `kind: 'narration'`（正文照原样留着标记，历史里角色读到的就是它；
+`narration` 字段存摘掉标记的那一句）。不弹通知；会话列表预览写「[旁白] …」。
+
+会话里画成居中的一行小字（`.msg-narration.ph-narration`），没有头像、没有气泡。颜色走契约变量
+`--ph-narration-color`，默认 `--text-3`；会话「聊天背景」里多一排「旁白文字颜色」（`chat.look.narr`，
+`chatlook.pageOf` 挂到页面上），有聊天背景图时另加一层底色的淡阴影，换了壁纸也读得清。
+测试 `tests/narration.test.mjs`。

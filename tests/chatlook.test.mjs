@@ -92,7 +92,8 @@ ok('毛玻璃：顶栏与输入栏一起换', /look-top/.test(info.cls) && /look
 ok('毛玻璃：顶栏模糊、底色半透明', /blur\(20px\)/.test(info.navBlur) && /rgba?\(.*,\s*0\.[0-9]+\)|color\(srgb .* \/ 0\.[0-9]+\)/.test(info.navBg), `${info.navBlur} ${info.navBg}`);
 ok('毛玻璃：输入栏同样模糊', /blur\(20px\)/.test(info.barBlur), info.barBlur);
 
-await page.locator('.sheet .look-color[aria-label="#1C1C1E"]').click();
+// 栏的颜色那一排（旁白的颜色另有一排，带 is-narr）
+await page.locator('.sheet .look-colors:not(.is-narr) .look-color[aria-label="#1C1C1E"]').click();
 await page.locator('.sheet .seg-item', { hasText: '浅色' }).click();
 await page.waitForTimeout(300);
 info = await pageInfo();

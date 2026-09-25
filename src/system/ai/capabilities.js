@@ -424,6 +424,14 @@ export const CAPS = [
     detail: ({ char }) => fillTemplate(template('skeleton.recall'), { post: postLine(char) }),
   },
   {
+    // 旁白。会话「互动」里开了才有；开了就常驻：它是这一段会话的写法，不是想用再用的功能
+    id: 'narration',
+    label: '旁白',
+    on: ({ chat }) => extras.narrationOn(chat),
+    always: true,
+    detail: () => template('skeleton.narration'),
+  },
+  {
     id: 'inner',
     label: '心声',
     // 心声是每一轮的义务，不是「想用再用」的功能，冷着注入等于关掉它。

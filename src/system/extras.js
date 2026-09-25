@@ -119,6 +119,12 @@ export const starTitle = (char, title) =>
 // 默认关。见 CLAUDE.md 第 13 条：要花钱的必须能关，而且得说清楚开了多花什么。
 
 export const INNER_OFF = 'off';
+// ---- 旁白（ARCHITECTURE 4.221） ----
+// 这一段会话开不开旁白。开了，角色可以写 [旁白：…]，显示成夹在消息中间的一行小字。
+// 不多调接口，只在提示词里多一段写法（capabilities.js 的 narration）
+export const narrationOn = chat => chat?.narration === true;
+export function setNarration(chatId, on) { chats.update(chatId, { narration: !!on }); }
+
 export const INNER_INLINE = 'inline';
 export const INNER_APART = 'apart';
 

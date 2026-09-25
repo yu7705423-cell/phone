@@ -3314,3 +3314,13 @@ button.conv-notice { background: none; border: 0; font: inherit; cursor: pointer
 .ls-search { padding-bottom: var(--sp-2); }
 .ls-wait { display: flex; justify-content: center; padding: var(--sp-4) 0; }
 .ls-hint { font-size: var(--fs-12); color: var(--text-3); }
+
+/* 线上旁白（Conversation.js，ARCHITECTURE 4.221）。夹在消息中间的一行小字，没有气泡。
+   颜色走 --ph-narration-color（会话「聊天背景」里改，美化作者也可以写）；
+   有聊天背景图时加一层淡阴影，换了壁纸也读得清 */
+.msg-narration {
+  max-width: 86%; margin: var(--sp-2) auto; padding: 0 var(--sp-2);
+  text-align: center; font-size: var(--fs-13); line-height: 1.65; white-space: pre-wrap;
+  color: var(--ph-narration-color, var(--text-3));
+}
+.has-chat-bg .msg-narration { text-shadow: 0 0 6px var(--bg), 0 0 2px var(--bg); }
