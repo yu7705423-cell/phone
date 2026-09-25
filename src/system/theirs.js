@@ -216,6 +216,53 @@ export const isOpen = charId => opened.has(charId);
 export const open = charId => opened.add(charId);
 export const relock = charId => opened.delete(charId);
 
+// ---- 角色自己改密码（ARCHITECTURE 4.222） ----
+//
+// 角色在聊天里写 [改密码：数字｜这串数字是什么]，锁屏就换成新的，手机重新锁上。
+// **不要太频繁，这件事由代码管，不靠提示词劝**：离上一次改不满 lockGapDays 天（默认 30），
+// 这项能力整个不给（capabilities.js 的 lockcode），除非这一轮刚聊到密码 ——
+// 「你怎么没改成我的生日」这种时候照样能改。
+
+const DAY = 86400000;
+export const LOCK_GAP = 30;
+export const lockGap = char => Math.max(0, Math.round(Number(char?.lockGapDays ?? LOCK_GAP) || 0));
+
+/** 最近几句我说的话里提到了密码（「你怎么没改成我的生日」这种不带「密码」两个字的也算） */
+export const askedLock = msgs => (msgs || []).filter(m => m.role === 'user').slice(-2)
+  .some(m => /密码|锁屏|解锁|passcode|password|改.{0,6}(生日|纪念日)/i.test(String(m.content || '')));
+
+/** 离上一次改够不够久了（从没改过也算够） */
+export function lockCooled(char, now = Date.now()) {
+  const at = get(char?.id)?.lock?.changedAt || 0;
+  return !at || now - at >= lockGap(char) * DAY;
+}
+
+const dayText = ms => { const d = new Date(ms); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+
+/**
+ * 换成新密码。4 到 6 位数字，和现在的一样就不换。
+ * 返回换之前存着的那一份（撤回时照着放回去）；没换返回 null
+ */
+export function changeLock(charId, { code, why = '' }) {
+  const digits = String(code || '').replace(/\D/g, '');
+  if (digits.length < 4 || digits.length > 6) return null;
+  if (digits === String(lockOf(charId)?.code || '')) return null;
+  const prev = get(charId)?.lock || null;
+  const at = Date.now();
+  set(charId, { lock: {
+    code: digits, why: String(why || '').trim().slice(0, 80), src: 'char', shown: 0, changedAt: at,
+    hints: [`这串密码是 ${dayText(at)} 新换的，一共 ${digits.length} 位。`],
+  } });
+  relock(charId);
+  return { prev };
+}
+
+/** 撤回一次改密码：放回换之前那一份（没存过就回到按角色卡推的那一个） */
+export function restoreLock(charId, prev) {
+  set(charId, { lock: prev || null });
+  relock(charId);
+}
+
 // ---- 备忘录与浏览记录 ----
 //
 // 两样都存在 phones 那一行里，各是一个数组。**追加不覆盖**：

@@ -602,6 +602,14 @@ To give the other party a badge, write a line on its own,
 The name is at most 24 characters; the reason may be left out.
 The badge is kept in their collection with your name and the date.`,
 
+  'skeleton.lockcode':
+`[改密码]
+To change the passcode of your own phone, write a line on its own,
+[改密码：digits｜what the digits are], for example [改密码：0214｜their birthday].
+The passcode is 4 to 6 digits. The part after the vertical bar is kept as the
+answer shown to someone who gives up guessing. They see a notice that the
+passcode changed, not the digits.`,
+
   'skeleton.narration':
 `[旁白]
 A line on its own, [旁白：text], is shown between the messages as narration: a

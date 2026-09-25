@@ -8698,3 +8698,17 @@ IndexedDB 与 localStorage：测试版的数据迁移会改掉正式数据，`DB
 `--ph-narration-color`，默认 `--text-3`；会话「聊天背景」里多一排「旁白文字颜色」（`chat.look.narr`，
 `chatlook.pageOf` 挂到页面上），有聊天背景图时另加一层底色的淡阴影，换了壁纸也读得清。
 测试 `tests/narration.test.mjs`。
+
+### 4.222 角色自己改锁屏密码
+
+能力 `lockcode`，标记 `[改密码：数字｜这串数字是什么]`（`reply.js` 的 LOCK_KINDS）。4 到 6 位，和现在一样就不换。
+`theirs.changeLock` 存成 `{ code, why, src: 'char', changedAt, hints: [「这串密码是某天新换的，一共几位」] }`，
+手机重新锁上（`relock`）；`why` 仍是猜不出来时「直接查看密码」给的答案。
+
+**不要太频繁，由代码管**：离上一次改不满 `lockGapDays` 天（角色卡里改，默认 30，0 为不限），这项能力整个不给，
+`reply.js` 那边写了也不认；**这一轮刚聊到密码时不受此限**（`theirs.askedLock`：最近两句我说的话里有密码、锁屏、
+解锁，或「改……生日／纪念日」），所以「你怎么没有改我的生日」照样能改。角色卡「能力」里另有总开关 `canChangeLock`。
+
+不把现在的密码告诉角色：它知道了多半会说出来，猜密码那件事就没了。会话里落一行
+`[阿岚改了手机的锁屏密码]`，不写数字；这一行存着换之前那一份（`lockUndo`），删掉它（重新生成那一轮）时
+`theirs.restoreLock` 放回去。测试 `tests/lockcode.test.mjs`。

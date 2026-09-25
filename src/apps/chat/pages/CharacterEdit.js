@@ -1,7 +1,7 @@
 import { html, useState, useRef } from '../../../lib.js';
 import { phone, useStore, useImage } from '../../../sdk/index.js';
 import { Page, Field, Input, Textarea, Avatar, List, ListItem,
-         Switch, Segmented, Icon, Button, QrLogin, CookiePaste, SmsLogin, toast, ZonePicker} from '../../../ui/index.js';
+         Switch, Segmented, Icon, NumberInput, Button, QrLogin, CookiePaste, SmsLogin, toast, ZonePicker} from '../../../ui/index.js';
 import { AvatarPool } from './AvatarPool.js';
 
 const { db, nav, clock, extras, ai } = phone;
@@ -200,6 +200,18 @@ export function CharacterEdit({ id }) {
           subtitle="角色可以修改你在它通讯录里的备注，会话中会出现一行提示。查看角色的手机时显示这个备注"
           right=${html`<${Switch} checked=${char.canRemark !== false}
             onChange=${v => patch({ canRemark: v })}/>`}/>
+        <${ListItem} title="改锁屏密码" multiline
+          subtitle=${`角色可以自己修改手机的锁屏密码，会话中会出现一行提示，不显示新密码。`
+            + `离上一次修改不满 ${phone.theirs.lockGap(char)} 天时不会修改，聊到密码时不受此限`}
+          right=${html`<${Switch} checked=${char.canChangeLock !== false}
+            onChange=${v => patch({ canChangeLock: v })}/>`}/>
+        ${char.canChangeLock !== false ? html`
+          <div class="pad-x">
+            <${Field} label="两次修改至少间隔" desc="填 0 表示不限制。">
+              <${NumberInput} value=${phone.theirs.lockGap(char)} unit="天"
+                onChange=${v => patch({ lockGapDays: v === '' ? phone.theirs.LOCK_GAP : v })}/>
+            <//>
+          </div>` : null}
         <${ListItem} title="撤回" multiline
           subtitle="角色可以撤回自己刚发出的消息，也可以撤回自己最近一条动态。撤回的内容折叠显示，点击仍可查看"
           right=${html`<${Switch} checked=${char.canRecall !== false}

@@ -375,6 +375,18 @@ export const CAPS = [
     detail: () => template('skeleton.closet-act'),
   },
   {
+    // 角色自己改锁屏密码（ARCHITECTURE 4.222）。**频率由代码管**：离上一次改不满设定的天数
+    // （角色卡里改，默认 30），这一项整个不给；这一轮刚聊到密码时照样给。
+    // 不告诉它现在的密码：它知道了多半会说出来，猜密码那件事就没了
+    id: 'lockcode',
+    label: '改锁屏密码',
+    on: ({ char, chat, msgs }) => char.canChangeLock !== false && (chat?.characterIds || []).length <= 1
+      && (theirs.lockCooled(char) || theirs.askedLock(msgs)),
+    hot: ({ msgs }) => theirs.askedLock(msgs) || usedRecently(msgs, /[[【]改密码/),
+    line: () => 'Change the passcode of your own phone: write a line on its own, [改密码：new digits｜what the digits are]',
+    detail: () => template('skeleton.lockcode'),
+  },
+  {
     id: 'pat',
     label: '拍一拍',
     on: ({ char }) => char.canPat !== false,

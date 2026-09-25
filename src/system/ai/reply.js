@@ -44,7 +44,7 @@ import * as closetStory from '../closet-story.js';
 // 中英文冒号都认，方括号也认全角。
 // 「约定完成」必须排在「约定」前面 —— 交替是从左往右试的，反过来写
 // 「约定完成：早点睡」会先被「约定」吃掉，剩下「完成：早点睡」当成内容。
-const MARK = /[[【]\s*(图片|照片|image|pic|视频|video|语音|voice|audio|表情|sticker|emoji|转账|transfer|位置|定位|location|礼物|gift|点歌|建歌单|加入歌单|分享歌曲|分享音乐|调用|tool|约定完成|约定|pact|信|letter|事项完成|事项取消|心声|换头像|改备注|备注|外卖|请客|代付|申请|亲属卡|旅行|攻略|待办|todo|授予|award|搭配|outfit|换上|借走|借给你|归还|旁白|narration)\s*[:：]\s*([^\]】]+)[\]】]/gi;
+const MARK = /[[【]\s*(图片|照片|image|pic|视频|video|语音|voice|audio|表情|sticker|emoji|转账|transfer|位置|定位|location|礼物|gift|点歌|建歌单|加入歌单|分享歌曲|分享音乐|调用|tool|约定完成|约定|pact|信|letter|事项完成|事项取消|心声|换头像|改备注|备注|外卖|请客|代付|申请|亲属卡|旅行|攻略|待办|todo|授予|award|搭配|outfit|换上|借走|借给你|归还|旁白|narration|改密码)\s*[:：]\s*([^\]】]+)[\]】]/gi;
 
 const IMAGE_KINDS = new Set(['图片', '照片', 'image', 'pic']);
 // 「视频通话」那一格叫 video，这里是会话里那一段片子，两回事。
@@ -63,6 +63,7 @@ const LETTER_KINDS = new Set(['信', 'letter']);
 const AWARD_KINDS = new Set(['授予', 'award']);
 const OUTFIT_KINDS = new Set(['搭配', 'outfit']);
 const NARRATION_KINDS = new Set(['旁白', 'narration']);
+const LOCK_KINDS = new Set(['改密码']);
 // 剧情里的衣帽间：换上、借走、借给你、归还（system/closet-story.js，ARCHITECTURE 4.217）
 const CLOSET_ACT_KINDS = new Set(['换上', '借走', '借给你', '归还']);
 const ITEM_DONE_KINDS = new Set(['事项完成']);
@@ -759,6 +760,9 @@ export function splitReply(raw) {
         const title = i < 0 ? '' : body.slice(0, i).trim();
         const text = (i < 0 ? body : body.slice(i + 1)).trim();
         if (text) push({ type: 'letter', title, text });
+      } else if (LOCK_KINDS.has(kind)) {
+        const i = body.search(/[|｜]/);
+        push({ type: 'lockcode', code: (i < 0 ? body : body.slice(0, i)).trim(), why: i < 0 ? '' : body.slice(i + 1).trim() });
       } else if (NARRATION_KINDS.has(kind)) {
         push({ type: 'narration', text: body });
       } else if (CLOSET_ACT_KINDS.has(kind)) {
@@ -1269,6 +1273,17 @@ export function materialize(part, base, char) {
     badges.addAward(base.chatId, { name, reason: part.reason, by: base.authorId, to: 'me', msgId: msg.id });
     return msg;
   }
+  if (part.type === 'lockcode') {
+    // 角色改自己手机的锁屏密码（ARCHITECTURE 4.222）。频率在这儿再挡一道：
+    // 离上一次不满设定的天数、这一轮又没聊到密码，就当没写过。
+    // 改成了落一行提示（不写数字），提示上存着换之前那一份，删掉这一行（重新生成）时放回去
+    if (base.role !== 'char' || !char || char.canChangeLock === false
+      || (chats.get(base.chatId)?.characterIds || []).length > 1) return null;
+    if (!theirs.lockCooled(char) && !theirs.askedLock(messagesOf(base.chatId))) return null;
+    const done = theirs.changeLock(char.id, { code: part.code, why: part.why });
+    return done ? messages.create({ ...row, kind: 'notice', content: `[${char.name || '对方'}改了手机的锁屏密码]`,
+      lockUndo: { charId: char.id, prev: done.prev } }) : null;
+  }
   if (part.type === 'narration') {
     // 旁白：一行夹在消息中间的小字（ARCHITECTURE 4.221）。正文照原样留着标记，历史里角色读到的就是它
     return messages.create({ ...row, kind: 'narration', content: `[旁白：${part.text}]`, narration: part.text });
@@ -1524,6 +1539,8 @@ export function dropMessage(id) {
   }
   // 衣帽间里借走、换上的那一行删了（多半是重新生成那一轮），那一件改回原样
   if (m.kind === 'notice' && m.closetUndo) closetStory.undo(m.closetUndo);
+  // 改锁屏密码的那一行删了（多半是重新生成那一轮），密码放回换之前那一个
+  if (m.kind === 'notice' && m.lockUndo) theirs.restoreLock(m.lockUndo.charId, m.lockUndo.prev);
   // 颁标识的那一条删了，标识也收回。重新生成那一轮时，旧的那一枚不该留在收藏里
   if (m.kind === 'award') {
     const aw = (chats.get(m.chatId)?.awards || []).find(a => a.msgId === id);

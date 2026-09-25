@@ -75,6 +75,7 @@ const LABELS = {
   'skeleton.award': '骨架 · 颁发标识',
   'skeleton.outfit': '骨架 · 搭配衣帽间里的衣物',
   'skeleton.narration': '骨架 · 旁白',
+  'skeleton.lockcode': '骨架 · 改锁屏密码',
   'skeleton.closet-act': '骨架 · 衣帽间：换上、借走、借给、归还',
   'skeleton.scene-closet': '骨架 · 线下的衣帽间标记与塞进包里',
   'task.year-note': '任务 · 年度回顾里的一段话',
