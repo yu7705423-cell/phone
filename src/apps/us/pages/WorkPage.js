@@ -4,6 +4,7 @@ import { Page, List, ListItem, EmptyState, Button, IconButton, Icon,
          toast, confirm } from '../../../ui/index.js';
 import { Hero, chapterTitle, dateOf } from './Bits.js';
 import { OutlineMade } from './NewSaga.js';
+import { NextChapterSheet } from './NextBits.js';
 import { html as h2, useState } from '../../../lib.js';
 
 const { db, nav, work, scene, novel, ai } = phone;
@@ -96,21 +97,11 @@ export function WorkPage({ workId }) {
   const saga = w.kind === work.SAGA;
   const unit = saga ? '章' : '则';
 
-  const add = async () => {
-    // 长篇：下一章落在还没生成章纲的那一卷时先问一声（4.263）；有章纲就把题目带上
-    const next = list.reduce((n, c) => Math.max(n, c.no || 0), 0) + 1;
-    if (saga && novel.hasOutline(w)) {
-      const miss = novel.volumeMissing(w, next);
-      if (miss && ai.isConfigured()) {
-        const go = await confirm({ title: `第 ${miss.no} 卷的章纲还没有生成`, message: '先生成这一卷的章纲（调用一次接口），还是直接开始写这一章。', okText: '先生成', cancelText: '直接写' });
-        if (go) {
-          try { novel.applyVolume(w.id, miss.no, await ai.novel.volume(work.get(w.id), miss)); }
-          catch (e) { toast(String(e.message || e), 'error', 5000); }
-        }
-      }
-    }
-    const line = saga ? novel.lineOf(work.get(w.id), next) : null;
-    const row = work.addChapter(workId, line ? { title: line.title } : {});
+  // 长篇的新一章走章末分支那张表（4.264）；番外直接加一则
+  const [nextOpen, setNextOpen] = useState(false);
+  const add = () => {
+    if (saga) { setNextOpen(true); return; }
+    const row = work.addChapter(workId);
     if (row) nav.push(`/read/${row.id}`);
   };
 
@@ -148,7 +139,8 @@ export function WorkPage({ workId }) {
         <//>` : null}
       ${saga && (w.genres || []).length ? html`
         <div class="pad-x"><div class="chip-row">${w.genres.map(t => html`<span key=${t} class="chip">${t}</span>`)}</div></div>` : null}
-      ${saga ? html`<${OutlinePanel} w=${w}/>` : null}
+      ${saga ? html`<${OutlinePanel} w=${w}/>
+        <${NextChapterSheet} w=${w} chapter=${list[list.length - 1] || null} open=${nextOpen} onClose=${() => setNextOpen(false)}/>` : null}
 
       ${list.length ? html`
         <${List} title=${`目录 · ${list.length} ${unit}`}>

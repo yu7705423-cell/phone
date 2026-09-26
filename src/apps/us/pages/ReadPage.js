@@ -6,6 +6,7 @@ import { Page, IconButton, Icon, Button, Textarea, Switch, Field,
 import { Prose, Sign, Byline, Card, Versions, Bub } from '../../../ui/prose.js';
 import { Face } from './Face.js';
 import { chapterTitle } from './Bits.js';
+import { NextChapterSheet } from './NextBits.js';
 
 const { db, nav, ai, work, scene, stage } = phone;
 
@@ -30,6 +31,7 @@ export function ReadPage({ chapterId }) {
   const [draft, setDraft] = useState('');
   const [hold, setHold] = useState(false);
   const [menu, setMenu] = useState(false);
+  const [nextOpen, setNextOpen] = useState(false);   // 章末分支（4.264）
   const [notes, setNotes] = useState(null);
   const [picked, setPicked] = useState(null);
   const [editing, setEditing] = useState(null);
@@ -365,8 +367,12 @@ export function ReadPage({ chapterId }) {
           <${ListItem} title="收篇" multiline
             subtitle="把这一篇压成一段摘要，后面几篇的设定区里会带上它"
             onClick=${wrap}/>
+          ${w.kind === work.SAGA ? html`
+            <${ListItem} title="下一章" multiline subtitle="自己写、让它接着写，或者先看几个走向再挑" arrow
+              onClick=${() => { setMenu(false); setNextOpen(true); }}/>` : null}
         <//>
       <//>
+      ${w.kind === work.SAGA ? html`<${NextChapterSheet} w=${w} chapter=${row} open=${nextOpen} onClose=${() => setNextOpen(false)}/>` : null}
 
       <${Sheet} open=${!!picked} onClose=${() => setPicked(null)} title="这一段">
         <${List}>

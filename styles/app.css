@@ -477,7 +477,7 @@ input[type="range"] {
 .nv-add { display: flex; gap: var(--sp-2); align-items: center; margin-top: var(--sp-2); }
 .nv-add input { flex: 1; min-width: 0; }
 .nv-two { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-3); }
-.nv-line { font-size: var(--fs-13); color: var(--text-2); line-height: 1.6; padding: var(--sp-1) 0; }
+.nv-tag { font-size: var(--fs-11); color: var(--text-3); white-space: nowrap; }
 
 /* 主页（Instagram 式，见 ARCHITECTURE 4.149） */
 .ig-head { display: flex; align-items: center; gap: var(--sp-5); padding: var(--sp-4) var(--sp-4) var(--sp-3); }

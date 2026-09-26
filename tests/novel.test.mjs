@@ -5,6 +5,8 @@
 //   三、作品页：隐藏大纲只写「几卷、写到哪」；揭晓到目前为止（还没写就没有）；全部揭晓后看得到章纲
 //   四、新的一章：题目从章纲带上；写章的提示词里有大纲、本章那一行与进度
 //   五、可见大纲的作品页直接列出；无大纲的作品页可以生成
+//   六、章末分支（4.264）：新的一章先问怎么开；「给我几个走向」一次请求，候选数可填；选了偏离大纲的，
+//       章上记着走向、作品上记着偏离；作品页多一条「重排后续大纲」，点了一次请求，偏离标记清掉
 import { BASE, EXE, chromium } from './_env.mjs';
 
 const browser = await chromium.launch({ executablePath: EXE, args: ['--no-sandbox'] });
@@ -30,6 +32,15 @@ await ctx.route('**/relay.example.com/**', async route => {
   } else if (/planning one volume/.test(sys)) {
     calls.push('volume');
     out = { chapters: [{ no: 1, title: '到站', line: '林一到站。' }] };
+  } else if (/proposing what the next chapter/.test(sys)) {
+    calls.push('branch');
+    const n = (sys.match(/Give (\d+) distinct/) || [])[1];
+    out = { options: [{ title: '书店', line: '照大纲：发现被撕页的旧书。', follows: true },
+      { title: '离城', line: '林一决定当晚离开这座城。', follows: false }, { title: '雨夜', line: '第三个走向。', follows: true }].slice(0, Number(n) || 3) };
+  } else if (/departed from its outline/.test(sys)) {
+    calls.push('replan');
+    const from = Number((sys.match(/from chapter (\d+) to chapter/) || [])[1]) || 2;
+    out = { master: { mainline: '林一离城后被旧案追上', ending: '在另一座城重逢' }, volumes: [{ no: 1, title: '离城之后', goal: '追上', from, to: 8, reveal: '凶手', chapters: [{ no: from, title: '车站', line: '林一在车站被拦下。' }] }] };
   } else { calls.push('other'); out = { text: '嗯' }; }
   return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ choices: [{ message: { role: 'assistant', content: JSON.stringify(out) } }] }) });
 });
@@ -93,6 +104,8 @@ await page.waitForTimeout(200);
 
 // 四
 await page.locator('.navbar [aria-label="新的一章"]').click();
+await page.waitForTimeout(400);
+await page.locator('.list-item', { hasText: '自己写下一章' }).click();
 await page.waitForTimeout(800);
 const ch = await ev(async id => (await import('/src/system/work.js')).chaptersOf(id)[0], w.id);
 ok('四、新的一章：题目从章纲带上', ch && ch.no === 1 && ch.title === '到站', JSON.stringify(ch));
@@ -119,6 +132,40 @@ await page.locator('.list-item', { hasText: '生成大纲（可见）' }).click(
 await page.waitForTimeout(1500);
 const t5b = await text();
 ok('五、生成后直接列出总纲与卷', /林一追查/.test(t5b) && /第 1 卷/.test(t5b), t5b.slice(0, 300));
+
+// 六
+await ev(async id => { const n = await import('/src/system/nav.js'); n.goHome(); n.openApp('us', `/work/${id}`); }, w.id);
+await page.waitForTimeout(800);
+await page.locator('.navbar [aria-label="新的一章"]').click();
+await page.waitForTimeout(400);
+const t6 = await text();
+ok('六、新的一章先问怎么开：三条路都在，大纲里这一章那一行带着', /自己写下一章/.test(t6) && /让它接着写/.test(t6) && /给我几个走向/.test(t6), t6.slice(0, 300));
+await ev(async () => { const { db } = await import('/src/system/db/index.js'); db.settings.set({ novelBranchCount: 2 }); });
+await page.locator('.list-item', { hasText: '给我几个走向' }).click();
+await page.waitForTimeout(1500);
+const t6b = await text();
+ok('六、给我几个走向：一次请求，候选数按填的来', calls.filter(x => x === 'branch').length === 1 && /照大纲/.test(t6b) && /离城/.test(t6b) && !/第三个走向/.test(t6b) && /偏离大纲/.test(t6b), `${calls} ${t6b.slice(0, 200)}`);
+await page.locator('.list-item', { hasText: '离城' }).click();
+await page.waitForTimeout(800);
+const after = await ev(async id => {
+  const work = await import('/src/system/work.js'); const novel = await import('/src/system/novel.js');
+  const w = work.get(id); const ch = work.chaptersOf(id).slice(-1)[0];
+  return { no: ch.no, title: ch.title, plan: ch.plan, drift: novel.outlineOf(w).drift };
+}, w.id);
+ok('六、选了偏离大纲的走向：章上记着走向，作品上记着偏离', after.no === 2 && after.title === '离城' && /离开这座城/.test(after.plan) && after.drift === true, JSON.stringify(after));
+const sys2 = await ev(async id => {
+  const work = await import('/src/system/work.js'); const engine = await import('/src/system/ai/engine.js'); const { db } = await import('/src/system/db/index.js');
+  const w = work.get(id); const ch = work.chaptersOf(id).slice(-1)[0];
+  return engine.buildWorkSystem(w, ch, db.characters.get(w.castIds[0]), []).system;
+}, w.id);
+ok('六、写这一章：提示词里带着选定的走向与「已偏离」', /本章走向（已选定）：林一决定当晚离开/.test(sys2) && /left the outline/.test(sys2), sys2.slice(sys2.indexOf('[大纲]'), sys2.indexOf('[大纲]') + 500));
+await ev(async id => { const n = await import('/src/system/nav.js'); n.goHome(); n.openApp('us', `/work/${id}`); }, w.id);
+await page.waitForTimeout(800);
+ok('六、作品页写着剧情已偏离，多一条重排', /剧情已偏离大纲/.test(await text()) && /按现在的走向重排后续大纲/.test(await text()));
+await page.locator('.list-item', { hasText: '按现在的走向重排后续大纲' }).click();
+await page.waitForTimeout(1500);
+const re = await ev(async id => { const work = await import('/src/system/work.js'); const novel = await import('/src/system/novel.js'); return novel.outlineOf(work.get(id)); }, w.id);
+ok('六、重排：一次请求，从第 3 章起换成新的卷，偏离标记清掉', calls.filter(x => x === 'replan').length === 1 && re.drift === false && re.volumes.length === 1 && re.volumes[0].from === 3 && /离城后/.test(re.master.mainline), JSON.stringify({ calls, vols: re.volumes, m: re.master.mainline }));
 
 ok('没有页面错误', !errs.length, errs.join('\n'));
 await browser.close();
