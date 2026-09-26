@@ -17,7 +17,7 @@ export function DiceBubble({ msg }) {
 // 两种样式：贴在气泡下面的一行淡字，或者单独一张卡片。
 export function InnerVoice({ text, style }) {
   if (!text) return null;
-  return html`<div class=${`inner-voice inner-${style}`}>${text}</div>`;
+  return html`<div class=${`inner-voice ph-inner inner-${style}`}>${text}</div>`;
 }
 
 // 掷骰子之前先选几面。会话里设好的那个是默认值，这里可以临时换一个。
@@ -68,7 +68,7 @@ export function InnerSheet({ chatId, msgId, char, onClose }) {
   const go = d => setI(x => Math.min(all.length - 1, Math.max(0, x + d)));
   return html`
     <div class="inner-layer" onClick=${onClose}>
-      <div class=${`inner-postcard${listing ? ' is-listing' : ''}`} onClick=${e => e.stopPropagation()}>
+      <div class=${`inner-postcard ph-inner-card${listing ? ' is-listing' : ''}`} onClick=${e => e.stopPropagation()}>
         <button class="inner-postcard-head press" onClick=${() => setListing(v => !v)} aria-label="历史心声">
           ${avatar ? html`<img class="inner-postcard-face" src=${avatar} alt=""/>`
             : html`<span class="inner-postcard-face inner-postcard-face-fallback">${name.slice(0, 1)}</span>`}
@@ -87,7 +87,7 @@ export function InnerSheet({ chatId, msgId, char, onClose }) {
           </div>` : html`
         <div class="inner-postcard-body">
           ${cur ? html`
-            <div class="inner-postcard-text">${cur.inner}</div>
+            <div class="inner-postcard-text ph-inner-card-text">${cur.inner}</div>
             <div class="inner-postcard-said">${String(cur.content || '').slice(0, 60)}</div>`
           : html`<div class="inner-postcard-empty">这段会话里还没有心声</div>`}
         </div>`}

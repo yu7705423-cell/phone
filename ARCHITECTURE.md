@@ -9855,4 +9855,7 @@ Chromium 没有这个问题，所以 `backup` 测试一直是过的；安卓那�
 用户的话：「像明信片的独立的小卡片」；第一版做成了带列表的抽屉，被说丑，改成这样。不做拟物：一张纸色的卡、两条细线、一枚小头像，
 没有邮票和邮戳。这一档不在气泡下面展开。「淡色小字」那一档照旧。
 
+美化钩子：`ph-inner`（气泡下面那一行）、`ph-inner-card`（那张卡，列出历史时另带 `is-listing`）、`ph-inner-card-text`（卡上的正文）。
+提示词在「Prompt 模板」：`skeleton.inner`（随回复一起）、`task.inner`（单独生成）。
+
 测试 `tests/innerpage.test.mjs`。

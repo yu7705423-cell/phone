@@ -1501,7 +1501,7 @@ button.search-bar { width: 100%; border: none; }
   padding: var(--sp-3); border-radius: var(--r-md);
   background: var(--group-fill);
 }
-.msg.is-mine .inner-quiet, .msg.is-mine .inner-card { text-align: right; }
+:where(.msg.is-mine) .inner-quiet, :where(.msg.is-mine) .inner-card { text-align: right; }
 
 .pool-thumb {
   width: 32px; height: 32px; border-radius: var(--r-full);
