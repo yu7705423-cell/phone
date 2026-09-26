@@ -209,7 +209,9 @@ export function StageRead({ sceneId }) {
   };
   const pickVer = (beat, i) => sceneApi.pickSwipe(beat.id, i);
 
-  const submit = () => {
+  // andWrite：放上去之后紧接着让角色写一段。一次请求，和线上发一条消息一样（第 15 条）；
+  // 从前要先「放上去」再回来点一下箭头，两步（4.281）
+  const submit = (andWrite = false) => {
     const text = draft.trim();
     if (!text) { setComposing(''); return; }
     if (composing === 'director') {
@@ -219,7 +221,30 @@ export function StageRead({ sceneId }) {
       sceneApi.addBeat({ sceneId, role: 'me', text });
     }
     setDraft(''); setComposing(''); setHold(false);
+    if (andWrite && composing !== 'director') writeOne();
   };
+
+  // 菜单里的两个快捷：重写最后一段（旧版留着）、删掉最后一段（写错了当场撤）
+  const rewriteLast = async () => {
+    setMenu(false);
+    if (!canMore) return;
+    await writeOne({ rewrite: lastBeat.id });
+  };
+  const dropLast = async () => {
+    setMenu(false);
+    if (!lastBeat) return;
+    const ok = await confirm({ title: '删掉最后一段', message: '删除后无法恢复。', okText: '删除', danger: true });
+    if (ok) sceneApi.dropBeat(lastBeat.id);
+  };
+  // 还没有正文时给两条明确的开头，不必猜底栏那几个图标是什么
+  const emptyStart = html`
+    <div class="sg-empty">
+      <div class="sg-eyebrow">这一场还没有正文。</div>
+      <div class="sg-empty-acts">
+        <button class="sg-go press" disabled=${!char} onClick=${() => writeOne()}>让角色开场</button>
+        <button class="sg-act-text press" onClick=${() => { setComposing('me'); setDraft(''); }}>我先写</button>
+      </div>
+    </div>`;
 
   const rewrite = async () => {
     const beat = picked;
@@ -320,8 +345,7 @@ export function StageRead({ sceneId }) {
               <article class="sg-bub">
                 <div class="sg-lyric sg-live" ref=${liveRef}></div>
               </article>` : null}
-            ${!pages.length && !writing
-    ? html`<div class="sg-eyebrow">这一场还没有正文。</div>` : null}
+            ${!pages.length && !writing ? emptyStart : null}
           </div>`
     : cards ? html`
           <div class="sg-feed" ref=${bodyRef} onClick=${onFeedTap}>
@@ -337,13 +361,13 @@ export function StageRead({ sceneId }) {
               <article class="sg-card no-callout">
                 <div class="sg-text sg-live" ref=${liveRef}></div>
               </article>` : null}
-            ${!pages.length && !writing
-    ? html`<div class="sg-eyebrow">这一场还没有正文。</div>` : null}
+            ${!pages.length && !writing ? emptyStart : null}
           </div>`
     : html`
           <div class="sg-tap no-callout" onClick=${onTap}
             onTouchStart=${() => startHold(cur?.beat)}
-            onTouchEnd=${endHold} onTouchMove=${endHold} onTouchCancel=${endHold}>
+            onTouchEnd=${endHold} onTouchMove=${endHold} onTouchCancel=${endHold}
+            onContextMenu=${e => { e.preventDefault(); if (cur?.beat) { heldRef.current = true; setPicked(cur.beat); } }}>
             <div class=${`sg-body ${anim}`} ref=${bodyRef}>
               <div class="sg-col">
                 ${!writing && sign && cfg.sign !== 'none'
@@ -358,8 +382,7 @@ export function StageRead({ sceneId }) {
                       drop=${cfg.drop && cur?.first}/>
                     ${!cur?.text && cur?.notes?.length
     ? html`<div class="sg-eyebrow">这一张只有场外指示。</div>` : null}
-                    ${!pages.length
-    ? html`<div class="sg-eyebrow">这一场还没有正文。</div>` : null}
+                    ${!pages.length ? emptyStart : null}
                     ${cur?.beat && cur.page === cur.pages - 1 && versOf(cur.beat)
     ? html`<${Versions} ...${versOf(cur.beat)} onPick=${i => pickVer(cur.beat, i)}/>` : null}`}
               </div>
@@ -388,26 +411,28 @@ export function StageRead({ sceneId }) {
               aria-label="接着上一段往下写">
               <${Icon} name="chevronDown" size=${18}/>
             <//>
-            <button class="sg-act-btn press" disabled=${writing || !char}
-              onClick=${writing ? undefined : writeOne}
-              aria-label=${writing ? '正在生成' : '让角色往下写'}>
-              ${writing ? html`<${Spinner} size=${16}/>` : html`<${Icon} name="chevronRight" size=${18}/>`}
-            <//>
             ${writing ? html`
-              <button class="sg-act-btn press" onClick=${() => ai.cancelScene(sceneId)} aria-label="停止">
-                <${Icon} name="close" size=${18}/>
-              <//>` : null}
+              <button class="sg-go press" onClick=${() => ai.cancelScene(sceneId)} aria-label="停止">
+                <${Spinner} size=${14}/>停止
+              <//>` : html`
+              <button class="sg-go press" disabled=${!char} onClick=${() => writeOne()}
+                aria-label="让角色往下写">角色写<//>`}
           </div>` : null}
       </div>
 
       <${FullSheet} open=${!!composing} onClose=${() => setComposing('')}
         title=${composing === 'director' ? '场外指示' : '写一段'}
-        right=${html`<${Button} size="sm" onClick=${submit}>放上去<//>`}>
+        right=${html`<${Button} size="sm" onClick=${() => submit(false)}>放上去<//>`}>
         <div class="pad">
           <${Textarea} rows=${14} value=${draft} onInput=${v => setDraft(v)}
             placeholder=${composing === 'director'
     ? '写给模型看的指示。它不会出现在正文里，场景中的人也不知道有这句话。'
     : '写你这一段。动作、对白、心理都可以写在一起。'}/>
+          ${composing === 'me' ? html`
+            <div class="pad-t">
+              <${Button} full disabled=${!draft.trim() || !char} onClick=${() => submit(true)}>放上去，让角色接着写<//>
+            </div>
+            <div class="settings-foot">调用一次接口。只点右上角「放上去」则不调用，之后可再让角色写。</div>` : null}
           ${composing === 'director' ? html`
             <${Field} label="一直有效"
               desc="开启后这条指示在本场余下的部分持续生效。关闭时它只作用于紧接着的一段。">
@@ -466,6 +491,12 @@ export function StageRead({ sceneId }) {
           ${!cards ? html`
             <${ListItem} title="这一段" subtitle="复制、钉住、重写、分叉"
               onClick=${() => { setMenu(false); if (cur?.beat) setPicked(cur.beat); }}/>` : null}
+          ${canMore ? html`
+            <${ListItem} title="重写最后一段" subtitle="旧的那一版留着，写完在正文末尾翻着挑" multiline
+              onClick=${rewriteLast}/>` : null}
+          ${lastBeat ? html`
+            <${ListItem} title="删掉最后一段" subtitle=${`${lastBeat.role === 'me' ? '我' : '角色'}写的那一段`} danger
+              onClick=${dropLast}/>` : null}
           <${ListItem} title="这一场的设定" subtitle="标题、地点、情境、在场角色" arrow
             onClick=${() => { setMenu(false); nav.push(`/scene/${sceneId}/edit`); }}/>
           <${ListItem} title="外观" subtitle="主题、字体、字号、壁纸、自定义样式" arrow

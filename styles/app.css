@@ -2627,6 +2627,21 @@ button.search-bar { width: 100%; border: none; }
   color: var(--sg-ink); background: none; border: 1px solid var(--sg-line);
 }
 .sg-act-btn:disabled { opacity: .4; }
+/* 底栏右端那个写字的主按钮：「角色写」，写着时是「停止」（4.281）。图标按钮没人猜得出哪个是哪个 */
+.sg-go {
+  flex: none; display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-1);
+  height: 36px; padding: 0 var(--sp-3); border-radius: var(--r-md);
+  font-size: var(--fs-13); font-weight: var(--fw-semi);
+  color: var(--sg-bg); background: var(--sg-ink); border: 1px solid var(--sg-ink);
+}
+.sg-go:disabled { opacity: .4; }
+.sg-act-text {
+  flex: none; height: 36px; padding: 0 var(--sp-3); border-radius: var(--r-md);
+  font-size: var(--fs-13); color: var(--sg-ink); background: none; border: 1px solid var(--sg-line);
+}
+/* 还没有正文：两条明确的开头 */
+.sg-empty { display: flex; flex-direction: column; align-items: center; gap: var(--sp-4); padding: var(--sp-6) 0; }
+.sg-empty-acts { display: flex; gap: var(--sp-2); }
 
 /* 铺满屏幕：刊头、页码、底栏都退掉，只剩正文 */
 .sg.is-spread .sg-head, .sg.is-spread .sg-foot, .sg.is-spread .sg-bar { display: none; }

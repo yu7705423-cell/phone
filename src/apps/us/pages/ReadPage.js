@@ -178,7 +178,8 @@ export function ReadPage({ chapterId }) {
       : null;
   };
 
-  const submit = () => {
+  // andWrite：放上去之后紧接着让它写一段。一次请求（4.281）
+  const submit = (andWrite = false) => {
     const text = draft.trim();
     if (!text) { setComposing(''); return; }
     if (composing === 'director') {
@@ -188,7 +189,27 @@ export function ReadPage({ chapterId }) {
       scene.addBeat({ sceneId: chapterId, role: 'me', text });
     }
     setDraft(''); setComposing(''); setHold(false);
+    if (andWrite && composing !== 'director') writeOne();
   };
+  const rewriteLast = async () => {
+    setMenu(false);
+    if (!canMore) return;
+    await writeOne({ rewrite: lastBeat.id });
+  };
+  const dropLast = async () => {
+    setMenu(false);
+    if (!lastBeat) return;
+    const ok = await confirm({ title: '删掉最后一段', message: '删除后无法恢复。', okText: '删除', danger: true });
+    if (ok) scene.dropBeat(lastBeat.id);
+  };
+  const emptyStart = html`
+    <div class="sg-empty">
+      <div class="sg-eyebrow">这一篇还没有正文。</div>
+      <div class="sg-empty-acts">
+        <button class="sg-go press" onClick=${() => writeOne()}>${w.solo ? '让它开篇' : `让${charName}开场`}</button>
+        <button class="sg-act-text press" onClick=${() => { setComposing('me'); setDraft(''); }}>我先写</button>
+      </div>
+    </div>`;
 
   const rewrite = async () => {
     const beat = picked;
@@ -275,7 +296,7 @@ export function ReadPage({ chapterId }) {
                 <div class="sg-lyric sg-live" ref=${liveRef}></div>
               </article>` : null}
             ${!pages.length && !writing
-    ? html`<div class="sg-eyebrow">这一篇还没有正文。</div>` : null}
+    ? emptyStart : null}
           </div>`
     : cards ? html`
           <div class="sg-feed" ref=${bodyRef} onClick=${onFeedTap}>
@@ -292,12 +313,13 @@ export function ReadPage({ chapterId }) {
                 <div class="sg-text sg-live" ref=${liveRef}></div>
               </article>` : null}
             ${!pages.length && !writing
-    ? html`<div class="sg-eyebrow">这一篇还没有正文。</div>` : null}
+    ? emptyStart : null}
           </div>`
     : html`
           <div class="sg-tap no-callout" onClick=${onTap}
             onTouchStart=${() => startHold(cur?.beat)}
-            onTouchEnd=${endHold} onTouchMove=${endHold} onTouchCancel=${endHold}>
+            onTouchEnd=${endHold} onTouchMove=${endHold} onTouchCancel=${endHold}
+            onContextMenu=${e => { e.preventDefault(); if (cur?.beat) { heldRef.current = true; setPicked(cur.beat); } }}>
             <div class=${`sg-body ${anim}`} ref=${bodyRef}>
               <div class="sg-col">
                 ${!writing && sign && cfg.sign !== 'none'
@@ -313,7 +335,7 @@ export function ReadPage({ chapterId }) {
                     ${!cur?.text && cur?.notes?.length
     ? html`<div class="sg-eyebrow">这一张只有场外指示。</div>` : null}
                     ${!pages.length
-    ? html`<div class="sg-eyebrow">这一篇还没有正文。</div>` : null}
+    ? emptyStart : null}
                     ${cur?.beat && cur.page === cur.pages - 1 && versOf(cur.beat)
     ? html`<${Versions} ...${versOf(cur.beat)} onPick=${i => scene.pickSwipe(cur.beat.id, i)}/>` : null}`}
               </div>
@@ -341,15 +363,12 @@ export function ReadPage({ chapterId }) {
               aria-label="接着上一段往下写">
               <${Icon} name="chevronDown" size=${18}/>
             <//>
-            <button class="sg-act-btn press" disabled=${writing}
-              onClick=${writing ? undefined : () => writeOne()}
-              aria-label=${writing ? '正在生成' : (w.solo ? '让它往下写' : `让${charName}往下写`)}>
-              ${writing ? html`<${Spinner} size=${16}/>` : html`<${Icon} name="chevronRight" size=${18}/>`}
-            <//>
             ${writing ? html`
-              <button class="sg-act-btn press" onClick=${() => ai.cancelWork(chapterId)} aria-label="停止">
-                <${Icon} name="close" size=${18}/>
-              <//>` : null}
+              <button class="sg-go press" onClick=${() => ai.cancelWork(chapterId)} aria-label="停止">
+                <${Spinner} size=${14}/>停止
+              <//>` : html`
+              <button class="sg-go press" onClick=${() => writeOne()}
+                aria-label=${w.solo ? '让它往下写' : `让${charName}往下写`}>${w.solo ? '往下写' : '角色写'}<//>`}
           </div>` : null}
       </div>
 
@@ -358,6 +377,11 @@ export function ReadPage({ chapterId }) {
           ${chapters.length > 1 ? html`
             <${ListItem} title="目录" subtitle=${`共 ${chapters.length} ${w.kind === work.SAGA ? '章' : '则'}`}
               arrow onClick=${() => { setMenu(false); nav.push(`/work/${w.id}`); }}/>` : null}
+          ${canMore ? html`
+            <${ListItem} title="重写最后一段" subtitle="旧的那一版留着，写完在正文末尾翻着挑" multiline
+              onClick=${rewriteLast}/>` : null}
+          ${lastBeat ? html`
+            <${ListItem} title="删掉最后一段" danger onClick=${dropLast}/>` : null}
           <${ListItem} title="这一篇的设定" subtitle="题目、地点、时刻、情境" arrow multiline
             onClick=${() => { setMenu(false); nav.push(`/chapter/${chapterId}`); }}/>
           <${ListItem} title="这一部的设定" subtitle="主线、身份、文风与两个开关" arrow multiline
@@ -403,12 +427,17 @@ export function ReadPage({ chapterId }) {
 
       <${FullSheet} open=${!!composing} onClose=${() => setComposing('')}
         title=${composing === 'director' ? '场外指示' : '写一段'}
-        right=${html`<${Button} size="sm" onClick=${submit}>放上去<//>`}>
+        right=${html`<${Button} size="sm" onClick=${() => submit(false)}>放上去<//>`}>
         <div class="pad">
           <${Textarea} rows=${14} value=${draft} onInput=${v => setDraft(v)}
             placeholder=${composing === 'director'
     ? '写给模型看的指示。它不会出现在正文里，作品中的人也不知道有这句话。'
     : '写你这一段。动作、对白、心理都可以写在一起。'}/>
+          ${composing === 'me' ? html`
+            <div class="pad-t">
+              <${Button} full disabled=${!draft.trim()} onClick=${() => submit(true)}>放上去，接着往下写<//>
+            </div>
+            <div class="settings-foot">调用一次接口。只点右上角「放上去」则不调用，之后可再让它写。</div>` : null}
           ${composing === 'director' ? html`
             <${Field} label="一直有效"
               desc="开启后这条指示在本篇余下的部分持续生效。关闭时它只作用于紧接着的一段。">
