@@ -296,6 +296,15 @@ export function LimitsPage() {
             onChange=${v => set({ fileTextMax: v })}/>
         <//>
 
+        <${List}>
+          <${ListItem} title="发文件后按回复节奏回复" multiline
+            subtitle=${s.fileSendReplies === true
+              ? '已开启。发出一份文件后，角色按这段会话的回复节奏回复一次，与发一条消息相同。'
+              : '已关闭。发出文件本身不触发回复，与发图片相同；发一句话后角色再回复，并读到这份文件。'}
+            right=${html`<${Switch} checked=${s.fileSendReplies === true}
+              onChange=${v => set({ fileSendReplies: v })}/>`}/>
+        <//>
+
         <${Field} label="线下带上手机里最近几条"
           desc="线下的每次请求带上这段会话里最近这么多条消息的原文。
             气泡很短，二十条也只有几百字，所以带的是原文而不是摘要。

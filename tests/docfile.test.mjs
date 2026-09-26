@@ -81,9 +81,20 @@ const ids = await ev(async () => {
   svc.updateChatPreset(p.id, { baseUrl: 'https://relay.example.com/v1', apiKey: 'k', model: 'm', provider: 'openai' });
   svc.setActiveChat(p.id);
   const c = db.characters.create({ name: '阿岚', persona: '二十四岁' });
+  // 角色卡上默认关着：先确认提示词里一个字都没有，再打开
+  const e = await import('/src/system/ai/engine.js');
+  const chat0 = db.chats.create({ characterIds: [c.id], lastMessageAt: Date.now() });
+  db.messages.create({ chatId: chat0.id, role: 'user', authorId: 'me', kind: 'text', content: '在', status: 'done' });
+  const sysOff = e.buildChatSystem(chat0, c, db.messagesOf(chat0.id)).system;
+  db.characters.update(c.id, { canSendFile: true });
+  const sysOn = e.buildChatSystem(chat0, db.characters.get(c.id), db.messagesOf(chat0.id)).system;
+  window.__fileCap = { off: /\[文件：name\.ext\]/.test(sysOff), on: /\[文件：name\.ext\]|Send a file/.test(sysOn) };
   const chat = db.chats.create({ characterIds: [c.id], lastMessageAt: Date.now() });
   return { char: c.id, chat: chat.id };
 });
+const capFlags = await ev(() => window.__fileCap);
+ok('角色卡上默认关着：提示词里没有文件那一项', capFlags.off === false, JSON.stringify(capFlags));
+ok('角色卡上打开之后才有', capFlags.on === true, JSON.stringify(capFlags));
 const sendDoc = () => ev(async o => {
   const d = await import('/src/system/docfile.js');
   const blob = await d.make('docx', '登记表\n姓名 | \n年龄 | ');
@@ -123,6 +134,14 @@ const check = await ev(async o => {
 }, ids);
 ok('发回来的文件里字填上了，别的没动', /#1 登记表\n#2 姓名 \| #3 林岚\n#4 年龄 \| #5 二十四/.test(check), check);
 
+// 填完之后：规则不再注入，历史里只留填好的内容
+reply = '嗯。';
+await turn('好了吗', 't1b');
+ok('填完之后不再注入填写规则', !/\[填写：id｜text\]/.test(sysOf()) && !/can be filled in place/.test(sysOf()), sysOf().slice(-500));
+const h1 = histOf();
+ok('历史里带正文的是填好的那份，原件只剩文件名', /\[文件：已填写-登记表\.docx\]\n#1 登记表\n#2 姓名 \| #3 林岚/.test(h1) && !/\[文件：登记表\.docx\]\n#1/.test(h1), h1.slice(-400));
+ok('历史里没有那几行填写', !/\[填写：/.test(h1), '');
+
 // 从头写一份
 reply = '[文件：清单.md]\n# 要带的\n- 伞\n- 钥匙\n[/文件]\n列好了。';
 const made2 = await turn('列个清单', 't2');
@@ -147,12 +166,26 @@ await turn('再看', 't4');
 ok('「文件正文最多带多少字」截断并注明', /\(truncated\)/.test(histOf()) && !/#2 姓名/.test(histOf()), histOf().slice(-200));
 await ev(async () => (await import('/src/system/db/index.js')).db.settings.set({ fileTextMax: 6000 }));
 
+// 发文件本身不触发回复；开了「发文件后按回复节奏回复」才回
+const n0 = reqs.length;
+await ev(async o => { const n = await import('/src/system/nav.js'); n.unlock(); n.openApp('chat', `/chat/${o.chat}`); }, ids);
+await page.waitForTimeout(900);
+await ev(async o => { (await import('/src/system/db/index.js')).db.chats.update(o.chat, { paceMode: 'now' }); }, ids);
+await page.locator('input[accept=".txt,.md,.csv,.docx,.xlsx"]').setInputFiles({ name: '备忘.txt', mimeType: 'text/plain', buffer: Buffer.from('记得带伞') });
+await page.waitForTimeout(800);
+ok('发文件本身不触发回复', reqs.length === n0, `${reqs.length - n0}`);
+await ev(async () => (await import('/src/system/db/index.js')).db.settings.set({ fileSendReplies: true }));
+await page.locator('input[accept=".txt,.md,.csv,.docx,.xlsx"]').setInputFiles({ name: '表.md', mimeType: 'text/markdown', buffer: Buffer.from('# 表') });
+await page.waitForTimeout(1500);
+ok('开了「发文件后按回复节奏回复」：发完就回一次', reqs.length === n0 + 1, `${reqs.length - n0}`);
+await ev(async () => (await import('/src/system/db/index.js')).db.settings.set({ fileSendReplies: false }));
+
 // ---- 三、界面：文件卡、点开、让角色填写 ----
 await ev(async o => { const n = await import('/src/system/nav.js'); n.unlock(); n.openApp('chat', `/chat/${o.chat}`); }, ids);
 await page.waitForTimeout(900);
 const cards = await ev(() => [...document.querySelectorAll('.ph-file')].map(x => x.textContent));
-ok('会话里画着文件卡', cards.length === 4 && /登记表\.docx/.test(cards[0]) && /已填写-登记表\.docx/.test(cards[1]), JSON.stringify(cards));
-await page.locator('.ph-file').last().click();
+ok('会话里画着文件卡', cards.length === 6 && /登记表\.docx/.test(cards[0]) && /已填写-登记表\.docx/.test(cards[1]), JSON.stringify(cards));
+await page.locator('.ph-file').nth(3).click();
 await page.waitForTimeout(500);
 const sheet = await ev(() => document.querySelector('.sheet')?.innerText || '');
 ok('点开：另存、让角色填写、正文预览', /另存/.test(sheet) && /让角色填写/.test(sheet) && /#2 姓名/.test(sheet), sheet.slice(0, 200));

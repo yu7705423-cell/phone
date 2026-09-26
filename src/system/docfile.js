@@ -447,9 +447,14 @@ export async function sendFromUser(chatId, file) {
   return msg;
 }
 
-/** 这段会话里最近一份我发的、能在原文件上填的文件 */
+/**
+ * 这段会话里最近一份我发的、能在原文件上填、**还没填过**的文件。
+ * 填过的不再算：填写的规则只在有东西要填时注入，填完之后留下的是内容（发回来的那份带着自己的正文）
+ */
 export function latestFillable(chatId) {
-  const list = messages.where(m => m.chatId === chatId && m.kind === 'file' && m.role === 'user' && fillable(m.ext) && m.fileId);
+  const all = messages.where(m => m.chatId === chatId && m.kind === 'file');
+  const filled = new Set(all.filter(m => m.role === 'char' && m.srcId).map(m => m.srcId));
+  const list = all.filter(m => m.role === 'user' && fillable(m.ext) && m.fileId && !filled.has(m.id));
   return list.length ? list[list.length - 1] : null;
 }
 
@@ -462,7 +467,10 @@ function deliver(base, { name, ext, preview = '', fills = null, srcId = '' }, jo
   });
   Promise.resolve().then(job).then(async blob => {
     const fileId = await files.put(blob, { name, type: mimeOf(ext) });
-    messages.update(msg.id, { fileId, size: blob.size, media: 'done' });
+    // 造好之后把它自己的正文读出来存上：之后进上下文的是这份内容，不是那几行填写
+    let text = preview;
+    try { text = (await read(blob, name)).text; } catch { /* 读不回来就留预览 */ }
+    messages.update(msg.id, { fileId, size: blob.size, media: 'done', text });
   }).catch(err => {
     console.warn('[docfile] 文件没造出来:', err.message || err);
     messages.update(msg.id, { media: 'error', mediaError: String(err.message || err) });

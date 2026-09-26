@@ -96,6 +96,7 @@ export const DEFAULT_SETTINGS = {
   failoverMax: 1,                 // 最多再换几套。0 = 列表里其余的全试（第 13 条）
 
   // 翻译。语言挂在会话上（chat.translateTo），这里只管怎么显示
+  fileSendReplies: false,         // 发文件之后按回复节奏回复一次（像发一条消息）。关着时只发过去，说一句再回
   fileTextMax: 6000,              // 发给角色的文件，正文最多带多少字进上下文。0 = 全带（4.271）
   translateOpen: 'tap',           // tap 点开保持 | turn 点开后下一轮收起 | always 一直展开（4.270）
   // 消息上的时刻与已读回执。时刻默认是聊天软件通行的那种：相隔五分钟以上

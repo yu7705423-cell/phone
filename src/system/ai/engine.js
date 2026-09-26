@@ -553,9 +553,10 @@ export function buildHistory(chat, char, msgs, opts = {}) {
   if (view.length && !faceLib.isMark(view[0]) && faceLib.sideOf(view[0]) === faceLib.FACE) {
     marks.push({ role: 'user', content: faceMarkText(chat.face) });
   }
-  // 文件（4.271）：只有最近一份我发的文件带正文（按「文件正文最多带多少字」截断），更早的只带文件名。
-  // 正文每一轮都带着才填得了，但只带最近那一份，账不会随文件数涨
-  const lastFile = [...view].reverse().find(m => m.kind === 'file' && m.role === 'user' && m.text);
+  // 文件（4.271）：只有最近一份文件带正文（按「文件正文最多带多少字」截断），更早的只带文件名。
+  // 正文每一轮都带着才填得了，但只带最近那一份，账不会随文件数涨。角色填好发回的那份也算：
+  // 填完之后进上下文的是它的内容，那几行填写不再出现
+  const lastFile = [...view].reverse().find(m => m.kind === 'file' && m.text && (m.role === 'user' || m.media === 'done'));
   const fileCap = Math.max(0, Math.round(Number(s.fileTextMax) || 0));
   const fileBody = m => {
     const t = String(m.text || '');
@@ -581,7 +582,8 @@ export function buildHistory(chat, char, msgs, opts = {}) {
     }
     if (mine) {
       const tr = inlineTrans ? String(m.translation || '').trim() : '';
-      return { role: 'assistant', content: (tr ? `${text}\n[译文：${tr}]` : text) + withdraw.tailOf(m) };
+      const doc = lastFile && m.id === lastFile.id ? `\n${fileBody(m)}` : '';
+      return { role: 'assistant', content: (tr ? `${text}\n[译文：${tr}]` : text) + doc + withdraw.tailOf(m) };
     }
     // 群里别人说的话,以旁白形式并入 user 侧,避免被当成自己说过的
     const who = characters.get(m.authorId)?.name || '某人';

@@ -182,6 +182,10 @@ export function CharacterEdit({ id }) {
           subtitle="角色可以写信，信会放进情侣空间的信箱。关闭后角色不再写信，你仍可写给角色"
           right=${html`<${Switch} checked=${char.canWriteLetter !== false}
             onChange=${v => patch({ canWriteLetter: v })}/>`}/>
+        <${ListItem} title="发文件" multiline
+          subtitle="开启后角色可以发出 txt、md、csv、docx、xlsx 文件，也可以把你发出的 docx、xlsx 在原文件上填好发回。不额外调用接口。关闭后提示词中不出现这一项"
+          right=${html`<${Switch} checked=${char.canSendFile === true}
+            onChange=${v => patch({ canSendFile: v })}/>`}/>
         <${ListItem} title="当日日程" multiline
           subtitle=${`开启后，每天首次对话前会为这个角色排一次当天的日程，`
             + `并把当前时段的安排带进上下文。每天一次单独的接口调用。`

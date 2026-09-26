@@ -1050,8 +1050,11 @@ export function Conversation({ chatId, focusId = '' }) {
     e.target.value = '';
     if (!file) return;
     setPanel(null);
-    // 和发图片一样，文件本身不触发回复：说一句「填一下」再回，不多打一次
-    try { await phone.docfile.sendFromUser(chatId, file); } catch (err) { toast(String(err.message || err), 'error'); }
+    // 默认和发图片一样，文件本身不触发回复，说一句「填一下」再回。「用量与上限」里可以改成像发一条消息那样按节奏回一次
+    try {
+      await phone.docfile.sendFromUser(chatId, file);
+      if (settings.fileSendReplies === true) afterSend(`[文件：${file.name}]`);
+    } catch (err) { toast(String(err.message || err), 'error'); }
   };
 
   const sendClip = async e => {

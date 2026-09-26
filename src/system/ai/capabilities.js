@@ -457,7 +457,8 @@ export const CAPS = [
     // 最近有文件消息时给整段细则，细则里说明我发的那份是哪一种、编号怎么认
     id: 'file',
     label: '文件',
-    on: ({ char }) => char.canSendFile !== false,
+    // 角色卡上自己开（默认关）。关着时角色既不发文件也不填文件；文件卡上「让角色填写」那个按钮不受此限
+    on: ({ char }) => char.canSendFile === true,
     hot: ({ msgs }) => msgs.slice(-WINDOW).some(m => m.kind === 'file'),
     line: () => 'Send a file: a line [文件：name.ext], the contents, then a line [/文件]',
     detail: ({ msgs }) => {
