@@ -1,6 +1,6 @@
 import { idb, write } from './idb.js';
 import { uid } from '../store.js';
-import { registerBlobCache } from './blobs.js';
+import { registerBlobCache, solidBlob } from './blobs.js';
 
 // 任意二进制附件（目前是语音）。图片走 images，那边会压缩，音频不能压。
 const urls = new Map();
@@ -31,8 +31,10 @@ export const files = {
   },
 
   /** 按原来的 id 放回去。只有恢复备份会用到，理由同 images.putRaw。 */
-  async putRaw(id, blob, meta = {}) {
-    if (!id || !blob) return null;
+  async putRaw(id, raw, meta = {}) {
+    if (!id || !raw) return null;
+    // 切片先抄成独立的 Blob（4.273）
+    const blob = await solidBlob(raw);
     const row = {
       id, blob, name: meta.name || '',
       type: meta.type || blob.type || 'application/octet-stream',

@@ -148,6 +148,12 @@ export function summary(r) {
   if (r.decodeFail?.length) {
     lines.push(`数据在但解不出图 ${r.decodeFail.length} 张：`);
     r.decodeFail.slice(0, 4).forEach(x => lines.push(`  ${x.where}：${x.size ?? '?'} 字节，类型「${x.type || '空'}」，头几个字节 ${x.head || '?'}`));
+    // 几张的头几个字节一模一样、而且是 ZIP 头：恢复备份时切片存坏了（4.273）
+    const heads = r.decodeFail.map(x => String(x.head || ''));
+    if (heads.length >= 2 && heads.every(h => h.startsWith('其他 50 4b 03 04')) && new Set(heads).size === 1) {
+      lines.push('  这几张的内容是同一个 ZIP 的开头：是恢复备份时切片存坏了（ARCHITECTURE 4.273）。'
+        + '更新到 2026-09-26.224 之后用同一份备份再恢复一次即可复原，备份文件本身是好的');
+    }
   }
   if (!r.missing.length && !r.empty.length && !r.unreadable.length) lines.push('抽查的图全部读得出来。看不见图的话是显示那一层，点「重新读取图片」');
   lines.push(`地址缓存 ${r.urlsCached} 个，重建过 ${r.epoch} 次`);

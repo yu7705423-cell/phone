@@ -77,3 +77,27 @@ if (typeof document !== 'undefined') {
     if (src.startsWith('blob:') && caches.some(c => c.owns(src)) && Date.now() - lastReset > ERROR_GAP) checkBlobUrls(src);
   }, true);
 }
+
+
+// ---- 存进库之前，把切片抄成独立的 Blob（ARCHITECTURE 4.273）----
+//
+// 恢复备份、装角色包时拿到的图片是整个 ZIP 上切出来的一段（blob.slice）。WebKit 把这种切片
+// 写进 IndexedDB 时，存的是**父文件开头的那一段**，长度对、内容不对：库里每张图都是同一个 ZIP 的开头，
+// 记录在、字节在、解不出图。用户报的「只有图没了」第六次就是它。
+// 所以凡是往库里存的 Blob，先真读一遍、抄成一份自己持有字节的 Blob，切片的出身就断掉了。
+// 小的整个进内存；大的（视频）走 Response 流一遍，不整个进内存。
+const SOLID_MAX = 64 * 1024 * 1024;
+export async function solidBlob(blob) {
+  if (!blob) return blob;
+  const type = blob.type || '';
+  if (blob.size <= SOLID_MAX) return new Blob([await blob.arrayBuffer()], { type });
+  const copy = await new Response(blob).blob();
+  return copy.type === type ? copy : new Blob([copy], { type });
+}
+
+/** 头几个字节是 ZIP：这不是图片，是上面那条路留下的坏数据 */
+export async function looksZip(blob) {
+  if (!blob || blob.size < 4) return false;
+  const u8 = new Uint8Array(await blob.slice(0, 4).arrayBuffer());
+  return u8[0] === 0x50 && u8[1] === 0x4b && u8[2] === 0x03 && u8[3] === 0x04;
+}

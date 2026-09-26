@@ -186,6 +186,9 @@ export async function restore(file, { onProgress } = {}) {
 
   // 图片与文件按**原来的 id** 放回去：消息、角色卡里存的都是那个 id，
   // 换一个新 id 就全对不上了。
+  // 放不回去的（内容是 ZIP 的坏图，4.273）记下来报到界面上，不只记控制台
+  const bad = [];
+  let put = 0;
   for (const [name, blob] of media) {
     const m = name.match(/^(images|files)\/([^./]+)/);
     if (!m) { step(); continue; }
@@ -193,7 +196,8 @@ export async function restore(file, { onProgress } = {}) {
     try {
       if (kind === 'images') await images.putRaw(id, blob);
       else await files.putRaw(id, blob);
-    } catch (err) { console.warn('[backup] 放回失败', name, err.message || err); }
+      put += 1;
+    } catch (err) { console.warn('[backup] 放回失败', name, err.message || err); bad.push(name); }
     step();
   }
 
@@ -234,7 +238,8 @@ export async function restore(file, { onProgress } = {}) {
 
   return {
     rows: COLLECTIONS.reduce((n, name) => n + ((data[name] || []).length), 0),
-    media: media.size,
+    media: put,
+    bad,
     migrated,
   };
 }

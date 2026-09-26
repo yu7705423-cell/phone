@@ -76,7 +76,8 @@ export function StoragePage() {
         onProgress: pct => setWork({ text: '正在恢复', pct }),
       });
       toast(`已恢复 ${got.rows} 条记录${got.media ? `，${got.media} 个文件` : ''}`
-        + `${got.migrated ? `，并升级了 ${got.migrated} 个版本的数据结构` : ''}`, 'ok', 5000);
+        + `${got.migrated ? `，并升级了 ${got.migrated} 个版本的数据结构` : ''}`
+        + `${got.bad?.length ? `。${got.bad.length} 个文件内容不是图片，已跳过` : ''}`, got.bad?.length ? 'error' : 'ok', 6000);
     } catch (err) {
       toast('导入失败：' + (err.message || err), 'error', 5000);
     } finally { setBusy(false); setWork(null); }

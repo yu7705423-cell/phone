@@ -1,6 +1,6 @@
 import { idb, write } from './idb.js';
 import { uid } from '../store.js';
-import { registerBlobCache } from './blobs.js';
+import { registerBlobCache, solidBlob, looksZip } from './blobs.js';
 
 // 图片一律以 Blob 存 IndexedDB,不存 base64。见 ARCHITECTURE 3.7
 // 删图日志挂在这儿（imgdiag.js 登记），images 这一层不去读 kv
@@ -177,8 +177,11 @@ export const images = {
    * 不走 put：那边会重新压一遍并发一个新 id，而消息、角色卡里存的是旧 id，
    * 换了就全对不上。这里原样写回去，压缩在当初导出之前就已经做过了。
    */
-  async putRaw(id, blob, meta = {}) {
-    if (!id || !blob) return null;
+  async putRaw(id, raw, meta = {}) {
+    if (!id || !raw) return null;
+    // 切片先抄成独立的 Blob，再核一眼不是 ZIP（4.273）。是 ZIP 的一律不存：存进去也是一张画不出来的图
+    const blob = await solidBlob(raw);
+    if (await looksZip(blob)) throw new Error('这一张的内容是 ZIP，不是图片，已跳过');
     const row = {
       id, blob, w: meta.w || 0, h: meta.h || 0,
       bytes: blob.size, createdAt: meta.createdAt || Date.now(),
