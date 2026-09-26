@@ -253,7 +253,7 @@ a.btn { text-decoration: none; }
 /* 组件式浮层渲染到所在那一层的最后面（overlay.js 的 Portal）。这一层本身不占位 */
 .sheet-host { display: contents; }
 /* 整屏浮层从应用层顶上盖起，顶栏自己让出刘海那一条，和应用页的顶栏一样 */
-.sheet-host > .fullsheet > .page > .navbar:first-child {
+:where(.sheet-host > .fullsheet > .page) > .navbar:where(:first-child) {
   height: calc(var(--navbar-h) + var(--top-inset));
   padding-top: var(--top-inset);
 }

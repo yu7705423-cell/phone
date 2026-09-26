@@ -123,7 +123,7 @@
 /* 线下整屏接管时，外壳那条状态栏底下也要是线下的底色，否则深色主题上方
    会留一条白边（见 ARCHITECTURE 4.107）。底色由 system/stage.js 写上来。 */
 :root[data-stage="on"] .root,
-:root[data-stage="on"] .page { background: var(--sg-chrome, var(--bg)); }
+:where(:root[data-stage="on"]) .page { background: var(--sg-chrome, var(--bg)); }
 
 :root[data-statusbar="light"] .statusbar { color: var(--on-scrim); }
 :root[data-statusbar="light"] .sb-level { color: var(--on-scrim); opacity: .72; }
@@ -229,8 +229,8 @@
   flex-direction: row; align-items: center; gap: var(--sp-5);
   padding: var(--sp-5); position: relative;
 }
-.wg-player.is-right { flex-direction: row-reverse; }
-.wg-player.is-serif .pl-line { font-family: var(--font-serif); }
+.wg-player:where(.is-right) { flex-direction: row-reverse; }
+:where(.wg-player.is-serif) .pl-line { font-family: var(--font-serif); }
 .pl-cover {
   flex: none; height: 100%; aspect-ratio: 1;
   border-radius: var(--r-md); background: var(--capsule-bg);
@@ -243,9 +243,9 @@
   flex: 1; min-width: 0; display: flex; flex-direction: column;
   justify-content: center; gap: 2px;
 }
-.wg-player.is-right .pl-text { text-align: right; }
+:where(.wg-player.is-right) .pl-text { text-align: right; }
 .pl-mark { position: absolute; top: var(--sp-4); right: var(--sp-4); color: var(--text-3); }
-.wg-player.is-right .pl-mark { right: auto; left: var(--sp-4); }
+:where(.wg-player.is-right) .pl-mark { right: auto; left: var(--sp-4); }
 
 .pl-line { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.25; }
 .pl-sm { font-size: var(--fs-12); color: var(--text-3); }
@@ -255,8 +255,8 @@
 
 /* 文字块与图片块 */
 .wg-note { justify-content: center; gap: var(--sp-1); }
-.wg-note.is-serif .pl-line { font-family: var(--font-serif); }
-.wg-note .pl-line { white-space: normal; }
+:where(.wg-note.is-serif) .pl-line { font-family: var(--font-serif); }
+:where(.wg-note) .pl-line { white-space: normal; }
 .wg-photo {
   padding: 0; background-size: cover; background-position: center;
   justify-content: flex-end; position: relative;

@@ -474,6 +474,18 @@ style=${`width:${size}px`}
 由 `scripts/check-contract.mjs` 双向核对：表里写了的必须真的挂着，
 挂着的必须登记，每个公开变量必须真的有人读，钩子上不许写死声明。
 
+### 挂了契约钩子的元素上，状态规则一律包进 `:where()`
+
+作者写单个 `.ph-send { background: red }` 是 (0,1,0)。应用自己的 `.send-btn.is-ghost`、`.tab.is-active`、
+`.app-tile.has-image`、`:root[data-wallpaper="on"] .app-tile` 是两个以上类名，压得住它，表现是「写了没反应」
+（用户反馈：图标换不动、按钮颜色改不了）。所以：**挂了钩子的元素上，应用自己的规则只能有单个类名的特异度**，
+状态类、上下文一律包进 `:where()`：`.send-btn:where(.is-ghost)`、`:where(.msg.is-mine) .bubble`。
+文件顺序不动，应用内部靠「后写的赢」维持层叠。`:hover` / `:active` / `:disabled` 不用改。
+
+同一条规矩管所有能自己写 CSS 的地方：「外观 - 自定义 CSS」、悬浮球的 CSS、线下的 CSS（ARCHITECTURE 4.257）。
+
+由 `scripts/hookaudit.mjs` 在冒烟里核对：每条路由打开后扫一遍，有一条压得住钩子的规则冒烟就不过。
+
 ### 美化包自己声明改到哪一层
 
 `scope` 填 `chat`（挂在一段会话上）或 `shell`（整个应用），可以两档都要。

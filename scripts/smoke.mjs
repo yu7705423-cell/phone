@@ -298,6 +298,21 @@ const ids = await page.evaluate(async () => {
 });
 await page.waitForTimeout(400);
 
+// 契约核对（scripts/hookaudit.mjs）：每条路由打开后扫一遍，攒起来最后报
+const { AUDIT_JS, ALLOW } = await import('./hookaudit.mjs');
+const outranked = {};
+const classesOf = {};
+const audit = async () => {
+  if (process.env.SMOKE_DUMP) {
+    const m = await page.evaluate(() => { const o = {}; for (const el of document.querySelectorAll('[class*="ph-"]')) {
+      const cs = [...el.classList]; for (const h of cs.filter(c => c.startsWith('ph-'))) (o[h] ||= new Set(), o[h]); 
+      for (const h of cs.filter(c => c.startsWith('ph-'))) o[h] = [...new Set([...(o[h] instanceof Set ? [] : o[h]), ...cs.filter(c => !c.startsWith('ph-'))])]; } return o; }).catch(() => ({}));
+    for (const [h, cs] of Object.entries(m)) classesOf[h] = [...new Set([...(classesOf[h] || []), ...cs])];
+  }
+  const got = await page.evaluate(AUDIT_JS).catch(() => ({}));
+  for (const [k, v] of Object.entries(got)) if (!ALLOW.some(a => k.endsWith('  <-  ' + a))) outranked[k] = v;
+};
+await audit();   // 主屏
 let bad = 0, n = 0;
 for (const [appId, routes] of Object.entries(ROUTES)) {
   for (const raw of routes) {
@@ -310,6 +325,7 @@ for (const [appId, routes] of Object.entries(ROUTES)) {
       nav.openApp(app, r);
     }, [appId, route]);
     await page.waitForTimeout(450);
+    await audit();
     const crashed = await page.locator('.boundary, .err-box').count().catch(() => 0);
     const text = await page.locator('.app-layer').innerText().catch(() => '');
     const stopped = /已停止/.test(text);
@@ -323,4 +339,10 @@ for (const [appId, routes] of Object.entries(ROUTES)) {
 
 await browser.close();
 console.log(bad ? `\n${n} 条路由里 ${bad} 条炸了` : `\n${n} 条路由全部打得开`);
-process.exit(bad ? 1 : 0);
+if (process.env.SMOKE_DUMP) (await import('node:fs')).writeFileSync(process.env.SMOKE_DUMP, JSON.stringify(classesOf, null, 1));
+const hits = Object.entries(outranked).sort();
+if (hits.length) {
+  console.log(`\n${hits.length} 条应用规则压得住单个契约钩子（ARCHITECTURE 4.257，状态类要包进 :where()）：`);
+  for (const [k, v] of hits) console.log(`  ${k}\n      ${v}`);
+}
+process.exit(bad || hits.length ? 1 : 0);

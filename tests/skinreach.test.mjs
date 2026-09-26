@@ -9,6 +9,10 @@
 //   二、底部标签栏：选中的那个标签颜色改得动
 //   三、主屏图标：换过图片、开着壁纸的图标，背景图与底色改得动；能挪
 //   四、会话：我发的那一条能挪到左边，气泡底色改得动，列表最后一行的分隔线改得动，顶栏高度改得动
+//   五、其余能自己写 CSS 的地方同一条规矩：
+//       悬浮球（长按 - 外观 - 自定义 CSS）：换了图还保留底板时底色改得动，面板上开着的项的图标底色改得动
+//       外观 - 自定义 CSS：播放器挂件靠右排时方向改得动，衬线字时 .pl-line 字体改得动
+//       线下的自定义 CSS：我那一侧的气泡底色、固定比例的卡片比例改得动
 import { BASE, EXE, PNG_B64, chromium } from './_env.mjs';
 
 const browser = await chromium.launch({ executablePath: EXE, args: ['--no-sandbox'] });
@@ -87,6 +91,48 @@ ok('四、我那一栏的对齐改得动', await cs('.ph-msg-mine .ph-col', 'ali
 ok('四、我的气泡底色与字色改得动', await cs('.ph-bubble-mine', 'background-color') === 'rgb(0, 0, 255)' && await cs('.ph-bubble-mine', 'color') === 'rgb(255, 255, 0)', await cs('.ph-bubble-mine', 'background-color'));
 ok('四、消息列表顶部留白改得动', await cs('.ph-chat-body', 'padding-top') === '77px', await cs('.ph-chat-body', 'padding-top'));
 ok('四、返回键颜色改得动', await cs('.ph-back', 'color') === 'rgb(255, 0, 255)', await cs('.ph-back', 'color'));
+
+// 五、悬浮球
+await ev(async ({ b64 }) => {
+  const { images } = await import('/src/system/db/index.js');
+  const q = await import('/src/system/quickball.js');
+  const blob = await (await fetch(`data:image/png;base64,${b64}`)).blob();
+  const id = await images.putIcon(new File([blob], 'b.png', { type: 'image/png' }));
+  q.setCfg({ on: true, img: id, plate: true, items: ['theme', 'home'],
+    css: '.qb-ball { background-color: rgb(1, 2, 3); } .qb-item .qb-icon { background-color: rgb(4, 5, 6); }' });
+  const n = await import('/src/system/nav.js'); n.goHome();
+}, { b64: PNG_B64 });
+await page.waitForTimeout(800);
+ok('五、悬浮球：换了图还保留底板时，底色改得动', await cs('.qb-ball.has-img.has-plate', 'background-color') === 'rgb(1, 2, 3)', await cs('.qb-ball.has-img.has-plate', 'background-color'));
+await ev(async () => { const { db } = await import('/src/system/db/index.js'); db.settings.set({ theme: 'dark' }); });
+await page.locator('.qb-ball').click();
+await page.waitForTimeout(400);
+ok('五、悬浮球：面板上开着的项，图标底色改得动', await cs('.qb-item.is-on .qb-icon', 'background-color') === 'rgb(4, 5, 6)', await cs('.qb-item.is-on .qb-icon', 'background-color'));
+await page.locator('.qb-scrim').click({ position: { x: 5, y: 5 } });
+await page.waitForTimeout(200);
+// 五、外观 - 自定义 CSS：播放器挂件（直接放一段挂件的标记进去，不依赖有没有歌在放）
+await ev(async () => {
+  const { db } = await import('/src/system/db/index.js');
+  db.settings.set({ customCSS: '.wg-player { flex-direction: column; } .pl-line { font-family: monospace; }' });
+  document.body.insertAdjacentHTML('beforeend', '<div id="wgprobe"><div class="wg wg-player is-right is-serif"><div class="pl-text"><div class="pl-line">x</div></div></div></div>');
+});
+await page.waitForTimeout(300);
+const wgp = await ev(() => ({ dir: getComputedStyle(document.querySelector('#wgprobe .wg-player')).flexDirection,
+  line: getComputedStyle(document.querySelector('#wgprobe .pl-line')).fontFamily }));
+ok('五、播放器挂件靠右排、衬线字时：方向与字体都改得动', wgp.dir === 'column' && /monospace/.test(wgp.line), JSON.stringify(wgp));
+await ev(() => document.getElementById('wgprobe')?.remove());
+// 五、线下
+await ev(async () => {
+  const { db } = await import('/src/system/db/index.js');
+  db.settings.set({ customCSS: '' });
+  const stage = await import('/src/system/stage.js');
+  stage.mountCSS('.sg-bub { background-color: rgb(7, 8, 9); } .sg-card { aspect-ratio: 2 / 1; }');
+  document.body.insertAdjacentHTML('beforeend', '<div id="sgprobe" class="sg"><div class="sg-bub is-mine">a</div><div class="sg-card is-fixed"><div class="sg-card-body">b</div></div></div>');
+});
+await page.waitForTimeout(200);
+const sg = await ev(() => ({ bub: getComputedStyle(document.querySelector('#sgprobe .sg-bub')).backgroundColor, card: getComputedStyle(document.querySelector('#sgprobe .sg-card')).aspectRatio }));
+ok('五、线下：我那一侧的气泡底色、固定比例卡片的比例改得动', sg.bub === 'rgb(7, 8, 9)' && /^2 \/ 1$/.test(sg.card), JSON.stringify(sg));
+await ev(async () => { document.getElementById('sgprobe')?.remove(); (await import('/src/system/stage.js')).unmountCSS(); });
 
 ok('没有页面错误', !errs.length, errs.join('\n'));
 await browser.close();

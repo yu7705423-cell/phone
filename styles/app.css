@@ -206,14 +206,14 @@ input[type="range"] {
 .msg:where(.is-mine) { flex-direction: row-reverse; }
 /* 同一个人接着说的那一条，和上一条之间收紧。收紧到的距离跟着「同一轮里两个气泡之间」走，
    美化里改了那个间距，这里跟着变 */
-.msg.is-cont { margin-top: calc(var(--bubble-gap-in) * 2 - var(--bubble-gap)); }
+.msg:where(.is-cont) { margin-top: calc(var(--bubble-gap-in) * 2 - var(--bubble-gap)); }
 /* 两条消息中间居中的那一行时间（相隔五分钟以上才有） */
 .time-sep { align-self: center; padding: var(--sp-1) 0; font-size: var(--fs-12); color: var(--text-3); }
 .msg-col { display: flex; flex-direction: column; gap: var(--bubble-gap-in); max-width: 74%; min-width: 0; }
 :where(.msg.is-mine) .msg-col { align-items: flex-end; }
 /* 气泡上的时刻与已读回执。两样默认都关着，开了才有这个节点。
    靠着气泡画的时候要给它让出位置，否则窄屏上会把气泡挤出去 */
-.msg.has-aside .msg-col { max-width: 62%; }
+:where(.msg.has-aside) .msg-col { max-width: 62%; }
 .msg-meta {
   flex: none; display: flex; gap: var(--sp-1);
   font-size: var(--fs-11); color: var(--text-3); line-height: 1.3;
@@ -296,7 +296,7 @@ input[type="range"] {
   padding: var(--sp-2) var(--sp-4); font-size: var(--fs-12); color: var(--text-3); line-height: 1.6;
 }
 .recall-hint { color: var(--text-2); text-decoration: underline; text-underline-offset: 2px; }
-.msg.is-recalled { opacity: .55; }
+.msg:where(.is-recalled) { opacity: .55; }
 .msg-gone.is-picked .recall-line { color: var(--accent); }
 
 /* 被引用的那条跳过去之后闪一下 */
@@ -463,11 +463,11 @@ input[type="range"] {
 
 /* 主页（Instagram 式，见 ARCHITECTURE 4.149） */
 .ig-head { display: flex; align-items: center; gap: var(--sp-5); padding: var(--sp-4) var(--sp-4) var(--sp-3); }
-.ig-head .avatar { flex: none; }
+:where(.ig-head) .avatar { flex: none; }
 .ig-face { position: relative; flex: none; }
 /* 「原本的」那一张贴在头像右下角。从前它在按钮那一行里，把整行撑开 */
 .ig-face-base { position: absolute; right: -2px; bottom: -2px; border-radius: var(--r-full); }
-.ig-face-base .avatar { box-shadow: 0 0 0 2px var(--bg); }
+:where(.ig-face-base) .avatar { box-shadow: 0 0 0 2px var(--bg); }
 .ig-stats { flex: 1; display: flex; justify-content: space-around; min-width: 0; }
 .ig-stat { text-align: center; padding: var(--sp-1) var(--sp-2); }
 .ig-stat b { display: block; font-size: var(--fs-17); font-weight: var(--fw-semi); }
@@ -480,7 +480,7 @@ input[type="range"] {
 .ig-hl { display: flex; gap: var(--sp-3); padding: var(--sp-2) var(--sp-4) var(--sp-3); overflow-x: auto; }
 .ig-hl-item { flex: none; width: 64px; display: flex; flex-direction: column; align-items: center; gap: var(--sp-1); }
 .ig-hl-ring { width: 60px; height: 60px; border-radius: var(--r-full); padding: 2px; border: 1px solid var(--border-2); }
-.ig-hl-ring.is-add { border-style: dashed; }
+.ig-hl-ring:where(.is-add) { border-style: dashed; }
 .ig-hl-img {
   width: 100%; height: 100%; border-radius: var(--r-full);
   background: var(--surface-3); background-image: var(--hl-img, none); background-size: cover; background-position: center;
@@ -493,7 +493,7 @@ input[type="range"] {
 }
 .ig-tabs { display: flex; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
 .ig-tab { flex: 1; display: flex; justify-content: center; padding: var(--sp-3) 0; color: var(--text-3); border-bottom: 1px solid transparent; margin-bottom: -1px; }
-.ig-tab.is-on { color: var(--text); border-bottom-color: var(--text); }
+.ig-tab:where(.is-on) { color: var(--text); border-bottom-color: var(--text); }
 .ig-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; }
 .ig-cell { position: relative; aspect-ratio: 1; background: var(--surface-3); background-image: var(--cell-img, none); background-size: cover; background-position: center; }
 .ig-cell-multi {
@@ -784,10 +784,10 @@ input[type="range"] {
   overflow: hidden;
   background: var(--group-fill);
 }
-:root[data-wallpaper="on"] .capsule {
+:where(:root[data-wallpaper="on"]) .capsule {
   background: var(--wg-solid);
 }
-:root[data-wallpaper="on"][data-glass="on"] .capsule { backdrop-filter: blur(var(--glass-blur)); -webkit-backdrop-filter: blur(var(--glass-blur)); }
+:where(:root[data-wallpaper="on"][data-glass="on"]) .capsule { backdrop-filter: blur(var(--glass-blur)); -webkit-backdrop-filter: blur(var(--glass-blur)); }
 
 .msg-row {
   display: flex; align-items: center; gap: var(--sp-3);
@@ -1089,7 +1089,7 @@ input[type="range"] {
 .stk-gone-hint { font-size: var(--fs-11); color: var(--accent); }
 
 /* 译文收在原文气泡里。点一下展开，不单独占一条消息，也不另加按钮 */
-.bubble.has-trans { cursor: pointer; }
+.bubble:where(.has-trans) { cursor: pointer; }
 .bubble-trans {
   margin-top: 6px; padding-top: 6px;
   border-top: 1px solid var(--group-line);
@@ -1131,7 +1131,7 @@ button.search-bar { width: 100%; border: none; }
 }
 /* 自己这边的气泡是深底，分隔线要用亮的那一侧 */
 .msg.is-mine .tr-foot { border-top-color: rgba(255, 255, 255, .22); }
-.bubble-transfer.is-done { opacity: .58; }
+.bubble-transfer:where(.is-done) { opacity: .58; }
 
 /* 提示行。不是谁说的话，居中一行灰字 */
 .conv-notice {
@@ -1223,7 +1223,7 @@ button.search-bar { width: 100%; border: none; }
 
 /* 通话记录气泡与全文 */
 .bubble-call { display: flex; align-items: center; gap: var(--sp-2); }
-.bubble-call.is-miss { opacity: .62; }
+.bubble-call:where(.is-miss) { opacity: .62; }
 .log-line { margin-bottom: var(--sp-4); }
 .log-who { display: block; font-size: var(--fs-12); color: var(--text-3); margin-bottom: 2px; }
 .log-text { font-size: var(--fs-15); line-height: 1.65; }
@@ -1359,7 +1359,7 @@ button.search-bar { width: 100%; border: none; }
 .bubble-gift .tr-top { display: flex; align-items: center; gap: var(--sp-3); min-width: 0; }
 .gift-cover { font-size: var(--fs-17); font-weight: var(--fw-medium); }
 .gift-inner { font-size: var(--fs-12); opacity: .7; margin-top: 2px; }
-.bubble-gift.is-done { opacity: .62; }
+.bubble-gift:where(.is-done) { opacity: .62; }
 .face-preview {
   margin-top: var(--sp-3); height: 120px; width: 120px; border-radius: var(--r-md);
   background-size: cover; background-position: center;
@@ -2509,7 +2509,7 @@ button.search-bar { width: 100%; border: none; }
   font-size: var(--fs-12); letter-spacing: .2em; line-height: 1.6;
   color: var(--sg-ink);
 }
-.sg-sign.is-mine .sg-sign-name { color: var(--sg-dim); }
+:where(.sg-sign.is-mine) .sg-sign-name { color: var(--sg-dim); }
 /* 不用 tabular-nums：这里的数字不排成列，等宽只会让时刻看着像块表 */
 .sg-sign-meta {
   font-size: 10px; letter-spacing: .14em; line-height: 1.6;
@@ -2524,7 +2524,7 @@ button.search-bar { width: 100%; border: none; }
 /* 首字下沉。杂志开篇那一页真正的大件。
    initial-letter 各家支持不齐，稳的是 ::first-letter 加浮动。
    开头是标点的那一段不加（canDrop 在 StageBits.js 里判） */
-.sg-text.is-drop > p:first-child::first-letter {
+:where(.sg-text.is-drop) > p:where(:first-child)::first-letter {
   float: left;
   font-size: 3em; line-height: .86;
   padding: .06em .12em 0 0;
@@ -2556,9 +2556,9 @@ button.search-bar { width: 100%; border: none; }
 .sg-card:last-child { margin-bottom: 0; }
 /* 每片一样大那一档：真明信片的比例（105 × 148 毫米），文字在片内滚。
    高度不能用 vh —— 第 1 条只许外壳那三层用，这里靠比例 */
-.sg-card.is-fixed { aspect-ratio: 105 / 148; }
+.sg-card:where(.is-fixed) { aspect-ratio: 105 / 148; }
 .sg-card-body { flex: 1; min-height: 0; }
-.sg-card.is-fixed .sg-card-body { overflow-y: auto; -webkit-overflow-scrolling: touch; }
+:where(.sg-card.is-fixed) .sg-card-body { overflow-y: auto; -webkit-overflow-scrolling: touch; }
 .sg.is-spread .sg-feed {
   padding-top: calc(var(--sp-4) + env(safe-area-inset-top));
 }
@@ -2695,7 +2695,7 @@ button.search-bar { width: 100%; border: none; }
 .sc-live .sg-text { white-space: pre-wrap; }
 
 /* 线下开着时的输入框。换个底色，一眼看出发出去的是正文不是消息 */
-.composer-input.is-scene {
+.composer-input:where(.is-scene) {
   background: var(--wg-bg);
   border-radius: var(--r-sm);
 }
@@ -2766,7 +2766,7 @@ button.search-bar { width: 100%; border: none; }
   border: 1px solid transparent;
 }
 /* 自己写的那些不填底，只描一道线 —— 一屏全是实心块会糊成一片 */
-.sg-bub.is-mine { background: none; border-color: var(--sg-line); }
+.sg-bub:where(.is-mine) { background: none; border-color: var(--sg-line); }
 .sg-bub:last-child { margin-bottom: 0; }
 .sg-bub-who {
   font-family: var(--sg-font); font-size: var(--fs-11);
@@ -2783,7 +2783,7 @@ button.search-bar { width: 100%; border: none; }
 }
 .sg-lyric p { margin: 0 0 .6em; }
 .sg-lyric p:last-child { margin-bottom: 0; }
-.sg-lyric p.is-said { font-weight: var(--fw-medium); }
+.sg-lyric p:where(.is-said) { font-weight: var(--fw-medium); }
 
 /* 我们：作品封面那一格 */
 .wk-cover-row { display: flex; align-items: center; gap: var(--sp-3); }
@@ -2836,10 +2836,10 @@ button.search-bar { width: 100%; border: none; }
   background: var(--surface); border: 1px solid var(--border);
   display: grid; grid-template-columns: 1fr; place-items: center;
 }
-.group-face.n-2, .group-face.n-3, .group-face.n-4 {
+.group-face:where(.n-2), .group-face:where(.n-3), .group-face:where(.n-4) {
   grid-template-columns: 1fr 1fr; gap: 2px; padding: 2px; align-content: center;
 }
-.group-face.n-3 > :first-child { grid-column: 1 / 3; }
+.group-face:where(.n-3) > :first-child { grid-column: 1 / 3; }
 .group-head {
   display: flex; flex-direction: column; align-items: center; gap: var(--sp-2);
   padding: var(--sp-5) 0 var(--sp-2);
@@ -2855,8 +2855,8 @@ button.search-bar { width: 100%; border: none; }
    余烬暗着、太阳慢慢转、满级那一圈的亮点绕着走。
    系统设置里开了「减弱动态效果」的，全部停下来 */
 .bd-g { display: inline-flex; align-items: center; justify-content: center; color: var(--text); line-height: 0; }
-.bd-g.is-off { color: var(--text-3); }
-.bd-g.is-ember { color: var(--text-3); }
+.bd-g:where(.is-off) { color: var(--text-3); }
+.bd-g:where(.is-ember) { color: var(--text-3); }
 .bd-g.is-lit.is-spark svg, .bd-g.is-lit.is-flame svg, .bd-g.is-lit.is-torch svg {
   transform-origin: 50% 90%; animation: bd-flicker calc(var(--dur-slow) * 6) var(--ease) infinite;
 }
@@ -3074,7 +3074,7 @@ button.conv-notice { background: none; border: 0; font: inherit; cursor: pointer
    值由会话页以 --ph-* 挂在 .page 上；没设过的那一栏不挂类名，保持应用本来的样子。
    背景画在整页上（顶栏、输入栏底下也是它），遮罩朝当前主题的底色淡过去，
    浅色主题上是一层白、深色主题上是一层黑，气泡外那些灰字都还看得清 */
-.page.has-chat-bg {
+.page:where(.has-chat-bg) {
   background:
     linear-gradient(color-mix(in srgb, var(--bg) var(--ph-chat-veil, 0%), transparent),
                     color-mix(in srgb, var(--bg) var(--ph-chat-veil, 0%), transparent)),
@@ -3082,24 +3082,24 @@ button.conv-notice { background: none; border: 0; font: inherit; cursor: pointer
     var(--bg);
 }
 /* 压在图上、不在气泡里的那几行字，垫一块底 */
-.has-chat-bg .time-sep,
-.has-chat-bg .conv-hint,
-.has-chat-bg .conv-notice {
+:where(.has-chat-bg) .time-sep,
+:where(.has-chat-bg) .conv-hint,
+:where(.has-chat-bg) .conv-notice {
   background: color-mix(in srgb, var(--bg) 78%, transparent);
   border-radius: var(--r-full); padding-inline: var(--sp-3);
 }
-.has-chat-bg .conv-notice {
+:where(.has-chat-bg) .conv-notice {
   width: fit-content; max-width: 86%; margin-inline: auto; border-radius: var(--r-md);
 }
 
 /* 上下两栏。下面那一栏是输入框连同压在它上面的那几条（引用、待办、表情联想、@ 成员）
    以及展开的面板、多选栏 —— 看上去是同一块，一起换 */
-.page.look-top > .navbar {
+:where(.page.look-top) > .navbar {
   background: var(--ph-bar-top, var(--bg));
   -webkit-backdrop-filter: blur(var(--ph-bar-top-blur, 0px));
   backdrop-filter: blur(var(--ph-bar-top-blur, 0px));
 }
-.page.look-bottom :is(.composer-bar, .composer-panel, .select-bar, .quote-bar,
+:where(.page.look-bottom) :is(.composer-bar, .composer-panel, .select-bar, .quote-bar,
                       .todo-bar, .stk-suggest, .mention-bar) {
   background: var(--ph-bar-bottom, var(--bg));
   -webkit-backdrop-filter: blur(var(--ph-bar-bottom-blur, 0px));
@@ -3107,8 +3107,8 @@ button.conv-notice { background: none; border: 0; font: inherit; cursor: pointer
 }
 /* 字色。深色的栏配浅字：栏里用到的几档字色与输入框底色就地换掉，
    里面的元素照旧读 --text 那几个，不必一个个改 */
-.page.look-top-light > .navbar,
-.page.look-bottom-light :is(.composer-bar, .composer-panel, .select-bar, .quote-bar,
+:where(.page.look-top-light) > .navbar,
+:where(.page.look-bottom-light) :is(.composer-bar, .composer-panel, .select-bar, .quote-bar,
                             .todo-bar, .stk-suggest, .mention-bar) {
   --text: var(--on-scrim);
   --text-2: color-mix(in srgb, var(--on-scrim) 78%, transparent);
@@ -3117,8 +3117,8 @@ button.conv-notice { background: none; border: 0; font: inherit; cursor: pointer
   --border: color-mix(in srgb, var(--on-scrim) 22%, transparent);
   color: var(--text);
 }
-.page.look-top-dark > .navbar,
-.page.look-bottom-dark :is(.composer-bar, .composer-panel, .select-bar, .quote-bar,
+:where(.page.look-top-dark) > .navbar,
+:where(.page.look-bottom-dark) :is(.composer-bar, .composer-panel, .select-bar, .quote-bar,
                            .todo-bar, .stk-suggest, .mention-bar) {
   --text: var(--on-scrim-fill);
   --text-2: color-mix(in srgb, var(--on-scrim-fill) 72%, transparent);
@@ -3159,23 +3159,23 @@ button.conv-notice { background: none; border: 0; font: inherit; cursor: pointer
 /* ---- 栏浮在消息列表上（聊天背景里栏不是实色，system/chatlook.js）----
    消息从栏底下滚过去，半透明、毛玻璃才透得出东西。
    顶栏高度是定的，直接算；输入栏那一组会变高，会话页量出来挂成 --foot-h */
-.page.float-top > .navbar {
+:where(.page.float-top) > .navbar {
   position: relative; z-index: 3;
   margin-bottom: calc(-1 * (var(--navbar-h) + var(--top-inset)));
 }
 /* 会话顶上那几条（一起听、一起看、节奏）浮在顶栏下沿，列表一直伸到顶栏底下 */
-.page.float-top .conv { padding-top: calc(var(--navbar-h) + var(--top-inset)); }
-.page.float-top .conv > .conv-main:first-child { margin-top: calc(-1 * (var(--navbar-h) + var(--top-inset))); }
-.page.float-top .conv > .conv-main:first-child > .conv-body {
+:where(.page.float-top) .conv { padding-top: calc(var(--navbar-h) + var(--top-inset)); }
+:where(.page.float-top .conv) > .conv-main:where(:first-child) { margin-top: calc(-1 * (var(--navbar-h) + var(--top-inset))); }
+:where(.page.float-top .conv) > .conv-main:where(:first-child) > .conv-body {
   padding-top: calc(var(--navbar-h) + var(--top-inset) + var(--sp-4) + var(--strips-h, 0px));
 }
-.page.float-top .conv > .conv-main:first-child > .conv-strips { top: calc(var(--navbar-h) + var(--top-inset)); }
-.page.float-bottom .conv-foot {
+:where(.page.float-top .conv) > .conv-main:where(:first-child) > .conv-strips { top: calc(var(--navbar-h) + var(--top-inset)); }
+:where(.page.float-bottom) .conv-foot {
   position: relative; z-index: 3;
   margin-top: calc(-1 * var(--foot-h, 0px));
 }
-.page.float-bottom .conv-body { padding-bottom: calc(var(--foot-h, 0px) + var(--sp-4)); }
-.page.float-bottom .to-bottom { bottom: calc(var(--foot-h, 0px) + var(--sp-3)); }
+:where(.page.float-bottom) .conv-body { padding-bottom: calc(var(--foot-h, 0px) + var(--sp-4)); }
+:where(.page.float-bottom) .to-bottom { bottom: calc(var(--foot-h, 0px) + var(--sp-3)); }
 
 /* ---- 角色卡展示页：拍立得（chat/pages/CharCard.js）----
    相纸是 --surface，深色主题下跟着变深。微微斜一点，像随手放在桌上的一张 */
@@ -3391,7 +3391,7 @@ button.conv-notice { background: none; border: 0; font: inherit; cursor: pointer
   text-align: center; font-size: var(--fs-13); line-height: 1.65; white-space: pre-wrap;
   color: var(--ph-narration-color, var(--text-3));
 }
-.has-chat-bg .msg-narration { text-shadow: 0 0 6px var(--bg), 0 0 2px var(--bg); }
+:where(.has-chat-bg) .msg-narration { text-shadow: 0 0 6px var(--bg), 0 0 2px var(--bg); }
 
 /* 世界书批量导入：每本一块，不导入的那本变淡 */
 .lb-draft { margin-bottom: var(--sp-4); }
@@ -3686,18 +3686,18 @@ button.conv-notice { background: none; border: 0; font: inherit; cursor: pointer
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22);
 }
 .qb-ball:active { transform: translate(var(--qb-x, 0), var(--qb-y, 0)) scale(0.92); }
-.qb-ball.is-dragging { transition: none; }
-.qb-ball.is-idle { opacity: var(--qb-idle, 0.45); }
-.qb-ball.is-placing { visibility: hidden; }
+.qb-ball:where(.is-dragging) { transition: none; }
+.qb-ball:where(.is-idle) { opacity: var(--qb-idle, 0.45); }
+.qb-ball:where(.is-placing) { visibility: hidden; }
 /* 展开时球「变成」面板，不同时留在屏幕上 */
-.qb-ball.is-open { opacity: 0; pointer-events: none; }
+.qb-ball:where(.is-open) { opacity: 0; pointer-events: none; }
 /* 拖动中、编辑外观时当场看得到：浮在面板那层之上，但不接手势 */
-.qb-ball.is-preview { z-index: calc(var(--z-modal) + 1); pointer-events: none; }
+.qb-ball:where(.is-preview) { z-index: calc(var(--z-modal) + 1); pointer-events: none; }
 /* 用户自己写的 CSS 只作用在这一层里（system/quickball.js 的 scopeCss）。本身不占位置 */
 .qb-layer { display: contents; }
 /* 换成自己的图：没有底板、没有毛玻璃，图按「边长 × 倍数」居中压在球上，可以比球大（溢出） */
-.qb-ball.has-img { background: none; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; overflow: visible; }
-.qb-ball.has-img.has-plate { background: rgba(0, 0, 0, 0.62); box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22); }
+.qb-ball:where(.has-img) { background: none; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; overflow: visible; }
+.qb-ball:where(.has-img.has-plate) { background: rgba(0, 0, 0, 0.62); box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22); }
 .qb-img {
   position: absolute; left: 50%; top: 50%;
   width: calc(var(--qb-size, 56px) * var(--qb-scale, 1)); height: calc(var(--qb-size, 56px) * var(--qb-scale, 1));
@@ -3742,7 +3742,7 @@ button.conv-notice { background: none; border: 0; font: inherit; cursor: pointer
 }
 .qb-icon svg { width: 28px; height: 28px; }
 /* 开着的那几项：白底圆，图标反色 */
-.qb-item.is-on .qb-icon { background: rgba(255, 255, 255, 0.94); color: rgba(0, 0, 0, 0.88); }
+:where(.qb-item.is-on) .qb-icon { background: rgba(255, 255, 255, 0.94); color: rgba(0, 0, 0, 0.88); }
 .qb-label { font-size: var(--fs-11); line-height: 1.3; text-align: center; color: rgba(255, 255, 255, 0.92); }
 .qb-note { font-size: var(--fs-9); color: rgba(255, 255, 255, 0.55); }
 .qb-hint { font-size: var(--fs-12); line-height: 1.6; padding: var(--sp-1) 0 var(--sp-2); color: rgba(255, 255, 255, 0.6); }
@@ -3764,7 +3764,7 @@ button.conv-notice { background: none; border: 0; font: inherit; cursor: pointer
   background: rgba(255, 255, 255, 0.08); color: rgba(255, 255, 255, 0.96);
 }
 .qb-pick span { display: grid; min-width: 0; }
-.qb-pick.is-on { background: rgba(255, 255, 255, 0.2); }
+.qb-pick:where(.is-on) { background: rgba(255, 255, 255, 0.2); }
 .qb-more { font-size: var(--fs-13); padding: var(--sp-2) 0; text-align: left; color: rgba(255, 255, 255, 0.75); }
 .qb-order { display: flex; gap: var(--sp-1); color: rgba(255, 255, 255, 0.8); }
 .qb-order button { color: inherit; }
@@ -3772,7 +3772,7 @@ button.conv-notice { background: none; border: 0; font: inherit; cursor: pointer
 .qb-tabs { padding-bottom: var(--sp-2); }
 .qb-panel .segmented { background: rgba(255, 255, 255, 0.1); }
 .qb-panel .seg-item { color: rgba(255, 255, 255, 0.75); }
-.qb-panel .seg-item.is-active { background: rgba(255, 255, 255, 0.94); color: rgba(0, 0, 0, 0.88); }
+.qb-panel .seg-item:where(.is-active) { background: rgba(255, 255, 255, 0.94); color: rgba(0, 0, 0, 0.88); }
 .qb-range { display: grid; gap: var(--sp-1); font-size: var(--fs-13); color: rgba(255, 255, 255, 0.9); }
 .qb-range input { width: 100%; }
 .qb-img-row { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
@@ -3784,7 +3784,7 @@ button.conv-notice { background: none; border: 0; font: inherit; cursor: pointer
 .qb-panel textarea { background: rgba(255, 255, 255, 0.08); color: rgba(255, 255, 255, 0.92); border-color: rgba(255, 255, 255, 0.14); font-family: var(--font-mono); font-size: var(--fs-12); }
 .qb-panel .mono { color: rgba(255, 255, 255, 0.85); }
 .qb-panel .chip { background: rgba(255, 255, 255, 0.12); color: rgba(255, 255, 255, 0.9); border-color: rgba(255, 255, 255, 0.12); }
-.qb-panel .chip.is-active { background: rgba(255, 255, 255, 0.94); color: rgba(0, 0, 0, 0.88); }
+.qb-panel .chip:where(.is-active) { background: rgba(255, 255, 255, 0.94); color: rgba(0, 0, 0, 0.88); }
 .qb-panel .switch { background: rgba(255, 255, 255, 0.2); }
-.qb-panel .switch.is-on { background: var(--ios-green); }
+.qb-panel .switch:where(.is-on) { background: var(--ios-green); }
 .qb-panel .switch-dot { background: rgba(255, 255, 255, 0.98); }
