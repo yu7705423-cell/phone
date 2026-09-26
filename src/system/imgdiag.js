@@ -1,0 +1,107 @@
+import { idb } from './db/idb.js';
+import { images, setDiagLog } from './db/images.js';
+import { characters, personas, chats, settings, layout } from './db/index.js';
+import { blobEpoch, resetBlobUrls } from './db/blobs.js';
+
+// 图片诊断与删图日志。见 ARCHITECTURE 4.272
+//
+// 「图没了」已经报过六次，每次原因都不一样，而每次拿到手的只有一句「没了」。
+// 这里做两件事，让下一次一眼看得出是哪条路：
+//
+//   日志   每一次真正删图（images.destroy）记一笔：哪张、谁删的、什么时候。存在 kv 里，只留最近两百条。
+//          图被清理、被恢复备份清空、被换头像换掉，都在这里留痕。没有记录而图没了，就不是删的。
+//   检查   记录还在不在、引用着的图在不在库里、库里的数据读不读得出来（记录在而数据是空的，
+//          是浏览器把 blob 背后的文件收走了，这是第六条路，代码删不掉也救不回来，只能靠备份）。
+
+const KEY = 'imglog';
+const CAP = 200;
+
+let queue = Promise.resolve();
+/** 记一笔。不等它写完，也不让它的失败影响删图本身 */
+export function log(kind, id, why = '') {
+  const at = Date.now();
+  // 调用栈只留头三行，够认出是哪一处
+  const from = String(new Error().stack || '').split('\n').slice(2, 5).map(s => s.trim().replace(/^at\s+/, '')).join(' < ');
+  queue = queue.then(async () => {
+    const row = await idb.get('kv', KEY);
+    const list = Array.isArray(row?.v) ? row.v : [];
+    list.push({ at, kind, id, why: String(why || ''), from });
+    while (list.length > CAP) list.shift();
+    await idb.put('kv', { k: KEY, v: list });
+  }).catch(() => {});
+}
+
+setDiagLog(log);
+
+export async function entries() {
+  const row = await idb.get('kv', KEY);
+  return Array.isArray(row?.v) ? row.v.slice().reverse() : [];
+}
+
+/** 用户最先看见的那几处引用：图标、壁纸、头像、聊天背景。返回 [{ id, where }] */
+export function refs() {
+  const out = [];
+  const add = (id, where) => { if (id) out.push({ id, where }); };
+  const s = settings.get();
+  Object.entries(s.appIcons || {}).forEach(([app, v]) => add(v?.imageId, `图标 ${app}`));
+  const w = layout.get().wallpaper || {};
+  add(w.home, '主屏壁纸'); add(w.lock, '锁屏壁纸');
+  characters.all().forEach(c => { add(c.avatar, `头像 ${c.name || ''}`); add(c.cover, `封面 ${c.name || ''}`); });
+  personas.all().forEach(p => { add(p.avatar, `我的头像 ${p.name || ''}`); add(p.cover, `我的封面 ${p.name || ''}`); });
+  chats.all().forEach(c => add(c.look?.bg, '聊天背景'));
+  return out;
+}
+
+/**
+ * 检查。抽查引用着的那几张加上库里前几张：记录在不在、数据读不读得出来。
+ *   records     库里的记录数（开机时读到的索引）
+ *   inStore     现在直接数库里有几条（和 records 对不上说明开机后被删过或读失败）
+ *   missing     引用着、但库里没有记录的：[{ id, where }]
+ *   empty       记录在、数据是空的：[{ id, where }]
+ *   unreadable  读的时候报错的：[{ id, where, err }]
+ *   sampled     抽查了几张
+ */
+export async function check(limit = 40) {
+  const list = refs();
+  const seen = new Set();
+  const targets = [];
+  for (const r of list) if (!seen.has(r.id)) { seen.add(r.id); targets.push(r); }
+  for (const id of images.ids().slice(0, 12)) if (!seen.has(id)) { seen.add(id); targets.push({ id, where: '库里' }); }
+  const missing = [], empty = [], unreadable = [];
+  let sampled = 0;
+  let keys = null;
+  try { keys = await idb.all('images'); } catch { keys = null; }
+  const inStore = keys ? keys.length : -1;
+  const present = keys ? new Set(keys.map(r => r.id)) : null;
+  for (const t of targets.slice(0, limit)) {
+    if (present && !present.has(t.id)) { missing.push(t); continue; }
+    sampled += 1;
+    try {
+      const row = await idb.get('images', t.id);
+      if (!row) { missing.push(t); continue; }
+      const blob = row.blob;
+      let size = blob ? blob.size : 0;
+      // size 是元数据，文件真没了时它照样有值；真读一遍才知道
+      if (size > 0) { try { size = (await blob.slice(0, 64).arrayBuffer()).byteLength; } catch (e) { unreadable.push({ ...t, err: String(e?.message || e) }); continue; } }
+      if (!size) empty.push(t);
+    } catch (e) { unreadable.push({ ...t, err: String(e?.message || e) }); }
+  }
+  return { records: images.count(), inStore, referenced: list.length, missing, empty, unreadable, sampled,
+    urlsCached: images.cachedUrls(), epoch: blobEpoch() };
+}
+
+/** 把所有 blob 地址作废重取。显示那一层坏了时用它，数据不动 */
+export const reload = () => resetBlobUrls();
+
+/** 检查结果写成几行给人看 */
+export function summary(r) {
+  if (!r) return '';
+  const lines = [`库里记录 ${r.records} 张${r.inStore >= 0 && r.inStore !== r.records ? `（直接数库里是 ${r.inStore} 条）` : ''}`,
+    `图标、壁纸、头像、聊天背景引用着 ${r.referenced} 处，抽查 ${r.sampled} 张`];
+  if (r.missing.length) lines.push(`记录不在库里 ${r.missing.length} 处：${r.missing.slice(0, 6).map(x => x.where).join('、')}`);
+  if (r.empty.length) lines.push(`记录在、数据是空的 ${r.empty.length} 张：${r.empty.slice(0, 6).map(x => x.where).join('、')}`);
+  if (r.unreadable.length) lines.push(`读不出来 ${r.unreadable.length} 张：${r.unreadable.slice(0, 3).map(x => `${x.where}（${x.err}）`).join('、')}`);
+  if (!r.missing.length && !r.empty.length && !r.unreadable.length) lines.push('抽查的图全部读得出来。看不见图的话是显示那一层，点「重新读取图片」');
+  lines.push(`地址缓存 ${r.urlsCached} 个，重建过 ${r.epoch} 次`);
+  return lines.join('\n');
+}

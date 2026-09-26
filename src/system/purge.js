@@ -4,6 +4,8 @@ import { chats, characters, memories, messages, messagesOf, moments, personas, s
          phoneChats, works, chapters, playlists, closet } from './db/index.js';
 import { allImageIds, configStrings } from './looks.js';
 import { forget as forgetSnap } from './ai/tasks/snap.js';
+// 删图日志的钩子随引用表一起登记（system/imgdiag.js）：只要能删图的地方在，日志就在
+import './imgdiag.js';
 
 // 把一个角色身上的东西清干净。
 //
@@ -62,7 +64,7 @@ export function releaseImages(ids) {
   if (!list.length) return 0;
   const used = usedImageIds();
   let n = 0;
-  list.forEach(id => { if (!used.has(id)) { images.destroy(id); n += 1; } });
+  list.forEach(id => { if (!used.has(id)) { images.destroy(id, '删消息或会话后没有别处引用'); n += 1; } });
   return n;
 }
 

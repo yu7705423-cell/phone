@@ -83,11 +83,19 @@ export function StoragePage() {
   };
 
   // 「谁还引用着图片」这张单子在 system/purge.js，和存图的地方放在一起维护。
+  const [diag, setDiag] = useState('');
+  const [logs, setLogs] = useState(null);
+  const runCheck = async () => {
+    setDiag('检查中');
+    try { setDiag(phone.imgdiag.summary(await phone.imgdiag.check())); } catch (e) { setDiag(`检查失败：${e.message || e}`); }
+  };
+  const loadLogs = async () => { setLogs(await phone.imgdiag.entries()); };
+
   const cleanOrphans = async () => {
     const orphans = phone.purge.orphanImageIds();
     if (!orphans.length) { toast('没有需要清理的图片'); return; }
     if (!await confirm({ title: '清理无引用图片', message: `将删除 ${orphans.length} 张未被引用的图片。`, danger: true })) return;
-    await Promise.all(orphans.map(id => db.images.destroy(id)));
+    await Promise.all(orphans.map(id => db.images.destroy(id, '存储页「清理无引用图片」')));
     toast(`已清理 ${orphans.length} 张图片`);
   };
 
@@ -204,6 +212,24 @@ export function StoragePage() {
           onClick=${() => nav.push('/storage/files')}/>
         ${Object.entries(counts).map(([k, v]) => html`
           <${ListItem} key=${k} title=${k} right=${html`<span>${v}</span>`}/>`)}
+      <//>
+
+      <${List} title="图片诊断">
+        <${ListItem} title="检查图片" multiline arrow
+          subtitle="核对图标、壁纸、头像、聊天背景引用的图片是否在库里、数据是否读得出来。不改任何数据"
+          left=${html`<${Icon} name="eye" size=${18}/>`}
+          onClick=${runCheck}/>
+        ${diag ? html`<div class="pad-x pad-b"><pre class="file-preview">${diag}</pre></div>` : null}
+        <${ListItem} title="重新读取图片" multiline
+          subtitle="把所有图片地址作废后从库里重新读取。图片在库里但显示为空白时使用。不改任何数据"
+          left=${html`<${Icon} name="refresh" size=${18}/>`}
+          onClick=${() => { phone.imgdiag.reload(); toast('已重新读取', 'ok'); }}/>
+        <${ListItem} title="删图日志" multiline arrow
+          subtitle=${`每一次删除图片的记录：哪一张、哪条路、什么时候。${logs ? `最近 ${logs.length} 条` : ''}`}
+          left=${html`<${Icon} name="notes" size=${18}/>`}
+          onClick=${loadLogs}/>
+        ${logs ? html`<div class="pad-x pad-b"><pre class="file-preview">${logs.length ? logs.slice(0, 40).map(e =>
+    `${new Date(e.at).toLocaleString()}  ${e.kind}  ${e.id}\n  ${e.why || ''}\n  ${e.from || ''}`).join('\n') : '没有删除记录'}</pre></div>` : null}
       <//>
 
       <${List} title="维护">

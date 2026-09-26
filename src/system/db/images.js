@@ -3,6 +3,10 @@ import { uid } from '../store.js';
 import { registerBlobCache } from './blobs.js';
 
 // 图片一律以 Blob 存 IndexedDB,不存 base64。见 ARCHITECTURE 3.7
+// 删图日志挂在这儿（imgdiag.js 登记），images 这一层不去读 kv
+let diagLog = () => {};
+export const setDiagLog = fn => { diagLog = fn; };
+
 const urls = new Map();       // id -> objectURL（原图）
 const thumbUrls = new Map();  // id -> objectURL（缩略图）
 const sizes = new Map();      // id -> bytes
@@ -130,7 +134,7 @@ function sweep() {
   try { used = usage ? usage() : null; } catch (err) { console.error('[images] 引用表算不出来，这一批不删', err); }
   batch.forEach(({ id, done }) => {
     if (!used || used.has(id)) { done(false); return; }
-    images.destroy(id).then(() => done(true), () => done(false));
+    images.destroy(id, 'remove：没有别处引用').then(() => done(true), () => done(false));
   });
 }
 
@@ -249,8 +253,9 @@ export const images = {
   /** 谁在用哪些图。purge.js 在加载时登记，images 这一层不去读各个数据域 */
   setUsage(fn) { usage = fn; },
 
-  /** 直接删，不看有没有别处在用 */
-  destroy(id) {
+  /** 直接删，不看有没有别处在用。每一次都记进删图日志（system/imgdiag.js），why 写明是哪条路 */
+  destroy(id, why = '') {
+    diagLog('destroy', id, why);
     const u = urls.get(id);
     if (u) { URL.revokeObjectURL(u); urls.delete(id); }
     const t = thumbUrls.get(id);
@@ -262,6 +267,7 @@ export const images = {
   has(id) { return !!id && sizes.has(id); },
   totalBytes() { return [...sizes.values()].reduce((a, b) => a + b, 0); },
   count() { return sizes.size; },
+  cachedUrls() { return urls.size + thumbUrls.size; },
   ids() { return [...sizes.keys()]; },
 
 };

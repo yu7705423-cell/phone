@@ -251,7 +251,7 @@ export async function wipeAll() {
   for (const name of COLLECTIONS) {
     if (db[name]) await db[name].clear();
   }
-  await Promise.all(images.ids().map(id => images.destroy(id)));
+  await Promise.all(images.ids().map(id => images.destroy(id, '恢复备份或清空全部数据前清空')));
   await Promise.all(files.ids().map(id => files.remove(id)));
   db.persona.reset();
   db.layout.reset();
