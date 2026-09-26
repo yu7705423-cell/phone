@@ -884,11 +884,8 @@ input[type="range"] {
 .stk-edit-preview .stk-img, .stk-edit-preview .stk-miss { width: 96px; height: 96px; }
 
 .icon-upload { display: flex; align-items: center; gap: var(--sp-4); }
-.app-tile-preview {
-  width: 64px; height: 64px; flex: none; border-radius: 24%;
-  background: var(--tile-bg); box-shadow: var(--tile-shadow);
-  display: flex; align-items: center; justify-content: center;
-}
+/* .app-tile-preview（换图标那一页的预览格）搬到了 shell.css，紧跟 .app-tile：
+   它和 has-image / is-bare 特异度相同，靠先后决定谁赢，必须排在它们前面 */
 .icon-upload-acts { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
 
 /* 图片与语音消息 */

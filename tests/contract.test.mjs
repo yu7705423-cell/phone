@@ -185,7 +185,8 @@ ok('契约页说得出契约版本', /契约版本 \d+/.test(doc), doc.slice(0,2
 await page.locator('.seg-item, .segmented button').filter({hasText:'怎么写'}).first().click();
 await page.waitForTimeout(600);
 const how = await page.locator('.page-body').last().innerText();
-ok('契约页说清楚 !important 什么时候要写', /!important/.test(how) && /复合选择器/.test(how), how.slice(0,400));
+// 4.257 之后：应用自己的状态规则都压回单个类名，只有「生成」页写出的那一段带 !important
+ok('契约页说清楚 !important 只在覆盖生成那一段时要写', /!important/.test(how) && /「生成」页/.test(how) && !/复合选择器/.test(how), how.slice(0,400));
 ok('契约页说清楚图片要写成 data 或公网地址', /data|公网/.test(how), how.slice(0,400));
 await page.locator('.seg-item, .segmented button').filter({hasText:'变量'}).first().click();
 await page.waitForTimeout(600);

@@ -75,6 +75,13 @@
   box-shadow: var(--tile-shadow);
   transition: transform var(--dur-fast) var(--ease);
 }
+/* 换图标那一页的预览格（ui/iconpicker.js）。只写 background-color，不写简写：简写会把下面
+   has-image 的 background-image / size 一起重置。排在 has-image / is-bare 之前：特异度相同，后写的赢 */
+.app-tile-preview {
+  width: 64px; height: 64px; flex: none; border-radius: 24%;
+  background-color: var(--tile-bg); box-shadow: var(--tile-shadow);
+  display: flex; align-items: center; justify-content: center;
+}
 /* 关掉名称时不要改图标大小。Dock 的高度和胶囊的 min-height 都是拿
    --tile-ratio 算的，这里单独把 .app-tile 调高，胶囊不会跟着长，
    图标就顶出胶囊了。名称只是藏起来，格子里剩下的空间靠居中吃掉。 */
