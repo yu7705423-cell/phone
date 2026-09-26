@@ -108,7 +108,7 @@ export function ComposerBar({ draft = '', live = false, busy = false, frozen = f
         aria-label="添加内容"><${Icon} name="plus" size=${20}/></button>
 
       <textarea class=${`composer-input ph-composer-input${live ? ' is-scene' : ''}`} rows="1" value=${draft}
-        placeholder=${live ? '写你这一段' : '说点什么'} readOnly=${frozen}
+        placeholder=${live ? '写你这一段' : 'Aa'} readOnly=${frozen}
         onInput=${frozen ? null : e => onDraft && onDraft(e.target.value)}
         onKeyDown=${frozen ? null : e => {
           if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); onSend && onSend(); }
