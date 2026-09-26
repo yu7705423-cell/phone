@@ -56,6 +56,8 @@
   --capsule-bg:     rgba(0, 0, 0, .045);
   --capsule-border: transparent;
   --glass-blur:     18px;
+  /* 悬浮球面板里的开关（仿 iOS，ARCHITECTURE 4.256）。深浅色都是这一个绿 */
+  --ios-green:      #34c759;
 
 
   /* 分组胶囊：极浅的灰底，不描边 */

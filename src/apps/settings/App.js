@@ -8,6 +8,7 @@ import { VoicePage } from './VoicePage.js';
 import { ImagePage } from './ImagePage.js';
 import { VideoPage } from './VideoPage.js';
 import { AppearancePage } from './AppearancePage.js';
+import { BallPage } from './BallPage.js';
 import { LockPinPage } from './LockPinPage.js';
 import { RoutesPage } from './RoutesPage.js';
 import { TermsPage } from './TermsPage.js';
@@ -138,6 +139,10 @@ function Home() {
           subtitle="深色模式、壁纸、图标、自定义 CSS" arrow
           left=${html`<${Icon} name="grid" size=${18}/>`}
           onClick=${() => nav.push('/appearance')}/>
+        <${ListItem} title="悬浮球" arrow
+          subtitle=${phone.quickball.cfg().on ? '已开启' : '快捷操作、世界书开关、切换模型'}
+          left=${html`<${Icon} name="spark" size=${18}/>`}
+          onClick=${() => nav.push('/ball')}/>
         <${ListItem} title="线下外观" arrow
           subtitle="线下正文的主题、字体与排版"
           left=${html`<${Icon} name="book" size=${18}/>`}
@@ -232,6 +237,7 @@ export default function SettingsApp({ route }) {
   if (route === '/image') return html`<${ImagePage}/>`;
   if (route === '/video') return html`<${VideoPage}/>`;
   if (route === "/appearance") return html`<${AppearancePage}/>`;
+  if (route === '/ball') return html`<${BallPage}/>`;
   if (route === '/storage') return html`<${StoragePage}/>`;
   if (route === '/github') return html`<${GitHubPage}/>`;
   if (route === '/background') return html`<${BackgroundPage}/>`;

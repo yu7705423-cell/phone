@@ -26,6 +26,7 @@ import { installBridge } from '../system/push.js';
 import * as keepAlive from '../system/keepalive.js';
 import { KeepAliveBanner } from './KeepAliveBanner.js';
 import { NavBack } from './NavBack.js';
+import { QuickBall } from './QuickBall.js';
 import * as goback from './goback.js';
 import { pinStore } from '../system/pinlock.js';
 import { termsStore, accepted as termsAccepted } from '../system/terms.js';
@@ -192,6 +193,7 @@ export function Root() {
           onDblClick=${() => setSwitcher(true)} title="点击返回主界面，双击打开多任务">
           <span class="hi-bar"></span>
         </div>` : null}
+      ${termsOk && !pinLocked ? html`<${QuickBall} inSettings=${inSettings}/>` : null}
       <${KeepAliveBanner}/>
       <${NotifyBanner}/>
       <${CallLayer}/>

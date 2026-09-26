@@ -211,6 +211,7 @@ export function usedImageIds() {
   const s = settings.get();
   Object.values(s.appIcons || {}).forEach(v => add(v?.imageId));
   add(s.lastTest);                       // 生图那一页留的最后一张测试图
+  add(s.quickBall?.img);                 // 悬浮球换上的图（system/quickball.js）
 
   const lay = layout.get();
   const w = lay.wallpaper || {};

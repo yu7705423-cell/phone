@@ -57,7 +57,7 @@ const ROUTES = {
     '/npc', '/npc/char/:char', '/world', '/lore', '/extra', '/extra/lexicon', '/imghost', '/cardgen',
     '/imghost/setup/github', '/imghost/setup/r2', '/imghost/setup/relay', '/imghost/setup/nope', '/imghost/host/nope',
     '/imghost/upload', '/imghost/move'],
-  settings: ['/', '/weather', '/api', '/voice', '/image', '/embed', '/notify', '/lockpin', '/routes', '/terms', '/push-guide', '/music',
+  settings: ['/', '/ball', '/weather', '/api', '/voice', '/image', '/embed', '/notify', '/lockpin', '/routes', '/terms', '/push-guide', '/music',
     '/appearance', '/storage', '/storage/files', '/trace', '/vision', '/asr', '/limits', '/search', '/translate', '/memoryapi', '/rerank', '/ban', '/github', '/background'],
 };
 

@@ -782,6 +782,20 @@ export function Conversation({ chatId, focusId = '' }) {
     keepRef.current = 0;
   }, [window_]);
 
+  // 悬浮球「当前对话」那一组（ARCHITECTURE 4.256）：登记这一段能做的几件事，离开时撤掉。
+  // 函数每次渲染都换，所以经 ref 转一道，调用的那一刻取最新的
+  const qbRef = useRef({});
+  useEffect(() => phone.quickball.bindChat(chatId, {
+    charId: isGroup ? null : char?.id, group: isGroup,
+    api: {
+      generate: () => qbRef.current.generate?.(),
+      regenerate: () => qbRef.current.regenerate?.(),
+      summarize: () => qbRef.current.summarize?.(),
+      toBottom: () => qbRef.current.toBottom?.(),
+      openMenu: () => qbRef.current.openMenu?.(),
+    },
+  }), [chatId, char?.id, isGroup]);
+
   if (!chat || !char) {
     return html`<${Page} title="会话" onBack=${nav.pop}><${EmptyState} title="该会话已不存在"/><//>`;
   }
@@ -1320,6 +1334,8 @@ export function Conversation({ chatId, focusId = '' }) {
       toast(String(err.message || err), 'error', 4000);
     } finally { setSumming(false); }
   };
+
+  qbRef.current = { generate: () => generate(), regenerate: () => regenerate(), summarize, toBottom, openMenu: () => setMenu(true) };
 
   const pending = ai.memory.pendingOf(chatId).length;
   // 那年今天：只在往年的今天有记录时出现在菜单里。菜单开着才翻，翻一遍要过整段历史
