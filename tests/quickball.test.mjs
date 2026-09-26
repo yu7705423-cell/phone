@@ -11,6 +11,7 @@
 //       长按 - 外观里调大小；换一张透明底的图，按倍数画得比球大；最大、贴边、拖到左边时整张图都在屏幕里；
 //       CSS 只作用于悬浮球（写 body 的碰不到别处，写 & 的整段不收）；设置 app 里不挂；
 //       「恢复默认样式」清掉图与 CSS，图从库里删掉
+//   九、球自己出错只自己消失，不拖垮外壳：设置读不出来时，应用的崩溃页照常出来；换个页面球又回来
 import { BASE, EXE, chromium } from './_env.mjs';
 
 const browser = await chromium.launch({ executablePath: EXE, args: ['--no-sandbox'] });
@@ -241,6 +242,14 @@ let face = await ev(() => {
     img: getComputedStyle(b.querySelector('.qb-img') || b).backgroundImage };
 });
 ok('八、换图：球换成图片，没有底板与圆点', !!imgId && /has-img/.test(face.cls) && face.bg === 'rgba(0, 0, 0, 0)' && !face.core && /blob:/.test(face.img), JSON.stringify(face));
+// 用着的图不能被「清理无引用」删掉（CLAUDE.md 第 20 条）
+const keep = await ev(async id => {
+  const { orphanImageIds } = await import('/src/system/purge.js');
+  const { images } = await import('/src/system/db/index.js');
+  const removed = await images.remove(id);
+  return { orphan: orphanImageIds().includes(id), removed, still: images.ids().includes(id) };
+}, imgId);
+ok('八、换上的图算作有引用：不在无引用清单里，images.remove 不删它', !keep.orphan && keep.removed === false && keep.still, JSON.stringify(keep));
 await page.locator('.qb-range', { hasText: '图片大小' }).locator('input').fill('3');
 await page.waitForTimeout(300);
 await page.locator('.qb-range', { hasText: '大小' }).first().locator('input').fill('120');
@@ -315,6 +324,23 @@ ok('八、恢复默认样式：图、CSS、大小恢复默认，位置与项目�
 ok('八、恢复默认样式：换上的图从库里删掉', gone);
 v = await seen();
 ok('八、恢复后：球照常在屏幕里', v.ok && !(await page.locator('.qb-img').count()), JSON.stringify(v));
+
+// 九
+await ev(async () => {
+  const { db } = await import('/src/system/db/index.js');
+  const real = db.settings.get;
+  db.settings.get = () => { throw new Error('模拟：旧代码里没有这个函数'); };
+  window.__restore = () => { db.settings.get = real; };
+  const n = await import('/src/system/nav.js'); n.goHome(); n.openApp('settings', '/');
+});
+await page.waitForTimeout(800);
+const crashed = await ev(() => ({ crash: document.querySelectorAll('.crash').length, ball: document.querySelectorAll('.qb-ball').length, root: document.querySelectorAll('.root').length }));
+ok('九、设置读不出来：应用自己的崩溃页出来了，外壳还在，球自己藏起来', crashed.crash === 1 && crashed.root === 1 && crashed.ball === 0, JSON.stringify(crashed));
+await ev(() => window.__restore());
+await go('', '');
+await page.waitForTimeout(600);
+v = await seen();
+ok('九、好了之后换个页面：球回来了', v.ok, JSON.stringify(v));
 
 ok('没有页面错误', !errs.length, errs.join('\n'));
 await browser.close();

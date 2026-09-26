@@ -1,4 +1,4 @@
-import { html, useState, useEffect, useRef } from '../lib.js';
+import { html, useState, useEffect, useRef, useErrorBoundary } from '../lib.js';
 import { useStore } from '../system/store.js';
 import { nav, goHome, back, lock, setSwitcher, openApp, push } from '../system/nav.js';
 import { settings, lorebooks, characters, chats } from '../system/db/index.js';
@@ -240,7 +240,27 @@ function Editor({ items, onChange }) {
 
 const cssPx = (el, name) => parseFloat(getComputedStyle(el).getPropertyValue(name)) || 0;
 
-export function QuickBall({ inSettings = false }) {
+// 悬浮球挂在外壳最外层，外面没有别的错误边界。它出任何错（存的值坏了、旧代码里少个函数、
+// 某个应用登记的东西不对）都只能自己消失，不能把整个外壳一起带崩 —— 外壳一崩，各应用自己的
+// 崩溃页（上面有「更新代码并重开」）也出不来，人就卡在白屏上。换个页面再试一次，好了就回来
+export function QuickBall(props) {
+  const [err, reset] = useErrorBoundary(e => console.error('[quickball] 悬浮球出错，已隐藏', e));
+  const n = useStore(nav);
+  const at = `${n.screen}/${n.appId || ''}`;
+  const seen = useRef(at);
+  const own = useRef(null);
+  useEffect(() => { if (err && seen.current !== at) reset(); seen.current = at; }, [at, err]);
+  // 渲染中途炸掉的那棵旧树 Preact 不会卸，球的 DOM 就留在屏幕上（点了还会再炸）。这里只有一个悬浮球，
+  // 不是自己画的那层 .qb-layer 一律是残留，手动摘掉
+  useEffect(() => {
+    if (!err) return;
+    document.querySelectorAll('.qb-layer').forEach(el => { if (el !== own.current) el.remove(); });
+  }, [err]);
+  if (err) return html`<div class="qb-layer" ref=${own}></div>`;
+  return html`<${Ball} ...${props}/>`;
+}
+
+function Ball({ inSettings = false }) {
   useStore(settings.store);
   useStore(registryStore);
   const n = useStore(nav);
