@@ -55,7 +55,9 @@ export function ExtrasPage({ chatId }) {
         <//>
         ${on ? html`
           <${Field} label="显示成什么样"
-            desc="心声默认隐藏，点角色头像展开。此项对所有会话生效。">
+            desc=${extras.innerStyle() === 'card'
+              ? '点角色头像打开一页，上面是这一轮的心声，下面是这段会话里以前的每一条。此项对所有会话生效。'
+              : '心声默认隐藏，点角色头像在气泡下面展开一行淡字，再点收起。此项对所有会话生效。'}>
             <${Segmented} value=${extras.innerStyle()} items=${STYLES}
               onChange=${v => extras.setInnerStyle(v)}/>
           <//>` : null}

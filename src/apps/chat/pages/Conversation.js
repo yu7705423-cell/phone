@@ -12,7 +12,7 @@ import { PactBubble, LetterBubble, LetterSheet, PactSheet } from './SpaceBits.js
 import { ForwardBubble, ForwardSheet, ForwardPickSheet } from './ForwardBits.js';
 import { FaceChooser, FaceSheet, FaceBar, SideLine } from './FaceBits.js';
 import { FileBubble, FileSheet } from './FileBits.js';
-import { DiceBubble, InnerVoice, DiceSheet } from './ExtrasBits.js';
+import { DiceBubble, InnerVoice, DiceSheet, InnerSheet } from './ExtrasBits.js';
 import { TakeoutBubble, TakeoutSheet, MealSettleSheet, ShareSheet, MoreSheet } from './MealBits.js';
 import { TripBubble, TripSettleSheet } from './TripBits.js';
 import { PhotoSource } from './PhotoSource.js';
@@ -169,7 +169,7 @@ function innerOf(msg) {
 
 export const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, onSwipe, onHold, onBind,
                   selecting, selected, onToggle, transOpen, onTrans, onFile, onSettle, onOpenLog, onUnwrap,
-                  onPat, innerStyle, fold, foldCount, onScene, onQuote, who = '', cont = false,
+                  onPat, innerStyle, onInnerPage, fold, foldCount, onScene, onQuote, who = '', cont = false,
                   stampAt = 'off', readOn = false, readUpTo = 0 }) {
   const mine = msg.role === 'user';
   // 落点是几个标量属性算出来的，不在这里读设置 —— 这个组件是 memo 过的，
@@ -322,6 +322,8 @@ export const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, o
             tap.current = null;
             if (mine) return;
             const target = innerOf(msg);
+            // 「打开一页」那一档：不在气泡下面展开，打开一页看这一轮的和以前的（4.274）
+            if (innerStyle === 'card') { onInnerPage?.(target || ''); return; }
             if (target) {
               window.dispatchEvent(new CustomEvent('inner-toggle', { detail: target }));
               // 心声挂在这一轮别的那一条上：把那一条滚到眼前，不然展开了也看不见
@@ -412,7 +414,7 @@ export const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, o
 
         <${QuoteRef} quote=${quote} onClick=${() => jumpTo(quote.id)}/>
 
-        ${msg.inner && openInner
+        ${msg.inner && openInner && innerStyle !== 'card'
           ? html`<${InnerVoice} text=${msg.inner} style=${innerStyle}/>` : null}
 
         ${msg.status === 'error' ? html`<${FailNote} msg=${msg} onRetry=${onRetry}/>` : null}
@@ -534,6 +536,7 @@ export function Conversation({ chatId, focusId = '' }) {
   const clipRef = useRef(null);
   const docRef = useRef(null);                      // 发文件（4.271）
   const [openFile, setOpenFile] = useState(null);   // 点开看的那一份文件
+  const [innerPage, setInnerPage] = useState(null); // 心声那一页：{ msgId }（4.274）
 
   // 气泡是记忆化的，传给它的函数属性身份必须稳定，否则每来一段流式内容
   // 整屏气泡都要重画。外面这一层永远不变，里面读 ref 拿当前这次渲染的闭包。
@@ -551,6 +554,7 @@ export function Conversation({ chatId, focusId = '' }) {
     onQuote: m => latest.current.onQuote(m),
     onTrans: id => latest.current.toggleTrans(id),
     onFile: m => latest.current.openFile(m),
+    onInnerPage: id => latest.current.openInnerPage(id),
     noop: () => {},
   }), []);
   // 点开了译文的那几条。记在页面上，气泡重挂也保得住（4.270）
@@ -1319,6 +1323,7 @@ export function Conversation({ chatId, focusId = '' }) {
     : m.kind === 'trip' ? setGoing(m)
     : m.kind === 'request' ? setVoting(m) : setSettling(m));
   latest.current = { onRetry, onSwipe, togglePick, onSettle: settleAny, toggleTrans, openFile: setOpenFile,
+    openInnerPage: id => setInnerPage({ msgId: id }),
     // 滑一下引用（见 Bubble 里的 swipe）。和长按菜单里「引用」是同一件事
     onQuote: m => { setQuoting(m); setPanel(null); try { navigator.vibrate?.(10); } catch { /* 不支持就算了 */ } },
     onOpenLog: openLog, onUnwrap: setUnwrap,
@@ -1553,7 +1558,7 @@ export function Conversation({ chatId, focusId = '' }) {
               transOpen=${settings.translateOpen === 'always' ? 'always' : transOpenIds.has(row.id)}
               onSettle=${stable.onSettle} onOpenLog=${stable.onOpenLog}
               onUnwrap=${stable.onUnwrap} onPat=${stable.onPat}
-              onScene=${stable.onScene} innerStyle=${innerStyle}
+              onScene=${stable.onScene} innerStyle=${innerStyle} onInnerPage=${stable.onInnerPage}
               stampAt=${stampAt} readOn=${readOn} readUpTo=${readLine}
               fold=${row.foldOf ? () => setOpenStack(s => {
                 const n = new Set(s); n.delete(row.foldOf); return n;
@@ -1660,6 +1665,7 @@ export function Conversation({ chatId, focusId = '' }) {
       <input type="file" accept=${phone.docfile.ACCEPT} ref=${docRef}
         onChange=${sendFile} style="display:none"/>
       ${openFile ? html`<${FileSheet} msg=${openFile} chatId=${chatId} onClose=${() => setOpenFile(null)}/>` : null}
+      ${innerPage ? html`<${InnerSheet} chatId=${chatId} msgId=${innerPage.msgId} char=${char} onClose=${() => setInnerPage(null)}/>` : null}
 
       <${CallLogSheet} msg=${callLog} onClose=${() => setCallLog(null)}/>
       <${ListenLogSheet} msg=${listenLog} onClose=${() => setListenLog(null)}/>

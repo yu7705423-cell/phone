@@ -128,10 +128,17 @@ export function setNarration(chatId, on) { chats.update(chatId, { narration: !!o
 export const INNER_INLINE = 'inline';
 export const INNER_APART = 'apart';
 
+// quiet 贴在气泡下面的一行淡字；card 点头像打开一页，看这一轮的，也翻这段会话里以前的（ARCHITECTURE 4.274）
 export const INNER_STYLES = [
   { id: 'quiet', label: '淡色小字' },
-  { id: 'card', label: '独立卡片' },
+  { id: 'card', label: '打开一页' },
 ];
+
+/** 这段会话里有心声的消息，新的在前。翻历史用 */
+export function innerHistory(chatId) {
+  return messages.where(m => m.chatId === chatId && m.inner && m.role === 'char')
+    .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+}
 
 export function innerMode(chat) {
   const m = chat?.innerMode;

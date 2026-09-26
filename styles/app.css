@@ -3838,3 +3838,9 @@ button.conv-notice { background: none; border: 0; font: inherit; cursor: pointer
 }
 .diag-strip { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-top: var(--sp-2); }
 .diag-strip img { width: 44px; height: 44px; object-fit: cover; border-radius: var(--r-sm); background: var(--surface-2); }
+
+/* 心声那一页（ARCHITECTURE 4.274） */
+.inner-page-now { padding: var(--sp-3) var(--sp-4); border-radius: var(--r-md); background: var(--group-fill); }
+.inner-page-stamp { font-size: var(--fs-11); color: var(--text-3); margin-bottom: var(--sp-1); }
+.inner-page-said { font-size: var(--fs-12); color: var(--text-3); margin-bottom: var(--sp-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.inner-page-text { font-size: var(--fs-15); line-height: 1.7; color: var(--text); white-space: pre-wrap; }
