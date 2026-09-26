@@ -180,6 +180,8 @@ function useBackRegistry(onBack) {
 // 边缘返回那一下是挂在 onBack 上的，藏的只是那条栏。
 // cls / vars：挂在 .page 上的额外类名与自定义属性（聊天背景用，见 system/chatlook.js）。
 // vars 只许是 `--x:值` —— .page 是契约钩子，写死的声明作者盖不住（第 18 条）
+// hideBar 的页挂 is-bare：外壳那一层不再替它让出刘海那一条（shell.css），
+// 上方安全区由页面自己用 --top-inset 让。从前两边各让一次，页面从状态栏下面再空一条才开始（4.277）
 export function Page({ title, onBack, right, tabs, children, noScroll,
                        statusBarStyle, scrollRef, headerExtra, hideBar, cls, vars }) {
   useEffect(() => {
@@ -192,7 +194,7 @@ export function Page({ title, onBack, right, tabs, children, noScroll,
   useBackRegistry(onBack);
 
   return html`
-    <div class=${`page ph-page${cls ? ' ' + cls : ''}`} style=${vars || undefined} ref=${swipe.ref} ...${swipe.handlers}>
+    <div class=${`page ph-page${hideBar ? ' is-bare' : ''}${cls ? ' ' + cls : ''}`} style=${vars || undefined} ref=${swipe.ref} ...${swipe.handlers}>
       ${(!hideBar && (title || onBack || right)) ? html`
         <div class="navbar ph-navbar">
           <div class="nav-left ph-nav-left">

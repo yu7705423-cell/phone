@@ -99,7 +99,7 @@ export function ReadPage({ bookId }) {
   };
 
   const immersive = cfg.fullscreen && bare;
-  const chrome = immersive ? {} : {
+  const chrome = immersive ? { hideBar: true } : {
     title: row.title,
     onBack: nav.pop,
     right: html`

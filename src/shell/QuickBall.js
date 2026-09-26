@@ -276,6 +276,13 @@ function Ball({ inSettings = false }) {
   const [live, setLive] = useState(null);       // 拖动中的位置
   const [idle, setIdle] = useState(false);
   const [view, setView] = useState('');         // '' | 'panel' | 'edit' | 'lore' | 'model'
+  // 手势开面板的那一下落在哪、什么时候。iOS 与安卓在 pointerup 之后还会按当下的位置再合成一次 click，
+  // 那时球已经隐掉、面板已经在了，click 落在遮罩上，面板刚开就被它关掉（用户反馈：闪一下就没了）。
+  // 刚开面板的那一小段时间里，落在同一个点上的 click 不算；离得远的（用户真的点外面）照常关
+  const opened = useRef({ t: 0, x: 0, y: 0 });
+  const openView = (v, x, y) => { opened.current = { t: Date.now(), x, y }; setView(v); };
+  const echoClick = e => Date.now() - opened.current.t < 700
+    && Math.hypot(e.clientX - opened.current.x, e.clientY - opened.current.y) < 24;
 
   // 量一下外壳那一块。窗口一变就重量：横竖屏、键盘、关掉全屏、改窗口大小
   useEffect(() => {
@@ -328,7 +335,7 @@ function Ball({ inSettings = false }) {
     clearTimeout(holdT.current);
     holdT.current = setTimeout(() => {
       const d = drag.current;
-      if (d && !d.moved) { d.held = true; setTab('items'); setView('edit'); try { navigator.vibrate?.(15); } catch { /* 无 */ } }
+      if (d && !d.moved) { d.held = true; setTab('items'); openView('edit', d.sx, d.sy); try { navigator.vibrate?.(15); } catch { /* 无 */ } }
     }, 550);
   };
   const move = e => {
@@ -347,7 +354,7 @@ function Ball({ inSettings = false }) {
     wake();
     if (!d || d.id !== e.pointerId) return;
     if (d.held) return;
-    if (!d.moved) { setView(view ? '' : 'panel'); return; }
+    if (!d.moved) { openView(view ? '' : 'panel', e.clientX, e.clientY); return; }
     if (box && live) qb.setCfg(qb.dropAt(live.x, live.y, box.W, box.H, conf, box));
     setLive(null);
   };
@@ -377,7 +384,10 @@ function Ball({ inSettings = false }) {
       ${hasImg ? html`<span class="qb-img"></span>` : html`<span class="qb-core"></span>`}
     </button>
     ${view ? html`
-      <div class="qb-scrim" onClick=${e => { if (e.target === e.currentTarget) setView(''); }}>
+      <div class="qb-scrim" onClick=${e => {
+        if (e.target !== e.currentTarget || echoClick(e)) return;
+        setView('');
+      }}>
         <div class="qb-panel">
           <div class="qb-head">
             ${view !== 'panel' ? html`<button class="qb-head-btn press" onClick=${() => setView('panel')} aria-label="返回">

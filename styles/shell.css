@@ -40,6 +40,9 @@
    有顶栏的页面不让，由顶栏自己把高度加上这一条、底色铺上去，字和按钮仍在安全区以下 */
 .home-layer, .app-layer { padding-top: var(--top-inset); }
 .app-layer:has(> .page > .navbar:first-child) { padding-top: 0; }
+/* 没有顶栏、整页就是一块屏的（Page hideBar 挂的 .is-bare：线下、长篇、角色手机、放映厅全屏、沉浸阅读）：
+   这一层也不让，页面自己用 --top-inset 让，底色才能一直铺到屏幕顶边（4.277） */
+.app-layer:has(> .page:where(.is-bare)) { padding-top: 0; }
 :where(.app-layer > .page) > .navbar:where(:first-child) {
   height: calc(var(--navbar-h) + var(--top-inset));
   padding-top: var(--top-inset);

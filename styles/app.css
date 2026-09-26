@@ -2016,8 +2016,9 @@ button.search-bar { width: 100%; border: none; }
 .rd-tap { flex: 1; display: flex; min-height: 0; }
 .rd-tap > .rd-body { flex: 1; }
 
-/* 全屏：顶栏和翻页条都不在，正文自己留出安全区 */
-.rd.is-bare .rd-body { padding-top: calc(var(--sp-6) + env(safe-area-inset-top)); }
+/* 全屏：顶栏和翻页条都不在，正文自己留出安全区。用 --top-inset 不用 env()：
+   状态栏由 .root 让掉的时候它是 0，env() 却还是刘海那一条，会让两次（4.277） */
+.rd.is-bare .rd-body { padding-top: calc(var(--sp-6) + var(--top-inset)); }
 .rd.is-bare { padding-bottom: env(safe-area-inset-bottom); }
 
 /* 翻页动画。旧的一页先出去，换页，新的一页再进来 —— 同一份正文做变换，
@@ -2192,7 +2193,8 @@ button.search-bar { width: 100%; border: none; }
   /* .page-body 是个普通块，不是 flex 容器，所以这里得写 height: 100%
      才真的铺到底；写 flex: 1 只会缩成内容那么高，底下那一条就吊在半空 */
   height: 100%; display: flex; flex-direction: column;
-  padding: var(--sp-5) var(--sp-5) var(--sp-3);
+  /* 整页就是一块屏（Page hideBar），刘海那一条自己让，壁纸照样铺到顶边（4.277） */
+  padding: calc(var(--top-inset) + var(--sp-5)) var(--sp-5) var(--sp-3);
   background-size: cover; background-position: center;
 }
 .tp-desk.has-img { position: relative; }
@@ -2338,7 +2340,7 @@ button.search-bar { width: 100%; border: none; }
   /* 同 .tp-desk：要 height: 100%，否则 space-between 无从分配 */
   height: 100%; display: flex; flex-direction: column;
   align-items: center; justify-content: space-between;
-  padding: var(--sp-6) var(--sp-5) var(--sp-5);
+  padding: calc(var(--top-inset) + var(--sp-6)) var(--sp-5) var(--sp-5);
   background-size: cover; background-position: center;
 }
 .tp-lock.has-img { position: relative; }
@@ -2450,15 +2452,18 @@ button.search-bar { width: 100%; border: none; }
 }
 
 /* 刊头。整块顶栏归线下自己画 —— 用 app 的 navbar 会在深色主题上方
-   留一条白边，那就不是「整个页面进入线下」了。铺满屏幕时整条不在 */
+   留一条白边，那就不是「整个页面进入线下」了。铺满屏幕时整条不在。
+   上方安全区用 --top-inset 让（外壳那一层对 is-bare 的页不让，见 shell.css） */
 .sg-head {
   flex: none;
   display: flex; align-items: center; gap: var(--sp-2);
   padding: var(--sp-2) var(--sp-3);
-  padding-top: calc(var(--sp-2) + env(safe-area-inset-top));
+  padding-top: calc(var(--sp-2) + var(--top-inset));
   border-bottom: 1px solid var(--sg-line);
 }
 .sg-head-text { flex: 1; min-width: 0; }
+/* 开了左上角的悬浮返回键：它正压在刊头的返回箭头上，箭头让位（和 .navbar .nav-left 同一条规矩） */
+:root[data-nav="back"] .sg-head > .sg-icon:first-child { visibility: hidden; }
 .sg-icon {
   flex: none; display: inline-flex; align-items: center; justify-content: center;
   width: 34px; height: 34px; border-radius: var(--r-md);
@@ -2483,7 +2488,7 @@ button.search-bar { width: 100%; border: none; }
 /* 铺满屏幕时没有顶栏，正文自己让出上方的安全区。
    下方不用管：.page-body 是最后一个孩子，安全区由它让（见 ui.css） */
 .sg.is-spread .sg-body {
-  padding-top: calc(var(--sp-8) + env(safe-area-inset-top));
+  padding-top: calc(var(--sp-8) + var(--top-inset));
   padding-bottom: var(--sp-8);
 }
 
@@ -2575,7 +2580,7 @@ button.search-bar { width: 100%; border: none; }
 .sg-card-body { flex: 1; min-height: 0; }
 :where(.sg-card.is-fixed) .sg-card-body { overflow-y: auto; -webkit-overflow-scrolling: touch; }
 .sg.is-spread .sg-feed {
-  padding-top: calc(var(--sp-4) + env(safe-area-inset-top));
+  padding-top: calc(var(--sp-4) + var(--top-inset));
 }
 
 /* 场外指示的标记。不占一张，只在刊头留一个点得开的记号 */

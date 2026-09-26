@@ -9884,3 +9884,26 @@ Chromium 没有这个问题，所以 `backup` 测试一直是过的；安卓那�
 `ROUTE_GROUPS` 加五组：`scene`（`scene.write`）、`novel`（`work.synopsis` / `work.outline` / `work.branch`）、
 `inner`（`inner.voice`）、`fileFill`（`file.fill`）、`tools`（`tool.*` 七个生成器）。页面照旧是「设置 - 接口 -
 任务用哪套接口」，每组的说明写明默认走哪一套；不指定就照原来的分法。只换用哪一套，不增加调用次数（第 15 条）。
+
+### 4.277 没有顶栏的页：刘海那一条只让一次；悬浮返回键压着刊头时刊头的箭头让位；悬浮球在触屏上点得开
+
+用户截图（长篇正文页）：上方先空出一条才是刊头，刊头里的返回箭头和左上角的悬浮返回键一上一下两个；
+悬浮球点一下面板闪一下就没了。三件事各自的原因：
+
+**刘海那一条让了两次。** `.app-layer` 对没有顶栏的页按 `--top-inset` 让一次（shell.css），线下、长篇的刊头
+（`.sg-head`）又按 `env(safe-area-inset-top)` 让一次。现在 `Page hideBar` 的页挂 `is-bare`，`.app-layer` 对它
+不让；页面自己用 `var(--top-inset)` 让（`.sg-head`、铺满屏幕时的 `.sg-body` / `.sg-feed`、沉浸阅读的
+`.rd.is-bare .rd-body`、角色手机的 `.tp-desk` / `.tp-lock`）。用 `--top-inset` 不用 `env()`：状态栏由 `.root`
+让掉的时候（安卓安装包、不全屏那一档）它是 0，`env()` 却还是刘海那一条，仍会让两次。底色因此能一直铺到屏幕顶边。
+沉浸阅读那一页顺带改成真的 `hideBar`（从前只是不传 title）。
+
+**两个返回。** 悬浮返回键（`.navback`）正压在刊头的返回箭头上。和 `.navbar .nav-left` 同一条规矩：
+`:root[data-nav="back"] .sg-head > .sg-icon:first-child` 藏起来，只留悬浮键。
+
+**悬浮球闪一下。** 触屏浏览器在 pointerup 之后还会按当下的位置合成一次 click；那时球已经隐掉（`.is-open`
+不接手势）、面板已经在，click 落在遮罩上，遮罩「点外面关掉」把刚开的面板关了。桌面上 click 的目标是按下与抬起
+的共同祖先（球），所以在 Chromium 鼠标下从来没出过。现在记下开面板那一下的位置与时刻，700 毫秒内落在同一个点
+（24px 内）上的遮罩 click 不算；离得远的照常关。
+
+测试 `tests/barepage.test.mjs`（把 `--top-inset` 定成 44px 量）、`tests/quickballtap.test.mjs`（真的触屏轻点，
+以及照 iOS 的顺序手工发 pointerdown / pointerup / click），先在旧代码上跑出问题。
