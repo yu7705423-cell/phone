@@ -3552,3 +3552,11 @@ button.conv-notice { background: none; border: 0; font: inherit; cursor: pointer
   background: var(--surface-2); color: var(--accent); font-size: var(--fs-13); font-weight: var(--fw-semi);
 }
 .tb-hero .tb-get { background: var(--surface); }
+
+/* 世界观生成器：每个模块一张可展开的卡片，里面按小类列标签 */
+.tb-wmod { border-radius: var(--r-md); background: var(--surface-2); margin-bottom: var(--sp-3); overflow: hidden; }
+.tb-wmod.is-off .tb-wmod-head { opacity: .5; }
+.tb-wmod-head { display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-3) var(--sp-4); color: var(--text-3); }
+.tb-wmod-title { flex: 1; min-width: 0; }
+.tb-wmod-body { padding: 0 var(--sp-4) var(--sp-4); border-top: 1px solid var(--border); padding-top: var(--sp-3); }
+.tb-wmod-body .chip:not(.is-active), .tb-wmod-body input, .tb-wmod-body textarea { background: var(--surface); }

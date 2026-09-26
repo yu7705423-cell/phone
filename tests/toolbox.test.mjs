@@ -13,7 +13,8 @@
 //   七、提示词工具：{{输入项}} 就地替换，点一次调一次，结果进历史
 //   八、分享：导出成文字再读回，允许调用接口不跟着包走；一段 HTML 读成网页工具
 //   九、NPC 生成器：禁止项默认一个都不勾；勾了才进提示词；存入联系人并关联到主角
-//   十、世界观生成器：按模块切回结果；存为世界书经确认页，每个模块一个条目
+//   十、世界观生成器：每个模块按小类列出很多标签，可选、可加、可批量生成（一次请求）；选中的标签进提示词；
+//       按模块切回结果；存为世界书经确认页，每个模块一个条目
 //   十一、世界书生成器：本地审查查得出禁止句无替代、照搬原文、套路词；只开正文时一次请求
 //   十二、番外生成器：本地编译不调接口，标签按语义词典翻译；在「我们」中建一则番外
 //   十三、「联系」的关联角色页：「更多设置」跳到 NPC 生成器并带上那个角色
@@ -302,10 +303,39 @@ await wait(300);
 await push('/world');
 await wait(500);
 ok('世界观：按钮下写明一次请求', (await body()).includes('点一次调用 1 次接口'));
+// 展开「世界基础」：按小类列出很多标签
+await page.locator('.tb-wmod-head', { hasText: '世界基础' }).click();
+await wait(300);
+const nChips = await page.locator('.tb-wmod-body .chip').count();
+ok('世界观：展开模块，按小类列出很多标签', nChips >= 40 && (await body()).includes('时代') && (await body()).includes('社会形态'), `${nChips}`);
+await page.locator('.tb-wmod-body .chip', { hasText: /^近未来$/ }).click();
+const eraField = page.locator('.tb-wmod-body .field', { hasText: '时代' }).first();
+await eraField.locator('input').fill('潮汐纪元');
+await eraField.locator('button', { hasText: '添加' }).click();
+await wait(200);
+ok('世界观：自己加的标签出现在那一类里并直接选中', await eraField.locator('.chip.is-active', { hasText: '潮汐纪元' }).count() === 1);
+ok('世界观：模块卡片上写着已选几个', (await page.locator('.tb-wmod-head', { hasText: '世界基础' }).innerText()).includes('已选 2 个标签'));
+// 批量生成：一次请求，不重复已有的
+reply = JSON.stringify(['近未来', '海上城邦时代', '冰河之后']);
+const hg = hits.length;
+await page.locator('.tb-wmod-body button', { hasText: '批量生成标签' }).click();
+await wait(300);
+await page.locator('.sheet button', { hasText: /^生成$/ }).click();
+ok('世界观：批量生成标签，列出新标签且去掉已有的', await until(async () => (await page.locator('.sheet').innerText()).includes('海上城邦时代'))
+  && !(await page.locator('.sheet .list-item').allInnerTexts()).some(x => x.trim() === '近未来'));
+ok('世界观：批量生成只调一次', hits.length - hg === 1);
+const tagSys = JSON.stringify(bodies[bodies.length - 1] || {});
+ok('世界观：批量生成的请求带上了模块、小类与已有标签', tagSys.includes('世界基础') && tagSys.includes('时代') && tagSys.includes('潮汐纪元'), tagSys.slice(0, 300));
+await page.locator('.sheet button', { hasText: '加入标签' }).click();
+await wait(300);
+ok('世界观：生成的标签进了那一类', await eraField.locator('.chip', { hasText: '冰河之后' }).count() === 1);
+reply = '## 世界基础\n与现实相似，二十年前发现了读取梦境的技术。\n\n## 历史因果\n一次泄露事件之后出台了梦境保护法。';
 const h2 = hits.length;
 await page.locator('button', { hasText: /^生成$/ }).click();
 ok('世界观：两个模块切回来了', await until(async () => (await body()).includes('梦境保护法')) && (await body()).includes('读取梦境的技术'));
 ok('世界观：一次写完只调一次', hits.length - h2 === 1);
+const worldSys = JSON.stringify(bodies[bodies.length - 1] || {});
+ok('世界观：选中的标签写进提示词', worldSys.includes('近未来') && worldSys.includes('潮汐纪元') && worldSys.includes('Elements the user picked'), worldSys.slice(0, 200));
 const nBooks = await ev(async () => (await import('/src/system/db/index.js')).lorebooks.count());
 await page.locator('button', { hasText: '存为世界书' }).click();
 ok('世界观：存为世界书先进确认页', await until(async () => (await body()).includes('导入世界书')), (await body()).slice(0, 200));

@@ -64,6 +64,7 @@ function worldSystem({ premise, notes, existing, people, modules, length }) {
   const list = modules.map(m => {
     const d = moduleOf(m.id);
     return [`### ${d.title}`, `What it covers: ${d.covers}`,
+      str(m.picks) ? `Elements the user picked for this module. Every one of them appears in the module:\n${str(m.picks)}` : '',
       str(m.note) ? `The user's notes for this module:\n${str(m.note)}` : ''].filter(Boolean).join('\n');
   }).join('\n\n');
   return fillTemplate(template('task.world-build'), {
@@ -97,7 +98,7 @@ export async function worldBuild(input, { key } = {}) {
 }
 
 /** 只写一个模块（逐个模块写的那一种，以及单独重写一块）。一次请求 */
-export async function worldModule({ id, worldText, instruction, length }, { key } = {}) {
+export async function worldModule({ id, worldText, instruction, picks, length }, { key } = {}) {
   const d = moduleOf(id);
   if (!d) throw new Error('未知的模块');
   const raw = await runTextTask('tool.world', {
@@ -105,13 +106,37 @@ export async function worldModule({ id, worldText, instruction, length }, { key 
       world: str(worldText) || '(nothing written yet)',
       title: d.title,
       covers: d.covers,
-      instruction: section('The user\'s instruction for this module', instruction),
+      instruction: [
+        section('Elements the user picked for this module. Every one of them appears in the module', picks),
+        section('The user\'s instruction for this module', instruction),
+      ].filter(Boolean).join('\n\n'),
       length: Number(length) > 0 ? `About ${Math.round(length)} characters` : 'Write at the length the content needs',
     }),
     key: key || `tool-world-${id}:${Date.now()}`,
     maxTokens: tokensFor(length, 3000),
   });
   return str(raw).replace(/^#{1,4}\s*.+\n/, (m) => (m.includes(d.title) ? '' : m)).trim();
+}
+
+/**
+ * 给世界观的某个模块、某一小类批量生成标签。一次请求。
+ * 回来的是一串短标签（已去掉与现有重复的）
+ */
+export async function worldTags({ id, group, premise, existing = [], theme, count }, { key } = {}) {
+  const d = moduleOf(id);
+  if (!d) throw new Error('未知的模块');
+  const raw = await runTextTask('tool.world', {
+    system: fillTemplate(template('task.world-tags'), {
+      module: d.title, covers: d.covers, group: str(group) || '(any part of this module)',
+      premise: str(premise) || '(not given)', theme: str(theme) || '(no direction given)',
+      existing: existing.join(', ') || '(none)', count: Math.max(1, Math.round(Number(count) || 10)),
+    }),
+    key: key || `tool-world-tags:${Date.now()}`, maxTokens: 2000,
+  });
+  const arr = parseJSON(raw);
+  const list = Array.isArray(arr) ? arr : (Array.isArray(arr?.tags) ? arr.tags : []);
+  const seen = new Set(existing);
+  return list.map(x => str(typeof x === 'string' ? x : x?.tag)).filter(t => t && !seen.has(t) && seen.add(t));
 }
 
 // ---- NPC ----

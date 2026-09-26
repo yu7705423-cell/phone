@@ -4,6 +4,7 @@ import { Page, List, ListItem, Field, Input, Textarea, Button, Icon, Spinner, Sw
          Segmented, NumberInput, Sheet, toast, confirm, prompt } from '../../ui/index.js';
 import { CharPicker, BookPicker, CallNote, copyText, charText, bookText, useToolState,
          loadToolState } from './common.js';
+import { WORLD_TAGS } from './worlddata.js';
 
 const { db, nav, ai, toolbox, lorefile } = phone;
 const T = ai.tools;
@@ -30,9 +31,36 @@ const DESC = {
 
 const ALL = T.WORLD_MODULES.map(m => m.id);
 const DEF = {
-  name: '', premise: '', notes: '', on: ALL, notesBy: {}, peopleIds: [], bookIds: [],
+  name: '', premise: '', notes: '', on: ALL, notesBy: {}, tags: {}, peopleIds: [], bookIds: [],
   length: 0, mode: 'all', result: null, runId: null,
 };
+
+// 每个模块下的标签（用户要求：每一类都要很多标签、自己选、能批量生成）。
+// 默认的一批在 worlddata.js；自己加的与生成的存 'world-tags'：{ custom: { 模块: { 小类: [标签] } } }。
+// 单独一份设置，理由同番外的语义词典：批量生成的面板开着时，表单那一份还在随手存
+const poolState = () => ({ custom: {}, ...toolbox.stateOf('world-tags') });
+const customOf = (mod, grp) => poolState().custom?.[mod]?.[grp] || [];
+function addToPool(mod, grp, list) {
+  const cur = poolState();
+  const m = { ...(cur.custom[mod] || {}) };
+  m[grp] = [...new Set([...(m[grp] || []), ...list])];
+  toolbox.setState('world-tags', { ...cur, custom: { ...cur.custom, [mod]: m } });
+}
+function dropFromPool(mod, grp, tag) {
+  const cur = poolState();
+  const m = { ...(cur.custom[mod] || {}) };
+  m[grp] = (m[grp] || []).filter(x => x !== tag);
+  toolbox.setState('world-tags', { ...cur, custom: { ...cur.custom, [mod]: m } });
+}
+
+/** 一个模块选中的标签，写成交给模型的几行：「小类：甲、乙」 */
+function picksOf(f, mod) {
+  return (WORLD_TAGS[mod] || []).map(g => {
+    const t = f.tags?.[mod]?.[g.id] || [];
+    return t.length ? `${g.label}：${t.join('、')}` : '';
+  }).filter(Boolean).join('\n');
+}
+const pickCount = (f, mod) => Object.values(f.tags?.[mod] || {}).reduce((n, l) => n + (l || []).length, 0);
 
 const titleOf = id => T.WORLD_MODULES.find(m => m.id === id)?.title || id;
 
@@ -48,7 +76,10 @@ export function WorldPage() {
   useStore(db.lorebooks.store);
   const [f, set, fRef] = useToolState('world', DEF);
   const [busy, setBusy] = useState('');       // '' | 'all' | 模块 id
-  const [noteOf, setNoteOf] = useState('');   // 正在写哪一块的想法
+  useStore(db.tools.store);
+  const [openMod, setOpenMod] = useState('');  // 展开的是哪一块
+  const [adding, setAdding] = useState({});    // 每个小类的自定义输入
+  const [gen, setGen] = useState(null);        // 批量生成标签：{ mod, grp, theme, count, rows, off, pick }
   const [editOf, setEditOf] = useState('');   // 正在改哪一块的结果
   const [editText, setEditText] = useState('');
   const [picking, setPicking] = useState('');  // 'people' | 'books'
@@ -84,8 +115,8 @@ export function WorldPage() {
   const run = async () => {
     if (!ai.isConfigured()) { toast('尚未配置聊天接口', 'error', 4000); return; }
     if (!on.length) { toast('尚未勾选任何模块'); return; }
-    if (!f.premise.trim() && !f.notes.trim() && !on.some(id => (f.notesBy[id] || '').trim())) {
-      toast('请至少填写核心设定或某个模块的想法'); return;
+    if (!f.premise.trim() && !f.notes.trim() && !on.some(id => (f.notesBy[id] || '').trim() || pickCount(f, id))) {
+      toast('请至少填写核心设定，或在某个模块中选择标签、填写想法'); return;
     }
     if (hasResult && !await confirm({ title: '重新生成', message: '当前的结果将被新结果替换。之前的结果仍保存在历史记录中。', okText: '生成' })) return;
     stopRef.current = false;
@@ -101,7 +132,7 @@ export function WorldPage() {
           const context = [input().existing, f.premise ? `Core premise: ${f.premise}` : '', f.notes, joinWorld('', done)]
             .filter(Boolean).join('\n\n');
           const ideas = [(f.notesBy[id] || '').trim(), id === 'people' ? input().people : ''].filter(Boolean).join('\n\n');
-          done[id] = await T.worldModule({ id, worldText: context, instruction: ideas, length: f.length }, { key: keyRef.current });
+          done[id] = await T.worldModule({ id, worldText: context, instruction: ideas, picks: picksOf(f, id), length: f.length }, { key: keyRef.current });
           commit({ ...done });
         } catch (e) {
           if (!ai.queue.isAbort(e)) toast(`「${titleOf(id)}」生成失败：${e.message || e}`, 'error', 6000);
@@ -114,7 +145,7 @@ export function WorldPage() {
     setBusy('all');
     keyRef.current = `tool-world:${Date.now()}`;
     try {
-      const got = await T.worldBuild({ ...input(), modules: on.map(id => ({ id, note: f.notesBy[id] || '' })) }, { key: keyRef.current });
+      const got = await T.worldBuild({ ...input(), modules: on.map(id => ({ id, note: f.notesBy[id] || '', picks: picksOf(f, id) })) }, { key: keyRef.current });
       commit(got);
       const miss = on.filter(id => !got[id]);
       if (miss.length) toast(`以下模块未写出：${miss.map(titleOf).join('、')}。可单独重写`, 'plain', 5000);
@@ -135,7 +166,7 @@ export function WorldPage() {
     try {
       const others = { ...modules };
       const worldText = [f.premise ? `Core premise: ${f.premise}` : '', joinWorld(f.name, others)].filter(Boolean).join('\n\n');
-      const text = await T.worldModule({ id, worldText, instruction: [ask, f.notesBy[id]].filter(s => String(s || '').trim()).join('\n\n'), length: f.length }, { key: keyRef.current });
+      const text = await T.worldModule({ id, worldText, instruction: [ask, f.notesBy[id]].filter(s => String(s || '').trim()).join('\n\n'), picks: picksOf(f, id), length: f.length }, { key: keyRef.current });
       commit({ ...modules, [id]: text });
       toast('已重写', 'ok');
     } catch (e) {
@@ -155,6 +186,52 @@ export function WorldPage() {
   };
 
   const toggle = id => set(s => ({ on: s.on.includes(id) ? s.on.filter(x => x !== id) : ALL.filter(x => x === id || s.on.includes(x)) }));
+
+  // ---- 标签 ----
+  const picked = (mod, grp) => f.tags?.[mod]?.[grp] || [];
+  const setPicked = (mod, grp, list) => set(s => ({ tags: { ...s.tags, [mod]: { ...(s.tags?.[mod] || {}), [grp]: list } } }));
+  const toggleTag = (mod, grp, t) => {
+    const cur = picked(mod, grp);
+    setPicked(mod, grp, cur.includes(t) ? cur.filter(x => x !== t) : [...cur, t]);
+  };
+  const addTag = (mod, grp) => {
+    const k = `${mod}.${grp}`;
+    const t = String(adding[k] || '').trim();
+    if (!t) return;
+    addToPool(mod, grp, [t]);
+    setPicked(mod, grp, [...new Set([...picked(mod, grp), t])]);
+    setAdding(a => ({ ...a, [k]: '' }));
+  };
+  const dropTag = (mod, grp, t) => {
+    dropFromPool(mod, grp, t);
+    setPicked(mod, grp, picked(mod, grp).filter(x => x !== t));
+  };
+  const clearPicks = mod => set(s => ({ tags: { ...s.tags, [mod]: {} } }));
+
+  const genTags = async () => {
+    if (!ai.isConfigured()) { toast('尚未配置聊天接口', 'error', 4000); return; }
+    const g = gen;
+    const grp = (WORLD_TAGS[g.mod] || []).find(x => x.id === g.grp);
+    setBusy('tags');
+    keyRef.current = `tool-world-tags:${Date.now()}`;
+    try {
+      const existing = [...(grp?.tags || []), ...customOf(g.mod, g.grp)];
+      const rows = await T.worldTags({ id: g.mod, group: grp?.label, premise: [f.premise, f.notes].filter(Boolean).join('\n'),
+        existing, theme: g.theme, count: g.count }, { key: keyRef.current });
+      if (!rows.length) toast('模型没有给出新的标签');
+      setGen(x => (x ? { ...x, rows, off: rows.map(() => false) } : x));
+    } catch (e) {
+      if (!ai.queue.isAbort(e)) toast(String(e.message || e), 'error', 6000);
+    } finally { setBusy(''); }
+  };
+  const takeTags = () => {
+    const g = gen;
+    const keep = g.rows.filter((_, i) => !g.off[i]);
+    addToPool(g.mod, g.grp, keep);
+    if (g.pick) setPicked(g.mod, g.grp, [...new Set([...picked(g.mod, g.grp), ...keep])]);
+    toast(`已加入 ${keep.length} 个标签`, 'ok');
+    setGen(null);
+  };
 
   const runs = toolbox.runsOf('world');
 
@@ -179,14 +256,58 @@ export function WorldPage() {
         <//>
       </div>
 
-      <${List} title=${`模块 · 已选 ${on.length} / ${ALL.length}`}>
-        ${T.WORLD_MODULES.map(m => html`
-          <${ListItem} key=${m.id} title=${m.title} multiline
-            subtitle=${`${DESC[m.id]}${(f.notesBy[m.id] || '').trim() ? '\n已填写想法' : '\n点按填写这一块已有的想法'}`}
-            class=${f.on.includes(m.id) ? '' : 'is-off'}
-            onClick=${() => setNoteOf(m.id)}
-            right=${html`<${Switch} checked=${f.on.includes(m.id)} onChange=${() => toggle(m.id)}/>`}/>`)}
-      <//>
+      <${List} title=${`模块 · 已选 ${on.length} / ${ALL.length}`}><//>
+      <div class="pad-x">
+        ${T.WORLD_MODULES.map(m => {
+          const open = openMod === m.id;
+          const n = pickCount(f, m.id);
+          const noted = !!(f.notesBy[m.id] || '').trim();
+          return html`
+            <div key=${m.id} class=${`tb-wmod${f.on.includes(m.id) ? '' : ' is-off'}`}>
+              <div class="tb-wmod-head press" onClick=${() => setOpenMod(open ? '' : m.id)}>
+                <div class="tb-wmod-title">
+                  <div class="tb-app-name">${m.title}</div>
+                  <div class="tb-app-desc">${DESC[m.id]}</div>
+                  <div class="tb-app-meta">${[n ? `已选 ${n} 个标签` : '未选标签', noted ? '已写想法' : ''].filter(Boolean).join(' · ')}</div>
+                </div>
+                <${Switch} checked=${f.on.includes(m.id)} onChange=${() => toggle(m.id)}/>
+                <${Icon} name=${open ? 'chevronUp' : 'chevronDown'} size=${16}/>
+              </div>
+              ${open ? html`
+                <div class="tb-wmod-body">
+                  ${(WORLD_TAGS[m.id] || []).map(g => {
+                    const custom = customOf(m.id, g.id).filter(t => !g.tags.includes(t));
+                    const k = `${m.id}.${g.id}`;
+                    return html`
+                      <${Field} key=${g.id} label=${g.label}>
+                        <div class="chip-row">
+                          ${[...g.tags, ...custom].map(t => html`
+                            <button key=${t} class=${`chip${picked(m.id, g.id).includes(t) ? ' is-active' : ''}`}
+                              onClick=${e => { e.preventDefault(); toggleTag(m.id, g.id, t); }}>
+                              ${t}
+                              ${custom.includes(t) ? html`<span class="tb-chip-x" onClick=${e => { e.preventDefault(); e.stopPropagation(); dropTag(m.id, g.id, t); }}>
+                                <${Icon} name="close" size=${11}/></span>` : null}
+                            </button>`)}
+                        </div>
+                        <div class="tb-add-row">
+                          <${Input} value=${adding[k] || ''} placeholder="添加标签" onInput=${v => setAdding(a => ({ ...a, [k]: v }))}
+                            onKeyDown=${e => { if (e.key === 'Enter') { e.preventDefault(); addTag(m.id, g.id); } }}/>
+                          <${Button} size="sm" variant="ghost" onClick=${e => { e?.preventDefault?.(); addTag(m.id, g.id); }}>添加<//>
+                        </div>
+                      <//>`;
+                  })}
+                  <${Field} label="已有的想法" desc="可留空。已写下的内容会保留，并在此基础上展开。">
+                    <${Textarea} rows=${3} value=${f.notesBy[m.id] || ''}
+                      onInput=${v => set(s => ({ notesBy: { ...s.notesBy, [m.id]: v } }))}/>
+                  <//>
+                  <div class="btn-row">
+                    <${Button} variant="ghost" onClick=${() => setGen({ mod: m.id, grp: (WORLD_TAGS[m.id] || [])[0]?.id, theme: '', count: 10, rows: null, off: [], pick: false })}>批量生成标签<//>
+                    ${n ? html`<${Button} variant="ghost" onClick=${() => clearPicks(m.id)}>清空已选<//>` : null}
+                  </div>
+                </div>` : null}
+            </div>`;
+        })}
+      </div>
 
       <${List} title="参考">
         <${ListItem} title="主要人物" multiline arrow left=${html`<${Icon} name="users" size=${18}/>`}
@@ -247,12 +368,30 @@ export function WorldPage() {
             left=${html`<${Icon} name="clock" size=${18}/>`} onClick=${() => nav.push('/runs/world')}/>
         <//>` : null}
 
-      <${Sheet} open=${!!noteOf} onClose=${() => setNoteOf('')} title=${noteOf ? `「${titleOf(noteOf)}」已有的想法` : ''} height="70%">
-        ${noteOf ? html`
-          <div class="hint-box">${DESC[noteOf]}已写下的内容会保留，并在此基础上展开。</div>
-          <${Textarea} rows=${8} value=${f.notesBy[noteOf] || ''}
-            onInput=${v => set(s => ({ notesBy: { ...s.notesBy, [noteOf]: v } }))}/>
-          <div class="sheet-acts"><${Button} onClick=${() => setNoteOf('')}>完成<//></div>` : null}
+      <${Sheet} open=${!!gen} onClose=${() => setGen(null)} title=${gen ? `批量生成标签 · ${titleOf(gen.mod)}` : ''} height="86%">
+        ${gen ? html`
+          <${Field} label="小类">
+            <div class="chip-row">
+              ${(WORLD_TAGS[gen.mod] || []).map(g => html`
+                <button key=${g.id} class=${`chip${gen.grp === g.id ? ' is-active' : ''}`}
+                  onClick=${e => { e.preventDefault(); setGen(x => ({ ...x, grp: g.id, rows: null })); }}>${g.label}</button>`)}
+            </div>
+          <//>
+          <${Field} label="方向" desc="可留空。例如：偏东方、与海有关、适合校园。核心设定与补充要求会一并参考。">
+            <${Input} value=${gen.theme} onInput=${v => setGen(x => ({ ...x, theme: v }))}/>
+          <//>
+          <${Field} label="数量"><${NumberInput} unit="个" min=${1} value=${gen.count} onChange=${v => setGen(x => ({ ...x, count: v }))}/><//>
+          <${Button} full disabled=${busy === 'tags'} onClick=${genTags}>${busy === 'tags' ? html`<${Spinner} size=${15}/> 正在生成` : '生成'}<//>
+          <${CallNote} extra="不会重复已有的标签"/>
+          ${gen.rows ? html`
+            <${List} inset=${false}>
+              ${gen.rows.map((t, i) => html`
+                <${ListItem} key=${t} title=${t} class=${gen.off[i] ? 'is-off' : ''}
+                  right=${html`<${Icon} name=${gen.off[i] ? 'close' : 'check'} size=${17}/>`}
+                  onClick=${() => setGen(x => ({ ...x, off: x.off.map((o, j) => (j === i ? !o : o)) }))}/>`)}
+              <${ListItem} title="加入后同时选中" right=${html`<${Switch} checked=${gen.pick} onChange=${v => setGen(x => ({ ...x, pick: v }))}/>`}/>
+            <//>
+            <div class="sheet-acts"><${Button} onClick=${takeTags}>加入标签（${gen.rows.filter((_, i) => !gen.off[i]).length} 个）<//></div>` : null}` : null}
       <//>
 
       <${Sheet} open=${!!editOf} onClose=${() => setEditOf('')} title=${editOf ? `修改「${titleOf(editOf)}」` : ''} height="86%">

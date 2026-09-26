@@ -87,6 +87,7 @@ const LABELS = {
   'task.npc-tool': '工具箱 · NPC 生成器',
   'task.world-build': '工具箱 · 世界观生成器',
   'task.world-module': '工具箱 · 世界观：重写一个模块',
+  'task.world-tags': '工具箱 · 世界观：批量生成标签',
   'task.lore-outline': '工具箱 · 世界书：大纲',
   'task.lore-body': '工具箱 · 世界书：正文',
   'task.lore-examples': '工具箱 · 世界书：示例',

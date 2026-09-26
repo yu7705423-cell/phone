@@ -1969,6 +1969,37 @@ covers what the world is, why it became this way, and how people live in it.
 - Write in the same language as the user's premise
 - Output the modules only, with no preface and no closing remarks`,
 
+  'task.world-tags':
+`You are extending a tag library for building a fictional world. A tag is a
+short, concrete choice the user can pick for one part of the setting, such as
+an era, an institution, a custom or a scarce resource. It is not a sentence and
+not an instruction.
+
+## Module
+{{module}}: {{covers}}
+
+## Part of the module
+{{group}}
+
+## The world so far
+{{premise}}
+
+## Direction from the user
+{{theme}}
+
+## Tags that already exist. Do not repeat them
+{{existing}}
+
+## Requirements
+1. Write {{count}} tags, each two to twelve characters
+2. Each tag is a concrete setting choice that changes what a person in this
+   world does day to day. No vague adjectives
+3. Tags differ from each other in substance, not only in wording
+4. Write in the same language as the existing tags
+
+## Output a JSON array of strings only
+["", ""]`,
+
   'task.world-module':
 `You are revising one module of a world setting.
 
