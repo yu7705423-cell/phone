@@ -51,7 +51,7 @@ export const bookCopy = b => (b ? {
 } : null);
 
 // 选一个（或几个）角色。列表里只露签名（CLAUDE.md 第 6 条）
-export function CharPicker({ open, onClose, onPick, multi = false, picked = [], exclude = [], title }) {
+export function CharPicker({ open, onClose, onPick, multi = false, picked = [], exclude = [], title, note = '' }) {
   useStore(db.characters.store);
   const [sel, setSel] = useState(null);
   const chosen = sel || picked;
@@ -64,6 +64,7 @@ export function CharPicker({ open, onClose, onPick, multi = false, picked = [], 
   };
   return html`
     <${Sheet} open=${open} onClose=${close} title=${title || (multi ? '选择角色' : '选择一个角色')} height="76%">
+      ${note ? html`<div class="warn-box">${note}</div>` : null}
       ${list.length ? html`
         <${List} inset=${false}>
           ${list.map(c => html`
@@ -82,7 +83,7 @@ export function CharPicker({ open, onClose, onPick, multi = false, picked = [], 
     <//>`;
 }
 
-export function BookPicker({ open, onClose, onPick, multi = false, picked = [], title }) {
+export function BookPicker({ open, onClose, onPick, multi = false, picked = [], title, note = '' }) {
   useStore(db.lorebooks.store);
   const [sel, setSel] = useState(null);
   const chosen = sel || picked;
@@ -94,6 +95,7 @@ export function BookPicker({ open, onClose, onPick, multi = false, picked = [], 
   };
   return html`
     <${Sheet} open=${open} onClose=${close} title=${title || (multi ? '选择世界书' : '选择一本世界书')} height="70%">
+      ${note ? html`<div class="warn-box">${note}</div>` : null}
       ${list.length ? html`
         <${List} inset=${false}>
           ${list.map(b => html`

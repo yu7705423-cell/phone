@@ -408,6 +408,7 @@ registerWidget({
 // 一律关进 system/sandbox.js 的盒子（ARCHITECTURE 4.247）：sandbox 的 iframe，
 // **不给 allow-same-origin**，读不到本应用的 IndexedDB 与 localStorage —— 接口密钥就存在那里面；
 // 文档最前面插一条 CSP，连不了外网、加载不了外部脚本；它把自己跳走就当场拆掉。
+// 外部 https 图片与字体可以用（用户要求）：组件拿不到任何应用数据，这些地址也没有东西可以捎带出去。
 // 从前只有第一道：它能联网、能拉外部脚本、能把自己跳到别的网址。
 // 代价是它也用不了本应用的任何数据，只能自己画自己的。
 export const CUSTOM_DEFAULT = { fileId: null, name: '' };
@@ -450,7 +451,7 @@ function CustomBody({ cell }) {
   }
 
   return html`
-    <iframe key=${c.fileId} class="wg-custom" srcdoc=${wrap(text)} sandbox=${SANDBOX}
+    <iframe key=${c.fileId} class="wg-custom" srcdoc=${wrap(text, { images: true })} sandbox=${SANDBOX}
       title=${c.name || '自定义组件'} onLoad=${guard.current.fn}></iframe>`;
 }
 

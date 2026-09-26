@@ -6,20 +6,25 @@
 // 1. iframe 只给 `sandbox="allow-scripts"`，**不给 allow-same-origin**。
 //    它拿到的是一个不透明源：读不到本应用的 IndexedDB、localStorage（密钥、聊天、角色都在里面），
 //    碰不到外面的页面，不能把整个应用跳走，也弹不了新窗口、alert。
-// 2. 文档最前面插一条 CSP：不许连任何外部地址、不许加载外部脚本与图片。
+// 2. 文档最前面插一条 CSP：不许连任何外部地址、不许加载外部脚本与字体。
 //    下载不了别的代码，也发不出任何东西。
+//    **外部图片与字体可以开**（用户要求：「要有可以打开外部图片的」「字体也要」），
+//    连同为了字体引的外部样式表。这几样的地址本身能捎带东西出去，
+//    所以只在「盒子里没有用户数据」或用户知情时开：主屏组件一律开（它拿不到任何数据）；
+//    网页工具每个一个开关，默认开，开着时往里交角色、世界书之前会提醒一句。
 // 3. 它还能把自己那一小块跳到外部网址、顺带捎点东西出去 —— 外面数 load 次数，
 //    第二次 load 就说明它跳了，当场拆掉（见 watchFrame）。
 //
 // 堵不死的：部分浏览器的 WebRTC 绕得过 CSP。它手里只有用户当场交给它的那一点东西，
 // 最坏也就漏那一点。死循环卡住整个页面也挡不住，只能保证重开之后不再自动跑（工具箱那边管）。
 
-export const CSP = [
+const policy = images => [
   "default-src 'none'",
   "script-src 'unsafe-inline' 'unsafe-eval'",
-  "style-src 'unsafe-inline'",
-  'img-src data: blob:',
-  'font-src data:',
+  // 外部样式表只为字体（Google Fonts 那种先引一份 css、再由它去拉字体文件）。样式表跑不了脚本
+  images ? "style-src 'unsafe-inline' https:" : "style-src 'unsafe-inline'",
+  images ? 'img-src data: blob: https:' : 'img-src data: blob:',
+  images ? 'font-src data: https:' : 'font-src data:',
   'media-src data: blob:',
   "connect-src 'none'",
   "form-action 'none'",
@@ -27,6 +32,11 @@ export const CSP = [
   "worker-src 'none'",
   "base-uri 'none'",
 ].join('; ');
+
+/** 不许外部图片的那一条（最严的一档） */
+export const CSP = policy(false);
+/** images：外部 https 图片、字体、字体用的样式表一起放开 */
+export const cspOf = ({ images = false } = {}) => policy(images);
 
 export const SANDBOX = 'allow-scripts';
 
@@ -40,11 +50,12 @@ const esc = s => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
  * 解析器会把最前面这几样放进 head，后面它自己的 <html>、<head> 合并进来，不影响它的写法。
  *
  * `bridge` 是一段放在 CSP 之后、它的代码之前的脚本（工具箱给网页工具的 window.eira）。
+ * `images` 放开 https 外部图片、字体与字体用的样式表。
  */
-export function wrap(html, { bridge = '' } = {}) {
-  const body = String(html || '').replace(/^﻿?\s*<!doctype[^>]*>/i, '');
+export function wrap(html, { bridge = '', images = false } = {}) {
+  const body = String(html || '').replace(/^\uFEFF?\s*<!doctype[^>]*>/i, '');
   return '<!DOCTYPE html>'
-    + `<meta http-equiv="Content-Security-Policy" content="${esc(CSP)}">`
+    + `<meta http-equiv="Content-Security-Policy" content="${esc(cspOf({ images }))}">`
     + '<meta charset="utf-8">'
     + '<meta name="viewport" content="width=device-width, initial-scale=1">'
     + (bridge ? `<script>${bridge}</script>` : '')

@@ -538,7 +538,7 @@ style=${`width:${size}px`}
 
 **别人写的 HTML（工具箱的网页工具、主屏的自定义组件，以后任何让用户贴一段网页的地方）
 一律经 `system/sandbox.js`**：iframe 只给 `allow-scripts`、**永不给 `allow-same-origin`**，
-内容用 `wrap()` 包过（CSP 在最前面，不许联网），`onLoad` 挂 `escapeGuard`。
+内容用 `wrap()` 包过（CSP 在最前面，不许联网；只有 https 图片与字体可以按用户的开关放开），`onLoad` 挂 `escapeGuard`。
 
 它要应用里的东西，只能经外面：用户当场选、确认页、调接口前先问。**永远不把密钥、整个库交进去**，
 也不给它直接写库的口子。少一道墙，一个随手贴进来的 HTML 就能把接口密钥和聊天记录发出去（ARCHITECTURE 4.247）。

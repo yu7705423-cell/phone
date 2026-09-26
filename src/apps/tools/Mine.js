@@ -14,8 +14,11 @@ const ICONS = ['sparkle', 'tool', 'code', 'book', 'users', 'compass', 'film', 'n
 
 // 网页工具能做什么、不能做什么。导入确认页、编辑页、运行页顶上都是这一段
 export const WEB_RULES = '网页工具在隔离环境中运行：无法读取应用内的聊天、角色、接口密钥等任何数据，'
-  + '无法连接网络，也无法跳转应用的页面。它需要角色或世界书时，由你当场选择，只交给它所选的那一份副本；'
+  + '除 https 外部图片与字体外无法连接网络，也无法跳转应用的页面。它需要角色或世界书时，由你当场选择，只交给它所选的那一份副本；'
   + '它要保存内容时，先经确认页。Eira 不会在工具中要求填写接口密钥。';
+
+// 开着外部图片时，交给工具的内容可能被拼进图片地址带出去。交之前提醒一句
+const IMG_NOTE = '该工具可以加载外部图片与字体，交给它的内容可能随这些地址发出。不放心时，可在该工具的编辑页关闭「允许加载外部图片与字体」。';
 
 // 导入的草稿：选文件在「添加」页，确认在下一页，中间隔着一次导航
 let draft = null;
@@ -122,7 +125,7 @@ export function EditPage({ id, kind }) {
   const [f, setF] = useState(() => (cur ? { ...cur, inputs: [...(cur.inputs || [])] } : {
     kind: k, name: '', desc: '', icon: k === 'web' ? 'code' : 'sparkle', prompt: '',
     inputs: k === 'prompt' ? [{ id: 'in1', label: '内容', type: 'long', hint: '' }] : [],
-    html: '', allowAI: false,
+    html: '', allowAI: false, allowImages: true,
   }));
   const [exporting, setExporting] = useState(false);
   const fileRef = useRef(null);
@@ -143,7 +146,7 @@ export function EditPage({ id, kind }) {
     if (!String(f.name || '').trim()) { toast('请填写名称'); return; }
     if (cur) {
       toolbox.update(cur.id, { name: f.name.trim(), desc: f.desc, icon: f.icon,
-        prompt: f.prompt, inputs: f.inputs, html: f.html, allowAI: f.allowAI });
+        prompt: f.prompt, inputs: f.inputs, html: f.html, allowAI: f.allowAI, allowImages: f.allowImages !== false });
       toast('已保存', 'ok');
       nav.pop();
     } else {
@@ -217,7 +220,7 @@ export function EditPage({ id, kind }) {
           <${Button} variant="ghost" size="sm" icon="plus" onClick=${addInput}>添加输入项<//>
         ` : html`
           <div class="hint-box">${WEB_RULES}</div>
-          <${Field} label="HTML" desc="整页的 HTML，包括其中的样式与脚本。外部脚本、外部图片与网络请求均不可用。">
+          <${Field} label="HTML" desc="整页的 HTML，包括其中的样式与脚本。外部脚本与网络请求均不可用；https 外部图片与字体可按下方开关决定。">
             <${Textarea} rows=${14} class="tb-code" value=${f.html} onInput=${v => set({ html: v })}
               placeholder="<!DOCTYPE html>…" spellcheck="false"/>
           <//>
@@ -227,7 +230,10 @@ export function EditPage({ id, kind }) {
       </div>
 
       ${k === 'web' ? html`
-        <${List} title="接口">
+        <${List} title="权限">
+          <${ListItem} title="允许加载外部图片与字体" multiline
+            subtitle="开启后，该工具可以使用 https 开头的外部图片与字体，包括字体所需的外部样式表。这些地址可能携带你交给工具的内容，交给它角色或世界书之前会再提醒。关闭后一律不加载。"
+            right=${html`<${Switch} checked=${f.allowImages !== false} onChange=${v => set({ allowImages: v })}/>`}/>
           <${ListItem} title="允许调用接口" multiline
             subtitle="开启后，该工具可请求应用代为调用模型接口，接口密钥不会交给工具。每次调用前均会询问，并计入用量。关闭时该工具的请求一律拒绝。"
             right=${html`<${Switch} checked=${f.allowAI} onChange=${v => set({ allowAI: v })}/>`}/>
@@ -350,9 +356,12 @@ export function RunWebPage({ tool }) {
   useEffect(() => (go && !escaped ? toolbox.markOpen(tool.id) : undefined), [go, escaped, nonce]);
 
   // 盯着它有没有把自己跳走。每换一次 iframe（nonce）拿一个新的计数
-  const guardRef = useRef({ nonce: -1, fn: null });
-  if (guardRef.current.nonce !== nonce) {
-    guardRef.current = { nonce, fn: sandbox.escapeGuard(() => setEscaped(true)) };
+  // 编辑页改了 HTML 或开关，srcdoc 会换，iframe 重新加载一次 —— 那不是它自己跳走，
+  // 所以按「第几次运行 + 这一版工具」挂一个新的 iframe、拿一个新的计数
+  const frameKey = `${nonce}:${tool.updatedAt || 0}`;
+  const guardRef = useRef({ key: '', fn: null });
+  if (guardRef.current.key !== frameKey) {
+    guardRef.current = { key: frameKey, fn: sandbox.escapeGuard(() => setEscaped(true)) };
   }
 
   // 离开这一页时，还在路上的请求一并取消
@@ -430,7 +439,7 @@ export function RunWebPage({ tool }) {
   const bar = html`
     <div class="tb-bar">
       <${Icon} name="lock" size=${13}/>
-      <span class="tb-bar-text">第三方工具 · 无法读取应用数据，无法联网</span>
+      <span class="tb-bar-text">第三方工具 · 无法读取应用数据，${toolbox.imagesOn(tool) ? '除外部图片与字体外无法联网' : '无法联网'}</span>
       ${tool.allowAI ? html`<span class="tb-bar-count">接口 ${calls} 次</span>` : null}
       ${busyAI > 0 ? html`<button class="tb-bar-stop press" onClick=${stopAI}>停止</button>` : null}
     </div>`;
@@ -447,7 +456,7 @@ export function RunWebPage({ tool }) {
   } else if (!String(tool.html || '').trim()) {
     body = html`<${EmptyState} icon="code" title="该工具没有内容" desc="可在编辑页中粘贴 HTML。"/>`;
   } else {
-    body = html`<iframe key=${nonce} ref=${frameRef} class="tb-frame" title=${tool.name}
+    body = html`<iframe key=${frameKey} ref=${frameRef} class="tb-frame" title=${tool.name}
       sandbox=${sandbox.SANDBOX} srcdoc=${toolbox.docOf(tool)} onLoad=${guardRef.current.fn}></iframe>`;
   }
 
@@ -474,8 +483,10 @@ export function RunWebPage({ tool }) {
       <//>
 
       <${CharPicker} open=${picking?.kind === 'character'} title=${`交给「${tool.name}」一个角色`}
+        note=${toolbox.imagesOn(tool) ? IMG_NOTE : ''}
         onClose=${() => pickDone(null)} onPick=${c => pickDone(charCopy(c))}/>
       <${BookPicker} open=${picking?.kind === 'lorebook'} title=${`交给「${tool.name}」一本世界书`}
+        note=${toolbox.imagesOn(tool) ? IMG_NOTE : ''}
         onClose=${() => pickDone(null)} onPick=${b => pickDone(bookCopy(b))}/>
       ${picking && picking.kind !== 'character' && picking.kind !== 'lorebook'
         ? html`<${TextPick} tool=${tool} onDone=${pickDone}/>` : null}
@@ -491,7 +502,8 @@ export function RunWebPage({ tool }) {
 function TextPick({ tool, onDone }) {
   useEffect(() => {
     let live = true;
-    prompt({ title: `交给「${tool.name}」一段文字`, multiline: true, okText: '交给工具' })
+    prompt({ title: `交给「${tool.name}」一段文字`, multiline: true, okText: '交给工具',
+      message: toolbox.imagesOn(tool) ? IMG_NOTE : '' })
       .then(v => { if (live) onDone(v == null ? null : String(v)); });
     return () => { live = false; };
   }, []);

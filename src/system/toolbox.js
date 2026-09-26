@@ -69,7 +69,7 @@ export const userTools = () => tools.where(t => !t.builtin)
 export const get = id => tools.get(id);
 
 export function create({ kind = 'prompt', name = '', desc = '', icon = '',
-  prompt = '', inputs = [], html = '', allowAI = false, author = '' } = {}) {
+  prompt = '', inputs = [], html = '', allowAI = false, allowImages = true, author = '' } = {}) {
   const k = kind === 'web' ? 'web' : 'prompt';
   return tools.create({
     kind: k,
@@ -81,6 +81,8 @@ export function create({ kind = 'prompt', name = '', desc = '', icon = '',
     html: k === 'web' ? String(html || '') : '',
     // 网页工具能不能请应用代发模型请求。默认关（CLAUDE.md 第 15 条）
     allowAI: k === 'web' ? allowAI === true : false,
+    // 能不能加载外部 https 图片与字体。默认开；它们的地址能捎带东西出去，所以可以关
+    allowImages: allowImages !== false,
     author: String(author || '').trim(),
     order: Date.now(),
   });
@@ -90,6 +92,7 @@ export function update(id, patch) {
   const next = { ...patch };
   if ('inputs' in next) next.inputs = cleanInputs(next.inputs);
   if ('allowAI' in next) next.allowAI = next.allowAI === true;
+  if ('allowImages' in next) next.allowImages = next.allowImages !== false;
   return tools.update(id, next);
 }
 
@@ -192,7 +195,9 @@ copy:function(text){return call('copy',{text:String(text==null?'':text)});},
 download:function(name,text){return call('download',{name:String(name||'file.txt'),text:String(text==null?'':text)});}
 };})();`;
 
-export const docOf = tool => wrap(tool?.html || '', { bridge: BRIDGE });
+// 外部图片与字体：每个工具一个开关，默认开（老数据没有这一项，按开算）
+export const imagesOn = tool => tool?.allowImages !== false;
+export const docOf = tool => wrap(tool?.html || '', { bridge: BRIDGE, images: imagesOn(tool) });
 
 // ---- 卡死之后不自动再跑 ----
 //
