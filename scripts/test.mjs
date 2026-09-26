@@ -76,7 +76,9 @@ const report = r => {
   if (r.code !== 0) {
     // TEST_VERBOSE=1 时把失败那个的输出整个打出来：超时这类错只看 FAIL 行看不出卡在哪一步
     const lines = r.out.split('\n');
-    const shown = process.env.TEST_VERBOSE ? lines.slice(-40) : lines.filter(l => /FAIL|Error|错误/.test(l)).slice(0, 8);
+    // TEST_VERBOSE=1 打最后 40 行；填个数字就打最后那么多行
+    const n = Number(process.env.TEST_VERBOSE) > 1 ? Number(process.env.TEST_VERBOSE) : 40;
+    const shown = process.env.TEST_VERBOSE ? lines.slice(-n) : lines.filter(l => /FAIL|Error|错误/.test(l)).slice(0, 8);
     console.log(shown.map(l => '       ' + l.trim()).join('\n'));
   }
 };

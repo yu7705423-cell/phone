@@ -1465,7 +1465,7 @@ export function Conversation({ chatId, focusId = '' }) {
         ${(() => {
           const banner = autoReply.bannerOf(chat);
           const left = pace.leftOf(chat);
-          const line = [banner, left === null ? '' : `已送达 · ${pace.leftText(left)}`]
+          const line = [banner, left === null ? '' : `已送达 · ${pace.pendingText(chat)}`]
             .filter(Boolean).join(' · ');
           return line ? html`
             <button class="pace-bar ph-toolbar press" onClick=${() => nav.push(`/pace/${chatId}`)}>

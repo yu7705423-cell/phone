@@ -15,7 +15,7 @@ await page.goto(`${BASE}/index.html`,{waitUntil:'domcontentloaded'});
 await page.waitForTimeout(1500);
 const R=[]; const ok=(n,c,e)=>{R.push({n,pass:!!c});console.log(`${c?'  ok  ':'  FAIL'} ${n}${c?'':'   << '+(e??'')}`);};
 
-// ---- 等多久：本地算，不问模型 ----
+// ---- 什么时候回：按她的状态本地算，不问模型（4.261：空闲几分钟、忙碌等做完、睡觉起床后）----
 const t = await page.evaluate(async () => {
   const db=await import('/src/system/db/index.js');
   const pace=await import('/src/system/pace.js');
@@ -34,11 +34,16 @@ const t = await page.evaluate(async () => {
   // rng 固定成 0.4，抖动就是 1.0 倍，剩下的全是可以算的乘法
   const rng=()=>0.4;
   const at=h=>new Date(2026,8,17,h,0,0);
-  const d=(text,h)=>pace.delayFor(chat.id,text,{rng,at:at(h)});
+  const d=(text,h)=>pace.dueFor(chat.id,text,{rng,at:at(h)})?.secs;
 
-  ok('默认一分钟起步', d('',15)===60, d('',15));
-  ok('深夜慢五倍', d('',2)===300, d('',2));
-  ok('早上慢一点', d('',8)===96, d('',8));
+  ok('空闲：默认一分钟起步', d('',15)===60, d('',15));
+  // 免打扰时段默认 0 到 8 点：凌晨两点在睡觉，八点起床后 0 到 20 分钟回（rng 0.4 就是 8 分钟）
+  ok('睡觉：凌晨两点发的，八点零八分才回', d('',2)===6*3600+480, d('',2));
+  ok('八点就算起床了', d('',8)===60, d('',8));
+  pace.setSleep(chat.id,false);
+  ok('关掉「休息时不回复」：凌晨也按空闲算', d('',2)===60, d('',2));
+  pace.setSleep(chat.id,true);
+  ok('状态念得出：休息中', pace.stateOf(db.chats.get(chat.id),at(2)).kind==='asleep');
   ok('带问号回得快一半', d('在吗？',15)===30, d('在吗？',15));
   ok('写得长回得快一些', d('一'.repeat(40),15)===42, d('一'.repeat(40),15));
   ok('问号优先于长度', d('一'.repeat(40)+'？',15)===30, d('一'.repeat(40)+'？',15));
@@ -48,23 +53,33 @@ const t = await page.evaluate(async () => {
   ok('基数改得动', pace.baseOf(db.chats.get(chat.id))===600);
   ok('改完就按新基数算', d('',15)===600, d('',15));
 
-  // 上限：0 表示不封顶（第 13 条）
+  // 上限：0 表示等到状态结束（第 13 条），默认就是 0
+  ok('默认不封顶', pace.maxOf(db.chats.get(chat.id))===0);
   pace.setPace(chat.id,{max:120});
   ok('封顶压得住', d('',2)===120, d('',2));
   pace.setPace(chat.id,{max:0});
-  ok('填 0 就是不封顶', pace.maxOf(db.chats.get(chat.id))===0 && d('',2)===3000, d('',2));
-  pace.setPace(chat.id,{base:60,max:600});
+  ok('填 0 就是等到状态结束', d('',2)===6*3600+480, d('',2));
+  pace.setPace(chat.id,{base:60,max:0});
 
-  // 她这会儿有事就慢一倍
+  // 忙碌：下午排着事，等到下午那一段结束（18 点）之后 0 到 15 分钟（rng 0.4 就是 6 分钟）
   db.characters.update(c.id,{dayOn:true});
   day.save(c.id,{date:day.dateKey(c,at(15)),items:[{slot:'afternoon',text:'把稿子改完'}]});
-  ok('她手头有事就慢一倍', d('',15)===120, d('',15));
+  ok('忙碌：下午三点发的，六点零六分才回', d('',15)===3*3600+360, d('',15));
+  const st=pace.stateOf(db.chats.get(chat.id),at(15));
+  ok('状态念得出：正在做什么', st.kind==='busy' && st.what==='把稿子改完', JSON.stringify(st));
+  // 忙碌期间连发几条：一次回，到点不往后推
+  pace.clear(chat.id);
+  const first=pace.schedule(chat.id,'在吗',{rng,at:at(15)});
+  const second=pace.schedule(chat.id,'在吗在吗',{rng:()=>0.9,at:at(15)});
+  ok('忙碌期间再发一条：到点不往后推', second.dueAt===first.dueAt, `${first.dueAt} / ${second.dueAt}`);
+  ok('横幅念得出正在做什么', pace.pendingText(db.chats.get(chat.id)).startsWith('对方正在把稿子改完，'), pace.pendingText(db.chats.get(chat.id)));
+  pace.clear(chat.id);
   db.days.byIndex(c.id).slice().forEach(d => db.days.remove(d.id));
   db.characters.update(c.id,{dayOn:false});
 
   // 抖动：两头都要落在范围里
-  const lo=pace.delayFor(chat.id,'',{rng:()=>0,at:at(15)});
-  const hi=pace.delayFor(chat.id,'',{rng:()=>0.999,at:at(15)});
+  const lo=pace.dueFor(chat.id,'',{rng:()=>0,at:at(15)}).secs;
+  const hi=pace.dueFor(chat.id,'',{rng:()=>0.999,at:at(15)}).secs;
   ok('抖动在 0.6 到 1.6 倍之间', lo===36 && hi===96, `${lo} / ${hi}`);
 
   // 待回复记在会话上
@@ -220,6 +235,7 @@ await page.evaluate(async ({chatId}) => {
   const pace=await import('/src/system/pace.js');
   auto.setConfig(chatId,'hers',{on:true,text:'在开会。',max:3});
   pace.setMode(chatId,pace.PACED);
+  pace.setSleep(chatId,false);   // 测试可能在夜里跑
   pace.schedule(chatId,'在吗？',{rng:()=>0.999});
   const nav=await import('/src/system/nav.js'); nav.openApp('chat',`/chat/${chatId}`);
 }, {chatId:t.chatId});

@@ -10,15 +10,23 @@ import * as events from './events.js';
 //
 //   manual  按按钮才回。原来的样子，默认还是它。
 //   now     发完就回。省得每条都按一下。
-//   paced   过一会儿才回，**过多久由本地算**。
+//   paced   **看她这会儿在干什么**，回复的时刻由状态决定（ARCHITECTURE 4.261）。
 //
 // 第三档要解决的是「秒回」这件事本身的假：真人不会每条都在三秒内回。
-// 但「多久」绝不能问模型 —— 问它，它会写「我过了二十分钟才回你」然后
-// 立刻把这句话发出来。所以时长在这儿算，算完就是一个定时器。
-// 和距离、点数、金额一样：**数字不是模型的活**。
+// 从前它是一个公式（基准秒数乘时段乘运势），本质还是「发一句、等一会儿」。用户的话：
+// 「不是每一句发出去等一会儿，对方什么时候回复取决于对方的状态」。所以现在先推状态：
 //
-// 页面关掉定时器就没了。所以到点的时刻记在会话上，
-// 下次打开时按时间戳补上 —— 早该回的立刻回，没到的接着等。
+//   空闲   几分钟内回（基准时长加抖动，要紧的快一些）
+//   忙碌   角色的一天里当前时段排着事，等这件事做完（时段结束）再回
+//   睡觉   免打扰时段（主动发起对话里那一段，默认 0 到 8 点）里睡着，起床后回
+//
+// 忙碌、睡觉期间你发十条，她回来只回一次，把十条一起读：到点时刻记在会话上，一段会话一个，
+// 新消息不把它往后推。「多久」绝不问模型 —— 问它，它会写「我过了二十分钟才回你」然后
+// 立刻把这句话发出来。状态全从本地数据推，和距离、点数、金额一样：**数字不是模型的活**。
+//
+// 页面关掉定时器就没了。所以到点的时刻记在会话上，下次打开时按时间戳补上 ——
+// 早该回的立刻回，没到的接着等。**应用不在前台、也没开保活或后台运行时，到点是收不到的**，
+// 界面上写明。
 
 export const MANUAL = 'manual';
 export const NOW = 'now';
@@ -37,8 +45,7 @@ export const baseOf = chat => {
   const n = Math.round(Number(chat?.paceBase) || 0);
   return n > 0 ? n : 60;
 };
-// 0 表示不封顶（CLAUDE.md 第 13 条）。默认十分钟，再久就不像在聊天了。
-export const maxOf = chat => Math.max(0, Math.round(Number(chat?.paceMax) ?? 600) || 0);
+export const maxOf = chat => Math.max(0, Math.round(Number(chat?.paceMax) || 0));
 
 export function setPace(chatId, patch) {
   const next = {};
@@ -47,45 +54,76 @@ export function setPace(chatId, patch) {
   chats.update(chatId, next);
 }
 
-// 时段的倍数。深夜她多半睡了，白天最快。
-const SLOT_MUL = { night: 5, morning: 1.6, noon: 1.2, afternoon: 1, evening: 1 };
+// 最长等多久。0 表示不封顶（CLAUDE.md 第 13 条）。默认不封顶：忙碌、睡觉本来就是几小时的事，
+// 封顶十分钟等于没有这个功能（从前默认 600，只对旧的公式有意义）
+export const sleepOf = chat => chat?.paceSleep !== false;
+export function setSleep(chatId, on) { chats.update(chatId, { paceSleep: on !== false }); }
+
+const H = 3600 * 1000;
+const clampHour = (v, d) => { const n = Number(v); return Number.isFinite(n) ? Math.min(23, Math.max(0, Math.round(n))) : d; };
+const inWindow = (h, from, to) => (from === to ? false : from < to ? (h >= from && h < to) : (h >= from || h < to));
+
+// 从 at 起，角色那边下一次到整点 hour 的时刻。当前正是那个小时就算下一天
+function nextHourAt(char, at, hour) {
+  const p = clock.partsOf(new Date(at), clock.charZone(char));
+  const h = Number(p.hour), m = Number(p.minute);
+  let dh = (hour - h + 24) % 24;
+  if (dh === 0) dh = 24;
+  return at + (dh * 60 - m) * 60 * 1000;
+}
 
 /**
- * 这一条该等多久，单位秒。
+ * 她这会儿在干什么。{ kind: 'free' | 'busy' | 'asleep', what, until }
+ * 全从本地读：免打扰时段（睡觉）、角色的一天（忙碌）。都不是就是空闲
+ */
+export function stateOf(chat, when = clock.now()) {
+  const at = +when;   // 传进来的可能是 Date，下面要做加减
+  const char = characters.get((chat?.characterIds || [])[0]);
+  if (!char) return { kind: 'free', what: '', until: 0 };
+  const from = clampHour(char.proactiveQuietFrom, 0), to = clampHour(char.proactiveQuietTo, 8);
+  const h = Number(clock.partsOf(new Date(at), clock.charZone(char)).hour);
+  if (sleepOf(chat) && inWindow(h, from, to)) return { kind: 'asleep', what: '休息中', until: nextHourAt(char, at, to) };
+  const brief = day.brief(char.id, at);
+  if (brief && brief.nowItems.length) {
+    return { kind: 'busy', what: brief.nowItems[0], until: nextHourAt(char, at, brief.slot.to) };
+  }
+  return { kind: 'free', what: '', until: 0 };
+}
+
+/**
+ * 这一条该什么时候回。回 { dueAt, secs, state }。
  *
- * 四件事相乘，全都是本地读得到的：
- *   **几点了** 深夜慢五倍，白天最快；
- *   **她这会儿有没有事** 当前时段排了日程就慢一倍（见 4.83）；
- *   **运势** 走背字的时候懒得回，慢一点（见 4.82）；
- *   **这条要紧不要紧** 带问号、或者写得长，回得快一些。
- * 最后再乘一个抖动，免得每次都是同一个数。
+ *   空闲   基准时长；带问号的减半，写得长的打七折；再乘 0.6 到 1.6 的抖动；走背字慢一点（见 4.82）
+ *   忙碌   这件事结束之后 0 到 15 分钟
+ *   睡觉   起床之后 0 到 20 分钟
+ * 最后按「最长等多久」封顶（0 不封顶）。
  *
- * 「要紧不要紧」只看标点和长度，很粗 —— 但它要防的是「每条都一样快」，
+ * 「要紧不要紧」只看标点和长度，很粗 —— 它要防的是「每条都一样快」，
  * 而不是真去理解这句话，那是模型的活，不是这儿的。
  */
-export function delayFor(chatId, text = '', { rng = Math.random, at } = {}) {
+export function dueFor(chatId, text = '', { rng = Math.random, at } = {}) {
   const chat = chats.get(chatId);
-  if (!chat) return 0;
-  const char = characters.get((chat.characterIds || [])[0]);
-  let secs = baseOf(chat);
-
-  const now = at || clock.now();
-  secs *= SLOT_MUL[day.slotNow(char, now).id] ?? 1;
-
-  const brief = char ? day.brief(char.id, now) : null;
-  if (brief && brief.nowItems.length) secs *= 2;
-
-  const luck = events.luckOf(char);
-  if (luck < -0.4) secs *= 1.3;
-
-  const t = String(text || '');
-  if (/[?？]/.test(t)) secs *= 0.5;
-  else if (t.length >= 30) secs *= 0.7;
-
-  secs *= 0.6 + rng();            // 0.6 ~ 1.6 倍
+  if (!chat) return null;
+  const now = +(at || clock.now());
+  const state = stateOf(chat, now);
+  let dueAt;
+  if (state.kind === 'asleep') dueAt = state.until + rng() * 20 * 60 * 1000;
+  else if (state.kind === 'busy') dueAt = state.until + rng() * 15 * 60 * 1000;
+  else {
+    const char = characters.get((chat.characterIds || [])[0]);
+    let secs = baseOf(chat);
+    const luck = events.luckOf(char);
+    if (luck < -0.4) secs *= 1.3;
+    const t = String(text || '');
+    if (/[?？]/.test(t)) secs *= 0.5;
+    else if (t.length >= 30) secs *= 0.7;
+    secs *= 0.6 + rng();
+    dueAt = now + Math.max(1, secs) * 1000;
+  }
   const cap = maxOf(chat);
-  const out = Math.round(Math.max(1, secs));
-  return cap ? Math.min(cap, out) : out;
+  if (cap) dueAt = Math.min(dueAt, now + cap * 1000);
+  const secs = Math.max(1, Math.round((dueAt - now) / 1000));
+  return { dueAt: now + secs * 1000, secs, state: { kind: state.kind, what: state.what } };
 }
 
 // ---- 待回复 ----
@@ -98,10 +136,17 @@ export const pendingOf = chat => (chat?.pacePending?.dueAt ? chat.pacePending : 
 export function schedule(chatId, text, opts = {}) {
   const chat = chats.get(chatId);
   if (!chat) return null;
-  const secs = delayFor(chatId, text, opts);
-  const dueAt = Date.now() + secs * 1000;
-  chats.update(chatId, { pacePending: { dueAt, secs } });
-  return { dueAt, secs };
+  const next = dueFor(chatId, text, opts);
+  if (!next) return null;
+  // 到点时刻按真实的现在算（opts.at 只用来推状态，测试里会假装成别的时刻）
+  const dueAt = Date.now() + next.secs * 1000;
+  // 已经在等了：忙碌、睡觉时她回来一次把几条一起读，新消息不把到点往后推；
+  // 空闲时也取早的那个 —— 连发两条不该比只发一条回得更晚
+  const cur = pendingOf(chat);
+  if (cur && cur.dueAt <= dueAt) return cur;
+  const pending = { dueAt, secs: next.secs, state: next.state };
+  chats.update(chatId, { pacePending: pending });
+  return pending;
 }
 
 export function clear(chatId) {
@@ -124,6 +169,17 @@ export function leftText(ms) {
   if (s < 60) return `约 ${s} 秒后回复`;
   if (s < 3600) return `约 ${Math.ceil(s / 60)} 分钟后回复`;
   return `约 ${Math.round(s / 3600)} 小时后回复`;
+}
+
+/** 连着状态一起念：「对方正在上课，约 2 小时后回复」 */
+export function pendingText(chat) {
+  const p = pendingOf(chat);
+  if (!p) return '';
+  const left = leftText(leftOf(chat));
+  const st = p.state || {};
+  if (st.kind === 'busy' && st.what) return `对方正在${st.what}，${left}`;
+  if (st.kind === 'asleep') return `对方在休息，${left}`;
+  return left;
 }
 
 /** 到点的会话。 */

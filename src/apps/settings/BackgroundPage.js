@@ -99,7 +99,7 @@ function scheduled(now = Date.now()) {
       rows.push({
         key: `r-${chat.id}`, paid: true, icon: 'clock',
         title: `${who} · 延迟回复`,
-        sub: `${phone.pace.leftText(pend.dueAt - now)}。到点后调用一次接口生成回复`,
+        sub: `${phone.pace.pendingText(chat)}。到点后调用一次接口生成回复；应用不在前台且未开保活时到点收不到，下次打开时补回`,
         go: open('chat', `/chat/${chat.id}`),
       });
     }

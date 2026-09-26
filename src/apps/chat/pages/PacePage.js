@@ -14,9 +14,9 @@ const MODES = [
 // 三档一次列全，不是只讲当前那一档：选之前就该看得见各自什么行为。
 const MODE_DESC = `按按钮：发出去只是发出去，什么时候回由你按发送键右边那个按钮决定。
 发完就回：消息一发出去就立刻生成回复。
-延迟回复：消息发出后等待一段时间再回。等待时长由本地计算，不消耗额外的接口调用，
-也不由模型决定。时段、角色当时的安排、运势、以及这条消息本身是长是短、
-有没有问号，都会影响。`;
+延迟回复：角色什么时候回取决于角色当时的状态。空闲时几分钟内回；「角色的一天」里当前时段安排了事项，
+等这件事结束后回；免打扰时段内视为休息，起床后回。期间发出的多条消息一并回复，不消耗额外的接口调用，
+时刻由本地计算，不由模型决定。到点时应用需在前台，或在「设置 - 后台」开启保活或后台运行；否则在下次打开时补回。`;
 
 const toLocalInput = ms => {
   const d = new Date(ms);
@@ -107,21 +107,27 @@ export function PacePage({ chatId }) {
         <//>
 
         ${mode === pace.PACED ? html`
-          <${Field} label="基准时长"
-            desc="实际等待时间在此基础上按时段、安排、运势与消息本身放大或缩短，并带随机抖动。">
+          <${Field} label="空闲时的基准时长"
+            desc="角色空闲时在此基础上按消息本身与运势缩放，并带随机抖动。">
             <${NumberInput} unit="秒" min=${1} value=${pace.baseOf(chat)}
               onChange=${v => pace.setPace(chatId, { base: v })}/>
           <//>
           <${Field} label="最长等多久"
-            desc="无论怎么放大都不超过这个时长。填 0 表示不封顶。">
-            <${NumberInput} unit="秒" value=${pace.maxOf(chat)} placeholder="不封顶"
+            desc="无论忙碌还是休息，都不超过这个时长。填 0 表示等到状态结束为止。">
+            <${NumberInput} unit="秒" value=${pace.maxOf(chat)} placeholder="等到状态结束"
               onChange=${v => pace.setPace(chatId, { max: v })}/>
-          <//>` : null}
+          <//>
+          <${List}>
+            <${ListItem} title="休息时不回复" multiline
+              subtitle=${`免打扰时段（${char.proactiveQuietFrom ?? 0}:00 到 ${char.proactiveQuietTo ?? 8}:00，在「主动发起对话」中设置）内视为休息，起床后回复。关闭后按空闲计算`}
+              right=${html`<${Switch} checked=${pace.sleepOf(chat)} onChange=${v => pace.setSleep(chatId, v)}/>`}/>
+          <//>
+          <div class="settings-foot">当前状态：${(() => { const st = pace.stateOf(chat); return st.kind === 'busy' ? `正在${st.what}` : st.kind === 'asleep' ? '休息中' : '空闲'; })()}</div>` : null}
       </div>
 
       ${pending ? html`
         <${List}>
-          <${ListItem} title="正在等待回复" subtitle=${pace.leftText(pace.leftOf(chat))} multiline
+          <${ListItem} title="正在等待回复" subtitle=${pace.pendingText(chat)} multiline
             left=${html`<${Icon} name="clock" size=${18}/>`}
             right=${html`
               <button class="nav-text press" onClick=${() => pace.clear(chatId)}>取消等待</button>`}/>
