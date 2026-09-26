@@ -129,7 +129,7 @@ const navbar = title => `<div class="navbar ph-navbar">`
 /** 底栏。加号、输入框、表情、发送键。 */
 const composer = () => `<div class="composer-bar ph-composer">`
   + `<button class="composer-side ph-composer-btn ph-plus press" aria-label="添加内容">${icon('plus')}</button>`
-  + `<textarea class="composer-input ph-composer-input" rows="1" readonly placeholder="Aa"></textarea>`
+  + `<textarea class="composer-input ph-composer-input" rows="1" readonly placeholder="Aa…"></textarea>`
   + `<button class="composer-side ph-composer-btn ph-sticker-btn press" aria-label="表情">${icon('heart')}</button>`
   + `<button class="send-btn ph-send is-ghost press" aria-label="让对方回复">${icon('reply', 22)}</button>`
   + '</div>';
