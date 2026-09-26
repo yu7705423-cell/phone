@@ -439,7 +439,9 @@ export function RunWebPage({ tool }) {
   const bar = html`
     <div class="tb-bar">
       <${Icon} name="lock" size=${13}/>
-      <span class="tb-bar-text">第三方工具 · 无法读取应用数据，${toolbox.imagesOn(tool) ? '除外部图片与字体外无法联网' : '无法联网'}</span>
+      <span class="tb-bar-text">${sandbox.scriptsAllowed()
+        ? `第三方工具 · 无法读取应用数据，${toolbox.imagesOn(tool) ? '除外部图片与字体外无法联网' : '无法联网'}`
+        : '当前 App 版本过旧，工具中的脚本已停用。更新 App 后恢复'}</span>
       ${tool.allowAI ? html`<span class="tb-bar-count">接口 ${calls} 次</span>` : null}
       ${busyAI > 0 ? html`<button class="tb-bar-stop press" onClick=${stopAI}>停止</button>` : null}
     </div>`;
@@ -457,7 +459,7 @@ export function RunWebPage({ tool }) {
     body = html`<${EmptyState} icon="code" title="该工具没有内容" desc="可在编辑页中粘贴 HTML。"/>`;
   } else {
     body = html`<iframe key=${frameKey} ref=${frameRef} class="tb-frame" title=${tool.name}
-      sandbox=${sandbox.SANDBOX} srcdoc=${toolbox.docOf(tool)} onLoad=${guardRef.current.fn}></iframe>`;
+      sandbox=${sandbox.sandboxFlags()} srcdoc=${toolbox.docOf(tool)} onLoad=${guardRef.current.fn}></iframe>`;
   }
 
   const answer = v => { const r = ask?.resolve; setAsk(null); r?.(v); };

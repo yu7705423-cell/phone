@@ -158,6 +158,8 @@ final class ShellViewController: UIViewController {
 
         // 告诉网页这一层能做什么。都在文档一开始就注入，网页第一帧就判得出：
         //   phoneNativeBack  这层自己有原生的边缘手势，网页那套让开，免得两边各退一级
+        //   phoneFrameGuard  各接口只收主页面的消息（沙盒里的网页调不到）。网页认不出它就当旧外壳，
+        //                    沙盒里不给运行脚本（见 system/sandbox.js 与 ARCHITECTURE 4.249）
         //   phoneHealth      这台设备读得到「健康」数据（能不能授权是另一回事，见 HealthBridge）
         //   phoneNotify      系统通知走这一层。WKWebView 自己没有 Notification，
         //                    网页那套在这儿一律「不支持」，见 NotifyBridge
@@ -176,6 +178,7 @@ final class ShellViewController: UIViewController {
         //                    （闹钟、通知、健康）只能靠重装才会变
         cfg.userContentController.addUserScript(WKUserScript(
             source: "window.phoneNativeBack = true;"
+                + "window.phoneFrameGuard = true;"
                 + "window.phoneNotify = true;"
                 + "window.phoneKeepAlive = true;"
                 + "window.phoneHealth = \(HealthBridge.available);"

@@ -5,11 +5,27 @@
 //
 // 另外接住下载：网页导出备份用的是 <a download href="blob:..."> 再 click()，
 // 安卓的 WebView 不认 blob: 下载，这里把内容分块交给外壳写进「下载」。
+//
+// 只在应用自己的主页面里装（见 ARCHITECTURE 4.249）。EiraNative 这个对象安卓会注入进**每一个** frame，
+// 沙盒里的网页（工具箱网页工具、主屏组件）也拿得到。所以外壳的每个接口都要带一个口令，
+// 口令只写在这份脚本里，而这份脚本在子 frame 里一行都不跑，沙盒里的网页拿不到口令，调了也被拒。
+// 网页那一侧一律经 window.EiraShell 调；认不出 phoneFrameGuard 的旧外壳，沙盒里不给运行脚本（system/sandbox.js）。
 (function () {
+  if (window.top !== window) return;
   if (window.__eiraShell) return;
   var N = window.EiraNative;
   if (!N) return;
   window.__eiraShell = true;
+  var T = '__EIRA_TOKEN__';
+  window.phoneFrameGuard = true;
+  window.EiraShell = {
+    version: function () { return N.version(T); },
+    exitApp: function () { return N.exitApp(T); },
+    floatAllowed: function () { return N.floatAllowed(T); },
+    askFloat: function () { return N.askFloat(T); },
+    setFloat: function (json) { return N.setFloat(T, json); },
+    setSystemBars: function (show) { return N.setSystemBars(T, show); },
+  };
 
   var pending = {};
   var seq = 0;
@@ -26,7 +42,7 @@
         return new Promise(function (resolve) {
           var id = ++seq;
           pending[id] = resolve;
-          N.post(name, id, JSON.stringify(msg || {}));
+          N.post(T, name, id, JSON.stringify(msg || {}));
         });
       },
     };
@@ -39,7 +55,7 @@
   window.phoneNet = { timeout: true };
   // 返回交给安卓的返回键与系统手势（见 shell/goback.js），网页自己那套边缘手势让开
   window.phoneNativeBack = true;
-  window.phoneAppVersion = 'Android ' + N.version();
+  window.phoneAppVersion = 'Android ' + N.version(T);
   // 系统状态栏藏起来了（MainActivity），网页自己画一条（见 shell/StatusBar.js）
   window.phoneFullscreen = true;
 
@@ -53,15 +69,15 @@
   async function save(href, name) {
     try {
       var blob = await (await fetch(href)).blob();
-      var id = N.beginSave(name || 'download', blob.type || 'application/octet-stream');
+      var id = N.beginSave(T, name || 'download', blob.type || 'application/octet-stream');
       if (!id) return;
       for (var at = 0; at < blob.size; at += CHUNK) {
         var part = new Uint8Array(await blob.slice(at, at + CHUNK).arrayBuffer());
-        if (!N.appendSave(id, b64(part))) return;
+        if (!N.appendSave(T, id, b64(part))) return;
       }
-      N.endSave(id);
+      N.endSave(T, id);
     } catch (e) {
-      N.saveFailed(String(e && e.message || e));
+      N.saveFailed(T, String(e && e.message || e));
     }
   }
   function wants(a) {

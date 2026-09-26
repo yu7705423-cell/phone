@@ -15,6 +15,10 @@
 // 3. 它还能把自己那一小块跳到外部网址、顺带捎点东西出去 —— 外面数 load 次数，
 //    第二次 load 就说明它跳了，当场拆掉（见 watchFrame）。
 //
+// 4. 装成 App 时，外壳的原生接口（安卓的 EiraNative、iOS 的 messageHandlers）会出现在每一个 frame 里，
+//    沙盒也挡不住它们 —— 能经外壳发任意请求、读健康数据。新外壳只认主页面（安卓靠口令，iOS 核 isMainFrame），
+//    并声明 phoneFrameGuard；认不出它的旧外壳，盒子里一律不给运行脚本（见 sandboxFlags 与 ARCHITECTURE 4.249）。
+//
 // 堵不死的：部分浏览器的 WebRTC 绕得过 CSP。它手里只有用户当场交给它的那一点东西，
 // 最坏也就漏那一点。死循环卡住整个页面也挡不住，只能保证重开之后不再自动跑（工具箱那边管）。
 
@@ -38,7 +42,18 @@ export const CSP = policy(false);
 /** images：外部 https 图片、字体、字体用的样式表一起放开 */
 export const cspOf = ({ images = false } = {}) => policy(images);
 
-export const SANDBOX = 'allow-scripts';
+/** 在不在 App 外壳里（安卓 APK、iOS IPA） */
+const inShell = () => typeof window !== 'undefined'
+  && !!(window.phoneAppVersion || window.EiraNative || window.webkit?.messageHandlers);
+
+/**
+ * 盒子里能不能运行脚本。浏览器里能；App 里只有新外壳能（它的原生接口只认主页面）。
+ * 旧外壳里脚本一跑就摸得到外壳的接口，所以不给，只显示静态的 HTML 与 CSS。
+ */
+export const scriptsAllowed = () => !inShell() || window.phoneFrameGuard === true;
+
+/** iframe 的 sandbox 属性。**永不含 allow-same-origin** */
+export const sandboxFlags = () => (scriptsAllowed() ? 'allow-scripts' : '');
 
 const esc = s => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
 

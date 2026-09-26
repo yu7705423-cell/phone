@@ -1,5 +1,6 @@
 import { createStore } from './store.js';
 import { settings } from './db/index.js';
+import { shellApi } from './shellapi.js';
 
 // 使用须知与内测说明（用户要求，ARCHITECTURE 4.246）。
 //
@@ -86,7 +87,7 @@ export function accept() {
 
 /** 不同意：安卓安装包里关掉应用，别处画结束页 */
 export function decline() {
-  try { if (window.EiraNative?.exitApp) { window.EiraNative.exitApp(); return; } } catch { /* 走结束页 */ }
+  try { const n = shellApi(); if (n?.exitApp) { n.exitApp(); return; } } catch { /* 走结束页 */ }
   termsStore.set({ declined: true });
 }
 

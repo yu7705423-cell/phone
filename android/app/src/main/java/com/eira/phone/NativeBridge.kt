@@ -14,6 +14,7 @@ import android.util.Base64
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import android.widget.Toast
+import java.security.MessageDigest
 import android.app.Activity
 import android.view.ViewGroup
 import androidx.core.view.ViewCompat
@@ -41,22 +42,30 @@ import java.util.concurrent.atomic.AtomicInteger
  * 三、通话的桌面悬浮窗（见 CallFloat 与网页的 src/system/callfloat.js）。
  * 四、系统状态栏放出来还是藏起来（网页「设置 - 外观 - 全屏显示」，src/system/fullscreen.js）。
  */
-class NativeBridge(private val context: Context, private val web: WebView) {
+class NativeBridge(private val context: Context, private val web: WebView, private val token: String) {
+
+    // 每个接口先核口令（见 bridge.js 开头与 ARCHITECTURE 4.249）：这个对象安卓会注入进网页里的每一个 frame，
+    // 沙盒里别人写的网页也拿得到它。口令只写在主页面的 bridge.js 里，子 frame 拿不到，调了一律拒
+    private fun ok(t: String?): Boolean =
+        t != null && MessageDigest.isEqual(t.toByteArray(), token.toByteArray())
+
 
     private val pool = Executors.newCachedThreadPool()
     private val main = Handler(Looper.getMainLooper())
 
     @JavascriptInterface
-    fun version(): String = "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})"
+    fun version(t: String): String = if (!ok(t)) "" else "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})"
 
     /** 关掉应用。网页「使用须知」里点「不同意」时调（src/system/terms.js）；没有这个接口的旧外壳显示结束页 */
     @JavascriptInterface
-    fun exitApp() {
+    fun exitApp(t: String) {
+        if (!ok(t)) return
         main.post { (context as? Activity)?.finishAndRemoveTask() }
     }
 
     @JavascriptInterface
-    fun post(name: String, id: Int, json: String) {
+    fun post(t: String, name: String, id: Int, json: String) {
+        if (!ok(t)) return
         pool.execute {
             val reply = try {
                 val msg = JSONObject(json)
@@ -76,11 +85,12 @@ class NativeBridge(private val context: Context, private val web: WebView) {
 
     /** 系统给没给「显示在其他应用上层」 */
     @JavascriptInterface
-    fun floatAllowed(): Boolean = CallFloat.allowed(context)
+    fun floatAllowed(t: String): Boolean = ok(t) && CallFloat.allowed(context)
 
     /** 带人去系统设置里给这个权限。给不给由人决定，回来之后网页再问一次 floatAllowed */
     @JavascriptInterface
-    fun askFloat() {
+    fun askFloat(t: String) {
+        if (!ok(t)) return
         main.post {
             val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:${context.packageName}"))
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -90,7 +100,8 @@ class NativeBridge(private val context: Context, private val web: WebView) {
 
     /** 网页按时交过来的通话状态：{ on, title, status, line, image? } */
     @JavascriptInterface
-    fun setFloat(json: String) {
+    fun setFloat(t: String, json: String) {
+        if (!ok(t)) return
         val msg = runCatching { JSONObject(json) }.getOrNull() ?: return
         main.post { CallFloat.update(context, msg) }
     }
@@ -106,7 +117,8 @@ class NativeBridge(private val context: Context, private val web: WebView) {
      * 不推的话页面顶端压在状态栏下面。按系统报的状态栏高度给网页一个上边距，藏起来时归零
      */
     @JavascriptInterface
-    fun setSystemBars(show: Boolean) {
+    fun setSystemBars(t: String, show: Boolean) {
+        if (!ok(t)) return
         val act = context as? Activity ?: return
         main.post {
             barsShown = show
@@ -186,7 +198,7 @@ class NativeBridge(private val context: Context, private val web: WebView) {
 
     /** 开一个文件。给回编号，失败给 0 */
     @JavascriptInterface
-    fun beginSave(name: String, mime: String): Int = try {
+    fun beginSave(t: String, name: String, mime: String): Int = if (!ok(t)) 0 else try {
         val safe = name.replace(Regex("[\\\\/:*?\"<>|]"), "_").ifBlank { "download" }
         val id = seq.incrementAndGet()
         if (Build.VERSION.SDK_INT >= 29) {
@@ -213,7 +225,8 @@ class NativeBridge(private val context: Context, private val web: WebView) {
     }
 
     @JavascriptInterface
-    fun appendSave(id: Int, b64: String): Boolean {
+    fun appendSave(t: String, id: Int, b64: String): Boolean {
+        if (!ok(t)) return false
         val s = sinks[id] ?: return false
         return try {
             s.out.write(Base64.decode(b64, Base64.DEFAULT))
@@ -227,7 +240,8 @@ class NativeBridge(private val context: Context, private val web: WebView) {
     }
 
     @JavascriptInterface
-    fun endSave(id: Int) {
+    fun endSave(t: String, id: Int) {
+        if (!ok(t)) return
         val s = sinks.remove(id) ?: return
         runCatching { s.out.close() }
         if (s.uri != null && Build.VERSION.SDK_INT >= 29) {
@@ -238,7 +252,7 @@ class NativeBridge(private val context: Context, private val web: WebView) {
     }
 
     @JavascriptInterface
-    fun saveFailed(message: String) = toast("保存失败：$message")
+    fun saveFailed(t: String, message: String) { if (ok(t)) toast("保存失败：$message") }
 
     private fun toast(text: String) = main.post { Toast.makeText(context, text, Toast.LENGTH_LONG).show() }
 

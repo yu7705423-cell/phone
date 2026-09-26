@@ -230,6 +230,8 @@ extension CallFloatBridge: WKScriptMessageHandlerWithReply {
     func userContentController(_ c: WKUserContentController,
                                didReceive message: WKScriptMessage,
                                replyHandler: @escaping (Any?, String?) -> Void) {
+        // 只收应用自己主页面发来的。子 frame 里是沙盒中别人写的网页（工具箱、主屏组件），见 ARCHITECTURE 4.249
+        guard message.frameInfo.isMainFrame else { replyHandler(nil, "不接受子页面的请求"); return }
         let body = message.body as? [String: Any] ?? [:]
         switch body["action"] as? String ?? "" {
         case "set":

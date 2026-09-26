@@ -421,7 +421,7 @@ ok('联系：「更多设置」跳到 NPC 生成器并带上那个角色', t.inc
 const w = await ev(async () => {
   const sb = await import('/src/system/sandbox.js');
   const out = sb.wrap('<!DOCTYPE html><html><head><script>alert(1)</script></head></html>');
-  return { head: out.slice(0, 120), csp: out.indexOf('Content-Security-Policy'), script: out.indexOf('<script>'), sandbox: sb.SANDBOX, connect: /connect-src 'none'/.test(sb.CSP) };
+  return { head: out.slice(0, 120), csp: out.indexOf('Content-Security-Policy'), script: out.indexOf('<script>'), sandbox: sb.sandboxFlags(), connect: /connect-src 'none'/.test(sb.CSP) };
 });
 ok('盒子：CSP 在文档最前面，排在它自己的脚本之前', w.csp > 0 && w.csp < w.script && w.head.startsWith('<!DOCTYPE html><meta http-equiv="Content-Security-Policy"'), JSON.stringify(w));
 ok('盒子：不给 allow-same-origin，不许连外网', w.sandbox === 'allow-scripts' && w.connect);

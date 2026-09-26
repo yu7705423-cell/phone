@@ -9,7 +9,7 @@ import * as group from '../../system/group.js';
 import { openApp } from '../../system/nav.js';
 import { useImage, useThumb } from '../../system/db/useImage.js';
 import { files } from '../../system/db/files.js';
-import { wrap, escapeGuard, SANDBOX } from '../../system/sandbox.js';
+import { wrap, escapeGuard, sandboxFlags } from '../../system/sandbox.js';
 
 function relTime(ts) {
   if (!ts) return '';
@@ -451,7 +451,7 @@ function CustomBody({ cell }) {
   }
 
   return html`
-    <iframe key=${c.fileId} class="wg-custom" srcdoc=${wrap(text, { images: true })} sandbox=${SANDBOX}
+    <iframe key=${c.fileId} class="wg-custom" srcdoc=${wrap(text, { images: true })} sandbox=${sandboxFlags()}
       title=${c.name || '自定义组件'} onLoad=${guard.current.fn}></iframe>`;
 }
 

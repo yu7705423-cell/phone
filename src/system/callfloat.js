@@ -1,6 +1,7 @@
 import { createStore } from './store.js';
 import { settings } from './db/index.js';
 import { call, duration } from './call.js';
+import { shellApi } from './shellapi.js';
 
 // 通话的桌面悬浮窗：离开 Eira 之后，通话仍以一个小窗浮在桌面与别的应用上面（ARCHITECTURE 4.223）。
 //
@@ -26,8 +27,7 @@ import { call, duration } from './call.js';
 
 export const desk = createStore({ pip: false });
 
-const native = () => (typeof window !== 'undefined' && window.EiraNative
-  && typeof window.EiraNative.setFloat === 'function') ? window.EiraNative : null;
+const native = () => (typeof shellApi()?.setFloat === 'function' ? shellApi() : null);
 
 const iosFloat = () => (typeof window !== 'undefined' && window.phoneCallFloat === true
   && window.webkit?.messageHandlers?.callfloat) || null;

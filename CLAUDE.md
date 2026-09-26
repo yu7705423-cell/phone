@@ -543,6 +543,11 @@ style=${`width:${size}px`}
 它要应用里的东西，只能经外面：用户当场选、确认页、调接口前先问。**永远不把密钥、整个库交进去**，
 也不给它直接写库的口子。少一道墙，一个随手贴进来的 HTML 就能把接口密钥和聊天记录发出去（ARCHITECTURE 4.247）。
 
+**App 外壳的原生接口只认主页面。** 安卓的 `addJavascriptInterface` 会把对象注入进每一个 frame，
+iOS 的 messageHandlers 子 frame 里也在，沙盒挡不住它们。所以安卓每个接口先核口令（口令只在主页面的 `bridge.js` 里），
+iOS 每个接口先核 `isMainFrame`；网页调外壳一律经 `system/shellapi.js`。**以后在外壳里新加任何接口，都照这样守**。
+旧外壳认不出 `phoneFrameGuard`，沙盒里一律不给运行脚本（ARCHITECTURE 4.249，测试 `shellguard`）。
+
 ---
 
 ## 提交前自检

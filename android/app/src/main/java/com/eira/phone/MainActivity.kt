@@ -53,7 +53,11 @@ class MainActivity : ComponentActivity() {
     private val siteUrl: String
         get() = prefs.getString("siteURL", null)?.takeIf { it.isNotBlank() } ?: BuildConfig.SITE_URL
 
-    private val bridgeJs by lazy { assets.open("bridge.js").bufferedReader().use { it.readText() } }
+    // 外壳接口的口令，每次启动换一个。只写进主页面的 bridge.js（见 NativeBridge 开头）
+    private val shellToken = java.util.UUID.randomUUID().toString()
+    private val bridgeJs by lazy {
+        assets.open("bridge.js").bufferedReader().use { it.readText() }.replace("__EIRA_TOKEN__", shellToken)
+    }
     private val docStart by lazy { WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT) }
 
     // ---- 等网络（同 ios/Sources/ShellViewController.swift）----
@@ -111,7 +115,7 @@ class MainActivity : ComponentActivity() {
             setBackgroundColor(0xFFF2F3F5.toInt())
         }
         WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG)
-        web.addJavascriptInterface(NativeBridge(this, web), "EiraNative")
+        web.addJavascriptInterface(NativeBridge(this, web, shellToken), "EiraNative")
         if (docStart) WebViewCompat.addDocumentStartJavaScript(web, bridgeJs, setOf("*"))
         web.webViewClient = ShellClient()
         web.webChromeClient = ShellChrome()

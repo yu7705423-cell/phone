@@ -28,6 +28,7 @@
 // 老的「浏览器中全屏」（autoFullscreen）并进来：没动过新开关的，照老开关的值。
 import { createStore } from './store.js';
 import { settings } from './db/index.js';
+import { shellApi } from './shellapi.js';
 
 export const fullStore = createStore({ full: false });
 
@@ -115,7 +116,7 @@ export function wantFull() {
 
 /** 安卓安装包藏着系统状态栏、网页要自己画那一条。不全屏且外壳放得出来时就不藏了 */
 export const shellHidesBars = () => !!window.phoneFullscreen
-  && (wantFull() || typeof window.EiraNative?.setSystemBars !== 'function');
+  && (wantFull() || typeof shellApi()?.setSystemBars !== 'function');
 
 // 电脑上点一下就全屏太突兀，自动的那一档只在触摸屏上
 const wanted = () => wantFull() && mq('(pointer: coarse)');
@@ -128,7 +129,7 @@ export function applyWindowed() {
   // iPhone 加到主屏幕：状态栏样式是 black-translucent（index.html），字是白的，垫的那条要深色
   const pwaApple = apple() && navigator.standalone === true && !window.phoneAppVersion;
   if (off && pwaApple) root.dataset.windowed = 'dark';
-  try { window.EiraNative?.setSystemBars?.(off); } catch { /* 旧外壳 */ }
+  try { shellApi()?.setSystemBars?.(off); } catch { /* 旧外壳 */ }
   // 自己定了窗口大小：中间那一块按这个大小居中，超出屏幕就收到屏幕以内（base.css 的 data-winsize）
   const { w, h } = windowSize();
   const sized = off && (w > 0 || h > 0);

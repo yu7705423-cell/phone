@@ -9361,3 +9361,25 @@ CLAUDE.md 第 15 条加一段「自动触发的，先记试过再发」。测试
 - 不调用模型接口。密钥只存在本机数据库里，不经过沙盒（第 21 条）。
 
 测试 `tests/toolbox.test.mjs` 第十六节。
+
+### 4.249 外壳的原生接口只认主页面
+
+查 HTML 卡片的风险时发现：沙盒（4.247）在浏览器里是牢的，装成 App 就漏了。
+
+- 安卓 `addJavascriptInterface(NativeBridge, "EiraNative")` 按官方文档会注入进**每一个** frame，沙盒 iframe 也拿得到。
+  它能经 `post('net')` 让外壳发任意请求（绕过 CSP 与跨域），往「下载」写文件、弹桌面悬浮窗、关掉应用。
+- iOS 的 `net`、`health`、`notify`、`alarm`、`keepalive`、`callfloat` 从前不看是谁发的；子 frame 里的网页能发请求、读健康数据，结果还拿得回去。
+
+修法：
+
+- 安卓：每次启动生成一个口令，写进 `bridge.js`；`NativeBridge` 每个接口第一个参数是口令，对不上一律拒。
+  `bridge.js` 在子 frame 里第一行就退出，所以口令只存在主页面的闭包里。主页面经 `window.EiraShell` 调（口令它自己带）。
+- iOS：每个接口先核 `message.frameInfo.isMainFrame`。
+- 两边都声明 `window.phoneFrameGuard = true`。
+- 网页：调外壳一律经 `system/shellapi.js` 的 `shellApi()`（新外壳是 EiraShell，旧外壳是 EiraNative）。
+  `sandbox.js` 的 `sandboxFlags()`：浏览器里与新外壳里是 `allow-scripts`；在外壳里却认不出 `phoneFrameGuard`（旧安装包）时为空，
+  盒子里只显示静态的 HTML 与 CSS，工具箱网页工具的顶栏写明「当前 App 版本过旧，工具中的脚本已停用」。
+- 外壳不会跟着网页更新，修好要重新打包安装。
+
+测试 `tests/shellguard.test.mjs`：bridge.js 在主页面与沙盒子 frame 里各装成什么样、每次调用都带口令；
+Kotlin 每个接口先核口令、Swift 每个接口先核主页面（按源码查）；旧外壳里沙盒不给脚本，新外壳里网页不直接碰 EiraNative。
