@@ -1,7 +1,7 @@
 import { html, useState } from '../../../lib.js';
 import { phone, useStore } from '../../../sdk/index.js';
 import { Page, List, ListItem, Field, Input, Textarea, Segmented, Switch, NumberInput, Button,
-         Spinner, Sheet, toast } from '../../../ui/index.js';
+         Spinner, Sheet, toast, IdentityFields } from '../../../ui/index.js';
 import { ChatPick, CastPick, WorkSwitches, TonePick } from './Bits.js';
 
 const { db, nav, work, ai, novel, toolbox, tone } = phone;
@@ -14,6 +14,8 @@ const blank = () => ({
   title: '', from: 'chat', chatId: '', castIds: [], carry: false, solo: false, opening: 'char',
   genres: [], lengthId: 'mid', chapters: 24, perChapter: 3500, lorebookIds: [],
   inspiration: '', premise: '', secret: '', outlineMode: novel.NONE, made: null, tones: [], toneText: '',
+  // 这个世界里的身份（4.283）。留空沿用角色卡与账号资料
+  charName: '', charPersona: '', meName: '', mePersona: '',
 });
 
 // 自己加的标签存在 settings.novelTags：{ 类: [标签] }
@@ -164,6 +166,8 @@ export function NewSaga({ chatId = '', bookId = '' }) {
         chatId: alone ? '' : v.chatId, castIds: alone ? v.castIds : [], kind: work.SAGA,
         title: v.title, premise: v.premise, carry: alone ? false : v.carry, solo: v.solo, opening: v.opening,
         tones: v.tones, toneText: v.toneText,
+        charAs: v.charName || v.charPersona ? { name: v.charName, persona: v.charPersona } : null,
+        meAs: v.meName || v.mePersona ? { name: v.meName, persona: v.mePersona } : null,
         genres: v.genres, length: { chapters: v.chapters, perChapter: v.perChapter }, lorebookIds: v.lorebookIds,
         inspiration: v.inspiration, secret: v.secret,
         outline: v.outlineMode === novel.NONE ? novel.blankOutline(novel.NONE) : null,
@@ -227,6 +231,19 @@ export function NewSaga({ chatId = '', bookId = '' }) {
           <div class="field-desc pad-t">${outlineCalls}。也可以先建立，之后在作品页生成。</div>`}
       </div>
       ${v.outlineMode === novel.NONE ? null : html`<${OutlineMade} made=${v.made} mode=${v.outlineMode} hideLines=${true}/>`}
+
+      <${List} title="这个世界里的身份"/>
+      <div class="pad-x pad-b">
+        <div class="field-desc pad-b">古代、异世界一类的设定里，角色卡上的职业、出身、物件多半对不上。可以按这个世界改写一份，只在这部作品里生效。</div>
+        <${IdentityFields} who="char" name=${v.charName} persona=${v.charPersona}
+          onChange=${p => set({ ...(p.name !== undefined ? { charName: p.name } : {}), ...(p.persona !== undefined ? { charPersona: p.persona } : {}) })}
+          canGenerate=${hasCast && ready}
+          onGenerate=${() => ai.novel.identity(draftOf(v), { who: 'char' })}/>
+        <${IdentityFields} who="me" name=${v.meName} persona=${v.mePersona}
+          onChange=${p => set({ ...(p.name !== undefined ? { meName: p.name } : {}), ...(p.persona !== undefined ? { mePersona: p.persona } : {}) })}
+          canGenerate=${hasCast && ready}
+          onGenerate=${() => ai.novel.identity(draftOf(v), { who: 'me' })}/>
+      </div>
 
       <${WorkSwitches} v=${v} set=${set} kind=${work.SAGA} alone=${alone}/>
       <${TonePick} value=${tone.idsOf(v)} text=${v.toneText} onChange=${patch => set(patch)}/>

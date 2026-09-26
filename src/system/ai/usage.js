@@ -51,6 +51,7 @@ export const TASKS = {
   'work.synopsis':       { label: '长篇 · 简介' },
   'work.outline':        { label: '长篇 · 大纲' },
   'work.branch':         { label: '长篇 · 下一章的走向' },
+  'work.identity':       { label: '按作品的世界改写身份' },
   'review.write':        { label: '书评影评', auto: true },
   'badge.year':          { label: '年度回顾' },
   'card.import':         { label: '导入角色卡' },

@@ -78,7 +78,8 @@ export function WorkEdit({ workId }) {
   return html`
     <${Page} title="这一部" onBack=${nav.pop}>
       <div class="pad">
-        <${WorkFields} v=${v} set=${set} kind=${w.kind}/>
+        <${WorkFields} v=${v} set=${set} kind=${w.kind}
+          onGenerate=${who => phone.ai.novel.identity(w, { who })}/>
       </div>
       <${CoverPick} w=${w}/>
       <${WorkSwitches} v=${v} set=${set} kind=${w.kind}/>

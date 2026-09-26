@@ -322,10 +322,12 @@ export function signOf(beat, scene) {
   // 身份记在会话上，不在场次上 —— 换小号去找同一个角色开的是另一段会话
   const me = accounts.get(chats.get(scene?.chatId)?.personaId) || accounts.current();
   const who = mine ? me : characters.get(beat.authorId);
+  // 这一场里换了名字就署新名字（4.283）。只有第一位角色能换
+  const as = mine ? scene?.meAs : (who && who.id === (scene?.castIds || [])[0] ? scene?.charAs : null);
   return {
     place: beat.place || scene?.place || '',
     time: beat.at || '',
-    name: who?.name || (mine ? '我' : ''),
+    name: as?.name || who?.name || (mine ? '我' : ''),
     // 图片 id，不是解析好的地址 —— 解析要用 useImage，那是 hook，只能在组件里调
     face: who?.avatar || null,
     mine,

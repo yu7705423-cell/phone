@@ -184,7 +184,7 @@ export const ROUTE_GROUPS = [
   // 线下、长篇、番外的正文同一条链路（4.117），所以是一组
   { id: 'scene', label: '线下、长篇与番外的正文', tasks: ['scene.write'],
     def: '默认用主用接口，主用没配时用副用' },
-  { id: 'novel', label: '长篇的简介、大纲与走向', tasks: ['work.synopsis', 'work.outline', 'work.branch'],
+  { id: 'novel', label: '长篇的简介、大纲、走向与改写身份', tasks: ['work.synopsis', 'work.outline', 'work.branch', 'work.identity'],
     def: '默认用副用接口，副用没配时用主用' },
   { id: 'inner', label: '心声（单独生成那一档）', tasks: ['inner.voice'],
     def: '默认用副用接口，副用没配时用主用' },
@@ -753,9 +753,12 @@ function sceneSetup(scene, others) {
   return fillTemplate(template('skeleton.scene-setup'), { lines: lines.join('\n') });
 }
 
-export function buildSceneSystem(scene, chat, char, list, opts = {}) {
+export function buildSceneSystem(scene, chat, char0, list, opts = {}) {
   const s = settings.get();
-  const me = accounts.get(chat?.personaId) || accounts.current() || persona.get();
+  const me0 = accounts.get(chat?.personaId) || accounts.current() || persona.get();
+  // 这一场里换了身份就按换过的来（4.283）
+  const char = sceneChar(scene, char0);
+  const me = sceneMe(scene, me0);
   const others = (scene.castIds || []).filter(id => id !== char.id)
     .map(id => characters.get(id)).filter(Boolean);
   const budget = sceneBudget();
@@ -782,6 +785,9 @@ export function buildSceneSystem(scene, chat, char, list, opts = {}) {
 
   const { text, volatile: hot, failed } = assemble(s.injectOrder, ctx);
   out += text;
+
+  const ident = sceneIdentityBlock(scene, char0, char, me0, me);
+  if (ident) out += '\n\n' + ident;
 
   // 摘要互通，原文不互通（4.107）。两边的上下文预算各算各的，
   // 互相灌原文长期必然顶爆。
@@ -824,7 +830,7 @@ export function buildSceneSystem(scene, chat, char, list, opts = {}) {
 
 export function buildSceneHistory(scene, chat, char, list, opts = {}) {
   const s = settings.get();
-  const me = accounts.get(chat?.personaId) || accounts.current() || persona.get();
+  const me = sceneMe(scene, accounts.get(chat?.personaId) || accounts.current() || persona.get());
   const isGroup = (scene.castIds || []).length > 1;
 
   const body = list.filter(b => b.role !== DIRECTOR);
@@ -925,7 +931,34 @@ function identityBlock(w, c, m) {
   if (m.renamed) lines.push(`${m.base?.name || '我'} 在这部作品里是「${m.name}」`);
   if (m.persona && m.persona !== (m.base?.description || '')) lines.push(`${m.name}：${m.persona}`);
   if (!lines.length) return '';
-  return fillTemplate(template('skeleton.work-identity'), { lines: lines.join('\n') });
+  return fillTemplate(template('skeleton.work-identity'), {
+    lines: lines.join('\n'),
+    carry: w.carry ? template('skeleton.work-identity-carry') : '',
+  });
+}
+
+// ---- 线下那一场里的身份（4.283）----
+//
+// 和长篇同一件事：这一场里角色叫什么、是谁，「我」同样。填了就替代角色卡与账号资料上的那份。
+// 做法是把 char / me 换成一份改过名字与人设的副本再交给注入区块：id 不变，记忆、世界书照旧按 id 找
+const sceneChar = (scene, char) => {
+  const as = scene?.charAs || {};
+  if (!char || (!as.name && !as.persona)) return char;
+  return { ...char, name: as.name || char.name, persona: as.persona || char.persona };
+};
+const sceneMe = (scene, me) => {
+  const as = scene?.meAs || {};
+  if (!me || (!as.name && !as.persona)) return me;
+  return { ...me, name: as.name || me.name, description: as.persona || me.description };
+};
+function sceneIdentityBlock(scene, char0, char, me0, me) {
+  const lines = [];
+  if (char && char0 && char.name !== char0.name) lines.push(`${char0.name} 在这一场里是「${char.name}」`);
+  if (char && char0 && char.persona !== (char0.persona || '')) lines.push(`${char.name}：${char.persona}`);
+  if (me && me0 && me.name !== me0.name) lines.push(`${me0.name || '我'} 在这一场里是「${me.name}」`);
+  if (me && me0 && (me.description || '') !== (me0.description || '')) lines.push(`${me.name}：${me.description}`);
+  if (!lines.length) return '';
+  return fillTemplate(template('skeleton.work-identity'), { lines: lines.join('\n'), carry: template('skeleton.work-identity-carry') });
 }
 
 /** 这一篇的几件事实。是数据，不是指令。 */

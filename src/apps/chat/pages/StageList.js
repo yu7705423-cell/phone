@@ -1,7 +1,7 @@
 import { html, useState } from '../../../lib.js';
 import { phone, useStore } from '../../../sdk/index.js';
 import { Page, List, ListItem, IconButton, Icon, Button, Input, Textarea, Field,
-         Segmented, Avatar, EmptyState, Sheet, FullSheet, Switch, toast, confirm } from '../../../ui/index.js';
+         Segmented, Avatar, EmptyState, Sheet, FullSheet, Switch, toast, confirm, IdentityFields } from '../../../ui/index.js';
 
 const { db, nav, scene: sceneApi, tone, ai } = phone;
 
@@ -272,11 +272,26 @@ export function SceneEdit({ sceneId }) {
     offBookIds: row.offBookIds || [], bookIds: row.bookIds || [],
   };
   const set = patch => sceneApi.update(sceneId, patch);
+  // 这一场里的身份（4.283）：和长篇同一个改写任务，把这一场装成作品的形状交过去
+  const first = chatChars.find(c => c.id === (v.castIds[0] || chat?.characterIds?.[0]));
+  const asWork = () => ({
+    id: `scene:${sceneId}`, kind: 'extra', chatId: row.chatId, castIds: v.castIds.length ? v.castIds : (chat?.characterIds || []),
+    title: v.title || v.place, premise: [v.place && `地点：${v.place}`, v.note].filter(Boolean).join('\n'),
+    genres: [], lorebookIds: [...(first?.lorebookIds || []), ...(v.bookIds || [])].filter(id => !(v.offBookIds || []).includes(id)),
+    charAs: null, meAs: null,
+  });
+  const identity = who => ai.novel.identity(asWork(), { who });
 
   return html`
     <${Page} title="这一场" onBack=${nav.pop}>
       <div class="pad">
         <${SetupFields} v=${v} set=${set} cast=${v.castIds} chatChars=${chatChars}/>
+        <${IdentityFields} who="char" name=${row.charAs?.name || ''} persona=${row.charAs?.persona || ''}
+          onChange=${p => set({ charAs: { name: p.name ?? (row.charAs?.name || ''), persona: p.persona ?? (row.charAs?.persona || '') } })}
+          canGenerate=${!!first} onGenerate=${() => identity('char')}/>
+        <${IdentityFields} who="me" name=${row.meAs?.name || ''} persona=${row.meAs?.persona || ''}
+          onChange=${p => set({ meAs: { name: p.name ?? (row.meAs?.name || ''), persona: p.persona ?? (row.meAs?.persona || '') } })}
+          onGenerate=${() => identity('me')}/>
         ${row.summary ? html`
           <${Field} label="摘要" desc="收场或压缩时生成。线上也读得到这一段。">
             <${Textarea} rows=${5} value=${row.summary}

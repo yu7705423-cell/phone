@@ -64,7 +64,7 @@ await page.locator('.seg-item, .segmented > *', { hasText:'长篇' }).first().cl
 await page.waitForTimeout(300);
 await shot('new-saga');
 const saga = await text();
-ok('长篇才有身份那几栏', /主线/.test(saga) && /在这部作品里的名字/.test(saga), saga.slice(0,300));
+ok('长篇才有身份那几栏', /主线/.test(saga) && /在这里的名字/.test(saga), saga.slice(0,300));
 ok('长篇才有「带上原来的记忆」那个开关', /带上原来的记忆/.test(saga));
 
 // 直接用 api 建，界面那条路已经验过表单在

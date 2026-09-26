@@ -145,10 +145,16 @@ Write everyone in the story, {{userName}} included, and the surroundings.`,
 This is the premise. Everything written here takes place inside it.`,
 
   // 换身份。名字与人设都换掉时才出现；只换一样就只写那一样。
+  // carry：带着原来的记忆与关系时补一句事实 —— 记忆记的是原来那个世界里的事（4.283）
   'skeleton.work-identity':
 `[这部作品里的身份]
 {{lines}}
-Inside this story these replace who each person otherwise is.`,
+Inside this story these replace who each person otherwise is.{{carry}}`,
+
+  'skeleton.work-identity-carry':
+` The memories and relationship notes elsewhere in this prompt record what
+happened in the original world; inside this story the identities above take
+precedence over them.`,
 
   'skeleton.work-chapter':
 `[这一篇]
@@ -161,6 +167,40 @@ These are facts about where the story is now.`,
 This is what the earlier parts of the story already established.`,
 
   // ---- 长篇：简介、大纲、卷纲、走向、重排（4.263、4.264）----
+  // 按这部作品的世界改写身份（ai/tasks/novel.js identity，用户点了才调，4.283）
+  'task.novel-identity':
+`You are the author of a story. Rewrite the character sheet below so that
+this person belongs to the world of the story, keeping who they are.
+
+## The original sheet
+Name: {{name}}
+{{persona}}
+
+## The story
+Title: {{title}}
+Premise: {{premise}}
+Genre tags: {{genres}}
+
+## The world
+{{world}}
+
+## Requirements
+- Keep the personality, temperament, manner of speaking, values, fears and
+  wants, and the relationship with {{other}} as they are in the original
+- Replace everything that belongs to the original era or setting: occupation,
+  background, family, possessions, places, technology, forms of address, so
+  that all of it fits the world above
+- "name" is the name this person goes by in the story; keep the original
+  unless the world calls for another form of it
+- "persona" is the rewritten sheet, in the same language and about the same
+  length and structure as the original; write it as a character sheet, not
+  as a story
+- Do not add plot. Do not mention the original era or that anything was
+  changed
+
+## Output JSON only, with no other text
+{"name":"","persona":""}`,
+
   'task.novel-synopsis':
 `You are planning a novel. Write a title and a synopsis that fit the people,
 the world, the genre tags and the length below. The synopsis is what a reader

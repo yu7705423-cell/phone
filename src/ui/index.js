@@ -8,4 +8,5 @@ export * from './iconpicker.js';
 export * from './markdown.js';
 export * from './pinpad.js';
 export * from './cardframe.js';
+export * from './identity.js';
 export { Icon } from '../icons/Icon.js';

@@ -38,6 +38,32 @@ export function contextOf(w) {
   };
 }
 
+/**
+ * 按这部作品的世界改写身份（4.283）。who 是 'char' 或 'me'。
+ * 回来的是 { name, persona }，先给用户看、改，再存进 charAs / meAs；这里不写库。
+ * w 可以是向导里的草稿；线下那一场传一个作品形状的对象过来也行
+ */
+export async function identity(w, { who = 'char', key } = {}) {
+  const ctx = contextOf(w);
+  const c = work.charOf(w);
+  const m = work.meOf(w);
+  const self = who === 'me' ? m : c;
+  const other = who === 'me' ? c : m;
+  // 改写的是原来那份（角色卡 / 账号资料），不是已经改过一次的
+  const base = who === 'me' ? str(m.base?.description) : str(c.base?.persona);
+  const baseName = who === 'me' ? str(m.base?.name) || '我' : str(c.base?.name) || self.name;
+  if (!base) throw new Error(who === 'me' ? '当前账号还没有写人设' : '这个角色还没有写人设');
+  const r = await runJSONTask('work.identity', {
+    system: fillTemplate(template('task.novel-identity'), {
+      name: baseName, persona: clip(base, 4000),
+      title: ctx.title || '(untitled)', premise: ctx.synopsis || '(none)', genres: ctx.genres,
+      world: ctx.world, other: other.name,
+    }),
+    key: key || `novel-identity:${w.id}:${who}:${Date.now()}`, maxTokens: 2000,
+  });
+  return { name: str(r?.name) || baseName, persona: str(r?.persona) };
+}
+
 const lengthText = ctx => (ctx.chapters
   ? `${ctx.chapters} chapters${ctx.perChapter ? `, about ${ctx.perChapter} Chinese characters each` : ''}`
   : '(length not fixed)');

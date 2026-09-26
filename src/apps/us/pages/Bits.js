@@ -1,6 +1,6 @@
 import { html } from '../../../lib.js';
 import { phone, useStore, useImage } from '../../../sdk/index.js';
-import { Field, Input, Textarea, Segmented, List, ListItem, Switch } from '../../../ui/index.js';
+import { Field, Input, Textarea, Segmented, List, ListItem, Switch, IdentityFields } from '../../../ui/index.js';
 
 const { db, work, tone, stage } = phone;
 
@@ -82,7 +82,7 @@ export function TonePick({ value = [], text, onChange }) {
 }
 
 /** 新建与编辑共用的那一组输入框。 */
-export function WorkFields({ v, set, kind }) {
+export function WorkFields({ v, set, kind, onGenerate }) {
   const saga = kind === work.SAGA;
   return html`
     <${Field} label="标题">
@@ -97,20 +97,12 @@ export function WorkFields({ v, set, kind }) {
         onInput=${x => set({ premise: x })}/>
     <//>
     ${saga ? html`
-      <${Field} label="角色在这部作品里的名字"
-        desc="留空表示沿用角色卡上的名字。">
-        <${Input} value=${v.charName} onInput=${x => set({ charName: x })}/>
-      <//>
-      <${Field} label="角色在这部作品里是谁"
-        desc="留空表示沿用角色卡上的人设。写了就在这部作品里替代它。">
-        <${Textarea} rows=${4} value=${v.charPersona} onInput=${x => set({ charPersona: x })}/>
-      <//>
-      <${Field} label="我在这部作品里的名字" desc="留空表示沿用当前账号的名字。">
-        <${Input} value=${v.meName} onInput=${x => set({ meName: x })}/>
-      <//>
-      <${Field} label="我在这部作品里是谁" desc="留空表示沿用当前账号的人设。">
-        <${Textarea} rows=${4} value=${v.mePersona} onInput=${x => set({ mePersona: x })}/>
-      <//>` : null}`;
+      <${IdentityFields} who="char" name=${v.charName} persona=${v.charPersona}
+        onChange=${p => set({ ...(p.name !== undefined ? { charName: p.name } : {}), ...(p.persona !== undefined ? { charPersona: p.persona } : {}) })}
+        onGenerate=${onGenerate ? () => onGenerate('char') : null}/>
+      <${IdentityFields} who="me" name=${v.meName} persona=${v.mePersona}
+        onChange=${p => set({ ...(p.name !== undefined ? { meName: p.name } : {}), ...(p.persona !== undefined ? { mePersona: p.persona } : {}) })}
+        onGenerate=${onGenerate ? () => onGenerate('me') : null}/>` : null}`;
 }
 
 /** 两个开关。番外没有第一个 —— 它就是这段关系的小剧场。 */
