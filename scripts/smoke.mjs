@@ -54,7 +54,9 @@ const ROUTES = {
   us: ['/', `/chat/:chat`, '/work/:work', '/work/:work/edit', '/work/nope',
     '/chapter/:chapter', '/chapter/nope', '/read/:chapter', '/read/nope'],
   tools: ['/', '/add', '/import', '/new/prompt', '/new/web', '/edit/nope', '/t/nope', '/runs/npc', '/run/nope',
-    '/npc', '/npc/char/:char', '/world', '/lore', '/extra', '/extra/lexicon', '/imghost'],
+    '/npc', '/npc/char/:char', '/world', '/lore', '/extra', '/extra/lexicon', '/imghost',
+    '/imghost/setup/github', '/imghost/setup/r2', '/imghost/setup/relay', '/imghost/setup/nope', '/imghost/host/nope',
+    '/imghost/upload', '/imghost/move'],
   settings: ['/', '/weather', '/api', '/voice', '/image', '/embed', '/notify', '/lockpin', '/routes', '/terms', '/push-guide', '/music',
     '/appearance', '/storage', '/storage/files', '/trace', '/vision', '/asr', '/limits', '/search', '/translate', '/memoryapi', '/rerank', '/ban', '/github', '/background'],
 };

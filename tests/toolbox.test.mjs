@@ -21,7 +21,11 @@
 //   十四、盒子的外壳：CSP 在文档最前面、不许连外网；主屏自定义组件也用同一个盒子
 //   十五、外部图片与字体（用户要求「要有可以打开外部图片的」「字体也要」）：网页工具默认可以用，开关关掉就不行；
 //        开着时往里交角色之前提醒一句；主屏组件一律可以；编辑工具时开着的运行页不会被误判成「跳走」
-import { BASE, EXE, chromium } from './_env.mjs';
+//   十六、图床（用户要求：每一步都能点击跳转，复制完回来直接填；加「我的图床」；做进 changephoto）：
+//        向导每一步有外部链接与就地输入框，填过的跳走再回来还在，「粘贴」一键填入；测试通过存进我的图床；
+//        失败给出原因，可以仍然保存；直接传图拿链接进记录；图床搬家：提取、检测、转存、导出换好链接的代码、
+//        粘贴新链接自动配对
+import { BASE, EXE, chromium, PNG_B64 } from './_env.mjs';
 
 const browser = await chromium.launch({ executablePath: EXE, args: ['--no-sandbox'] });
 const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, permissions: ['clipboard-read', 'clipboard-write'] });
@@ -84,7 +88,7 @@ const ids = await ev(async () => {
 await go('/');
 await wait(600);
 let t = await body();
-ok('首页：五个内置工具都在', ['NPC 生成器', '世界观生成器', '世界书生成器', '番外生成器', '图床搭建教程'].every(x => t.includes(x)), t.slice(0, 300));
+ok('首页：五个内置工具都在', ['NPC 生成器', '世界观生成器', '世界书生成器', '番外生成器', '图床'].every(x => t.includes(x)), t.slice(0, 300));
 ok('首页：「我的工具」为空时给出添加入口', t.includes('我的工具') && t.includes('添加工具'));
 ok('首页：应用商店排法，横滑的大卡片与每行一个「打开」', await page.locator('.tb-hero').count() === 5 && await page.locator('.tb-app .tb-get').count() === 5);
 await page.locator('.tb-search input').fill('世界');
@@ -451,6 +455,131 @@ await ev(async id => (await import('/src/system/toolbox.js')).update(id, { allow
 await wait(900);
 t = await body();
 ok('编辑了开着的工具：换成新的一版，不误判为跳走', !t.includes('试图打开外部网页') && await page.locator('.tb-frame').count() === 1, t.slice(0, 200));
+
+// ---- 十六、图床 ----
+// 各家图床的接口一律模拟：GitHub 仓库与上传、ImgBB；图片本身从 img.example.com / new.example.com 取
+const PNG = Buffer.from(PNG_B64, 'base64');
+const gh = [];
+await ctx.route(/https:\/\/api\.github\.com\//, async route => {
+  const req = route.request();
+  gh.push(`${req.method()} ${new URL(req.url()).pathname}`);
+  const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': '*', 'Access-Control-Allow-Methods': 'GET,PUT,OPTIONS' };
+  if (req.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: cors });
+  if (req.method() === 'GET') return route.fulfill({ status: 200, headers: cors, contentType: 'application/json', body: JSON.stringify({ private: false }) });
+  return route.fulfill({ status: 201, headers: cors, contentType: 'application/json', body: '{}' });
+});
+await ctx.route(/https:\/\/api\.imgbb\.com\//, route => route.fulfill({ status: 400, headers: { 'Access-Control-Allow-Origin': '*' },
+  contentType: 'application/json', body: JSON.stringify({ success: false, error: { message: 'Invalid API v1 key.' } }) }));
+await ctx.route(/https:\/\/(img|new)\.example\.com\//, route => route.fulfill({ status: 200,
+  headers: { 'Access-Control-Allow-Origin': '*' }, contentType: 'image/png', body: PNG }));
+await ctx.route(/cdn\.jsdelivr\.net\//, route => route.fulfill({ status: 200, headers: { 'Access-Control-Allow-Origin': '*' }, contentType: 'image/png', body: PNG }));
+
+await go('/');
+await wait(300);
+await push('/imghost');
+await wait(500);
+t = await body();
+ok('图床：首页有「我的图床」、五种搭建方式、中转 Worker 与图床搬家',
+  ['我的图床', 'GitHub + jsDelivr', 'ImgBB', 'S.EE', 'Cloudflare R2', '自定义接口', '中转 Worker', '图床搬家'].every(x => t.includes(x)), t.slice(0, 300));
+
+await page.locator('.list-item', { hasText: 'GitHub + jsDelivr' }).click();
+await wait(500);
+const links = await page.locator('.ih-ext').evaluateAll(as => as.map(a => `${a.getAttribute('href')}|${a.getAttribute('target')}`));
+ok('图床向导：每一步都有可以点击跳转的外部链接，在新窗口打开',
+  links.some(x => x.startsWith('https://github.com/new|_blank')) && links.some(x => x.startsWith('https://github.com/settings/tokens/new|_blank')), links.join(' '));
+const ownerF = page.locator('.field', { hasText: 'GitHub 用户名' });
+await ownerF.locator('input').fill('eira-user');
+await page.locator('.field', { hasText: '仓库名' }).locator('input').fill('pics');
+// 跳走再回来：填过的还在
+await ev(async () => (await import('/src/system/nav.js')).pop());
+await wait(300);
+await page.locator('.list-item', { hasText: 'GitHub + jsDelivr' }).click();
+await wait(400);
+ok('图床向导：填过的跳走再回来还在', await ownerF.locator('input').inputValue() === 'eira-user'
+  && await page.locator('.field', { hasText: '仓库名' }).locator('input').inputValue() === 'pics');
+// 复制回来，点「粘贴」一键填入
+await ev(() => navigator.clipboard.writeText('ghp_testtoken123'));
+await page.locator('.field', { hasText: 'Token' }).locator('button', { hasText: '粘贴' }).click();
+await wait(300);
+ok('图床向导：「粘贴」把复制来的内容填进去', await page.locator('.field', { hasText: 'Token' }).locator('input').inputValue() === 'ghp_testtoken123');
+ok('图床向导：Worker 代码步骤只在需要的图床出现', await page.locator('.ih-code').count() === 0);
+await page.locator('button', { hasText: '测试连接并保存' }).click();
+ok('图床向导：测试通过，存进我的图床并打开它', await until(async () => (await body()).includes('已通过测试')), (await body()).slice(0, 200));
+const host = await ev(async () => { const ih = await import('/src/system/imghost.js'); const h = ih.hosts()[0]; return h && { type: h.type, ok: h.ok, owner: h.cfg.owner }; });
+ok('图床：配置存下了', host && host.type === 'github' && host.ok && host.owner === 'eira-user', JSON.stringify(host));
+ok('图床：测试请求打到了那个仓库', gh.some(x => x === 'GET /repos/eira-user/pics'), gh.join(','));
+
+// 失败给出原因，可以仍然保存
+await go('/');
+await wait(200);
+await push('/imghost/setup/imgbb');
+await wait(400);
+await page.locator('.field', { hasText: 'API Key' }).locator('input').fill('bad');
+await page.locator('button', { hasText: '测试连接并保存' }).click();
+ok('图床向导：测试失败写明原因，提供「仍然保存」', await until(async () => (await body()).includes('Invalid API v1 key')) && (await body()).includes('仍然保存'));
+await push('/imghost/setup/r2');
+await wait(600);
+ok('图床向导：R2 那一步可以复制 Worker 代码', await until(async () => !(await page.locator('.ih-code button', { hasText: '复制 Worker 代码' }).isDisabled())));
+
+// 直接传图
+await go('/');
+await wait(200);
+await push('/imghost/upload');
+await wait(400);
+await page.locator('input[type=file][accept="image/*"]').setInputFiles({ name: '头像 2.png', mimeType: 'image/png', buffer: PNG });
+await wait(200);
+await page.locator('button', { hasText: '开始上传' }).click();
+ok('图床：直接传图拿到链接（文件名里的中文与空格已换掉）', await until(async () => (await body()).includes('cdn.jsdelivr.net/gh/eira-user/pics@main/images/2.png')), (await body()).slice(0, 400));
+ok('图床：上传进了记录', await ev(async () => (await import('/src/system/toolbox.js')).runsOf('imghost').length) === 1);
+
+// 图床搬家
+await go('/');
+await wait(200);
+await push('/imghost/move');
+await wait(400);
+const CODE = '<style>.a{background:url("https://img.example.com/bg.png")}</style><img src="https://img.example.com/icon.png"><img src="https://img.example.com/icon.png">';
+await page.locator('.field', { hasText: '粘贴代码' }).locator('textarea').fill(CODE);
+await page.locator('button', { hasText: '加入这段代码' }).click();
+await page.locator('button', { hasText: '提取图片链接' }).click();
+await wait(500);
+ok('搬家：提取出两张不同的图片、三处', await page.locator('.ih-cell').count() === 2 && (await body()).includes('共 3 处'));
+await page.locator('button', { hasText: '检测是否可用' }).click();
+ok('搬家：检测出能加载与尺寸', await until(async () => ((await body()).match(/可以加载/g) || []).length === 2));
+const ghBefore = gh.length;
+await page.locator('button', { hasText: /转存已选的 2 张/ }).click();
+ok('搬家：转存到我的图床，每张一个新链接', await until(async () => ((await body()).match(/新：https:\/\/cdn\.jsdelivr/g) || []).length === 2), (await body()).slice(0, 400));
+ok('搬家：每张上传一次', gh.slice(ghBefore).filter(x => x.startsWith('PUT')).length === 2, gh.slice(ghBefore).join(','));
+await page.locator('.segmented button', { hasText: '导出' }).click();
+await wait(900); // 搬家的进度随手存，有半秒的延迟
+const outCode = await ev(async () => {
+  const ih = await import('/src/system/imghost.js');
+  const tb = await import('/src/system/toolbox.js');
+  const st = tb.stateOf('imghost-move');
+  return ih.replaceAll(st.sources[0].text, st.items, 0);
+});
+ok('搬家：导出的代码里三处都换成了新链接，旧链接一处不剩', outCode.count === 3 && !outCode.text.includes('img.example.com') && (outCode.text.match(/cdn\.jsdelivr\.net/g) || []).length === 3, outCode.text);
+ok('搬家：导出页写明替换了几处', (await body()).includes('替换了 3 处'));
+
+// 自己传到别处，把新链接粘回来自动配对（文件名、顺序）
+await page.locator('.segmented button', { hasText: '图片' }).click();
+await wait(200);
+await ev(async () => {
+  const tb = await import('/src/system/toolbox.js');
+  const st = tb.stateOf('imghost-move');
+  tb.setState('imghost-move', { ...st, items: st.items.map(it => ({ ...it, newUrl: '', conf: '' })), loadNo: st.loadNo });
+});
+await go('/');
+await wait(200);
+await push('/imghost/move');
+await wait(400);
+await page.locator('.segmented button', { hasText: '图片' }).click();
+await page.locator('button', { hasText: '粘贴新链接并自动配对' }).click();
+await page.locator('.sheet textarea').fill('https://new.example.com/x/icon.png\nhttps://new.example.com/x/bg.png');
+await page.locator('.sheet button', { hasText: '自动配对' }).click();
+ok('搬家：粘回新链接自动配对，按文件名对上', await until(async () => {
+  const its = await ev(async () => (await import('/src/system/toolbox.js')).stateOf('imghost-move').items);
+  return its.every(it => it.newUrl && it.newUrl.endsWith(it.url.split('/').pop()));
+}, 15000), JSON.stringify(await ev(async () => (await import('/src/system/toolbox.js')).stateOf('imghost-move').items.map(it => [it.url, it.newUrl, it.conf]))));
 
 ok('没有页面错误', errs.length === 0, errs.join(' | '));
 await browser.close();

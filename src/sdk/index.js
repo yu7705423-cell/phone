@@ -124,6 +124,7 @@ import * as toolboxApi from '../system/toolbox.js';
 import * as sandboxApi from '../system/sandbox.js';
 import * as lorecheckApi from '../system/lorecheck.js';
 import * as sidestoryApi from '../system/sidestory.js';
+import * as imghostApi from '../system/imghost.js';
 import * as receiptApi from '../system/receipt.js';
 import * as toneApi from '../system/tone.js';
 import * as alarmApi from '../system/alarm.js';
@@ -356,6 +357,8 @@ export const phone = {
   lorecheck: lorecheckApi,
   // 番外生成器：标签、语义词典、本地编译（不调接口）
   sidestory: sidestoryApi,
+  // 图床：我的图床、各家的上传与测试、搬家（见 system/imghost.js）
+  imghost: imghostApi,
   receipt: receiptApi,
   tone: toneApi,
   alarm: alarmApi,

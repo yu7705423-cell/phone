@@ -26,8 +26,8 @@ export const BUILTINS = [
     desc: '把需求写成可执行的世界书，附本地审查与逐版修订' },
   { id: 'extra', name: '番外生成器', icon: 'film', route: '/extra', tag: '写作', out: '复制或在「我们」中写',
     desc: '把脑洞与标签整理成番外提示词。可复制到别处，也可在「我们」中直接写' },
-  { id: 'imghost', name: '图床搭建教程', icon: 'image', route: '/imghost', tag: '教程', out: '不调用接口',
-    desc: '自建图床的步骤说明。图片地址可用于美化与头像' },
+  { id: 'imghost', name: '图床', icon: 'image', route: '/imghost', tag: '图片', out: '不调用模型接口',
+    desc: '我的图床、分步搭建、直接传图拿链接，以及把代码里的图片整批搬到新图床' },
 ];
 
 export const KINDS = [
@@ -362,6 +362,14 @@ export async function exportZip(name, entries) {
     name: fileSafe(e.name || '未命名.txt'),
     blob: new Blob([String(e.text ?? '')], { type: 'text/plain;charset=utf-8' }),
   })));
+  const file = `${fileSafe(name || '导出')}.zip`;
+  saveBlob(new Blob([z], { type: 'application/zip' }), file);
+  return file;
+}
+
+/** 几个文件（图片之类）装进一个 zip */
+export async function exportZipBlobs(name, entries) {
+  const z = await zip((entries || []).map(e => ({ name: fileSafe(e.name || '未命名'), blob: e.blob })));
   const file = `${fileSafe(name || '导出')}.zip`;
   saveBlob(new Blob([z], { type: 'application/zip' }), file);
   return file;

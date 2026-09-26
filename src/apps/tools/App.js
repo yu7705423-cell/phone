@@ -7,7 +7,7 @@ import { NpcPage, NpcRunView } from './Npc.js';
 import { WorldPage, loadWorld } from './World.js';
 import { LorePage, loadLore } from './Lore.js';
 import { ExtraPage, LexiconPage, loadExtra } from './Extra.js';
-import { ImgHostPage } from './ImgHost.js';
+import { ImgHostPage, SetupPage, HostPage, UploadPage, MovePage } from './ImgHost.js';
 
 const { db, nav, toolbox } = phone;
 
@@ -154,5 +154,9 @@ export default function ToolsApp({ route }) {
   if (r === '/extra') return html`<${ExtraPage}/>`;
   if (r === '/extra/lexicon') return html`<${LexiconPage}/>`;
   if (r === '/imghost') return html`<${ImgHostPage}/>`;
+  if ((m = r.match(/^\/imghost\/setup\/([a-z0-9]+)(?:\/(.+))?$/))) return html`<${SetupPage} key=${r} type=${m[1]} hostId=${m[2] || ''}/>`;
+  if ((m = r.match(/^\/imghost\/host\/(.+)$/))) return html`<${HostPage} id=${m[1]}/>`;
+  if ((m = r.match(/^\/imghost\/upload(?:\/(.+))?$/))) return html`<${UploadPage} key=${r} hostId=${m[1] || ''}/>`;
+  if (r === '/imghost/move') return html`<${MovePage}/>`;
   return html`<${Home}/>`;
 }
