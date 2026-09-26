@@ -16,6 +16,8 @@ import * as badgesBlock from './badges.js';
 import * as momentsBlock from './moments.js';
 import * as closetBlock from './closet.js';
 
+import * as altsBlock from './alts.js';
+
 export const BLOCKS = {
   character,
   // 世界书拆成两块：一块在角色卡之前，一块在之后。哪一条落在哪一块
@@ -51,9 +53,11 @@ export const BLOCKS = {
   moments: { meta: momentsBlock.meta, build: momentsBlock.build },
   // 衣帽间：今天穿的、聊到穿搭时的清单、隔很久才出现一次的快用完
   closet: { meta: closetBlock.meta, build: closetBlock.build },
+  // 本体与小号互相知道对方那边最近聊了什么（4.259）
+  alts: { meta: altsBlock.meta, build: altsBlock.build },
 };
 
-export const DEFAULT_ORDER = ['lorebook', 'bond', 'pinned', 'recent', 'character', 'loreAfter', 'user', 'time', 'day', 'avatar', 'geo', 'music', 'watch', 'trip', 'bill', 'health', 'closet', 'memory', 'space', 'plan', 'moments', 'bridge', 'badges'];
+export const DEFAULT_ORDER = ['lorebook', 'bond', 'pinned', 'recent', 'character', 'loreAfter', 'user', 'alts', 'time', 'day', 'avatar', 'geo', 'music', 'watch', 'trip', 'bill', 'health', 'closet', 'memory', 'space', 'plan', 'moments', 'bridge', 'badges'];
 
 // 读出一份干净的顺序:丢掉不认识的 id,补上配置里缺失的。
 // 没有这一步,以后每新增一个区块,老用户配置里就少一项,该区块永远不注入,

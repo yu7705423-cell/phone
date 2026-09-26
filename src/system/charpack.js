@@ -97,6 +97,7 @@ export function collect(charId, { history = true } = {}) {
   msgRows.forEach(m => {
     if (m.imageId) imgIds.add(m.imageId);
     if (m.posterId) imgIds.add(m.posterId);      // 视频消息的海报
+    (m.forward?.items || []).forEach(i => i?.imageId && imgIds.add(i.imageId));   // 转发的记录里的图
     if (m.audioId) fileIds.add(m.audioId);
     if (m.clipId) fileIds.add(m.clipId);
     // 通话里存下来的那几段声音

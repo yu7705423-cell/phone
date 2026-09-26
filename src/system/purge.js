@@ -80,6 +80,7 @@ export function dropChat(chatId) {
   for (const m of messagesOf(chatId)) {
     if (m.imageId) imgs.push(m.imageId);
     if (m.posterId) imgs.push(m.posterId);       // 视频消息的海报
+    (m.forward?.items || []).forEach(i => i?.imageId && imgs.push(i.imageId));   // 转发的记录里的图
     if (m.audioId) files.remove(m.audioId);
     if (m.clipId) files.remove(m.clipId);
     callAudio(m).forEach(id => files.remove(id));
@@ -195,7 +196,7 @@ export function usedImageIds() {
     (c.highlights || []).forEach(h => add(h?.imageId));   // 主页上那一排精选
   });
   // 聊天记录里的图：用户发的照片、角色按描述生成的图、视频消息的海报
-  messages.all().forEach(m => { add(m.imageId); add(m.posterId); });
+  messages.all().forEach(m => { add(m.imageId); add(m.posterId); (m.forward?.items || []).forEach(i => add(i?.imageId)); });   // 转发的记录里的图（system/forward.js）
   moments.all().forEach(m => (m.images || []).forEach(add));
   // avatarBase 是换头像时留下的原图（见 avatar.js 的 restoreFace）。从前没登记，
   // 「清理无引用」会把它当成没人用的删掉，之后就换不回原本的头像了

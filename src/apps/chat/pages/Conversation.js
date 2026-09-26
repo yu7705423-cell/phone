@@ -9,6 +9,7 @@ import { groupImages, ImageStack, StackFold } from './ImageStack.js';
 import { MediaBubble } from './MediaBubble.js';
 import { MsgMenu } from './MsgMenu.js';
 import { PactBubble, LetterBubble, LetterSheet, PactSheet } from './SpaceBits.js';
+import { ForwardBubble, ForwardSheet, ForwardPickSheet } from './ForwardBits.js';
 import { DiceBubble, InnerVoice, DiceSheet } from './ExtrasBits.js';
 import { TakeoutBubble, TakeoutSheet, MealSettleSheet, ShareSheet, MoreSheet } from './MealBits.js';
 import { TripBubble, TripSettleSheet } from './TripBits.js';
@@ -369,6 +370,8 @@ export const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, o
           ? html`<${SlipBubble} msg=${msg}/>`
           : msg.kind === 'card'
           ? html`<${CardBubble} msg=${msg} char=${char} chat=${chat} mine=${mine}/>`
+          : msg.kind === 'forward'
+          ? html`<${ForwardBubble} msg=${msg} onOpen=${selecting ? null : onOpenLog}/>`
           : msg.kind === 'sticker'
           ? html`<div class="bubble-sticker ph-sticker">
               ${sticker ? html`<${StickerImg} sticker=${sticker} size=${112}/>`
@@ -487,6 +490,8 @@ export function Conversation({ chatId, focusId = '' }) {
   const [unwrap, setUnwrap] = useState(null);    // 正在拆的那一件
   const [listenLog, setListenLog] = useState(null); // 正在看的那一场
   const [letter, setLetter] = useState(null);    // 正在读的那封信
+  const [fwView, setFwView] = useState(null);    // 展开看的那条转发记录
+  const [fwPick, setFwPick] = useState(false);   // 多选后选转发到哪一段
   const [pact, setPact] = useState(null);        // 正在标完成的那条约定
   const [dicing, setDicing] = useState(false);
   const [carding, setCarding] = useState(false);
@@ -1257,6 +1262,7 @@ export function Conversation({ chatId, focusId = '' }) {
 
   const openLog = m => (m.kind === 'listen' ? setListenLog(m)
     : m.kind === 'letter' ? setLetter(m)
+    : m.kind === 'forward' ? setFwView(m)
     : m.kind === 'pact' ? setPact(m)
     : setCallLog(m));
   // 「处理对方发来的那一件」两种气泡共用一个入口，按 kind 分流。
@@ -1535,6 +1541,8 @@ export function Conversation({ chatId, focusId = '' }) {
               ${picked.length ? '' : '点击消息进行选择'}
             </span>
             <button class=${`nav-text press${picked.length ? '' : ' is-off'}`}
+              onClick=${() => { if (picked.length) setFwPick(true); }}>转发</button>
+            <button class=${`nav-text press${picked.length ? '' : ' is-off'}`}
               onClick=${shotPicked}>存为图片</button>
             <button class=${`nav-text press${picked.length ? ' is-danger' : ' is-off'}`}
               onClick=${deletePicked}>删除</button>
@@ -1602,6 +1610,16 @@ export function Conversation({ chatId, focusId = '' }) {
       <${GiftSheet} open=${gifting} chatId=${chatId} onClose=${() => setGifting(false)}/>
       <${UnwrapSheet} msg=${unwrap} onClose=${() => setUnwrap(null)}/>
       <${LetterSheet} msg=${letter} onClose=${() => setLetter(null)}/>
+      <${ForwardSheet} msg=${fwView} onClose=${() => setFwView(null)}/>
+      <${ForwardPickSheet} open=${fwPick} fromChatId=${chatId} count=${picked?.length || 0}
+        onClose=${() => setFwPick(false)}
+        onPick=${target => {
+          try {
+            phone.forward.send({ from: chatId, to: target.id, list: view.filter(m => picked.includes(m.id)) });
+            toast(`已转发给「${phone.forward.titleOf(target)}」`, 'ok');
+            setFwPick(false); setPicked(null);
+          } catch (e) { toast(String(e.message || e), 'error'); }
+        }}/>
       <${PactSheet} msg=${pact} onClose=${() => setPact(null)}/>
       <${DiceSheet} open=${dicing} chatId=${chatId} onClose=${() => setDicing(false)}/>
       <${CardSendSheet} open=${carding} char=${char} chat=${chat} onClose=${() => setCarding(false)}/>

@@ -1,4 +1,4 @@
-import { memories } from '../../db/index.js';
+import { memories, characters } from '../../db/index.js';
 import { takeTopWithin } from '../tokens.js';
 import { dot, embedReady } from '../embed.js';
 import { rankQueued, rerankReady } from '../rerank.js';
@@ -14,7 +14,17 @@ export const RANKS = ['S', 'A', 'B', 'C'];
 
 // 记忆挂在角色身上，不再分全局 / 会话（见 schema 迁移 3）。
 // charId 留空的是老数据，对所有角色都生效。
-export const belongsTo = (m, charId) => !m.charId || m.charId === charId;
+// 本体与小号是同一个人（4.9：角色自己开的马甲）。本体上的「本体与小号互通」开着（默认开）时，
+// 一家的记忆互相可见：本体记得小号那边聊过的事，小号也记得本体的。关掉就各算各的。
+// 见 ARCHITECTURE 4.259
+export function familyOf(charId) {
+  const c = characters.get(charId);
+  if (!c) return [charId];
+  const rootId = c.parentId || c.id;
+  const root = characters.get(rootId) || c;
+  if (root.altShare === false) return [charId];
+  return [rootId, ...characters.where(x => x.parentId === rootId).map(x => x.id)];
+}
 
 // personaId 决定一条记忆属于谁。规则：
 //  - 不同根账号之间完全隔离，一条都不给
@@ -28,8 +38,9 @@ export const inScope = (m, chatId) => !m.scopeChat || m.scopeChat === chatId;
 
 export function listFor(charId, personaId, chatId = '') {
   const root = personaId ? rootIdOf(personaId) : null;
+  const owners = familyOf(charId);
   return memories.where(m => {
-    if (!belongsTo(m, charId)) return false;
+    if (m.charId && !owners.includes(m.charId)) return false;
     if (!inScope(m, chatId)) return false;
     if (!root) return true;                       // 没给身份就不过滤，给调用方兜底
     if (!m.personaId) return true;                // 迁移前的老记忆，当作大号的

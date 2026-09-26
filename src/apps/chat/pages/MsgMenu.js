@@ -327,7 +327,7 @@ export function MsgMenu({ msg, char, onClose, onRegenerate, onQuote, onMultiSele
               subtitle="存进相册，可在相册中归类。会话里这一条不受影响"
               left=${html`<${Icon} name="camera" size=${18}/>`}
               onClick=${keep}/>` : null}
-          <${ListItem} title="多选" subtitle="选择多条消息后一并删除，或存成一张图片" arrow multiline
+          <${ListItem} title="多选" subtitle="选择多条消息后一并删除、转发给其他会话，或存成一张图片" arrow multiline
             left=${html`<${Icon} name="check" size=${18}/>`}
             onClick=${() => { close(); onMultiSelect(fresh); }}/>
           <${ListItem} title="删除" danger arrow

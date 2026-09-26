@@ -1,7 +1,7 @@
 import { html, useState } from '../../../lib.js';
 import { phone, useStore } from '../../../sdk/index.js';
 import { Page, List, ListItem, Field, Input, Button, Switch, Segmented,
-         Icon, toast } from '../../../ui/index.js';
+         Icon, toast, NumberInput } from '../../../ui/index.js';
 
 const { db, nav, ai } = phone;
 const alt = ai.charAlt;
@@ -183,7 +183,18 @@ export function ProactivePage({ charId }) {
               <${ListItem} title=${`已经开了 ${alts.length} 个`} multiline
                 subtitle=${alts.map(a => a.name).join('、')}
                 left=${html`<${Icon} name="users" size=${18}/>`}/>` : null}
+            <${ListItem} title="本体与小号互通" multiline
+              subtitle="开启后，本体与各小号共用记忆，并在对话中知道对方那边最近说了什么。关闭后各账号的记忆与对话互不相通。不增加接口调用。"
+              right=${html`<${Switch} checked=${char.altShare !== false}
+                onChange=${v => db.characters.update(charId, { altShare: v })}/>`}/>
           <//>
+          ${char.altShare !== false ? html`
+            <div class="pad-x">
+              <${Field} label="带上对方那边最近几条" desc="每个账号各带这么多条最近的消息进入上下文。填 0 只共用记忆，不带对话。">
+                <${NumberInput} value=${typeof char.altShareLines === 'number' ? char.altShareLines : 8} unit="条"
+                  onChange=${v => db.characters.update(charId, { altShareLines: Math.max(0, v) })}/>
+              <//>
+            </div>` : null}
           ${acfg.charAlt ? html`
             <div class="pad-x">
               <${Field} label=${`开号的可能性 ${Math.round(acfg.charAltChance * 100)}%`}

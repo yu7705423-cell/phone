@@ -461,6 +461,17 @@ input[type="range"] {
 /* 让对方回复：不要底色，只留图标 */
 .send-btn:where(.is-ghost) { background: none; color: var(--text); }
 
+/* 转发的聊天记录（system/forward.js）：标题、前三行预览、底下一行「聊天记录」 */
+.bubble-forward { cursor: pointer; min-width: 180px; max-width: 240px; }
+.fw-title { font-size: var(--fs-14); font-weight: var(--fw-medium); margin-bottom: var(--sp-1); }
+.fw-lines { display: grid; gap: 2px; }
+.fw-line { font-size: var(--fs-12); color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fw-list { display: grid; gap: var(--sp-3); padding: var(--sp-2) 0 var(--sp-5); }
+.fw-item { display: grid; gap: 2px; }
+.fw-who { font-size: var(--fs-12); color: var(--text-3); }
+.fw-text { font-size: var(--fs-14); line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
+.fw-img { max-width: 200px; max-height: 200px; border-radius: var(--r-md); display: block; }
+
 /* 主页（Instagram 式，见 ARCHITECTURE 4.149） */
 .ig-head { display: flex; align-items: center; gap: var(--sp-5); padding: var(--sp-4) var(--sp-4) var(--sp-3); }
 :where(.ig-head) .avatar { flex: none; }

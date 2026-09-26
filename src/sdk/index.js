@@ -109,6 +109,7 @@ import * as paraApi from '../system/paracomment.js';
 import * as healthApi from '../system/health.js';
 import * as healthkitApi from '../system/healthkit.js';
 import * as albumApi from '../system/album.js';
+import * as forwardApi from '../system/forward.js';
 import * as theirsApi from '../system/theirs.js';
 import * as tripApi from '../system/trip.js';
 import * as memcheckApi from '../system/memcheck.js';
@@ -344,6 +345,8 @@ export const phone = {
   health: healthApi,
   healthkit: healthkitApi,
   album: albumApi,
+  // 转发聊天记录（system/forward.js）
+  forward: forwardApi,
   theirs: theirsApi,
   trip: tripApi,
   memcheck: memcheckApi,
