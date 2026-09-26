@@ -41,7 +41,8 @@ export const ofChat = chatId => works.byIndex(chatId).slice().sort(byTime);
  */
 export function create({ chatId = '', kind = EXTRA, title = '', castIds = [],
   premise = '', charAs = null, meAs = null, carry = null, solo = false,
-  opening = 'char', tone = '', toneText = '' }) {
+  opening = 'char', tone = '', toneText = '',
+  genres = [], length = null, inspiration = '', secret = '', outline = null, lorebookIds = [] }) {
   const chat = chats.get(chatId) || null;
   const k = kind === SAGA ? SAGA : EXTRA;
   // 长篇可以不挂会话（4.262）：人物直接从联系里选。没有会话就没有「带上原来的记忆」这一项。
@@ -65,9 +66,20 @@ export function create({ chatId = '', kind = EXTRA, title = '', castIds = [],
     opening: opening === 'me' ? 'me' : 'char',
     tone: String(tone || ''), toneText: String(toneText || ''),
     cover: null, state: 'writing',
+    // 长篇向导（4.263）：体裁标签、篇幅、灵感、作者私纲、大纲、挂的世界书
+    genres: Array.isArray(genres) ? genres.map(x => String(x || '').trim()).filter(Boolean) : [],
+    length: asLength(length),
+    inspiration: String(inspiration || '').trim(),
+    secret: String(secret || '').trim(),
+    outline: outline && typeof outline === 'object' ? outline : null,
+    lorebookIds: Array.isArray(lorebookIds) ? lorebookIds.filter(Boolean) : [],
     createdAt: Date.now(), updatedAt: Date.now(),
   });
 }
+
+const asLength = v => (v && typeof v === 'object'
+  ? { chapters: Math.max(0, Math.round(Number(v.chapters) || 0)), perChapter: Math.max(0, Math.round(Number(v.perChapter) || 0)) }
+  : null);
 
 const asIdentity = v => ({ name: String(v?.name || '').trim(), persona: String(v?.persona || '').trim() });
 
@@ -76,6 +88,7 @@ export function update(id, patch) {
   const next = { ...patch };
   if ('charAs' in next) next.charAs = asIdentity(next.charAs);
   if ('meAs' in next) next.meAs = asIdentity(next.meAs);
+  if ('length' in next) next.length = asLength(next.length);
   // 番外那个开关不存在，别让改别的字段时顺手把它关掉
   if (works.get(id)?.kind === EXTRA) delete next.carry;
   return works.update(id, { ...next, updatedAt: Date.now() });
@@ -127,7 +140,7 @@ export const chaptersOf = workId => chapters.byIndex(workId)
 export const getChapter = id => chapters.get(id);
 export const workOfChapter = id => works.get(chapters.get(id)?.workId || '') || null;
 
-export function addChapter(workId, { title = '', place = '', at = '', note = '' } = {}) {
+export function addChapter(workId, { title = '', place = '', at = '', note = '', plan = '', opening = '' } = {}) {
   const w = works.get(workId);
   if (!w) return null;
   const no = chaptersOf(workId).reduce((n, c) => Math.max(n, c.no || 0), 0) + 1;
@@ -137,7 +150,9 @@ export function addChapter(workId, { title = '', place = '', at = '', note = '' 
     place: String(place || '').trim(),
     at: String(at || '').trim(),
     note: String(note || '').trim(),
-    opening: w.opening === 'me' ? 'me' : 'char',
+    opening: (opening || w.opening) === 'me' ? 'me' : 'char',
+    // 章末选定的走向（4.264）。写这一章时带进大纲那一块
+    plan: String(plan || '').trim(),
     summary: '', endedAt: 0, stage: null,
     createdAt: Date.now(), updatedAt: Date.now(),
   });

@@ -143,6 +143,176 @@ These are facts about where the story is now.`,
 {{lines}}
 This is what the earlier parts of the story already established.`,
 
+  // ---- 长篇：简介、大纲、卷纲、走向、重排（4.263、4.264）----
+  'task.novel-synopsis':
+`You are planning a novel. Write a title and a synopsis that fit the people,
+the world, the genre tags and the length below. The synopsis is what a reader
+sees before the first chapter: the setting, the people, the situation that
+starts the story, and what is at stake. Keep every fact consistent with the
+materials given.
+
+## People
+{{cast}}
+
+## World
+{{world}}
+
+## Genre tags
+{{genres}}
+
+## Length
+{{length}}
+
+## The user's own ideas
+{{inspiration}}
+
+## Title so far
+{{title}}
+
+{{secret}}
+
+## Output JSON only
+{"title":"...","synopsis":"400-800 Chinese characters","secret":"only when asked; otherwise omit"}`,
+
+  'task.novel-outline':
+`You are planning the whole structure of a novel before it is written. Produce
+a master plan and a volume plan. The master plan states the main line, the
+hidden line, the ending, the key turns and each person's arc. The volume plan
+splits the chapters into volumes; every volume has a goal, its first and last
+chapter number, and what it reveals. Volumes cover every chapter from 1 to the
+total with no gap and no overlap.
+
+## People
+{{cast}}
+
+## World
+{{world}}
+
+## Genre tags
+{{genres}}
+
+## Title and synopsis
+{{title}}
+{{synopsis}}
+
+{{secret}}
+
+## Length
+{{length}}; {{chapters}} chapters in {{volumes}} volumes.
+
+{{chapterRule}}
+
+## Output JSON only
+{"master":{"mainline":"...","subline":"...","ending":"...","twists":["..."],"arcs":["<name>: ..."]},
+ "volumes":[{"no":1,"title":"...","goal":"...","from":1,"to":12,"reveal":"..."}]}`,
+
+  'task.novel-volume':
+`You are planning one volume of a novel chapter by chapter. Each chapter gets
+one line: what happens and what changes by its end. The lines connect: each
+chapter starts where the previous one left off, and the volume ends having
+reached its goal.
+
+## People
+{{cast}}
+
+## Genre tags
+{{genres}}
+
+## Title and synopsis
+{{title}}
+{{synopsis}}
+
+{{secret}}
+
+## Master plan
+{{master}}
+
+## Earlier volumes
+{{before}}
+
+## The last chapters actually written
+{{written}}
+
+## This volume
+Volume {{no}} {{vtitle}}: {{goal}}
+Chapters {{from}} to {{to}}. Reveals: {{reveal}}
+
+## Output JSON only
+{"chapters":[{"no":{{from}},"title":"...","line":"..."}]}`,
+
+  'task.novel-branches':
+`You are proposing what the next chapter of a novel could do. Give {{count}}
+distinct directions. Each is a title and one or two sentences: what happens in
+the chapter and what it changes. Mark "follows": true when the direction keeps
+to the planned chapter, false when it departs from the plan. At least one
+direction keeps to the plan when a plan exists.
+
+## People
+{{cast}}
+
+## Genre tags
+{{genres}}
+
+## Title and synopsis
+{{title}}
+{{synopsis}}
+
+{{secret}}
+
+## Master plan
+{{master}}
+
+## The last chapters written
+{{recent}}
+
+## The plan for chapter {{next}}
+{{volume}}
+Planned: {{planned}}
+
+## Output JSON only
+{"options":[{"title":"...","line":"...","follows":true}]}`,
+
+  'task.novel-replan':
+`The story has departed from its outline. Re-plan the rest of the novel from
+chapter {{from}} to chapter {{to}}, starting from what has actually been
+written, so that it still reaches an ending consistent with the master plan
+where possible. Update the master plan only where the written chapters make
+the old one impossible.
+
+## People
+{{cast}}
+
+## Genre tags
+{{genres}}
+
+## Title and synopsis
+{{title}}
+{{synopsis}}
+
+{{secret}}
+
+## Master plan so far
+{{master}}
+
+## What has been written
+{{written}}
+
+## Remaining chapters
+Chapters {{from}} to {{to}}, in {{volumes}} volumes. Volumes cover every
+remaining chapter with no gap and no overlap.
+
+{{chapterRule}}
+
+## Output JSON only
+{"master":{"mainline":"...","subline":"...","ending":"...","twists":["..."],"arcs":["..."]},
+ "volumes":[{"no":1,"title":"...","goal":"...","from":{{from}},"to":{{to}},"reveal":"..."}]}`,
+
+  // 写章时带进去的大纲那一块（system/novel.js promptLines）。隐藏大纲照样带：隐藏的是界面，不是模型
+  'skeleton.work-outline':
+`[大纲]
+{{lines}}
+This is the plan for the book and where this chapter sits in it.`,
+
   'task.work-summary':
 `Summarize the passages below into a record of what happened in this part of
 the story.

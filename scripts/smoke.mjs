@@ -51,7 +51,7 @@ const ROUTES = {
     '/remember/:fitMsg', '/remember/nope'],
   todo: ['/', '/detect', '/alarm', '/notes'],
   skin: ['/', '/one/:skin', '/one/nope', '/contract', '/gen/:skin', '/gen/nope', '/size/:skin', '/size/nope', '/css/:skin', '/css/nope', '/app'],
-  us: ['/', `/chat/:chat`, '/work/:work', '/work/:work/edit', '/work/nope',
+  us: ['/', '/new', '/new/:chat', `/chat/:chat`, '/work/:work', '/work/:work/edit', '/work/nope',
     '/chapter/:chapter', '/chapter/nope', '/read/:chapter', '/read/nope'],
   tools: ['/', '/add', '/import', '/new/prompt', '/new/web', '/edit/nope', '/t/nope', '/runs/npc', '/run/nope',
     '/npc', '/npc/char/:char', '/world', '/lore', '/extra', '/extra/lexicon', '/imghost', '/cardgen',

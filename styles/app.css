@@ -473,6 +473,12 @@ input[type="range"] {
 .fw-text { font-size: var(--fs-14); line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
 .fw-img { max-width: 200px; max-height: 200px; border-radius: var(--r-md); display: block; }
 
+/* 长篇向导（apps/us/pages/NewSaga.js） */
+.nv-add { display: flex; gap: var(--sp-2); align-items: center; margin-top: var(--sp-2); }
+.nv-add input { flex: 1; min-width: 0; }
+.nv-two { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-3); }
+.nv-line { font-size: var(--fs-13); color: var(--text-2); line-height: 1.6; padding: var(--sp-1) 0; }
+
 /* 主页（Instagram 式，见 ARCHITECTURE 4.149） */
 .ig-head { display: flex; align-items: center; gap: var(--sp-5); padding: var(--sp-4) var(--sp-4) var(--sp-3); }
 :where(.ig-head) .avatar { flex: none; }

@@ -139,6 +139,9 @@ import * as tripTask from '../system/ai/tasks/trip.js';
 import * as sceneTask from '../system/ai/tasks/scene.js';
 import * as workTask from '../system/ai/tasks/work.js';
 import * as toolTasks from '../system/ai/tasks/tools.js';
+import * as novelTasks from '../system/ai/tasks/novel.js';
+import * as novelApi from '../system/novel.js';
+import { NOVEL_TAGS, LENGTHS } from '../system/novel-tags.js';
 import * as cardshotApi from '../system/cardshot.js';
 import * as reviewApi from '../system/review.js';
 import * as booksearchApi from '../system/booksearch.js';
@@ -271,6 +274,8 @@ export const phone = {
     work: workTask,
     // 工具箱内置工具的请求（世界观、NPC、世界书、番外）
     tools: toolTasks,
+    // 长篇：简介、大纲、卷纲、走向、重排（4.263、4.264）
+    novel: novelTasks,
     eventBatch,
     dayTask,
     healthTask,
@@ -347,6 +352,8 @@ export const phone = {
   album: albumApi,
   // 转发聊天记录（system/forward.js）
   forward: forwardApi,
+  // 长篇的大纲与标签表（system/novel.js、novel-tags.js）
+  novel: { ...novelApi, NOVEL_TAGS, LENGTHS },
   theirs: theirsApi,
   trip: tripApi,
   memcheck: memcheckApi,

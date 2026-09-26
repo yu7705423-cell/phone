@@ -22,6 +22,7 @@ import * as trace from './trace.js';
 import * as ban from '../ban.js';
 import { beatsOf, timeOf, DIRECTOR, ME } from '../scene.js';
 import * as work from '../work.js';
+import * as novel from '../novel.js';
 import * as tone from '../tone.js';
 import { markRead } from '../receipt.js';
 import * as group from '../group.js';
@@ -954,6 +955,9 @@ export function buildWorkSystem(w, chapter, char, list, opts = {}) {
 
   const setup = chapterSetup(w, chapter);
   if (setup) out += '\n\n' + setup;
+  // 大纲与进度（system/novel.js）。隐藏大纲照样带：隐藏的是界面，不是模型
+  const plan = novel.promptLines(w, chapter);
+  if (plan.length) out += '\n\n' + fillTemplate(template('skeleton.work-outline'), { lines: plan.join('\n') });
   const prev = prevBlock(w, chapter);
   if (prev) out += '\n\n' + prev;
   if (chapter.summary) out += `\n\n[这一篇之前发生过什么]\n${chapter.summary}`;

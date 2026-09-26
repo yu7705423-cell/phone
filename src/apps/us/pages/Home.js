@@ -98,6 +98,9 @@ export function Home({ chatId = '' }) {
         right=${html`<${Button} size="sm" onClick=${start}>建立<//>`}>
         <div class="pad">
           <${KindPick} value=${v.kind} onChange=${x => set({ kind: x })}/>
+          ${v.kind === work.SAGA ? html`
+            <${Button} full variant="ghost" onClick=${() => { setOpen(false); nav.push(chatId ? `/new/${chatId}` : '/new'); }}>使用长篇向导<//>
+            <div class="field-desc pad-t pad-b">向导里可以选体裁标签与篇幅、挂世界观、生成简介与分层大纲。下面是快速新建。</div>` : null}
           <${WorkFields} v=${v} set=${set} kind=${v.kind}/>
         </div>
         ${chatId ? null : html`
