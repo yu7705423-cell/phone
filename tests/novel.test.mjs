@@ -34,12 +34,12 @@ await ctx.route('**/relay.example.com/**', async route => {
     out = { chapters: [{ no: 1, title: '到站', line: '林一到站。' }] };
   } else if (/proposing what the next chapter/.test(sys)) {
     calls.push('branch');
-    const n = (sys.match(/Give (\d+) distinct/) || [])[1];
+    const n = (sys.match(/Give (\d+)\s+distinct/) || [])[1];
     out = { options: [{ title: '书店', line: '照大纲：发现被撕页的旧书。', follows: true },
       { title: '离城', line: '林一决定当晚离开这座城。', follows: false }, { title: '雨夜', line: '第三个走向。', follows: true }].slice(0, Number(n) || 3) };
   } else if (/departed from its outline/.test(sys)) {
     calls.push('replan');
-    const from = Number((sys.match(/from chapter (\d+) to chapter/) || [])[1]) || 2;
+    const from = Number((sys.match(/from\s+chapter (\d+) to chapter/) || [])[1]) || 2;
     out = { master: { mainline: '林一离城后被旧案追上', ending: '在另一座城重逢' }, volumes: [{ no: 1, title: '离城之后', goal: '追上', from, to: 8, reveal: '凶手', chapters: [{ no: from, title: '车站', line: '林一在车站被拦下。' }] }] };
   } else { calls.push('other'); out = { text: '嗯' }; }
   return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ choices: [{ message: { role: 'assistant', content: JSON.stringify(out) } }] }) });
@@ -142,9 +142,11 @@ const t6 = await text();
 ok('六、新的一章先问怎么开：三条路都在，大纲里这一章那一行带着', /自己写下一章/.test(t6) && /让它接着写/.test(t6) && /给我几个走向/.test(t6), t6.slice(0, 300));
 await ev(async () => { const { db } = await import('/src/system/db/index.js'); db.settings.set({ novelBranchCount: 2 }); });
 await page.locator('.list-item', { hasText: '给我几个走向' }).click();
-await page.waitForTimeout(1500);
+await page.locator('.list-item', { hasText: '离城' }).waitFor({ timeout: 8000 }).catch(() => {});
+await page.waitForTimeout(200);
 const t6b = await text();
-ok('六、给我几个走向：一次请求，候选数按填的来', calls.filter(x => x === 'branch').length === 1 && /照大纲/.test(t6b) && /离城/.test(t6b) && !/第三个走向/.test(t6b) && /偏离大纲/.test(t6b), `${calls} ${t6b.slice(0, 200)}`);
+ok('六、给我几个走向：一次请求，候选数按填的来', calls.filter(x => x === 'branch').length === 1 && /照大纲/.test(t6b) && /离城/.test(t6b) && !/第三个走向/.test(t6b) && /偏离大纲/.test(t6b),
+  JSON.stringify({ calls, a: /照大纲/.test(t6b), b: /离城/.test(t6b), c: /第三个走向/.test(t6b), d: /偏离大纲/.test(t6b), sheet: t6b.slice(t6b.indexOf('选一个走向'), t6b.indexOf('选一个走向') + 200) }));
 await page.locator('.list-item', { hasText: '离城' }).click();
 await page.waitForTimeout(800);
 const after = await ev(async id => {
