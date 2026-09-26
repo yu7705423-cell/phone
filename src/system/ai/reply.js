@@ -665,13 +665,22 @@ export function splitReply(raw) {
    */
   const bareMark = t => /^[[【][^\]】]*[\]】]$/.test(String(t || '').trim());
 
+  // 译文是交替着写（一条正文一条译文）还是攒在末尾一起写，先看一眼整轮的样子：
+  // 连着两行都是译文，就是攒在末尾的那种。交替着写时，译文配**紧挨着它上面**那一条正文 ——
+  // 模型偶尔把两条短正文（「……。」「誰これ。」）合成一条译文，按「第 n 条配第 n 条」后面就全错一位；
+  // 攒在末尾时只能按顺序配，那种情况下少一条本来就对不上
+  const shape = text.split(/\n+/).map(l => l.trim()).filter(Boolean).map(l => (transOf(l) ? 'R' : 'T')).join('');
+  const batched = /RR/.test(shape);
+
   const attachTrans = body => {
     const text = String(body || '').trim();
     if (!text) return;
     // 语音也有话可翻，但只认**紧跟在它下面**的那一句：规则里语音不必带译文，
     // 没带的时候，后面那条正文的译文不该被它截走
     const tail = parts[parts.length - 1];
-    const at = parts.find(p => p.type === 'text' && !p.translation && !bareMark(p.text))
+    const near = !batched && tail && tail.type === 'text' && !tail.translation && !bareMark(tail.text) ? tail : null;
+    const at = near
+      || parts.find(p => p.type === 'text' && !p.translation && !bareMark(p.text))
       || (tail?.type === 'voice' && !tail.translation ? tail : null);
     if (at) { at.translation = text; return; }
     // 一条正文都还没有：译文写在了原文上面，记着，下一条正文落下来时补上。
