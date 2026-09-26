@@ -27,6 +27,7 @@ import { PENDING as MEAL_PENDING } from '../takeout.js';
 import { allSongs } from '../music.js';
 import * as mcpTools from '../mcptools.js';
 import * as closet from '../closet.js';
+import * as htmlcard from '../htmlcard.js';
 
 // 能力目录。
 //
@@ -434,6 +435,17 @@ export const CAPS = [
     line: ({ char }) => 'Withdraw a message: write [撤回] on its own line directly after that message.'
       + (recall.latestMoment(char.id) ? ' Take down your latest post: write [撤回动态] on its own line.' : ''),
     detail: ({ char }) => fillTemplate(template('skeleton.recall'), { post: postLine(char) }),
+  },
+  {
+    // HTML 卡片（ARCHITECTURE 4.250）：世界书里的卡片条目，常驻的或这一轮扫到关键词的才有。
+    // 有就给整段 —— 清单本身就是这一轮能用哪几张，没有「目录」那一种形态
+    id: 'card',
+    label: 'HTML 卡片',
+    on: ({ char, scanText }) => !!char && htmlcard.hitCards(char, scanText).length > 0,
+    always: true,
+    detail: ({ char, scanText }) => fillTemplate(template('skeleton.card'), {
+      cards: htmlcard.promptList(htmlcard.hitCards(char, scanText)),
+    }),
   },
   {
     // 旁白。会话「互动」里开了才有；开了就常驻：它是这一段会话的写法，不是想用再用的功能

@@ -122,6 +122,7 @@ import * as skinfileApi from '../system/skinfile.js';
 import * as termsApi from '../system/terms.js';
 import * as toolboxApi from '../system/toolbox.js';
 import * as sandboxApi from '../system/sandbox.js';
+import * as htmlcardApi from '../system/htmlcard.js';
 import * as lorecheckApi from '../system/lorecheck.js';
 import * as sidestoryApi from '../system/sidestory.js';
 import * as imghostApi from '../system/imghost.js';
@@ -353,6 +354,8 @@ export const phone = {
   // 工具箱：用户的工具、历史、网页工具的盒子（见 system/toolbox.js、system/sandbox.js）
   toolbox: toolboxApi,
   sandbox: sandboxApi,
+  // HTML 卡片：世界书的卡片条目、渲染、角色写的那一段（见 system/htmlcard.js）
+  htmlcard: htmlcardApi,
   // 世界书生成器的本地审查（不调接口）
   lorecheck: lorecheckApi,
   // 番外生成器：标签、语义词典、本地编译（不调接口）

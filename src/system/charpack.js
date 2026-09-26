@@ -1,3 +1,4 @@
+import { BUILTIN_BOOK_ID } from './cardkit.js';
 import { characters, lorebooks, memories, chats, messages, messagesOf, images, files,
          scenes, beats, trips, spaceItems, skins, days, meals, health, phones, phoneChats,
          moments, reviews, readnotes, todos, ebooks, videos, works, chapters, playlists, songs, closet } from './db/index.js';
@@ -286,7 +287,8 @@ export async function install(pack) {
     if (Array.isArray(c.relations)) {
       row.relations = c.relations.map(r => ({ ...r, charId: remap(r.charId) }));
     }
-    row.lorebookIds = (c.lorebookIds || []).filter(b => lorebooks.has(b));
+    // 内置卡片那本不在库里（system/cardkit.js），照样留着
+    row.lorebookIds = (c.lorebookIds || []).filter(b => lorebooks.has(b) || b === BUILTIN_BOOK_ID);
     if (copied) row.name = `${c.name || '未命名'}（副本）`;
     characters.put(row);
   });

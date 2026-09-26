@@ -25,7 +25,7 @@ const ROUTES = {
   contact: ['/', '/import', '/me', '/me/:persona', '/char/:char',
     '/edit/:char', '/profile/:char', '/net/:char', '/npc/:char'],
   memory: ['/', '/import', '/last', '/check', '/edit/:mem'],
-  lorebook: ['/', '/preview', '/map', '/book/:lore', '/entry/:lore/e1', '/import', '/export'],
+  lorebook: ['/', '/preview', '/map', '/book/:lore', '/entry/:lore/e1', '/entry/:lore/ecard', '/import', '/export', '/builtin', '/builtin/builtin-weibo'],
   space: ['/', '/space/:chat', '/days/:chat', '/pacts/:chat', '/mail/:chat',
     '/log/:chat/gift', '/log/:chat/location', '/log/:chat/listen', '/log/:chat/call'],
   daily: ['/', '/gen', '/cell/env/good', '/cell/social/bad', '/cell/luck/plain',
@@ -54,7 +54,7 @@ const ROUTES = {
   us: ['/', `/chat/:chat`, '/work/:work', '/work/:work/edit', '/work/nope',
     '/chapter/:chapter', '/chapter/nope', '/read/:chapter', '/read/nope'],
   tools: ['/', '/add', '/import', '/new/prompt', '/new/web', '/edit/nope', '/t/nope', '/runs/npc', '/run/nope',
-    '/npc', '/npc/char/:char', '/world', '/lore', '/extra', '/extra/lexicon', '/imghost',
+    '/npc', '/npc/char/:char', '/world', '/lore', '/extra', '/extra/lexicon', '/imghost', '/cardgen',
     '/imghost/setup/github', '/imghost/setup/r2', '/imghost/setup/relay', '/imghost/setup/nope', '/imghost/host/nope',
     '/imghost/upload', '/imghost/move'],
   settings: ['/', '/weather', '/api', '/voice', '/image', '/embed', '/notify', '/lockpin', '/routes', '/terms', '/push-guide', '/music',
@@ -105,6 +105,9 @@ const ids = await page.evaluate(async () => {
     { id: 'e2', comment: '常驻', keys: [], secondaryKeys: [], content: '这一条始终注入。',
       enabled: true, constant: true, priority: 100, order: 1,
       part: 'after', depth: 2, caseSensitive: false, probability: 100 },
+    { id: 'ecard', type: 'card', comment: '电影票', keys: ['电影'], secondaryKeys: [], content: 'A ticket.',
+      enabled: true, constant: false, priority: 100, order: 2, part: 'before', depth: 0, caseSensitive: false, probability: 100,
+      card: { html: '<div>{{片名}}</div>', fields: {}, width: 'bubble', ratio: '4:3', images: false, sampleText: '片名：夜行' } },
   ] });
 
   // 事件库也要有几条，空库只走空状态

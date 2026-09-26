@@ -3600,3 +3600,70 @@ button.conv-notice { background: none; border: 0; font: inherit; cursor: pointer
 .ih-cell-new { color: var(--text-2); }
 .ih-cell-err { color: var(--danger); }
 .ih-cell-input { margin: var(--sp-2); font-size: var(--fs-11); padding: var(--sp-1) var(--sp-2); }
+
+/* ---- HTML 卡片（ARCHITECTURE 4.250）----
+   卡片本身在 iframe 里，样式与应用互不相通。这里只管外面那一圈：细栏、框、全屏。
+   宽度由卡片自己的设置给（--hc-w），整行宽的卡片把这一列放宽 */
+.hc-card {
+  width: var(--hc-w, 270px); max-width: 100%;
+  border-radius: var(--r-lg); overflow: hidden;
+  background: var(--surface); border: 1px solid var(--border);
+}
+.msg-col:has(.hc-card.is-full) { max-width: calc(100% - 52px); }
+.hc-bar {
+  display: flex; align-items: center; gap: var(--sp-1);
+  padding: var(--sp-1) var(--sp-2);
+  font-size: var(--fs-11); color: var(--text-3);
+  border-bottom: 1px solid var(--border);
+}
+.hc-bar-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hc-bar-open { font-size: var(--fs-11); color: var(--accent); padding: 0 var(--sp-1); }
+.hc-frame { width: 100%; height: var(--hc-h, 200px); }
+.hc-frame.is-fluid { height: auto; aspect-ratio: var(--hc-ratio, 3 / 4); }
+.hc-frame iframe { display: block; width: 100%; height: 100%; border: 0; background: transparent; }
+.hc-note {
+  display: flex; align-items: center; justify-content: center; height: 100%;
+  padding: var(--sp-3); text-align: center;
+  font-size: var(--fs-12); color: var(--text-3);
+}
+.hc-full { padding: var(--sp-4); }
+.hc-full .hc-frame { border-radius: var(--r-lg); overflow: hidden; border: 1px solid var(--border); }
+.hc-gone { padding: var(--sp-2) var(--sp-3) 0; font-size: var(--fs-11); color: var(--text-3); }
+.hc-plain { padding: var(--sp-2) var(--sp-3) var(--sp-3); font-size: var(--fs-13); }
+.hc-plain-row { display: flex; gap: var(--sp-2); white-space: pre-wrap; }
+.hc-plain-key { flex: none; color: var(--text-3); }
+.hc-syntax-toggle { font-size: var(--fs-12); color: var(--accent); padding: var(--sp-2) 0; }
+.hc-syntax { display: grid; gap: var(--sp-2); font-size: var(--fs-12); color: var(--text-2); }
+.hc-syntax-row { display: grid; gap: 2px; }
+.hc-syntax-row code { font-family: var(--font-mono); color: var(--text); }
+.hc-field-group { margin-bottom: var(--sp-3); }
+.hc-field {
+  display: grid; gap: var(--sp-2); padding: var(--sp-3);
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md);
+}
+.hc-field-sub { margin: var(--sp-2) 0 0 var(--sp-4); }
+.hc-field-name { font-size: var(--fs-14); font-weight: var(--fw-medium); }
+.hc-field-row { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); }
+.hc-field-k { font-size: var(--fs-13); color: var(--text-2); }
+.hc-preview { padding-bottom: var(--sp-4); }
+.hint-box.is-warn { background: var(--danger-weak); color: var(--danger); }
+.hc-field-kind { padding: var(--sp-2) var(--sp-3) 0; }
+
+/* ---- HTML 卡片生成器（ARCHITECTURE 4.252）---- */
+.cg-sec { display: grid; gap: var(--sp-2); padding-bottom: var(--sp-3); }
+.cg-group { display: grid; gap: var(--sp-1); }
+.cg-group-name { font-size: var(--fs-12); color: var(--text-3); padding-top: var(--sp-1); }
+.cg-ref { display: flex; align-items: center; gap: var(--sp-3); }
+.cg-ref-img { max-width: 50%; border-radius: var(--r-md); border: 1px solid var(--border); }
+.cg-pals { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: var(--sp-2); }
+.cg-pal {
+  display: grid; gap: var(--sp-1); justify-items: start; padding: var(--sp-2);
+  border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface);
+  font-size: var(--fs-12); color: var(--text-2);
+}
+.cg-pal.is-active { border-color: var(--accent); color: var(--text); }
+.cg-sws { display: flex; gap: 3px; }
+.cg-sw { width: 14px; height: 14px; border-radius: var(--r-full); background: var(--sw); border: 1px solid var(--border); }
+.cg-deco { display: grid; gap: var(--sp-1); padding: var(--sp-2) 0; border-bottom: 1px solid var(--border); }
+.cg-deco-del { justify-self: start; font-size: var(--fs-12); color: var(--danger); }
+.cg-example { text-align: left; white-space: normal; }

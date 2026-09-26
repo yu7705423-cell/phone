@@ -22,7 +22,7 @@ const p = await page.evaluate(async () => {
   const all=panel.ITEMS.map(x=>x.id);
   ok('顺序一开始就是全部', panel.order().join()===all.join(), panel.order().join());
   // 默认收进「更多」的现在是五格（video/share/dice/request/makeclip）
-  ok('默认收了几格进更多', panel.onPanel().length===all.length-5, panel.onPanel().length);
+  ok('默认收了几格进更多', panel.onPanel().length===all.length-6, panel.onPanel().length);
   ok('收进去的确实不在面板上', !panel.onPanel().includes('dice'));
 
   // 丢掉不认识的、补上缺失的 —— 老配置里少一格不能静默丢掉
@@ -54,7 +54,7 @@ const p = await page.evaluate(async () => {
   db.settings.set({panelMore:[]});
   ok('设成空数组就是全都放面板上', panel.onPanel().length===all.length, panel.onPanel().length);
   panel.reset();
-  ok('恢复默认回得去', panel.onPanel().length===all.length-5, panel.onPanel().length);
+  ok('恢复默认回得去', panel.onPanel().length===all.length-6, panel.onPanel().length);
   return R;
 });
 p.forEach(r=>ok(r.name,r.pass,r.extra));

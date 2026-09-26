@@ -118,7 +118,7 @@ function describe(parts) {
 export const STRUCTURED = new Set([
   'sticker', 'typing', 'notice',
   'transfer', 'gift', 'location', 'call', 'listen', 'read', 'pact', 'letter',
-  'takeout', 'dice', 'song', 'tool',
+  'takeout', 'dice', 'song', 'tool', 'card',
 ]);
 
 // 这条消息用得上的修法，附带改完长什么样

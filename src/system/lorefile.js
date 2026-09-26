@@ -20,6 +20,10 @@
 //
 //     正文……
 //
+// HTML 卡片（ARCHITECTURE 4.250）多一行「类型：卡片」，正文之后跟着模板与字段设置：
+// 编码成 base64 夹在两行标记之间（和美化包的 txt 版同一个做法，4.239）—— 模板里满是尖括号、
+// 井号与冒号，原样放进文本，经聊天软件转手或者被当成 ## 小标题切开，都会坏。
+//
 // 别处来的文字（一篇设定文档）也照这个读：有 `## ` 小标题就一个小标题一条，
 // 没有就整篇是一条，标题取文件名。条目开头那几行设置认得出就用，认不出就当正文。
 // 读进来之后在确认页上逐本定用途、全局、启用、常驻、位置，确定了才入库。
@@ -41,6 +45,28 @@ const yn = v => (v ? '是' : '否');
 
 const partName = e => (e.part === 'after' ? '角色后' : '角色前');
 
+const CARD_OPEN = '----- 卡片模板开始 -----';
+const CARD_CLOSE = '----- 卡片模板结束 -----';
+const b64 = text => btoa(String.fromCharCode(...new TextEncoder().encode(text)));
+const unb64 = text => new TextDecoder().decode(Uint8Array.from(atob(text), c => c.charCodeAt(0)));
+
+function cardBlock(card) {
+  const raw = b64(JSON.stringify(card || {}));
+  return [CARD_OPEN, ...(raw.match(/.{1,76}/g) || []), CARD_CLOSE].join('\n');
+}
+
+/** 正文里夹着的卡片模板取出来。没有给 null */
+function takeCard(text) {
+  const src = String(text || '');
+  const a = src.indexOf(CARD_OPEN);
+  const b = src.indexOf(CARD_CLOSE, a + 1);
+  if (a < 0 || b < 0) return null;
+  try {
+    const card = JSON.parse(unb64(src.slice(a + CARD_OPEN.length, b).replace(/\s+/g, '')));
+    return { card: card && typeof card === 'object' ? card : {}, rest: (src.slice(0, a) + src.slice(b + CARD_CLOSE.length)).trim() };
+  } catch { return null; }
+}
+
 /** 一本书写成文本 */
 function toText(book) {
   const out = [`# ${book.name || '未命名世界书'}`,
@@ -51,18 +77,20 @@ function toText(book) {
     out.push('', `## ${e.comment || String(e.content || '').slice(0, 18).replace(/\n/g, ' ') || '未命名条目'}`);
     if ((e.keys || []).length) out.push(`关键词：${e.keys.join('、')}`);
     if ((e.secondaryKeys || []).length) out.push(`次要关键词：${e.secondaryKeys.join('、')}`);
+    if (e.type === 'card') out.push('类型：卡片');
     out.push(`常驻：${yn(e.constant)}`, `启用：${yn(e.enabled !== false)}`,
       `位置：${partName(e)}`, `深度：${Math.max(0, Math.round(Number(e.depth) || 0))}`);
     if (e.priority != null && e.priority !== 100) out.push(`优先级：${e.priority}`);
     if (e.probability != null && e.probability !== 100) out.push(`概率：${e.probability}`);
     out.push('', String(e.content || '').trim());
+    if (e.type === 'card') out.push('', cardBlock(e.card));
   }
   return out.join('\n') + '\n';
 }
 
 // ---- 读 ----
 
-const SETTING = /^(关键词|次要关键词|常驻|启用|位置|深度|优先级|概率)[:：]\s*(.*)$/;
+const SETTING = /^(关键词|次要关键词|常驻|启用|位置|深度|优先级|概率|类型)[:：]\s*(.*)$/;
 const list = v => String(v).split(/[、,，;；]/).map(x => x.trim()).filter(Boolean);
 
 function blankEntry() {
@@ -90,8 +118,12 @@ function entryOf(title, body) {
     else if (k === '深度') e.depth = Math.max(0, Math.round(Number(v) || 0));
     else if (k === '优先级') e.priority = Number(v) || 100;
     else if (k === '概率') e.probability = Math.max(0, Math.min(100, Number(v) || 100));
+    else if (k === '类型' && /卡片/.test(v)) e.type = 'card';
   }
   e.content = lines.slice(i).join('\n').trim();
+  const c = takeCard(e.content);
+  if (c) { e.type = 'card'; e.card = c.card; e.content = c.rest; }
+  else if (e.type === 'card') e.card = { html: '', fields: {}, width: 'bubble', ratio: '4:3', images: false, sampleText: '' };
   return { entry: e, set };
 }
 

@@ -316,3 +316,77 @@ export async function extraTags({ category, theme, existing, count }, { key } = 
   const list = Array.isArray(arr) ? arr : (Array.isArray(arr?.tags) ? arr.tags : []);
   return list.map(x => ({ tag: str(x?.tag), meaning: str(x?.meaning) })).filter(x => x.tag);
 }
+
+// ---- HTML 卡片生成器（ARCHITECTURE 4.252）----
+//
+// 一次生成、一次修改，各是一次请求，都是用户点了才发。模板很长，塞进 JSON 字符串里转义容易坏，
+// 所以让模型分两段交：<card-meta> 里是 JSON，<card-html> 里是原样的模板。
+
+const IMAGES_OFF = 'Nothing is loaded from the network: draw with CSS, inline SVG and data: URIs only.';
+const imagesRule = urls => (urls.length
+  ? `These image addresses may be used exactly as given, in src or url(): ${urls.join(' , ')}. Nothing else is loaded from the network.`
+  : IMAGES_OFF);
+
+/** 模型交回来的两段拆开。拆不出模板就报错，原文挂在 err.raw 上 */
+export function splitCard(raw) {
+  const text = String(raw || '');
+  const metaText = (text.match(/<card-meta>([\s\S]*?)<\/card-meta>/i) || [])[1] || '';
+  const html = ((text.match(/<card-html>([\s\S]*?)(?:<\/card-html>|$)/i) || [])[1] || '').trim();
+  if (!html) {
+    const err = new Error('没能从模型的回复中读出卡片模板');
+    err.raw = text;
+    throw err;
+  }
+  const meta = parseJSON(metaText) || {};
+  const fields = {};
+  if (meta.fields && typeof meta.fields === 'object') {
+    for (const [k, v] of Object.entries(meta.fields)) {
+      fields[str(k)] = {
+        desc: str(v?.desc), max: Math.max(0, Math.round(Number(v?.max) || 0)), long: v?.long === true,
+      };
+    }
+  }
+  return {
+    name: str(meta.name), description: str(meta.description),
+    keywords: (Array.isArray(meta.keywords) ? meta.keywords : []).map(str).filter(Boolean),
+    fields, sample: str(meta.sample), html,
+  };
+}
+
+export async function cardGenerate({ request, width, height, prefix, urls = [], image = null }, { key } = {}) {
+  const raw = await runTextTask('tool.card', {
+    system: fillTemplate(template('task.cardgen'), {
+      request, width, height, prefix, images: imagesRule(urls),
+    }),
+    image: image || undefined,
+    key: key || `tool-card:${Date.now()}`, maxTokens: 9000,
+  });
+  return splitCard(raw);
+}
+
+export async function cardRevise({ meta, html, change, urls = [] }, { key } = {}) {
+  const raw = await runTextTask('tool.card', {
+    system: fillTemplate(template('task.cardgen-edit'), {
+      meta: JSON.stringify(meta), html, change, images: imagesRule(urls),
+    }),
+    key: key || `tool-card-edit:${Date.now()}`, maxTokens: 9000,
+  });
+  return splitCard(raw);
+}
+
+/**
+ * 用户自己发卡片时的「帮我填」（ARCHITECTURE 4.253）。用户点了才发，一次请求。
+ * 交回来的是角色那种写法，取出方括号之间那几行交给 htmlcard.parseValues 读
+ */
+export async function cardFill({ card, name, idea, charName, userName, recent }, { key } = {}) {
+  const raw = await runTextTask('card.fill', {
+    system: fillTemplate(template('task.card-fill'), {
+      card, name, idea: str(idea) || '(nothing specific; fit the recent chat)',
+      char: charName || 'the character', user: userName || 'the user', recent: str(recent) || '(none)',
+    }),
+    key: key || `card-fill:${Date.now()}`, maxTokens: 2000,
+  });
+  const text = String(raw || '');
+  const m = text.match(/[[【]\s*(?:卡片|card)\s*[:：][^\]】\n]*[\]】]([\s\S]*?)(?:[[【]\s*\/\s*(?:卡片|card)\s*[\]】]|$)/i);
+  return (m ? m[1] : text).trim();
+}

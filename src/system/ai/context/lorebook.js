@@ -63,13 +63,20 @@ function hits(e, text, lower) {
   return true;
 }
 
+/** 对话用的那几本（HTML 卡片从这里找，见 system/htmlcard.js） */
+export const chatBooksFor = char => booksFor(char, 'chat');
+
+// HTML 卡片（type: 'card'）不是设定文字，不按这一套注入：它的说明进能力清单（capabilities.js 的 card），
+// 模板一个字都不进 prompt。见 ARCHITECTURE 4.250
+const isCardEntry = e => e?.type === 'card';
+
 function pick(char, scanText, purpose) {
   const text = String(scanText || '');
   const lower = text.toLowerCase();
   const entries = [];
   for (const book of booksFor(char, purpose)) {
     for (const e of book.entries || []) {
-      if (!e.enabled) continue;
+      if (!e.enabled || isCardEntry(e)) continue;
       entries.push({ ...e, bookName: book.name, bookId: book.id });
     }
   }
@@ -105,7 +112,7 @@ export function voiceBookText(char) {
   const out = [];
   for (const book of booksFor(char, 'voice')) {
     for (const e of book.entries || []) {
-      if (!e.enabled || !String(e.content || '').trim()) continue;
+      if (!e.enabled || isCardEntry(e) || !String(e.content || '').trim()) continue;
       const keys = (e.keys || []).filter(Boolean);
       out.push(e.constant || !keys.length ? e.content.trim()
         : `(${keys.join(' / ')}) ${e.content.trim()}`);

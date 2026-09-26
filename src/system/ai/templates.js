@@ -650,6 +650,19 @@ These lines change the wardrobe records. Write each on its own line; it is remov
 Items are matched by name against the wardrobe lists in [衣帽间]. A name that matches nothing changes nothing.
 The thing slipped into the bag may be anything, including something not in any wardrobe.{{secrets}}`,
 
+  'skeleton.card':
+`[卡片]
+The app renders the cards listed below from field values. To send one, write a block,
+each part on its own line:
+[卡片：card name]
+field：value
+[/卡片]
+Write one line per field. A list field repeats its line once per item; within an item,
+separate the parts with ｜ in the order given. A field left out stays empty. A value
+longer than its character limit is cut off where the limit ends. Values are shown as
+plain text.
+{{cards}}`,
+
   'skeleton.letter':
 `[写信]
 When something is better written down than said, write a line on its own,
@@ -1935,6 +1948,96 @@ schedule.
 
   // ---- 工具箱（apps/tools，ARCHITECTURE 4.247）----
   // 这几份是生成任务的规格书，不注入聊天（CLAUDE.md 第 16 条的 task.* 那一档）。
+
+  'task.cardgen':
+`You design one card for a chat app. The app renders the card as a web page inside a
+sandboxed frame that runs no scripts, and fills its placeholders with text written by a
+character in the chat.
+
+Output exactly these two parts and nothing else:
+<card-meta>
+{"name": "...", "description": "...", "keywords": ["..."], "fields": {"field name": {"desc": "...", "max": 0, "long": false}}, "sample": "..."}
+</card-meta>
+<card-html>
+the complete template
+</card-html>
+
+Template rules:
+- HTML and CSS only. No script elements, no event attributes, no forms, no links to other
+  pages. Anything that moves or reacts is CSS: transitions, keyframe animations, :hover,
+  :active, :target, <details>, and hidden checkboxes or radio buttons with <label> and
+  :checked.
+- All CSS goes in one <style> element at the top. Every class name starts with {{prefix}}.
+- The card is {{width}} px wide and {{height}} px tall in the chat. Design for exactly that
+  size. The root element fills the width and uses min-height:100%. Do not use vh or vw.
+  Content taller than the card scrolls inside it.
+- Placeholders use Mustache syntax: {{ field }} is a value; {{# list }} ... {{/ list }}
+  repeats for each item, using {{ . }} for a plain item or {{ part }} for a part of an item;
+  {{# field }} ... {{/ field }} shows its content only when the field has a value and holds
+  no other field; {{^ field }} ... {{/ field }} shows when it is empty. The app fills
+  {{ char }} and {{ user }} with the two names and {{ char_avatar }} with an image address
+  that may be used in src. Write placeholders without the inner spaces.
+- A placeholder never goes inside src, href, url() or the style element. Values are
+  plain text.
+- {{images}}
+- Add a dark variant under the selector .eira-dark, a class the app sets on the html
+  element in dark mode.
+- Keep list containers free of whitespace between their tags, so :empty works on them.
+
+Meta rules:
+- name: a short Chinese name for the card, 2 to 6 characters.
+- description: one English sentence telling the character what the card is.
+- keywords: 3 to 6 words likely to appear in the chat when this card fits, in Chinese.
+- fields: one entry per placeholder, in the order they appear. Field names are short Chinese
+  words. For a list, add one more entry per part named "list.part". desc is one short English
+  sentence; max is a character limit, 0 for none; long is true for text that may run to
+  several lines, which the app then scrolls inside its box.
+- sample: example values, one field per line as field：value. A list repeats its line once
+  per item; the parts of an item are separated by ｜ in order.
+
+Request:
+{{request}}`,
+
+  'task.card-fill':
+`You fill in a card for a chat app on behalf of {{user}}, who is chatting with {{char}}.
+The card and its fields:
+{{card}}
+
+What {{user}} wants the card to say:
+{{idea}}
+
+Recent chat, oldest first:
+{{recent}}
+
+Write only the block below and nothing else, each part on its own line:
+[卡片：{{name}}]
+field：value
+[/卡片]
+One line per field. A list field repeats its line once per item; within an item, separate
+the parts with ｜ in the order given. Keep every value within its character limit. Write the
+values in the language of the recent chat.`,
+
+  'task.cardgen-edit':
+`You revise a card for a chat app. The card is a web page rendered inside a sandboxed frame
+that runs no scripts; its placeholders are filled with text written by a character.
+
+Apply the change request to the current card. Keep everything the request does not mention.
+Keep the class prefix, the placeholder syntax, the size and the rules the current card
+already follows: HTML and CSS only, no placeholder inside src, href, url() or the style
+element, a dark variant under .eira-dark, no vh or vw.
+{{images}}
+
+Output exactly the same two parts as before and nothing else: <card-meta> with the JSON
+(name, description, keywords, fields, sample), then <card-html> with the complete template.
+
+Current meta:
+{{meta}}
+
+Current template:
+{{html}}
+
+Change request:
+{{change}}`,
 
   'task.world-build':
 `You are building a world setting that a model will live inside while it writes

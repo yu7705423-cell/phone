@@ -8,6 +8,7 @@ import { WorldPage, loadWorld } from './World.js';
 import { LorePage, loadLore } from './Lore.js';
 import { ExtraPage, LexiconPage, loadExtra } from './Extra.js';
 import { ImgHostPage, SetupPage, HostPage, UploadPage, MovePage } from './ImgHost.js';
+import { CardGenPage } from './CardGen.js';
 
 const { db, nav, toolbox } = phone;
 
@@ -153,6 +154,7 @@ export default function ToolsApp({ route }) {
   if (r === '/lore') return html`<${LorePage}/>`;
   if (r === '/extra') return html`<${ExtraPage}/>`;
   if (r === '/extra/lexicon') return html`<${LexiconPage}/>`;
+  if (r === '/cardgen') return html`<${CardGenPage}/>`;
   if (r === '/imghost') return html`<${ImgHostPage}/>`;
   if ((m = r.match(/^\/imghost\/setup\/([a-z0-9]+)(?:\/(.+))?$/))) return html`<${SetupPage} key=${r} type=${m[1]} hostId=${m[2] || ''}/>`;
   if ((m = r.match(/^\/imghost\/host\/(.+)$/))) return html`<${HostPage} id=${m[1]}/>`;

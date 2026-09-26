@@ -377,6 +377,10 @@ export function CharacterEdit({ id }) {
       <//>
 
       <${List} title="关联世界书">
+        <${ListItem} title="内置卡片"
+          subtitle=${phone.htmlcard.builtinState().global ? '全局生效，无需关联' : '微博、小红书等帖子卡片'}
+          right=${html`<${Switch} checked=${phone.htmlcard.builtinState().global || (char.lorebookIds || []).includes(phone.htmlcard.BUILTIN_BOOK_ID)}
+            onChange=${() => !phone.htmlcard.builtinState().global && toggleBook(phone.htmlcard.BUILTIN_BOOK_ID)}/>`}/>
         ${db.lorebooks.all().map(b => html`
           <${ListItem} key=${b.id} title=${b.name}
             subtitle=${(b.global ? '全局生效，无需关联' : `${(b.entries || []).length} 个条目`)

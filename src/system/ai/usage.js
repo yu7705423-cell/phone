@@ -57,6 +57,8 @@ export const TASKS = {
   'tool.world':          { label: '工具箱 · 世界观生成器' },
   'tool.lore':           { label: '工具箱 · 世界书生成器' },
   'tool.extra':          { label: '工具箱 · 番外生成器' },
+  'tool.card':           { label: '工具箱 · HTML 卡片生成器' },
+  'card.fill':           { label: '卡片 · 帮我填' },
   'card.core':           { label: '核心设定' },
   'card.appearance':     { label: '外貌' },
   'event.batch':         { label: '生成随机事件' },

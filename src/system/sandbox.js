@@ -22,9 +22,9 @@
 // 堵不死的：部分浏览器的 WebRTC 绕得过 CSP。它手里只有用户当场交给它的那一点东西，
 // 最坏也就漏那一点。死循环卡住整个页面也挡不住，只能保证重开之后不再自动跑（工具箱那边管）。
 
-const policy = images => [
+const policy = (images, scripts = true) => [
   "default-src 'none'",
-  "script-src 'unsafe-inline' 'unsafe-eval'",
+  scripts ? "script-src 'unsafe-inline' 'unsafe-eval'" : "script-src 'none'",
   // 外部样式表只为字体（Google Fonts 那种先引一份 css、再由它去拉字体文件）。样式表跑不了脚本
   images ? "style-src 'unsafe-inline' https:" : "style-src 'unsafe-inline'",
   images ? 'img-src data: blob: https:' : 'img-src data: blob:',
@@ -39,8 +39,11 @@ const policy = images => [
 
 /** 不许外部图片的那一条（最严的一档） */
 export const CSP = policy(false);
-/** images：外部 https 图片、字体、字体用的样式表一起放开 */
-export const cspOf = ({ images = false } = {}) => policy(images);
+/**
+ * images：外部 https 图片、字体、字体用的样式表一起放开。
+ * scripts: false 是 HTML 卡片那一档（ARCHITECTURE 4.250）：盒子本身就不给脚本，CSP 再挡一道
+ */
+export const cspOf = ({ images = false, scripts = true } = {}) => policy(images, scripts);
 
 /** 在不在 App 外壳里（安卓 APK、iOS IPA） */
 const inShell = () => typeof window !== 'undefined'
@@ -67,10 +70,10 @@ const esc = s => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
  * `bridge` 是一段放在 CSP 之后、它的代码之前的脚本（工具箱给网页工具的 window.eira）。
  * `images` 放开 https 外部图片、字体与字体用的样式表。
  */
-export function wrap(html, { bridge = '', images = false } = {}) {
+export function wrap(html, { bridge = '', images = false, scripts = true } = {}) {
   const body = String(html || '').replace(/^\uFEFF?\s*<!doctype[^>]*>/i, '');
   return '<!DOCTYPE html>'
-    + `<meta http-equiv="Content-Security-Policy" content="${esc(cspOf({ images }))}">`
+    + `<meta http-equiv="Content-Security-Policy" content="${esc(cspOf({ images, scripts }))}">`
     + '<meta charset="utf-8">'
     + '<meta name="viewport" content="width=device-width, initial-scale=1">'
     + (bridge ? `<script>${bridge}</script>` : '')

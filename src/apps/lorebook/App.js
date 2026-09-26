@@ -1,11 +1,12 @@
 import { html, useState, useRef } from '../../lib.js';
 import { phone, useStore } from '../../sdk/index.js';
 import { Page, List, ListItem, Button, Icon, Field, Input, Textarea, Switch,
-         Segmented, NumberInput, EmptyState, toast, confirm, prompt } from '../../ui/index.js';
+         Segmented, NumberInput, EmptyState, Sheet, toast, confirm, prompt } from '../../ui/index.js';
 
 import { ImportPage, ExportPage, setPending, batchKey } from './Batch.js';
+import { CardEntryPage, blankCard, BuiltinPage, BuiltinCardPage } from './CardEntry.js';
 
-const { db, nav, ai, lorefile } = phone;
+const { db, nav, ai, lorefile, htmlcard } = phone;
 
 // 世界书的三种用途。见 system/ai/context/lorebook.js 的 purposeOf
 const PURPOSE_ITEMS = [
@@ -36,6 +37,8 @@ const placeText = e => (depthOf(e) === 0
 
 function BookList() {
   useStore(db.lorebooks.store);
+  useStore(db.settings.store);
+  const builtin = htmlcard.builtinBook();
   const books = db.lorebooks.all().sort((a, b) => b.updatedAt - a.updatedAt);
   const fileRef = useRef(null);
   const [reading, setReading] = useState(false);
@@ -63,6 +66,13 @@ function BookList() {
   return html`
     <${Page} title="世界书"
       right=${html`<button class="nav-text press" onClick=${add}>新建</button>`}>
+      <${List}>
+        <${ListItem} title="内置卡片" arrow multiline
+          subtitle=${`${builtin.entries.filter(e => e.enabled).length} 张帖子卡片 · `
+            + (builtin.global ? '全局生效' : '在角色资料中关联后生效')}
+          left=${html`<${Icon} name="layers" size=${18}/>`}
+          onClick=${() => nav.push('/builtin')}/>
+      <//>
       ${books.length ? html`
         <${List}>
           ${books.map(b => html`
@@ -97,6 +107,7 @@ function BookList() {
 
 function BookPage({ id }) {
   useStore(db.lorebooks.store);
+  const [picking, setPicking] = useState(false);
   const book = db.lorebooks.get(id);
   if (!book) return html`<${Page} title="世界书" onBack=${nav.pop}><${EmptyState} title="该世界书已被删除"/><//>`;
 
@@ -113,6 +124,12 @@ function BookPage({ id }) {
     db.lorebooks.update(id, b => ({ entries: [...b.entries, e] }));
     nav.push(`/entry/${id}/${e.id}`);
   };
+  // HTML 卡片只有对话用的书里有（ARCHITECTURE 4.250）
+  const addCard = () => {
+    const e = blankCard();
+    db.lorebooks.update(id, b => ({ entries: [...b.entries, e] }));
+    nav.push(`/entry/${id}/${e.id}`);
+  };
 
   const purpose = ai.lore.purposeOf(book);
   const forImage = purpose === 'image';
@@ -126,7 +143,7 @@ function BookPage({ id }) {
 
   return html`
     <${Page} title=${book.name} onBack=${nav.pop}
-      right=${html`<button class="nav-text press" onClick=${addEntry}>加条目</button>`}>
+      right=${html`<button class="nav-text press" onClick=${bare ? addEntry : () => setPicking(true)}>加条目</button>`}>
       <div class="pad">
         <${Field} label="名称">
           <${Input} value=${book.name} onInput=${v => db.lorebooks.update(id, { name: v })}/>
@@ -147,9 +164,10 @@ function BookPage({ id }) {
       <${List} title=${`条目 ${(book.entries || []).length}`}>
         ${(book.entries || []).map(e => html`
           <${ListItem} key=${e.id}
-            title=${e.comment || e.content.slice(0, 18) || '未命名条目'}
-            subtitle=${`${e.constant ? '常驻' : (e.keys.length ? `关键词：${e.keys.join('、')}` : '未填写关键词，不会触发')}`
-              + (bare ? '' : ` · ${placeText(e)}`)}
+            title=${e.comment || e.content.slice(0, 18) || (htmlcard.isCard(e) ? '未命名卡片' : '未命名条目')}
+            subtitle=${(htmlcard.isCard(e) ? 'HTML 卡片 · ' : '')
+              + `${e.constant ? '常驻' : (e.keys.length ? `关键词：${e.keys.join('、')}` : '未填写关键词，不会触发')}`
+              + (bare || htmlcard.isCard(e) ? '' : ` · ${placeText(e)}`)}
             multiline
             arrow
             left=${html`<${Switch} checked=${e.enabled}
@@ -163,6 +181,17 @@ function BookPage({ id }) {
       <div class="pad">
         <${Button} full variant="danger" onClick=${del}>删除这本世界书<//>
       </div>
+
+      <${Sheet} open=${picking} onClose=${() => setPicking(false)} title="新建">
+        <${List}>
+          <${ListItem} title="普通条目" subtitle="设定文字，命中后注入 prompt" multiline arrow
+            left=${html`<${Icon} name="book" size=${18}/>`}
+            onClick=${() => { setPicking(false); addEntry(); }}/>
+          <${ListItem} title="HTML 卡片" subtitle="由 HTML 与 CSS 写成的卡片，角色可在聊天中填写后发送。不运行脚本" multiline arrow
+            left=${html`<${Icon} name="layers" size=${18}/>`}
+            onClick=${() => { setPicking(false); addCard(); }}/>
+        <//>
+      <//>
     <//>`;
 }
 
@@ -326,11 +355,14 @@ function MapPage() {
   const all = [];
   const forImg = [];
   const forVoc = [];
+  const cards = [];
   for (const b of db.lorebooks.all()) {
     const applies = b.global || attached.has(b.id);
     const p = ai.lore.purposeOf(b);
     for (const e of (b.entries || [])) {
       const row = { ...e, bookName: b.name, bookId: b.id, applies };
+      // 卡片不按位置注入，说明进能力清单（ARCHITECTURE 4.250），单列一组
+      if (htmlcard.isCard(e)) { cards.push(row); continue; }
       // 生图与语音那两种不进对话，按位置分组对它们没有意义，各自单列一组
       (p === 'image' ? forImg : p === 'voice' ? forVoc : all).push(row);
     }
@@ -361,6 +393,13 @@ function MapPage() {
       key: 'image', title: '生图提示词',
       desc: '用途为「生图」的条目。生成图片时按画面描述匹配，不注入对话。',
       rows: forImg,
+    });
+  }
+  if (cards.length) {
+    groups.push({
+      key: 'card', title: 'HTML 卡片',
+      desc: '命中后卡片的说明与字段进入能力清单，模板不进入 prompt。',
+      rows: cards,
     });
   }
   if (forVoc.length) {
@@ -414,8 +453,15 @@ export default function LorebookApp({ route }) {
   const book = route?.match(/^\/book\/(.+)$/);
   if (book) return html`<${BookPage} id=${book[1]}/>`;
   const entry = route?.match(/^\/entry\/([^/]+)\/(.+)$/);
-  if (entry) return html`<${EntryPage} bookId=${entry[1]} entryId=${entry[2]}/>`;
+  if (entry) {
+    const e = db.lorebooks.get(entry[1])?.entries?.find(x => x.id === entry[2]);
+    if (htmlcard.isCard(e)) return html`<${CardEntryPage} bookId=${entry[1]} entryId=${entry[2]}/>`;
+    return html`<${EntryPage} bookId=${entry[1]} entryId=${entry[2]}/>`;
+  }
   if (route === '/preview') return html`<${PreviewPage}/>`;
+  if (route === '/builtin') return html`<${BuiltinPage}/>`;
+  const bc = route?.match(/^\/builtin\/(.+)$/);
+  if (bc) return html`<${BuiltinCardPage} id=${bc[1]}/>`;
   if (route === '/map') return html`<${MapPage}/>`;
   if (route === '/import') return html`<${ImportPage} key=${batchKey()}/>`;
   if (route === '/export') return html`<${ExportPage}/>`;

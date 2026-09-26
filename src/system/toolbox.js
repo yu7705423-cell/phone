@@ -26,6 +26,8 @@ export const BUILTINS = [
     desc: '把需求写成可执行的世界书，附本地审查与逐版修订' },
   { id: 'extra', name: '番外生成器', icon: 'film', route: '/extra', tag: '写作', out: '复制或在「我们」中写',
     desc: '把脑洞与标签整理成番外提示词。可复制到别处，也可在「我们」中直接写' },
+  { id: 'cardgen', name: 'HTML 卡片生成器', icon: 'layers', route: '/cardgen', tag: '卡片', out: '存为世界书',
+    desc: '选好类型、风格、配色、尺寸、装饰与特效，生成只含 HTML 与 CSS 的卡片，连同说明与关键词存入世界书' },
   { id: 'imghost', name: '图床', icon: 'image', route: '/imghost', tag: '图片', out: '不调用模型接口',
     desc: '我的图床、分步搭建、直接传图拿链接，以及把代码里的图片整批搬到新图床' },
 ];

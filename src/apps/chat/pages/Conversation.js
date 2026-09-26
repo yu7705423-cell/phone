@@ -26,6 +26,7 @@ import { ChatLookSheet } from './ChatLook.js';
 import { MentionBar } from './GroupBits.js';
 import { AwardBubble, StreakMark, UnlockToast } from './BadgeBits.js';
 import { OutfitBubble, GroomBubble, DresscodeBubble, SlipBubble } from './OutfitBits.js';
+import { CardBubble, CardSendSheet } from './CardBits.js';
 
 // panel 这个名字在本文件里已经被「当前开着哪个面板」占了（见下面的 useState），
 // 所以模块换个名字进来 —— 同名会被局部变量盖掉，读出来是 null。
@@ -366,6 +367,8 @@ export const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, o
           ? html`<${DresscodeBubble} msg=${msg} mine=${mine}/>`
           : msg.kind === 'slip'
           ? html`<${SlipBubble} msg=${msg}/>`
+          : msg.kind === 'card'
+          ? html`<${CardBubble} msg=${msg} char=${char} chat=${chat} mine=${mine}/>`
           : msg.kind === 'sticker'
           ? html`<div class="bubble-sticker ph-sticker">
               ${sticker ? html`<${StickerImg} sticker=${sticker} size=${112}/>`
@@ -486,6 +489,7 @@ export function Conversation({ chatId, focusId = '' }) {
   const [letter, setLetter] = useState(null);    // 正在读的那封信
   const [pact, setPact] = useState(null);        // 正在标完成的那条约定
   const [dicing, setDicing] = useState(false);
+  const [carding, setCarding] = useState(false);
   // 角色写的那个表情名没认出来时，点气泡自己指认是哪一个
   const [binding, setBinding] = useState(null);
   const [making, setMaking] = useState(false);
@@ -1360,6 +1364,7 @@ export function Conversation({ chatId, focusId = '' }) {
     request: () => setAsking(true),
     share: () => setSharing(true),
     dice: () => setDicing(true),
+    card: () => setCarding(true),
     makeclip: () => {
       if (!ai.video.isVideoReady()) {
         toast('还没有配置视频接口，请在「设置 - 生成视频」中添加', 'error', 4500);
@@ -1583,6 +1588,7 @@ export function Conversation({ chatId, focusId = '' }) {
       <${LetterSheet} msg=${letter} onClose=${() => setLetter(null)}/>
       <${PactSheet} msg=${pact} onClose=${() => setPact(null)}/>
       <${DiceSheet} open=${dicing} chatId=${chatId} onClose=${() => setDicing(false)}/>
+      <${CardSendSheet} open=${carding} char=${char} chat=${chat} onClose=${() => setCarding(false)}/>
 
       <${Sheet} open=${!!binding} onClose=${() => setBinding(null)} title="指认这个表情" height="76%">
         <div class="settings-foot">

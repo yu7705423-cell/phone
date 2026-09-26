@@ -88,13 +88,13 @@ const ids = await ev(async () => {
 await go('/');
 await wait(600);
 let t = await body();
-ok('首页：五个内置工具都在', ['NPC 生成器', '世界观生成器', '世界书生成器', '番外生成器', '图床'].every(x => t.includes(x)), t.slice(0, 300));
+ok('首页：六个内置工具都在', ['NPC 生成器', '世界观生成器', '世界书生成器', '番外生成器', 'HTML 卡片生成器', '图床'].every(x => t.includes(x)), t.slice(0, 300));
 ok('首页：「我的工具」为空时给出添加入口', t.includes('我的工具') && t.includes('添加工具'));
-ok('首页：应用商店排法，横滑的大卡片与每行一个「打开」', await page.locator('.tb-hero').count() === 5 && await page.locator('.tb-app .tb-get').count() === 5);
+ok('首页：应用商店排法，横滑的大卡片与每行一个「打开」', await page.locator('.tb-hero').count() === 6 && await page.locator('.tb-app .tb-get').count() === 6);
 await page.locator('.tb-search input').fill('世界');
 await wait(300);
 const rows = await page.locator('.tb-app').allInnerTexts();
-ok('首页：搜索只留名字或说明里带关键词的', rows.length === 3 && rows.every(x => x.includes('世界')) && await page.locator('.tb-hero').count() === 0, rows.join(' | '));
+ok('首页：搜索只留名字或说明里带关键词的', rows.length === 4 && rows.every(x => x.includes('世界')) && await page.locator('.tb-hero').count() === 0, rows.join(' | '));
 await page.locator('.tb-search input').fill('');
 await page.locator('.tb-tags .chip', { hasText: '写作' }).click();
 await wait(300);

@@ -39,12 +39,13 @@ import { cropKept } from './tasks/phone.js';
 import * as mcpTools from '../mcptools.js';
 import * as closetLib from '../closet.js';
 import * as closetStory from '../closet-story.js';
+import * as htmlcard from '../htmlcard.js';
 
 // 角色回复里可以带这几种标记，由模型自己决定什么时候用。
 // 中英文冒号都认，方括号也认全角。
 // 「约定完成」必须排在「约定」前面 —— 交替是从左往右试的，反过来写
 // 「约定完成：早点睡」会先被「约定」吃掉，剩下「完成：早点睡」当成内容。
-const MARK = /[[【]\s*(图片|照片|image|pic|视频|video|语音|voice|audio|表情|sticker|emoji|转账|transfer|位置|定位|location|礼物|gift|点歌|建歌单|加入歌单|分享歌曲|分享音乐|调用|tool|约定完成|约定|pact|信|letter|事项完成|事项取消|心声|换头像|改备注|备注|外卖|请客|代付|申请|亲属卡|旅行|攻略|待办|todo|授予|award|搭配|outfit|换上|借走|借给你|归还|旁白|narration|改密码)\s*[:：]\s*([^\]】]+)[\]】]/gi;
+const MARK = /[[【]\s*(图片|照片|image|pic|视频|video|语音|voice|audio|表情|sticker|emoji|转账|transfer|位置|定位|location|礼物|gift|点歌|建歌单|加入歌单|分享歌曲|分享音乐|调用|tool|约定完成|约定|pact|信|letter|事项完成|事项取消|心声|换头像|改备注|备注|外卖|请客|代付|申请|亲属卡|旅行|攻略|待办|todo|授予|award|搭配|outfit|换上|借走|借给你|归还|旁白|narration|改密码|卡片|card)\s*[:：]\s*([^\]】]+)[\]】]/gi;
 
 const IMAGE_KINDS = new Set(['图片', '照片', 'image', 'pic']);
 // 「视频通话」那一格叫 video，这里是会话里那一段片子，两回事。
@@ -137,6 +138,56 @@ function liftCalls(text) {
   }
   return { text: out + text.slice(last), calls };
 }
+// HTML 卡片（ARCHITECTURE 4.250）。角色写的是一整段：
+//   [卡片：名字]
+//   字段：值
+//   [/卡片]
+// 逐行分条那一套会把它拆成好几个气泡，所以和 [调用：…] 一样先整段摘出来，原位换成 [卡片：#序号]。
+// 漏写收尾的：往下只收「像字段」的几行（名字：值），碰到别的就停，免得把后面的话吞进卡片。
+const CARD_KINDS_MARK = new Set(['卡片', 'card']);
+const CARD_HEAD = /[[【]\s*(?:卡片|card)\s*[:：]\s*([^\]】\n#][^\]】\n]*?)\s*[\]】]/gi;
+const CARD_END = /[[【]\s*\/\s*(?:卡片|card)\s*[\]】]/i;
+const FIELD_LINE = /^[^：:\n[【]{1,24}[：:]/;
+
+function liftCards(text) {
+  const cards = [];
+  let out = '';
+  let last = 0;
+  let m;
+  CARD_HEAD.lastIndex = 0;
+  while ((m = CARD_HEAD.exec(text))) {
+    const name = m[1].trim();
+    const from = m.index + m[0].length;
+    const rest = text.slice(from);
+    const end = rest.search(CARD_END);
+    let body;
+    let stop;
+    if (end >= 0) {
+      body = rest.slice(0, end);
+      stop = from + end + rest.slice(end).match(CARD_END)[0].length;
+    } else {
+      const lines = rest.split('\n');
+      const kept = [];
+      let used = 0;
+      // 标题那一行后面同一行里剩下的（通常是空的）
+      used += lines[0].length + 1;
+      if (lines[0].trim()) kept.push(lines[0]);
+      for (let i = 1; i < lines.length; i++) {
+        if (!FIELD_LINE.test(lines[i].trim())) break;
+        kept.push(lines[i]);
+        used += lines[i].length + 1;
+      }
+      body = kept.join('\n');
+      stop = Math.min(text.length, from + used);
+    }
+    out += `${text.slice(last, m.index)}\n[卡片：#${cards.length}]\n`;
+    cards.push({ name, body: body.replace(/^\n+|\n+$/g, '') });
+    last = stop;
+    CARD_HEAD.lastIndex = stop;
+  }
+  return { text: out + text.slice(last), cards };
+}
+
 const TRIP_KINDS = new Set(['旅行']);
 const PLAN_KINDS = new Set(['攻略']);
 const ASK_KINDS = new Set(['申请']);
@@ -514,7 +565,9 @@ export function splitReply(raw) {
   const { text: spoken } = stripThink(raw);
   const { text: unstamped, stamp } = stripStamps(spoken.trim());
   if (!unstamped.trim()) return [];
-  const { text, calls } = liftCalls(unstamped);
+  const lifted = liftCalls(unstamped);
+  const calls = lifted.calls;
+  const { text, cards } = liftCards(lifted.text);
 
   const parts = [];
   let last = 0;
@@ -711,6 +764,9 @@ export function splitReply(raw) {
         if (name && (LIST_KINDS.has(kind) || songs.length)) push({ type: 'newlist', name, songs });
       } else if (SHARE_SONG_KINDS.has(kind)) {
         push({ type: 'song', query: body });
+      } else if (CARD_KINDS_MARK.has(kind)) {
+        const c = /^#\d+$/.test(body) ? cards[Number(body.slice(1))] : null;
+        if (c) push({ type: 'card', ...c });
       } else if (CALL_KINDS.has(kind)) {
         const c = /^#\d+$/.test(body) ? calls[Number(body.slice(1))] : null;
         if (c) push({ type: 'tool', ...c });
@@ -1285,6 +1341,18 @@ export function materialize(part, base, char) {
     return done ? messages.create({ ...row, kind: 'notice', content: `[${char.name || '对方'}改了手机的锁屏密码]`,
       lockUndo: { charId: char.id, prev: done.prev } }) : null;
   }
+  if (part.type === 'card') {
+    // HTML 卡片（ARCHITECTURE 4.250）。按名字找到那一张，按它的字段读值；找不到也照样落一条，
+    // 气泡里退回成纯文字。正文存成角色那种写法，历史里它读到的就是自己写的那一段
+    const entry = htmlcard.byName(part.name, char);
+    const fields = entry ? htmlcard.fieldsOf(entry.card?.html, entry.card?.fields) : [];
+    const values = htmlcard.parseValues(part.body, fields);
+    return messages.create({
+      ...row, kind: 'card',
+      content: htmlcard.blockOf(part.name, values, fields),
+      card: { name: part.name, bookId: entry?.bookId || '', entryId: entry?.id || '', values },
+    });
+  }
   if (part.type === 'narration') {
     // 旁白：一行夹在消息中间的小字（ARCHITECTURE 4.221）。正文照原样留着标记，历史里角色读到的就是它
     return messages.create({ ...row, kind: 'narration', content: `[旁白：${part.text}]`, narration: part.text });
@@ -1366,6 +1434,7 @@ const BODY_OF = {
   takeout: '[外卖]', request: '[申请]', share: '[分享]', dice: '[骰子]', song: '[分享歌曲]', tool: '[调用工具]',
   trip: '[旅行]',
   pact: '[约定]', letter: '[信]', vote: '[投票]', outfit: '[搭配]', groom: '[动作]', dresscode: '[穿搭盲盒]', slip: '[包里多了一样东西]', narration: '[旁白]',
+  card: '[卡片]',
 };
 const bodyOf = m => (m.kind === 'text' ? m.content : BODY_OF[m.kind]) || '发来一条消息';
 
