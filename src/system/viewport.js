@@ -21,11 +21,35 @@ function reset() {
   }
 }
 
+// ---- 正在输入时，可视区在页面里的位置 ----
+//
+// 键盘弹着的时候整页被推上去（上面那段），挂在 .root 顶上的东西跟着出屏幕：通知横幅、
+// 左上角的悬浮返回键。用户反馈：打字时另一个联系人发来消息，横幅看不见（4.279）。
+// 这里把可视区顶边在页面里的位置写成 --vv-top，那两样按它往下挪，永远贴着真正看得见的顶边。
+// 键盘收起、页面归位之后它回到 0。
+
+const pageTop = () => {
+  const vv = window.visualViewport;
+  const y = vv ? vv.pageTop : (window.scrollY || 0);
+  return Math.max(0, Math.round(y || 0));
+};
+
+let lastTop = -1;
+export function syncViewport() {
+  const y = pageTop();
+  if (y === lastTop) return y;
+  lastTop = y;
+  document.documentElement.style.setProperty('--vv-top', `${y}px`);
+  return y;
+}
+
 export function install() {
   if (typeof window === 'undefined') return;
   // 失焦之后键盘还在往下收，等它收完再归位；换到另一个输入框的不算失焦
   document.addEventListener('focusout', () => { setTimeout(reset, 60); setTimeout(reset, 350); });
-  window.addEventListener('scroll', reset, { passive: true });
-  window.visualViewport?.addEventListener('resize', reset);
-  window.addEventListener('orientationchange', () => setTimeout(reset, 300));
+  window.addEventListener('scroll', () => { reset(); syncViewport(); }, { passive: true });
+  window.visualViewport?.addEventListener('resize', () => { reset(); syncViewport(); });
+  window.visualViewport?.addEventListener('scroll', syncViewport, { passive: true });
+  window.addEventListener('orientationchange', () => setTimeout(() => { reset(); syncViewport(); }, 300));
+  syncViewport();
 }

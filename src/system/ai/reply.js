@@ -48,7 +48,7 @@ import { foldMarks } from '../markfold.js';
 // 中英文冒号都认，方括号也认全角。
 // 「约定完成」必须排在「约定」前面 —— 交替是从左往右试的，反过来写
 // 「约定完成：早点睡」会先被「约定」吃掉，剩下「完成：早点睡」当成内容。
-const MARK = /[[【]\s*(图片|照片|image|pic|视频|video|语音|voice|audio|表情|sticker|emoji|转账|transfer|位置|定位|location|礼物|gift|点歌|建歌单|加入歌单|分享歌曲|分享音乐|调用|tool|约定完成|约定|pact|信|letter|事项完成|事项取消|心声|换头像|改备注|备注|外卖|请客|代付|申请|亲属卡|旅行|攻略|待办|todo|授予|award|搭配|outfit|换上|借走|借给你|归还|旁白|narration|改密码|卡片|card|文件|file|填写|fill)\s*[:：]\s*([^\]】]+)[\]】]/gi;
+const MARK = /[[【]\s*(图片|照片|image|pic|视频|video|语音|voice|audio|表情|sticker|emoji|转账|transfer|位置|定位|location|礼物|gift|点歌|建歌单|加入歌单|分享歌曲|分享音乐|调用|tool|约定完成|约定|pact|信|letter|事项完成|事项取消|心声|换头像|改备注|备注|外卖|请客|代付|申请|亲属卡|存入情侣账户|存入共同账户|旅行|攻略|待办|todo|授予|award|搭配|outfit|换上|借走|借给你|归还|旁白|narration|改密码|卡片|card|文件|file|填写|fill)\s*[:：]\s*([^\]】]+)[\]】]/gi;
 
 const IMAGE_KINDS = new Set(['图片', '照片', 'image', 'pic']);
 // 「视频通话」那一格叫 video，这里是会话里那一段片子，两回事。
@@ -224,6 +224,7 @@ const TRIP_KINDS = new Set(['旅行']);
 const PLAN_KINDS = new Set(['攻略']);
 const ASK_KINDS = new Set(['申请']);
 const CARD_KINDS = new Set(['亲属卡']);
+const DEPOSIT_KINDS = new Set(['存入情侣账户', '存入共同账户']);
 
 // 转账那一条里，金额在前，后面随手写的是留言
 const AMOUNT = /^\s*(?:[¥￥$]\s*)?(\d+(?:\.\d{1,2})?)\s*(?:元|块)?\s*(.*)$/;
@@ -287,8 +288,8 @@ const PAT_LINE = lineMark('拍一拍|拍拍|戳一戳');
 // 「撤回动态」要先认：两个都以「撤回」开头
 const RECALL_POST_LINE = lineMark('撤回动态|删除动态');
 const RECALL_LINE = lineMark('撤回|撤回消息|撤回上一条');
-// 共同账户与亲属卡那一套。开通只有一个词，批驳各一个词。
-const JOINT_LINE = lineMark('开通共同账户|开共同账户');
+// 情侣账户与亲属卡那一套。开设只有一个词（旧写法「开通共同账户」照认：库里的旧消息和旧模板还在写它），批驳各一个词。
+const JOINT_LINE = lineMark('开设情侣账户|开情侣账户|开通情侣账户|开通共同账户|开共同账户');
 const OKAY_LINE = lineMark('批准|同意|通过');
 const DENY_LINE = lineMark('驳回|拒绝|不同意');
 const DICE_LINE = lineMark('骰子|掷骰子|扔骰子|dice');
@@ -748,7 +749,7 @@ export function splitReply(raw) {
       if (JOIN_LINE.test(t)) { push({ type: 'trip-go', join: true }); return; }
       if (SKIP_LINE.test(t)) { push({ type: 'trip-go', join: false }); return; }
 
-      // 共同账户与亲属卡：开通、批准、驳回各一行，都不占气泡
+      // 情侣账户与亲属卡：开设、批准、驳回各一行，都不占气泡
       if (JOINT_LINE.test(t)) { push({ type: 'request', kind: request.JOINT }); return; }
       if (OKAY_LINE.test(t)) { push({ type: 'vote', ok: true }); return; }
       if (DENY_LINE.test(t)) { push({ type: 'vote', ok: false }); return; }
@@ -857,6 +858,10 @@ export function splitReply(raw) {
       } else if (CARD_KINDS.has(kind)) {
         const o = takeout.parse(body);
         if (o && o.amount > 0) push({ type: 'request', kind: request.CARD, amount: o.amount });
+      } else if (DEPOSIT_KINDS.has(kind)) {
+        // 「500」或「零花钱 500」：最后一个数是金额
+        const o = takeout.parse(body);
+        if (o && o.amount > 0) push({ type: 'request', kind: request.DEPOSIT, amount: o.amount, note: o.item });
       } else if (INNER_KINDS.has(kind)) {
         attachInner(body);
       } else if (WEAR_KINDS.has(kind)) {
@@ -1303,7 +1308,7 @@ export function materialize(part, base, char) {
     return target ? takeout.settle(target.id, part.take, row) : null;
   }
   if (part.type === 'request') {
-    // 动用共同账户：账上没那么多就不必提了，落一行说明
+    // 动用情侣账户：账上没那么多就不必提了，落一行说明
     if (part.kind === request.SPEND) {
       const book = ledger.bookOfChat(base.chatId);
       const joint = book && ledger.defaultFor(book.id, ledger.JOINT);
@@ -1311,9 +1316,21 @@ export function materialize(part, base, char) {
         && ledger.balanceOf(book.id, joint.id) < Math.abs(part.amount)) {
         return messages.create({
           ...base, kind: 'notice', status: 'done',
-          content: `[共同账户余额不足，${request.format(part.amount)} 的申请没有发出]`,
+          content: `[情侣账户余额不足，${request.format(part.amount)} 的申请没有发出]`,
         });
       }
+    }
+    // 存入情侣账户：没有情侣账户就无处可存；存入方的钱不够也不存（第二道关，同转账）
+    if (part.kind === request.DEPOSIT) {
+      const book = ledger.bookOfChat(base.chatId);
+      if (!book || !ledger.hasJoint(book.id)) {
+        return messages.create({
+          ...base, kind: 'notice', status: 'done',
+          content: `[还没有情侣账户，${request.format(part.amount)} 没有存入]`,
+        });
+      }
+      const short = broke(base, part.amount, `存入情侣账户 ${request.format(part.amount)}`);
+      if (short) return short;
     }
     return request.send({
       chatId: base.chatId, role: base.role, authorId: base.authorId,

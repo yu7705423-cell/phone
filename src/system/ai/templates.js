@@ -749,12 +749,16 @@ Do not write the background, do not write the lighting, and do not judge
 whether they are attractive.
 Write one continuous paragraph, not a list.`,
 
-  // 共同账户与亲属卡。三件事共用一套「提出 - 表态」，写法也共用一段。
+  // 情侣账户与亲属卡。三件事共用一套「提出 - 表态」，写法也共用一段；存入不必表态（4.278）
   'skeleton.joint':
-`[共同账户与亲属卡]
-To open a joint account, write a line on its own, [开通共同账户].
-To draw on the joint account, write a line on its own,
-[申请：what it is for, amount], for example [申请：买机票 2000].
+`[情侣账户与亲属卡]
+The couple account is shared by the two of you. To open one, write a line
+on its own, [开设情侣账户]. It needs the other party's approval.
+To put your own money into it, write a line on its own,
+[存入情侣账户：500]. This takes effect at once and needs no approval.
+To draw on it, write a line on its own, [申请：what it is for, amount],
+for example [申请：买机票 2000]. Each withdrawal needs the other party's
+approval.
 To give the other party a family card, write a line on its own,
 [亲属卡：额度 2000]. While the card is active, what they spend is deducted
 from your balance, up to that limit.
@@ -762,10 +766,7 @@ from your balance, up to that limit.
 A request from the other party requires a response: write a line reading
 [批准] to approve it, or a line reading [驳回] to reject it.
 Handle each request once. Do not handle ones already marked as approved or
-rejected.
-
-The joint account requires an approved request for each withdrawal.
-Its balance is given above under [你的钱].`,
+rejected. Balances are given above under [你的钱].`,
 
   'skeleton.pact':
 `[约定]
@@ -1995,6 +1996,30 @@ Write "name" and "desc" in the same language as the category names above.`,
 - When the UV index is 6 or above and the lists contain sun protection, it is included.
 - When the wind force is 5 or above, garments that cannot be worn in strong wind are not chosen.
 `,
+
+  // 角色的钱：按角色卡定起始余额与每月固定收支（ai/tasks/money.js，用户点了才调）
+  'task.char-money':
+`You are the author of {{charName}}'s settings. Decide this character's
+personal finances so that the record can be kept in {{currency}}.
+
+## Who the character is
+{{charPersona}}
+
+## Requirements
+- "balance" is the money the character has on hand today, as a number
+- "income" lists regular monthly income: "day" is the day of month it
+  arrives (1 to 28), "amount" a positive number, "note" what it is
+  (salary, allowance, rent collected)
+- "expenses" lists regular monthly outgoings the character pays on a fixed
+  day: "day" as above, "amount" a positive number, "note" what it is (rent,
+  loan, tuition). Leave the list empty when nothing is fixed
+- "summary" is one or two sentences on where the money comes from and how
+  the character handles it, in the same language as the settings above
+- Every figure must fit the character's age, work and circumstances as
+  written in the settings. Do not invent wealth the settings do not support
+
+## Output JSON only, with no other text
+{"balance":0,"income":[{"day":10,"amount":0,"note":""}],"expenses":[{"day":1,"amount":0,"note":""}],"summary":""}`,
 
   'task.closet-wardrobe':
 `You are the author of {{charName}}'s settings. List {{count}} items this

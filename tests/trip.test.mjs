@@ -209,7 +209,7 @@ check(saving.have === 1800 && saving.spent === 1200 && saving.need === 3800 && s
 
 await go('travel', `/trip/${tid2}`);
 body = await txt();
-check(/共同账户/.test(body) && /本次支出/.test(body) && /尚缺/.test(body), '详情页把那三个数摆出来了');
+check(/情侣账户/.test(body) && /本次支出/.test(body) && /尚缺/.test(body), '详情页把那三个数摆出来了');
 await page.screenshot({ path: `${OUT}/trip-page.png` });
 
 // 账本里把那笔删掉，这边的数字自己就对了 —— 不存一个「已花多少」

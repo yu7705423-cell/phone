@@ -1,4 +1,4 @@
-import { html, useState } from '../../lib.js';
+import { html, useState, useEffect } from '../../lib.js';
 import { phone, useStore } from '../../sdk/index.js';
 import { Page, List, ListItem, Field, Input, Button, Segmented, Switch, Icon,
   Sheet, toast, confirm } from '../../ui/index.js';
@@ -12,16 +12,26 @@ const KINDS = [
 
 // 账本。
 //
-// 两种账本功能完全一样：都可以有我的账户、角色的账户、共同账户。
+// 两种账本功能完全一样：都可以有我的钱、角色的钱、情侣账户。
 // 差别只在 user 那一侧记的是不是真事 —— 真实账本里角色照样有钱，
 // 那部分本来就是设定出来的。所以这里只是一个标签，界面上说清楚即可。
-export function BooksPage() {
+//
+// newChatId：从会话的申请页过来「建一本并关联这段对话」，进来就把编辑页开着、对话选好
+export function BooksPage({ newChatId = '' }) {
   useStore(db.books.store);
   useStore(db.entries.store);
   useStore(db.settings.store);
   const [editing, setEditing] = useState(null);
   const list = ledger.all();
   const cur = ledger.currentId();
+  useEffect(() => {
+    if (!newChatId) return;
+    const had = ledger.bookOfChat(newChatId);
+    if (had) { ledger.setCurrent(had.id); setEditing(had); return; }
+    const chat = db.chats.get(newChatId);
+    const char = chat ? db.characters.get((chat.characterIds || [])[0]) : null;
+    setEditing({ name: char ? `和${phone.remark.nameOf(char) || char.name}一起记账` : '', kind: 'play', chatId: newChatId });
+  }, [newChatId]);
 
   const drop = async b => {
     if (!await confirm({
@@ -61,7 +71,7 @@ export function BooksPage() {
         <//>`)}
 
       <div class="settings-foot">
-        两种账本的功能完全相同，均可设置本人账户、角色账户与共同账户。
+        两种账本的功能完全相同，均可设置我的钱、角色的钱与情侣账户。
         归类只影响这一本记的是否为实际收支：真实账本用于记录本人的实际生活，
         虚拟账本用于记录设定中的收支。
       </div>
@@ -74,12 +84,13 @@ function BookEditor({ book, onClose }) {
   const [name, setName] = useState(book.name || '');
   const [kind, setKind] = useState(book.kind || 'play');
   const [chatId, setChatId] = useState(book.chatId || '');
+  const [start, setStart] = useState('');
   const pairs = db.chats.all().filter(c => (c.characterIds || []).length === 1);
 
   const save = () => {
     if (book.id) ledger.update(book.id, { name, kind, chatId });
     else {
-      const made = ledger.create({ name, kind, chatId });
+      const made = ledger.create({ name, kind, chatId, start });
       ledger.setCurrent(made.id);
     }
     toast('已保存', 'ok');
@@ -94,10 +105,14 @@ function BookEditor({ book, onClose }) {
         <//>
         <${Field} label="归类"
           desc=${kind === 'real'
-            ? '用于记录本人的实际收支。角色账户与共同账户同样可用，该部分属于设定内容。'
+            ? '用于记录本人的实际收支。角色的钱与情侣账户同样可用，该部分属于设定内容。'
             : '用于记录设定中的收支，不对应实际生活。'}>
           <${Segmented} value=${kind} items=${KINDS} onChange=${setKind}/>
         <//>
+        ${!book.id ? html`
+          <${Field} label="我现在有多少钱" desc="作为起始余额记入本人的钱包。留空则从零开始。">
+            <${Input} value=${start} type="number" inputmode="decimal" placeholder="0" onInput=${setStart}/>
+          <//>` : null}
       </div>
 
       <${List} title="关联的对话"
@@ -114,15 +129,15 @@ function BookEditor({ book, onClose }) {
         })}
       <//>
       <div class="settings-foot">
-        关联对话后，该角色的账户与共同账户会显示其名称，该对话中的转账、请客与代付
-        会直接计入余额，不另存流水。
+        关联对话后，账本上会有三个钱包：我的钱、角色的钱、情侣账户。角色的钱由模型按角色卡生成；
+        情侣账户在对话中开设，双方均可存入。该对话中的转账、请客、代付与存入会直接计入余额，不另存流水。
       </div>
 
       ${book.id && chatId ? html`
         <${List} title="这本账在对话里怎么起作用">
           <${ListItem} title="把余额告诉角色" multiline
             subtitle=${ledger.injectOn(book)
-              ? '每轮在上下文中写入角色余额、对方余额、共同账户与本月支出，并注明数值由系统计算，不得改写。不额外调用接口，仅占用少量 token。'
+              ? '每轮在上下文中写入角色余额、对方余额、情侣账户与本月支出，并注明数值由系统计算，不得改写。角色的钱尚未生成时不写角色余额。不额外调用接口，仅占用少量 token。'
               : '已关闭。角色不知道账上有多少钱，提到金额时会自行编造。'}
             right=${html`<${Switch} checked=${ledger.injectOn(book)}
               onChange=${v => ledger.update(book.id, { inject: v })}/>`}/>

@@ -71,6 +71,7 @@ export const TASKS = {
   'recipe.batch':        { label: '生成食谱' },
   'shelf.batch':         { label: '生成书架' },
   'closet.wardrobe':     { label: '生成角色衣帽间' },
+  'char.money':          { label: '按角色卡生成角色的钱' },
   'shelf.impression':    { label: '书架读后感' },
   'trip.plan':           { label: '出行行程' },
   'trip.tickets':        { label: '出行找票' },

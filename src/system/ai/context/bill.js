@@ -15,7 +15,7 @@ import * as ledger from '../../ledger.js';
 export const meta = {
   id: 'bill',
   label: '账户余额',
-  desc: '角色与对方的账户余额、共同账户、本月支出。需在记账中将账本关联到该对话',
+  desc: '角色与对方的余额、情侣账户、本月支出。需在记账中将账本关联到该对话',
 };
 
 export function build({ chat }) {
@@ -24,9 +24,10 @@ export function build({ chat }) {
 
   const lines = [];
   // 不用所有格：名字是角色卡里的，可能是任何语言，「我's」读起来很怪
+  // 角色的钱还没生成时 self 是空的：不知道有多少，一个字不写（4.278）
   if (c.self) lines.push(`Your balance: ${c.self}${c.selfName ? ` (${c.selfName})` : ''}.`);
   if (c.other) lines.push(`Balance of ${c.otherName}: ${c.other}.`);
-  if (c.joint) lines.push(`Joint account: ${c.joint}.`);
+  if (c.joint) lines.push(`Couple account (shared by the two of you): ${c.joint}.`);
   if (!lines.length) return '';
   lines.push(`Your spending this month: ${c.month}.`);
   lines.push('These figures are computed by the system from the recorded entries.'

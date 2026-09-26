@@ -264,15 +264,15 @@ export const CAPS = [
     }),
   },
   {
-    // 这段对话没绑账本就一个字都不提：共同账户、亲属卡都无处可落
+    // 这段对话没绑账本就一个字都不提：情侣账户、亲属卡都无处可落
     id: 'joint',
-    label: '共同账户与亲属卡',
+    label: '情侣账户与亲属卡',
     on: ({ chat }) => !!chat && !!ledger.bookOfChat(chat.id),
     // 有一条申请挂着就必须是热的：它得知道怎么批、怎么驳
-    hot: ({ msgs }) => usedRecently(msgs, /^request$|[[【](申请|亲属卡|开通共同账户)/)
+    hot: ({ msgs }) => usedRecently(msgs, /^request$|[[【](申请|亲属卡|开设情侣账户|开通共同账户|存入情侣账户)/)
       || hasPending(msgs, 'request', 'request', REQ_PENDING),
-    line: () => 'Joint account and family card: write a line on its own,'
-      + ' [开通共同账户], [申请：what it is for, amount], or [亲属卡：额度 2000];'
+    line: () => 'Couple account and family card: write a line on its own,'
+      + ' [开设情侣账户], [存入情侣账户：500], [申请：what it is for, amount], or [亲属卡：额度 2000];'
       + ' respond to a request with [批准] or [驳回]',
     detail: () => template('skeleton.joint'),
   },

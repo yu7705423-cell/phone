@@ -14,6 +14,7 @@ import * as recallApi from '../system/recall.js';
 import * as closetApi from '../system/closet.js';
 import * as closetKinds from '../system/closet-kinds.js';
 import * as closetTask from '../system/ai/tasks/closet.js';
+import * as moneyTask from '../system/ai/tasks/money.js';
 import * as closetStoryApi from '../system/closet-story.js';
 import * as moveApi from '../system/move.js';
 import { isTest } from '../system/channel.js';
@@ -314,7 +315,7 @@ export const phone = {
   search: searchApi,
   transfer: transferApi,
   currency: currencyApi,
-  ledger: ledgerApi,
+  ledger: { ...ledgerApi, ai: moneyTask },
   request: requestApi,
   place: placeApi,
   gift: giftApi,

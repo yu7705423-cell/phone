@@ -7,8 +7,8 @@ import { EntrySheet } from './EntrySheet.js';
 
 const { db, nav, ledger } = phone;
 
-// 账户。共同账户与角色账户在这里建，动用它们的规矩（申请、亲属卡、私密卡）
-// 在后面的批次里做 —— 这一批先把「谁有多少钱」立起来。
+// 账户设置。三个钱包各是一个 owner 的默认账户（4.278）；这里管进阶的：同一方的多个账户、
+// 私密账户、亲属卡。平时看钱包页就够了。
 export function AccountsPage() {
   useStore(db.books.store);
   useStore(db.entries.store);
@@ -39,11 +39,11 @@ export function AccountsPage() {
   const groups = [
     ['me', who.me],
     ...(who.char ? [['char', who.char]] : []),
-    ['joint', '共同'],
+    ['joint', '情侣账户'],
   ];
 
   return html`
-    <${Page} title="账户" onBack=${nav.pop}
+    <${Page} title="账户设置" onBack=${nav.pop}
       right=${html`<button class="nav-text press"
         onClick=${() => setEditing({ name: '', owner: 'me' })}>新建</button>`}>
 
@@ -102,7 +102,7 @@ export function AccountsPage() {
       <div class="settings-foot">
         余额由该账户下的全部流水累加得出，不单独存储。删除某一笔流水，余额会随之变化。
         ${who.char
-        ? '共同账户与亲属卡在对话中发出申请，对方通过后生效。'
+        ? '情侣账户与亲属卡在对话中发出申请，对方通过后生效。'
           + '持卡一方消费时在额度内从发卡方余额扣除，额度不足时恢复从本人余额扣除。'
         : ''}
       </div>
@@ -127,7 +127,7 @@ function AccountEditor({ bookId, acc, who, onClose, onDrop }) {
   const owners = [
     { value: 'me', label: who.me },
     ...(who.char ? [{ value: 'char', label: who.char }] : []),
-    { value: 'joint', label: '共同' },
+    { value: 'joint', label: '情侣账户' },
   ];
 
   const save = () => {
@@ -147,7 +147,7 @@ function AccountEditor({ bookId, acc, who, onClose, onDrop }) {
         <//>
         <${Field} label="归谁"
           desc=${owner === 'joint'
-            ? '共同账户由双方共用。'
+            ? '情侣账户由双方共用。'
             : owner === 'char' ? '该账户属于角色，余额同样由流水累加得出。' : '该账户属于本人。'}>
           <${Segmented} value=${owner} items=${owners} onChange=${setOwner}/>
         <//>

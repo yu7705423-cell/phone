@@ -95,14 +95,14 @@ export function GrabPage({ tripId, ticketId }) {
     if (!await confirm({
       title: '立即模拟抢票',
       message: '不等待开售时刻，按本档的概率连续尝试，直到抢到或本档售罄。'
-        + '概率与扣款均与逐次点击相同，抢到时同样从共同账户扣除票款。',
+        + '概率与扣款均与逐次点击相同，抢到时同样从情侣账户扣除票款。',
       okText: '开始',
     })) return;
     setBusy(true);
     try {
       const r = grab.simulate(tripId, ticketId);
       say(r.ok
-        ? `模拟结束：第 ${r.tries} 次尝试购得，款项已从共同账户扣除`
+        ? `模拟结束：第 ${r.tries} 次尝试购得，款项已从情侣账户扣除`
         : `模拟结束：尝试 ${r.tries} 次，${grab.reasonText(r.reason)}`);
       toast(r.ok ? '已抢到' : '未抢到，本档已售罄', r.ok ? 'ok' : 'plain', 4000);
     } catch (e) {
@@ -224,14 +224,14 @@ export function GrabPage({ tripId, ticketId }) {
 
       ${joint ? html`
         <div class="settings-foot">
-          共同账户余额 ${money(ledger.balanceOf(book.id, joint.id))}，
+          情侣账户余额 ${money(ledger.balanceOf(book.id, joint.id))}，
           本档按票面需 ${money(cost)}。余额不足时不能抢票。
         </div>`
       : html`
         <div class="pad">
           <${Button} full variant="ghost"
             onClick=${() => intent.open('bill', { route: '/accounts', back: true })}>
-            前往「记账」建立共同账户
+            前往「记账」建立情侣账户
           <//>
         </div>`}
 

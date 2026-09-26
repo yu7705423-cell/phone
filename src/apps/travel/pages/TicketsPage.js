@@ -91,7 +91,7 @@ export function TicketsPage({ tripId }) {
     const cost = trip.costOf(t);
     if (!await confirm({
       title: `购买 ${t.title}`,
-      message: `${t.qty} 张，共 ${money(cost)}。将从共同账户扣除，并记入账本。`,
+      message: `${t.qty} 张，共 ${money(cost)}。将从情侣账户扣除，并记入账本。`,
       okText: '购买',
     })) return;
     try {
@@ -192,18 +192,18 @@ export function TicketsPage({ tripId }) {
                 </div>`}/>`)}
         <//>`
       : html`<${EmptyState} icon="bookmark" title="还没有票"
-          desc="检索这次出行需要的票。检索结果只作参考，购买时从共同账户扣除。"/>`}
+          desc="检索这次出行需要的票。检索结果只作参考，购买时从情侣账户扣除。"/>`}
 
       ${joint ? html`
         <div class="settings-foot">
-          共同账户余额 ${money(ledger.balanceOf(book.id, joint.id))}。
+          情侣账户余额 ${money(ledger.balanceOf(book.id, joint.id))}。
           购买时余额不足会被拒绝，需要先存入。
         </div>`
       : html`
         <div class="pad">
           <${Button} full variant="ghost"
             onClick=${() => intent.open('bill', { route: '/accounts', back: true })}>
-            前往「记账」建立共同账户
+            前往「记账」建立情侣账户
           <//>
         </div>`}
 

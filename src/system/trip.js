@@ -390,12 +390,12 @@ export function buyTicket(id, tid, { times = 1 } = {}) {
   const book = ledger.bookOfChat(row.chatId);
   if (!book) throw new Error('这段对话还没有账本，先在「记账」中绑定一本');
   const joint = ledger.defaultFor(book.id, ledger.JOINT);
-  if (!joint) throw new Error('这本账上还没有共同账户');
+  if (!joint) throw new Error('这本账上还没有情侣账户');
 
   const cost = costOf(t, times);
   if (!cost) throw new Error('这张票没有价格，请先填写');
   if (ledger.strictOn(book) && ledger.balanceOf(book.id, joint.id) < cost) {
-    throw new Error('共同账户余额不足，需要先存入');
+    throw new Error('情侣账户余额不足，需要先存入');
   }
 
   const entry = ledger.add({

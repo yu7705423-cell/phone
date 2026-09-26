@@ -11,7 +11,7 @@ const { db, nav, trip, clock, ledger, intent } = phone;
 // 那几个不是存的字段，是按日期现算的 —— 存了就要有人负责在日子过去时
 // 把它改掉，而那个人迟早会漏（和余额不入库同一条理由）。
 //
-// 费用那一段只显示，不在这里记：**共同账户里有多少、这次已经花了多少、
+// 费用那一段只显示，不在这里记：**情侣账户里有多少、这次已经花了多少、
 // 还差多少**。三个数都从账本折出来。没绑账本就写明白，给一个过去绑的入口
 // —— 不在这儿另记一个「已攒多少」，那样同一笔钱会有两处。
 //
@@ -173,10 +173,10 @@ export function TripPage({ tripId }) {
 
       <${List} title="费用">
         ${saving ? html`
-          <${ListItem} title="共同账户" multiline
+          <${ListItem} title="情侣账户" multiline
             subtitle=${saving.joint
               ? `余额 ${money(saving.have)}`
-              : '这本账上还没有共同账户。出行的支出需要一个共同账户来结算'}
+              : '这本账上还没有情侣账户。出行的支出需要一个情侣账户来结算'}
             left=${html`<${Icon} name="wallet" size=${18}/>`}
             arrow onClick=${() => intent.open('bill', { route: '/accounts', back: true })}/>
           <${ListItem} title="本次支出" multiline
@@ -187,12 +187,12 @@ export function TripPage({ tripId }) {
           ${row.budget > 0 ? html`
             <${ListItem} title="尚缺" multiline
               subtitle=${saving.short > 0
-                ? `${money(saving.short)}。预算 ${money(row.budget)}，共同账户余额 ${money(saving.have)}`
-                : `预算已满足。预算 ${money(row.budget)}，共同账户余额 ${money(saving.have)}`}
+                ? `${money(saving.short)}。预算 ${money(row.budget)}，情侣账户余额 ${money(saving.have)}`
+                : `预算已满足。预算 ${money(row.budget)}，情侣账户余额 ${money(saving.have)}`}
               left=${html`<${Icon} name="check" size=${18}/>`}/>` : null}`
         : html`
           <${ListItem} title="这段对话还没有账本" multiline
-            subtitle="本次出行的支出记在账本上，储蓄使用共同账户。请在「记账」中新建一本并绑定这段对话。"
+            subtitle="本次出行的支出记在账本上，储蓄使用情侣账户。请在「记账」中新建一本并绑定这段对话。"
             left=${html`<${Icon} name="wallet" size=${18}/>`}
             arrow onClick=${() => intent.open('bill', { route: '/books', back: true })}/>`}
       <//>

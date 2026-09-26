@@ -39,7 +39,7 @@ const ROUTES = {
   travel: ['/', '/new', '/trip/:trip', '/trip/nope', '/tickets/:trip', '/tickets/nope', '/grab/:trip/nope', '/grab/nope/nope', '/plan/:trip', '/plan/nope'],
   mcp: ['/', '/server/none', '/server/none/tool/x'],
   music: ['/', '/library', '/list/1', '/local/none', '/now', '/now/listen'],
-  bill: ['/', '/books', '/accounts', '/rules', '/spend'],
+  bill: ['/', '/books', '/books/new/x', '/accounts', '/rules', '/spend', '/pool/me', '/pool/char', '/pool/joint'],
   theater: ['/', '/videos', '/books', '/settings', '/watch/:chat', '/book/:ebook',
     '/read/:ebook', '/together/:chat/:ebook', '/shelf/:char',
     '/reviews/book/:ebook', '/reviews/video/:video', '/para/book/:ebook/0', '/para/video/:video/1'],

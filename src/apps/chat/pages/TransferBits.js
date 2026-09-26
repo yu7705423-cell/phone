@@ -4,7 +4,7 @@ import { SongCard } from './SongCard.js';
 import { Sheet, Field, Input, Button, Icon, List, ListItem, Switch, Segmented, toast } from '../../../ui/index.js';
 
 const { db, transfer, currency, place, call, gift, listen, music, watch, subtitle,
-  request, ledger } = phone;
+  request, ledger, intent } = phone;
 
 // 转账气泡。发出去的那一张不能自己点 —— 收不收是对方的事。
 export function TransferBubble({ msg, onSettle }) {
@@ -527,32 +527,33 @@ export function SettleSheet({ msg, onClose }) {
     <//>`;
 }
 
-// ---- 共同账户与亲属卡 ----
+// ---- 情侣账户与亲属卡（4.278）----
 //
-// 三件事共用一张气泡：开通共同账户、动用共同账户、发亲属卡。
-// 它们是同一个形状（A 提出，B 通过或驳回），所以界面上也是同一张。
+// 四件事共用一张气泡：开设情侣账户、存入情侣账户、动用情侣账户、发亲属卡。
+// 前一件与后两件是同一个形状（A 提出，B 通过或驳回）；存入发出即落定，气泡上只写「已存入」。
 
 export function RequestBubble({ msg, onVote }) {
   const mine = msg.role === 'user';
   const pending = msg.request === request.PENDING;
   const actionable = pending && !mine && onVote;
   const k = msg.requestKind;
-  const title = k === request.JOINT ? '开通共同账户'
+  const title = k === request.JOINT ? '开设情侣账户'
     : k === request.CARD ? `亲属卡　额度 ${request.display(msg.amount, msg.currency)}`
-    : `动用共同账户　${request.display(msg.amount, msg.currency)}`;
+    : k === request.DEPOSIT ? `存入情侣账户　${request.display(msg.amount, msg.currency)}`
+    : `动用情侣账户　${request.display(msg.amount, msg.currency)}`;
   return html`
     <div class=${`bubble bubble-transfer${pending ? '' : ' is-done'}`}
       onClick=${actionable ? () => onVote(msg) : null}>
       <div class="tr-top">
-        <${Icon} name=${k === request.CARD ? 'gift' : 'users'} size=${20}/>
+        <${Icon} name=${k === request.CARD ? 'gift' : k === request.DEPOSIT ? 'wallet' : 'users'} size=${20}/>
         <div class="tr-body">
           <div class="tr-amount bl-req-title">${title}</div>
-          ${msg.note && k === request.SPEND
+          ${msg.note && (k === request.SPEND || k === request.DEPOSIT)
             ? html`<div class="tr-note ellipsis">${msg.note}</div>` : null}
         </div>
       </div>
       <div class="tr-foot">
-        ${request.stateLabel(msg.request)}${actionable ? ' · 点击处理' : ''}
+        ${request.stateLabel(msg.request, k)}${actionable ? ' · 点击处理' : ''}
       </div>
     </div>`;
 }
@@ -561,9 +562,9 @@ export function VoteSheet({ msg, onClose }) {
   if (!msg) return null;
   const char = db.characters.get(msg.authorId);
   const k = msg.requestKind;
-  const what = k === request.JOINT ? '开通共同账户'
+  const what = k === request.JOINT ? '开设情侣账户'
     : k === request.CARD ? `开出一张额度 ${request.format(msg.amount, msg.currency)} 的亲属卡`
-    : `动用共同账户 ${request.format(msg.amount, msg.currency)}`;
+    : `动用情侣账户 ${request.format(msg.amount, msg.currency)}`;
   const act = ok => { request.settle(msg.id, ok); onClose(); };
   return html`
     <${Sheet} open=${!!msg} onClose=${onClose} title=${`${phone.remark.nameOf(char) || '对方'}申请${what}`}>
@@ -577,15 +578,15 @@ export function VoteSheet({ msg, onClose }) {
       <//>
       <div class="settings-foot">
         ${k === request.JOINT
-          ? '通过后会在关联的账本中建立共同账户，双方均可存入，动用需另行申请。'
+          ? '通过后会在关联的账本中建立情侣账户。双方均可存入，动用需对方批准。'
           : k === request.CARD
             ? '通过后，你消费时将在额度内从对方余额扣除。额度用尽后恢复从本人余额扣除。'
-            : '通过后，该金额从共同账户扣除。'}
+            : '通过后，该金额从情侣账户扣除。'}
       </div>
     <//>`;
 }
 
-/** 发起申请。三种共用一张，选哪一种决定要不要填金额。 */
+/** 发起申请。四种共用一张，选哪一种决定要不要填金额。 */
 export function RequestSheet({ open, chatId, onClose }) {
   const [kind, setKind] = useState(request.SPEND);
   const [amount, setAmount] = useState('');
@@ -596,26 +597,37 @@ export function RequestSheet({ open, chatId, onClose }) {
   const close = () => { setAmount(''); setNote(''); onClose(); };
   const submit = () => {
     try {
-      request.send({ chatId, role: 'user', authorId: 'me', kind, amount, note });
+      // 存入：发出即落定，先看自己的钱够不够（第二道关，和转账同一条）
+      if (cur === request.DEPOSIT && !ledger.affordable(chatId, ledger.ME, amount)) {
+        throw new Error('余额不足，存不了这么多');
+      }
+      request.send({ chatId, role: 'user', authorId: 'me', kind: cur, amount, note });
       close();
     } catch (err) { toast(String(err.message || err), 'error'); }
   };
 
   const kinds = [
-    ...(joint ? [] : [{ value: request.JOINT, label: '开通共同账户' }]),
-    ...(joint ? [{ value: request.SPEND, label: '动用共同账户' }] : []),
+    ...(joint ? [] : [{ value: request.JOINT, label: '开设情侣账户' }]),
+    ...(joint ? [{ value: request.DEPOSIT, label: '存入' }, { value: request.SPEND, label: '动用' }] : []),
     { value: request.CARD, label: '亲属卡' },
   ];
   const cur = kinds.some(x => x.value === kind) ? kind : kinds[0].value;
   const needAmount = cur !== request.JOINT;
-  const ok = !needAmount || request.money(amount) > 0;
+  const ok = !!book && (!needAmount || request.money(amount) > 0);
+  const mine = book ? ledger.defaultFor(book.id, ledger.ME) : null;
+
+  // 没关联账本就发不出去：角色那边只有关联了账本才知道这套写法，发过去它只能用文字回应，
+  // 申请永远停在待处理（4.278）。这里直接把人带去建一本
+  const bind = () => { close(); intent.open('bill', { route: `/books/new/${chatId}`, back: true }); };
 
   return html`
     <${Sheet} open=${open} onClose=${close} title="申请">
       ${!book ? html`
         <div class="settings-foot">
-          这段对话还没有关联账本。在「记账」中新建账本并关联该对话后，
-          通过的申请才会计入余额。当前仍可发出申请，但不会影响任何账目。
+          这段对话还没有关联账本。情侣账户、亲属卡与申请都记在账本上，需要先建立一本并关联该对话。
+        </div>
+        <div class="pad">
+          <${Button} full onClick=${bind}>建立账本并关联这段对话<//>
         </div>` : null}
 
       <div class="pad-b">
@@ -623,25 +635,29 @@ export function RequestSheet({ open, chatId, onClose }) {
       </div>
 
       ${needAmount ? html`
-        <${Field} label=${cur === request.CARD ? '额度' : '金额'}>
+        <${Field} label=${cur === request.CARD ? '额度' : '金额'}
+          desc=${cur === request.DEPOSIT && mine
+            ? `从本人的钱包存入。当前余额 ${ledger.money(book.id, ledger.balanceOf(book.id, mine.id))}` : ''}>
           <${Input} value=${amount} type="number" inputmode="decimal"
             placeholder="0" onInput=${setAmount}/>
         <//>` : null}
 
-      ${cur === request.SPEND ? html`
+      ${cur === request.SPEND || cur === request.DEPOSIT ? html`
         <${Field} label="用途" desc="可以不写。">
           <${Input} value=${note} placeholder="用途" maxlength=${40} onInput=${setNote}/>
         <//>` : null}
 
       <div class="pad-t">
-        <${Button} full disabled=${!ok} onClick=${submit}>发出申请<//>
+        <${Button} full disabled=${!ok} onClick=${submit}>${cur === request.DEPOSIT ? '存入' : '发出申请'}<//>
       </div>
       <div class="settings-foot">
         ${cur === request.JOINT
-          ? '对方通过后，账本中会建立共同账户，双方均可存入。动用其中的钱需要另行申请。'
+          ? '对方通过后，账本中会建立情侣账户。双方均可存入，动用需对方批准。'
+          : cur === request.DEPOSIT
+            ? '发出即存入，不需要对方批准。金额从本人的钱包转入情侣账户。'
           : cur === request.CARD
             ? '对方通过后，对方消费时将在额度内从你的余额扣除。额度用尽后恢复从对方余额扣除。'
-            : '对方通过后，该金额从共同账户扣除。'}
+            : '对方通过后，该金额从情侣账户扣除。'}
       </div>
     <//>`;
 }

@@ -27,6 +27,11 @@ import * as dayStore from './day.js';
 //
 // **聊天里提取出来的一律先挂着（pending），你点一下才进余额。** 模型认错金额、
 // 把玩笑当真账，都不该直接污染账本。见 balanceOf 里那一句过滤。
+//
+// **三个钱包（4.278）。** 关联了对话的账本就是「一起记账」：我的钱、角色的钱、情侣账户，
+// 各是一个 owner 的默认账户。角色的钱由模型按角色卡生成起始余额与固定收支（ai/tasks/money.js），
+// 生成之前视作「不知道有多少」：不注入、不拦（charReady）。情侣账户是两个人的交集：
+// 双方都能存（[存入情侣账户：金额]，落定即算），动用要对方批准。
 
 export const REAL = 'real';
 export const PLAY = 'play';
@@ -61,7 +66,7 @@ const num = v => (Number.isFinite(Number(v)) ? Number(v) : 0);
 export const all = () => books.all().sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
 export const get = id => books.get(id);
 
-export function create({ name, kind = PLAY, chatId = '', currency: code } = {}) {
+export function create({ name, kind = PLAY, chatId = '', currency: code, start = 0 } = {}) {
   const row = books.create({
     name: trim(name, 20) || (kind === REAL ? '我的账本' : '未命名账本'),
     kind: KINDS.includes(kind) ? kind : PLAY,
@@ -71,9 +76,53 @@ export function create({ name, kind = PLAY, chatId = '', currency: code } = {}) 
     createdAt: Date.now(),
   });
   // 一本新账至少要有一个账户，否则第一笔记不下去
-  addAccount(row.id, { name: '现金', owner: ME });
+  const mine = addAccount(row.id, { name: '现金', owner: ME });
+  if (Number(start) > 0) seed(row.id, mine.id, start);
+  if (chatId) ensureChar(row.id);
   return get(row.id);
 }
+
+/** 起始余额：一笔 src 为 seed 的流水。再设一次就换掉那一笔，不叠加 */
+export function seed(bookId, accountId, amount) {
+  const book = get(bookId);
+  if (!book) throw new Error('账本不存在');
+  entriesOf(bookId).filter(e => e.src === 'seed' && e.accountId === accountId).forEach(e => entries.remove(e.id));
+  const v = currency.round(Number(amount) || 0, book.currency);
+  if (!v) return null;
+  return entries.create({
+    bookId, accountId, amount: v, category: 'other', note: '起始余额',
+    at: Date.now(), src: 'seed', ref: '', pending: false,
+  });
+}
+
+/**
+ * 关联了对话的账本一定有角色的钱包。名字就是角色的名字；已经有的不动。
+ * 顺带把从前建的「共同账户」改叫「情侣账户」（只改默认名，用户自己起的不动）
+ */
+export function ensureChar(bookId) {
+  const book = get(bookId);
+  if (!book || !book.chatId) return null;
+  const who = whoOf(bookId);
+  const had = accountsOf(bookId).find(a => a.owner === CHAR);
+  const joint = accountsOf(bookId).find(a => a.owner === JOINT && a.name === '共同账户');
+  if (joint) updateAccount(bookId, joint.id, { name: '情侣账户' });
+  if (had) return had;
+  return addAccount(bookId, { name: who.char || '角色', owner: CHAR });
+}
+
+/**
+ * 角色的钱生成过了吗。没生成过的视作「不知道有多少」：不注入余额、不拦支付 ——
+ * 和从前没有角色账户时一样。生成过（有起始余额、固定收支落过、或手动存过）才算数
+ */
+export function charReady(bookId) {
+  const acc = defaultFor(bookId, CHAR);
+  if (!acc) return false;
+  return allEntries(bookId).some(e => e.accountId === acc.id);
+}
+
+/** 模型生成的那份「角色的钱」的说明。生成时写在账本上，钱包页上显示 */
+export const charMoneyOf = bookId => get(bookId)?.charMoney || null;
+export const setCharMoney = (bookId, info) => books.update(bookId, { charMoney: info || null });
 
 export function update(id, patch) {
   const next = {};
@@ -84,7 +133,9 @@ export function update(id, patch) {
   if (patch.inject !== undefined) next.inject = !!patch.inject;
   if (patch.strict !== undefined) next.strict = !!patch.strict;
   if (patch.settle !== undefined) next.settle = !!patch.settle;
-  return books.update(id, next);
+  const row = books.update(id, next);
+  if (next.chatId) ensureChar(id);
+  return row;
 }
 
 /** 删账本连同它的流水。流水留着没有意义，而且会一直算进「全部账本」的统计。 */
@@ -175,7 +226,7 @@ export const strictOn = book => book && book.strict !== false;
 export function ensureJoint(bookId) {
   const had = accountsOf(bookId).find(a => a.owner === JOINT);
   if (had) return had;
-  return addAccount(bookId, { name: '共同账户', owner: JOINT });
+  return addAccount(bookId, { name: '情侣账户', owner: JOINT });
 }
 export const hasJoint = bookId => !!accountsOf(bookId).find(a => a.owner === JOINT);
 
@@ -242,7 +293,7 @@ export const cardLeft = (bookId, card) =>
 
 export const rulesOf = bookId => (get(bookId)?.rules || []);
 
-export function addRule(bookId, { accountId, day = 1, amount = 0, category = 'salary', note = '' }) {
+export function addRule(bookId, { accountId, day = 1, amount = 0, category = 'salary', note = '', by = '' }) {
   const book = get(bookId);
   if (!book) throw new Error('账本不存在');
   const rule = {
@@ -253,6 +304,8 @@ export function addRule(bookId, { accountId, day = 1, amount = 0, category = 'sa
     category: categoryOf(category).id,
     note: trim(note, 40),
     active: true,
+    // 谁建的：'ai' 是按角色卡生成的那几条，重新生成时整批换掉；用户自己建的不动
+    by: String(by || ''),
     // 从建立的那一刻起算。不补历史 —— 新建一条规则不该凭空多出半年的账
     from: Date.now(),
   };
@@ -361,10 +414,17 @@ function moveOf(m) {
     const payer = m.takeoutKind === takeoutSvc.TREAT ? who : other;
     return [{ owner: payer, amount: OUT * v }];
   }
-  // 动用共同账户：批准了才算，钱从共同账户出
+  // 动用情侣账户：批准了才算，钱从情侣账户出
   if (m.kind === 'request' && m.requestKind === requestSvc.SPEND) {
     if (m.request !== requestSvc.APPROVED) return [];
     return [{ owner: JOINT, amount: OUT * (Number(m.amount) || 0), noCard: true }];
+  }
+  // 存入情侣账户：发出即落定，从存入方的钱包出、进情侣账户。不走亲属卡（那是消费，这不是）
+  if (m.kind === 'request' && m.requestKind === requestSvc.DEPOSIT) {
+    if (m.request !== requestSvc.APPROVED) return [];
+    const v = Number(m.amount) || 0;
+    const from = m.role === 'user' ? ME : CHAR;
+    return [{ owner: from, amount: OUT * v, noCard: true }, { owner: JOINT, amount: IN * v, noCard: true }];
   }
   return [];
 }
@@ -419,7 +479,7 @@ export function chatEntries(bookId) {
         bookId, accountId: acc.id, amount: currency.round(mv.amount, book.currency),
         category: 'transfer',
         note: m.kind === 'takeout' ? (m.item || '外卖')
-          : m.kind === 'request' ? (m.note || '共同账户') : (m.note || ''),
+          : m.kind === 'request' ? (m.requestKind === requestSvc.DEPOSIT ? '存入情侣账户' : (m.note || '情侣账户')) : (m.note || ''),
         at: m.createdAt || 0, src: 'message', ref: m.id, pending: false,
         by: mv.owner, cardId,
       });
@@ -596,7 +656,7 @@ export function whoOf(bookId) {
 export function ownerLabel(bookId, owner) {
   const who = whoOf(bookId);
   if (owner === CHAR) return who.char || '角色';
-  if (owner === JOINT) return '共同';
+  if (owner === JOINT) return '情侣账户';
   return who.me;
 }
 
@@ -611,6 +671,8 @@ export function ownerLabel(bookId, owner) {
 export function affordable(chatId, owner, amount) {
   const book = bookOfChat(chatId);
   if (!book || !strictOn(book)) return true;
+  // 角色的钱还没生成：不知道有多少，也就无从说不够（4.278）
+  if (owner === CHAR && !charReady(book.id)) return true;
   const v = Math.abs(Number(amount) || 0);
   // 手里有额度够用的亲属卡，付的就是发卡方的钱，看他够不够
   const card = cardTo(book.id, owner);
@@ -634,9 +696,10 @@ export function context(chatId) {
   if (hidden.has(hers?.id) || hidden.has(mine?.id) || hidden.has(joint?.id)) {
     console.warn('[bill] 私密账户不该出现在注入里');
   }
+  const ready = charReady(book.id);
   return {
     name: book.name,
-    self: hers ? fmt(balanceOf(book.id, hers.id)) : '',
+    self: hers && ready ? fmt(balanceOf(book.id, hers.id)) : '',
     selfName: hers?.name || '',
     other: mine ? fmt(balanceOf(book.id, mine.id)) : '',
     otherName: who.me,

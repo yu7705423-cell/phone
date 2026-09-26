@@ -334,7 +334,8 @@
 /* ---- 左上角那个悬浮返回键。和底部横条二选一，见 shell/NavBack.js ---- */
 .navback {
   position: absolute; z-index: var(--z-call);
-  top: var(--top-inset); left: var(--sp-1);
+  /* --vv-top：键盘弹着、整页被推上去时可视区顶边在页面里的位置（system/viewport.js） */
+  top: calc(var(--top-inset) + var(--vv-top, 0px)); left: var(--sp-1);
   width: 48px; height: var(--navbar-h);
   display: flex; align-items: center; justify-content: center;
   color: var(--text);
@@ -366,7 +367,8 @@
 
 /* ---- 通知横幅。从顶上掉下来，往上一推收起 ---- */
 .banner-host {
-  position: absolute; top: 0; left: 0; right: 0; z-index: var(--z-banner);
+  /* 键盘弹着时整页被推上去，横幅跟着可视区顶边走（--vv-top，见 system/viewport.js） */
+  position: absolute; top: var(--vv-top, 0px); left: 0; right: 0; z-index: var(--z-banner);
   /* 绝对定位是贴着 .root 的 padding box 算的，量不到 .root 自己的 padding-top，
      所以刘海这段要在这儿再让一次，否则横幅会掉到状态栏底下。 */
   padding: calc(var(--safe-top) + var(--sp-2)) var(--sp-3) 0;

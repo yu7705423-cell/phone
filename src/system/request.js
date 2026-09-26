@@ -1,11 +1,15 @@
 import { messages, chats, characters } from './db/index.js';
 import * as accounts from './accounts.js';
 import * as currency from './currency.js';
+// 和 ledger 互相引用：ledger 读这里的常量，这里批准之后要往账本上建账户。
+// 两边都只在函数里用对方，模块求值时谁先谁后都行
+import * as L from './ledger.js';
 
 // 申请。
 //
-// 三件事共用这一套：开通共同账户、动用共同账户的钱、发亲属卡。
+// 三件事共用这一套：开设情侣账户、动用情侣账户的钱、发亲属卡。
 // 它们是同一个形状 —— **A 提出，B 通过或驳回**。
+// 第四件「存入情侣账户」也走这张消息，只是发出即落定（4.278）：往两个人的账户里放钱，不必对方点头。
 //
 // 这个形状在本仓库已经是第四次出现（转账、礼物、外卖，见 takeout.js 顶上
 // 那句「和转账完全同构」）。所以照抄，不发明新的：一条消息带着状态，
@@ -19,26 +23,30 @@ export const PENDING = 'pending';
 export const APPROVED = 'approved';
 export const REJECTED = 'rejected';
 
-// 开通共同账户 / 动用共同账户 / 发一张亲属卡
+// 开设情侣账户 / 动用情侣账户 / 发一张亲属卡 / 存入情侣账户
 export const JOINT = 'joint';
 export const SPEND = 'spend';
 export const CARD = 'card';
-export const KINDS = [JOINT, SPEND, CARD];
+export const DEPOSIT = 'deposit';
+export const KINDS = [JOINT, SPEND, CARD, DEPOSIT];
 
 export const money = currency.round;
 export const format = currency.format;
 export const display = currency.display;
 
-export function stateLabel(state) {
+export function stateLabel(state, kind = '') {
+  if (kind === DEPOSIT) return '已存入';
   return state === APPROVED ? '已通过' : state === REJECTED ? '已驳回' : '待处理';
 }
 
 // 上下文里的写法。模型读到的和它自己该写的是同一套格式。
 function contentOf({ kind, amount, note, state, code }) {
   const v = amount ? format(amount, code) : '';
-  const head = kind === JOINT ? '[开通共同账户]'
+  const head = kind === JOINT ? '[开设情侣账户]'
     : kind === CARD ? `[亲属卡：额度 ${v}]`
-    : `[申请：${note || '动用共同账户'} ${v}]`;
+    : kind === DEPOSIT ? `[存入情侣账户：${v}]`
+    : `[申请：${note || '动用情侣账户'} ${v}]`;
+  if (kind === DEPOSIT) return head;
   return state === APPROVED ? `${head}（已通过）`
     : state === REJECTED ? `${head}（已驳回）` : head;
 }
@@ -56,11 +64,13 @@ export function send({ chatId, role, authorId, kind = SPEND, amount = 0, note = 
   const v = money(amount, code);
   if (kind !== JOINT && !(v > 0)) throw new Error('金额需大于 0');
   const text = String(note || '').trim().slice(0, 40);
+  // 存入不用等对方点头：发出即落定。钱怎么动由 ledger.moveOf 现折
+  const state = kind === DEPOSIT ? APPROVED : PENDING;
   const msg = messages.create({
     chatId, role, authorId, kind: 'request',
     requestKind: kind, amount: v, note: text,
-    request: PENDING, currency: code,
-    content: contentOf({ kind, amount: v, note: text, state: PENDING, code }),
+    request: state, currency: code,
+    content: contentOf({ kind, amount: v, note: text, state, code }),
     status: 'done', ...extra,
   });
   chats.update(chatId, { lastMessageAt: Date.now() });
@@ -102,9 +112,9 @@ export function settle(msgId, ok, extra = {}) {
 
   if (ok) apply(m, byUser);
 
-  const what = m.requestKind === JOINT ? '开通共同账户的申请'
+  const what = m.requestKind === JOINT ? '开设情侣账户的申请'
     : m.requestKind === CARD ? `开出的亲属卡（额度 ${format(m.amount, m.currency)}）`
-    : `动用共同账户 ${format(m.amount, m.currency)} 的申请`;
+    : `动用情侣账户 ${format(m.amount, m.currency)} 的申请`;
   const notice = messages.create({
     chatId: m.chatId,
     role: byUser ? 'user' : 'char',
@@ -118,17 +128,18 @@ export function settle(msgId, ok, extra = {}) {
 }
 
 // 批准之后要落在账本上的那部分结构。金额不在这里动。
+// **同步落**：从前是 import() 之后再落，批准那一轮画完账户还没建出来，紧接着的存入就无处可去
 function apply(m, byUser) {
   const owner = m.role === 'user' ? 'me' : 'char';
-  import('./ledger.js').then(L => {
+  try {
     const book = L.bookOfChat(m.chatId);
-    if (!book) return;
+    if (!book) return byUser;
     if (m.requestKind === JOINT) L.ensureJoint(book.id);
     if (m.requestKind === CARD) {
       // 发卡的是提出的那一方，收卡的是表态的那一方
       L.addCard(book.id, { from: owner, to: owner === 'me' ? 'char' : 'me', limit: m.amount });
     }
-  }).catch(err => console.warn('[request] 落到账本上失败:', err.message || err));
+  } catch (err) { console.warn('[request] 落到账本上失败:', err.message || err); }
   return byUser;
 }
 

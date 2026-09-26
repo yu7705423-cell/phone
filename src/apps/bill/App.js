@@ -7,6 +7,7 @@ import { BooksPage } from './BooksPage.js';
 import { AccountsPage } from './AccountsPage.js';
 import { RulesPage } from './RulesPage.js';
 import { SpendPage } from './SpendPage.js';
+import { PoolPage } from './PoolPage.js';
 
 const { db, nav, ledger } = phone;
 
@@ -19,11 +20,17 @@ function Home() {
   useStore(db.books.store);
   useStore(db.entries.store);
   useStore(db.settings.store);
+  useStore(db.messages.store);
   const [sheet, setSheet] = useState(null);
 
   // 第一次打开时建一本。不走迁移 —— 不用记账的人不该凭空多一本账。
-  // 顺手把到期的固定入账补上：不起定时器，谁打开谁补（见 ledger.runRules）
-  useEffect(() => { const b = ledger.ensure(); if (b) ledger.runRules(b.id); }, []);
+  // 顺手把到期的固定入账补上：不起定时器，谁打开谁补（见 ledger.runRules）。
+  // 关联了对话的账本一定有角色的钱包（4.278）：旧账本在这儿补上
+  useEffect(() => {
+    const b = ledger.ensure();
+    if (b) ledger.runRules(b.id);
+    ledger.all().filter(x => x.chatId).forEach(x => ledger.ensureChar(x.id));
+  }, []);
 
   const bookId = ledger.currentId();
   const book = ledger.get(bookId);
@@ -36,6 +43,9 @@ function Home() {
   }
 
   const st = ledger.stats(bookId);
+  const who = ledger.whoOf(bookId);
+  const charReady = ledger.charReady(bookId);
+  const joint = ledger.defaultFor(bookId, ledger.JOINT);
   const rows = ledger.recent(bookId).filter(e => !e.pending);
   const pend = ledger.pendingOf(bookId);
   const days = [];
@@ -69,6 +79,28 @@ function Home() {
         </div>
       </div>
 
+      <${List} title="钱包">
+        <${ListItem} title="我的钱" arrow
+          left=${html`<${Icon} name="wallet" size=${18}/>`}
+          right=${html`<${Money} bookId=${bookId} amount=${ledger.totalOf(bookId, ledger.ME)}/>`}
+          onClick=${() => nav.push('/pool/me')}/>
+        ${who.char ? html`
+          <${ListItem} title=${`${who.char}的钱`} arrow multiline=${!charReady}
+            subtitle=${charReady ? '' : '尚未生成。按角色卡生成后计入'}
+            left=${html`<${Icon} name="user" size=${18}/>`}
+            right=${charReady
+              ? html`<${Money} bookId=${bookId} amount=${ledger.totalOf(bookId, ledger.CHAR)}/>`
+              : html`<span class="li-hint">未生成</span>`}
+            onClick=${() => nav.push('/pool/char')}/>
+          <${ListItem} title="情侣账户" arrow multiline=${!joint}
+            subtitle=${joint ? '' : '尚未开设。在对话中发出申请，对方通过后建立'}
+            left=${html`<${Icon} name="users" size=${18}/>`}
+            right=${joint
+              ? html`<${Money} bookId=${bookId} amount=${ledger.balanceOf(bookId, joint.id)}/>`
+              : html`<span class="li-hint">未开设</span>`}
+            onClick=${() => nav.push('/pool/joint')}/>` : null}
+      <//>
+
       <${List}>
         <${ListItem} title="固定入账" arrow multiline
           subtitle=${(() => {
@@ -79,11 +111,6 @@ function Home() {
           })()}
           left=${html`<${Icon} name="calendar" size=${18}/>`}
           onClick=${() => nav.push('/rules')}/>
-        <${ListItem} title="账户" arrow multiline
-          subtitle=${ledger.accountsOf(bookId).map(a =>
-            `${a.name} ${ledger.money(bookId, ledger.balanceOf(bookId, a.id))}`).join('　') || '还没有账户'}
-          left=${html`<${Icon} name="database" size=${18}/>`}
-          onClick=${() => nav.push('/accounts')}/>
       <//>
 
       ${pend.length ? html`
@@ -140,6 +167,11 @@ function Home() {
 
 export default function BillApp({ route }) {
   if (route === '/books') return html`<${BooksPage}/>`;
+  // 从会话里过来「建一本并关联这段对话」（chat 的申请页，4.278）
+  const nb = route?.match(/^\/books\/new\/(.+)$/);
+  if (nb) return html`<${BooksPage} key=${nb[1]} newChatId=${nb[1]}/>`;
+  const pool = route?.match(/^\/pool\/(me|char|joint)$/);
+  if (pool) return html`<${PoolPage} owner=${pool[1]}/>`;
   if (route === '/accounts') return html`<${AccountsPage}/>`;
   if (route === '/rules') return html`<${RulesPage}/>`;
   if (route === '/spend') return html`<${SpendPage}/>`;

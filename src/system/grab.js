@@ -163,7 +163,7 @@ export const REASONS = {
   miss: '提交成功，未能购得',
   pay: '订单已生成，支付未在时限内完成，票已放回',
   soldout: '本档已售罄',
-  got: '已购得，款项已从共同账户扣除',
+  got: '已购得，款项已从情侣账户扣除',
 };
 export const reasonText = r => REASONS[r] || '未购得';
 
@@ -195,9 +195,9 @@ export function grabOnce(tripId, ticketId, { random = Math.random, ignoreSale = 
   const cost = trip.costOf(t);
   const book = ledger.bookOfChat(row.chatId);
   const joint = book && ledger.defaultFor(book.id, ledger.JOINT);
-  if (!book || !joint) throw new Error('这段对话还没有共同账户，先在「记账」中建立');
+  if (!book || !joint) throw new Error('这段对话还没有情侣账户，先在对话中开设');
   if (ledger.strictOn(book) && ledger.balanceOf(book.id, joint.id) < cost) {
-    throw new Error('共同账户余额不足，需要先存入');
+    throw new Error('情侣账户余额不足，需要先存入');
   }
 
   const tries = (t.tries || 0) + 1;
