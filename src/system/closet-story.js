@@ -19,6 +19,7 @@
 import { scenes, chats, characters, messages, closet as closetDb } from './db/index.js';
 import * as accounts from './accounts.js';
 import * as closet from './closet.js';
+import { foldMarks } from './markfold.js';
 
 export const MARK = /[[【]\s*(换上|借走|借给你|归还|塞进包里)\s*[:：]\s*([^\]】]+)[\]】]/g;
 
@@ -92,7 +93,7 @@ export function undo(u) {
  */
 export function takeMarks(text, { sceneId, beatId = '', charId }) {
   const done = [];
-  const t = String(text || '').replace(MARK, (all, kind, body) => {
+  const t = foldMarks(String(text || '')).replace(MARK, (all, kind, body) => {
     if (kind === '塞进包里') {
       const s = slip(sceneId, { from: 'char', authorId: charId, what: body, beatId });
       if (s) done.push({ kind, name: s.what, slipId: s.id });

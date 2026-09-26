@@ -40,6 +40,7 @@ import * as mcpTools from '../mcptools.js';
 import * as closetLib from '../closet.js';
 import * as closetStory from '../closet-story.js';
 import * as htmlcard from '../htmlcard.js';
+import { foldMarks } from '../markfold.js';
 
 // 角色回复里可以带这几种标记，由模型自己决定什么时候用。
 // 中英文冒号都认，方括号也认全角。
@@ -563,7 +564,8 @@ export function splitReply(raw) {
   // 先摘自检，再摘时间戳：自检里也可能出现方括号时间，
   // 反过来会把检查内容里的东西当成这一轮的时刻
   const { text: spoken } = stripThink(raw);
-  const { text: unstamped, stamp } = stripStamps(spoken.trim());
+  // 标记名写成繁体的（[事項完成：…]）先换成简体，见 system/markfold.js
+  const { text: unstamped, stamp } = stripStamps(foldMarks(spoken.trim()));
   if (!unstamped.trim()) return [];
   const lifted = liftCalls(unstamped);
   const calls = lifted.calls;

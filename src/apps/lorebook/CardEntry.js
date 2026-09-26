@@ -26,6 +26,7 @@ const SYNTAX = [
   ['{{author_avatar}}', '发帖人头像。下方选定「发帖人字段」后，该字段写的是角色或用户的名字时为对应头像，否则为空'],
   ['.eira-dark', '应用为深色模式时加在 html 上，可用 .eira-dark .x { … } 写深色样式'],
   ['.eira-scroll', '加在任意元素上，内容超出时在框内滚动'],
+  ['.eira-topic', '字段开启「高亮话题与 @」后，其中的话题与 @ 各包在这个类里，颜色在模板里写，如 .eira-topic { color: #507daf }'],
 ];
 
 /** 一个字段的设置：说明、字数、长文本 */
@@ -39,6 +40,10 @@ function FieldCfg({ name, label, cfg, onPatch, long = true }) {
         <span class="hc-field-k">字数上限</span>
         <${NumberInput} value=${Math.round(Number(cfg.max) || 0)} min=${0} unit="字" placeholder="不限"
           onChange=${v => onPatch({ max: Math.max(0, Math.round(v) || 0) })}/>
+      </div>
+      <div class="hc-field-row">
+        <span class="hc-field-k">高亮话题与 @（#话题#、#话题、@名字）</span>
+        <${Switch} checked=${!!cfg.topics} onChange=${v => onPatch({ topics: v })}/>
       </div>
       ${long ? html`
         <div class="hc-field-row">

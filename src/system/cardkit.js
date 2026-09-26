@@ -53,6 +53,8 @@ const WEIBO = `<style>
 .wb-sub{margin-top:3px;font-size:12px;color:#939393;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .wb-more{flex:none;width:18px;height:18px;color:#b2b2b2}
 .wb-text{margin-top:10px;line-height:1.6;word-break:break-word}
+.wb .eira-topic{color:#507daf}
+.eira-dark .wb .eira-topic{color:#7fa6d6}
 .wb-pics{display:grid;grid-template-columns:repeat(3,1fr);gap:3px;margin-top:10px}
 .wb-pics:empty{display:none}
 .wb-pics:has(>.wb-pic:nth-child(2):last-child){grid-template-columns:repeat(2,1fr)}
@@ -109,6 +111,7 @@ const XHS = `<style>
 .xhs-title{font-size:17px;font-weight:600;line-height:1.45;color:#333}
 .xhs-text{margin-top:8px;line-height:1.7;word-break:break-word}
 .xhs-tags{margin-top:6px;line-height:1.7;color:#13386c}
+.xhs .eira-topic{color:#13386c}
 .xhs-tags span{margin-right:6px}
 .xhs-date{margin-top:10px;font-size:12px;color:#999}
 .xhs-line{height:1px;margin:14px 16px 0;background:#f2f2f2}
@@ -181,6 +184,8 @@ const IG = `<style>
 .ig-cap{margin-top:4px;word-break:break-word}
 .ig-cap b{font-weight:600;margin-right:4px}
 .ig-tags span{color:#00376b;margin-right:4px}
+.ig .eira-topic{color:#00376b}
+.eira-dark .ig .eira-topic{color:#e0f1ff}
 .ig-more{margin-top:6px;color:#737373}
 .ig-time{margin-top:6px;font-size:11px;color:#737373}
 .eira-dark .ig{background:#000;color:#f5f5f5}
@@ -218,6 +223,7 @@ const X = `<style>
 .x-more{flex:none;margin-left:auto;width:18px;height:18px;color:#536471}
 .x-text{margin-top:2px;line-height:20px;word-break:break-word}
 .x-tags span{color:#1d9bf0;margin-right:4px}
+.x .eira-topic{color:#1d9bf0}
 .x-pics{display:grid;grid-template-columns:1fr 1fr;gap:2px;margin-top:12px;border:1px solid #cfd9de;border-radius:16px;overflow:hidden}
 .x-pics:empty{display:none}
 .x-pic{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;aspect-ratio:1;box-sizing:border-box;padding:10px;background:#eff3f4;color:#8b98a5;font-size:12px;line-height:1.4;text-align:center}
@@ -406,10 +412,10 @@ export const BUILTIN = [
         认证: { desc: 'write 是 for a verified account; leave out otherwise' },
         时间: { desc: 'relative time, e.g. 10分钟前 or 09-26' },
         来源: { desc: 'the device or client it was posted from, e.g. iPhone 15 Pro; may be left out' },
-        正文: { desc: 'the post text; topics are written as #topic#', max: 500 },
+        正文: { desc: 'the post text; topics are written as #topic# and mentions as @name', max: 500, topics: true },
         配图: { desc: 'up to 9 images, each a short description of the picture', max: 30 },
         热评: { desc: 'top comments shown under the post' },
-        '热评.昵称': { max: 16 }, '热评.内容': { max: 60 }, '热评.点赞': { desc: 'like count' },
+        '热评.昵称': { max: 16 }, '热评.内容': { max: 60, topics: true }, '热评.点赞': { desc: 'like count' },
         转发数: {}, 评论数: {}, 点赞数: {},
       },
     }),
@@ -425,7 +431,7 @@ export const BUILTIN = [
         封面: { desc: 'a short description of the cover image', max: 40 },
         配图: { desc: 'one line per image in the note including the cover, each a short description; only the count is shown as dots' },
         标题: { desc: 'note title', max: 30 },
-        正文: { desc: 'note text', max: 800, long: true, lines: 10 },
+        正文: { desc: 'note text', max: 800, long: true, lines: 10, topics: true },
         话题: { desc: 'hashtags without the # sign' },
         日期: { desc: 'e.g. 09-26 or 3天前' },
         IP属地: { desc: 'region shown after the date, e.g. 上海' },
@@ -447,7 +453,7 @@ export const BUILTIN = [
         地点: { desc: 'location tag; may be left out', max: 30 },
         图片: { desc: 'one line per image, each a short description', max: 40 },
         点赞数: { desc: 'number of likes' },
-        正文: { desc: 'caption', max: 300 },
+        正文: { desc: 'caption', max: 300, topics: true },
         话题: { desc: 'hashtags without the # sign' },
         评论数: {}, 时间: { desc: 'e.g. 3天前' },
       },
@@ -464,7 +470,7 @@ export const BUILTIN = [
         用户名: { desc: 'handle without @', max: 20 },
         认证: { desc: 'write 是 for a verified account; leave out otherwise' },
         时间: { desc: 'e.g. 2小时 or 9月26日' },
-        正文: { desc: 'post text', max: 280 },
+        正文: { desc: 'post text', max: 280, topics: true },
         话题: { desc: 'hashtags without the # sign' },
         图片: { desc: 'up to 4 images, each a short description', max: 30 },
         回复数: {}, 转发数: {}, 点赞数: {}, 浏览量: {}, 书签数: {},

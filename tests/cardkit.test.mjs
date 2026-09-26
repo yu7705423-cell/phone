@@ -54,6 +54,20 @@ for (const k of kits) {
     !k.left && k.eira && !k.script && k.author && k.filled >= 3, JSON.stringify(k));
 }
 
+const topics = await ev(async () => {
+  const h = await import('/src/system/htmlcard.js');
+  const { BUILTIN } = await import('/src/system/cardkit.js');
+  const wb = BUILTIN.find(e => e.id === 'builtin-weibo').card;
+  const fields = h.fieldsOf(wb.html, wb.fields);
+  const doc = h.docOf(wb, h.parseValues('正文：路过书店 #城市里的小事# 和 @阿岚 一起\n热评：甲｜#同城# 求地址｜1', fields), {});
+  const raw = h.fill({ html: '<p>{{t}}</p>', fields: { t: { topics: true } } }, { t: "#<b>x</b># it's @a&b" });
+  return { doc, raw };
+});
+ok('六、微博：正文与热评里的 #话题# 和 @名字 变蓝（包进 eira-topic，模板里是 #507daf）',
+  /<span class="eira-topic">#城市里的小事#<\/span>/.test(topics.doc) && /<span class="eira-topic">@阿岚<\/span>/.test(topics.doc)
+  && /<span class="eira-topic">#同城#<\/span>/.test(topics.doc) && /\.wb \.eira-topic\{color:#507daf\}/.test(topics.doc), topics.doc.slice(-900));
+ok('六、话题里的值照样转义，撇号不被当成话题', topics.raw === '<p><span class="eira-topic">#&lt;b&gt;x&lt;/b&gt;#</span> it&#39;s <span class="eira-topic">@a&amp;b</span></p>', topics.raw);
+
 // ---- 二、三 ----
 const ids = await ev(async png => {
   const { db, images } = await import('/src/system/db/index.js');

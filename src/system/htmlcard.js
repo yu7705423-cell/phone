@@ -198,6 +198,19 @@ function cut(v, max) {
   return s;
 }
 
+// 话题与 @（字段设置 topics: true）：#话题#（微博）、#话题（X、Instagram）、@名字 各包一层 .eira-topic，
+// 颜色由模板自己写。先切再逐段转义，免得转义出来的 &#39; 被当成话题
+const TOPIC = /#[^#\n]{1,40}#|#[^\s#，。！？、,.!?;；:：]+|@[^\s@，。！？、,.!?;；:：]+/g;
+function topicHtml(raw) {
+  let out = '';
+  let last = 0;
+  for (const m of String(raw).matchAll(TOPIC)) {
+    out += esc(raw.slice(last, m.index)) + `<span class="eira-topic">${esc(m[0])}</span>`;
+    last = m.index + m[0].length;
+  }
+  return out + esc(raw.slice(last));
+}
+
 function renderNodes(kids, stack, card, parentList) {
   let out = '';
   const lookup = name => {
@@ -218,7 +231,7 @@ function renderNodes(kids, stack, card, parentList) {
       if (SYSTEM_URL.has(k.name)) { out += esc(v); continue; }
       const inItem = stack.length > 1;
       const cfg = cfgOf(card, k.name === '.' ? parentList : k.name, inItem && k.name !== '.' ? parentList : '');
-      const text = esc(cut(v, cfg.max));
+      const text = k.attr || !cfg.topics ? esc(cut(v, cfg.max)) : topicHtml(cut(v, cfg.max));
       if (k.attr) { out += text.replace(/\n/g, ' '); continue; }
       if (cfg.long) {
         const lines = Math.max(1, Math.round(Number(cfg.lines) || 6));
