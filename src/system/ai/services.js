@@ -119,6 +119,19 @@ export function updateChatPreset(id, patch) {
 }
 
 /**
+ * 复制一套：同一个接口、同一个密钥，换个模型另存（用户要求：「现在的要重新填一遍」）。
+ * 地址、密钥、站点与充值链接、思考深度、temperature 等全部照抄，模型空出来等着选；
+ * 名字先叫「原名 · 副本」，选了模型之后由调用方改成「原名 · 模型」。不改主用与副用
+ */
+export function cloneChatPreset(id) {
+  const src = services().chat.presets.find(p => p.id === id);
+  if (!src) return null;
+  const { id: _, model: __, recentModels, ...rest } = src;
+  return newChatPreset({ ...rest, name: `${src.name || '接口'} · 副本`, model: '',
+    recentModels: [src.model, ...(recentModels || [])].filter((x, i, a) => x && a.indexOf(x) === i).slice(0, RECENT_MODELS) });
+}
+
+/**
  * 只换模型，地址与密钥不动。换下来的那个记进 recentModels（最多 8 个），
  * 模型列表顶上排着，来回切不用每次重新拉列表、再从几百个里搜
  */

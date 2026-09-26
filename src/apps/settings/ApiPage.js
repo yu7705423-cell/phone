@@ -12,9 +12,9 @@ const PROVIDERS = [
   { value: 'openai', label: 'OpenAI 兼容' },
 ];
 
-function Editor({ id, onClose }) {
+function Editor({ id, onClose, onSwitch, pickFirst = false }) {
   useStore(db.settings.store);
-  const [picking, setPicking] = useState(false);
+  const [picking, setPicking] = useState(pickFirst);
   const [testing, setTesting] = useState(false);
   const preset = svc.chatPresets().find(p => p.id === id);
   if (!preset) return null;
@@ -31,6 +31,19 @@ function Editor({ id, onClose }) {
       toast(`连接成功：${String(out).slice(0, 20) || '(空响应)'}`, 'ok');
     } catch (err) { toast(String(err.message || err), 'error', 5000); }
     finally { setTesting(false); }
+  };
+
+  // 同一个接口换个模型另存：地址与密钥照抄，直接弹出模型列表
+  const clone = () => {
+    const p = svc.cloneChatPreset(id);
+    if (!p) return;
+    toast('已复制，选择新的模型', 'ok');
+    onSwitch?.(p.id);
+  };
+  // 复制出来还叫「· 副本」的，选了模型就改名成「原名 · 模型」，列表里一眼分得清
+  const pickModel = m => {
+    svc.switchModel(id, m);
+    if (/ · 副本$/.test(preset.name || '')) set({ name: preset.name.replace(/ · 副本$/, ` · ${m}`) });
   };
 
   const del = async () => {
@@ -83,11 +96,12 @@ function Editor({ id, onClose }) {
           </div>` : null}
       <//>
 
-      <${Field} label="模型" desc="可从接口获取列表后选择，也可直接填写。">
+      <${Field} label="模型" desc="可从接口获取列表后选择，也可直接填写。同一个接口想同时保存几个模型时，用「复制为新预设」，地址与密钥不必重填。">
         <${Input} value=${preset.model} onInput=${v => set({ model: v })} placeholder="模型名称"/>
-        <div class="pad-t">
+        <div class="pad-t btn-row">
           <${Button} size="sm" variant="ghost" icon="search"
             onClick=${() => setPicking(true)}>获取并选择<//>
+          <${Button} size="sm" variant="ghost" icon="copy" onClick=${clone}>复制为新预设<//>
         </div>
       <//>
 
@@ -119,7 +133,7 @@ function Editor({ id, onClose }) {
       </div>
 
       <${ModelPicker} open=${picking} preset=${preset}
-        onPick=${m => svc.switchModel(id, m)} onClose=${() => setPicking(false)}/>
+        onPick=${pickModel} onClose=${() => setPicking(false)}/>
     <//>`;
 }
 
@@ -130,6 +144,7 @@ export function ApiPage() {
     ? `单独的接口 · ${mem.model}`
     : mem.mode === 'api' ? '选了单独的接口，但还没填全' : '跟随副用接口';
   const [editing, setEditing] = useState(null);
+  const [fresh, setFresh] = useState(null);   // 刚复制出来的那一套：打开时直接弹出模型列表
   const [switching, setSwitching] = useState(null);   // 正在给哪一套换模型
   const chat = svc.services().chat;
   const presets = chat.presets;
@@ -237,7 +252,9 @@ export function ApiPage() {
       : html`<${EmptyState} icon="key" title="尚未配置接口"
           desc="可保存多个接口随时切换，并指定一个副用接口，在主用报错时自动接替。"/>`}
 
-      ${editing ? html`<${Editor} id=${editing} onClose=${() => setEditing(null)}/>` : null}
+      ${editing ? html`<${Editor} key=${editing} id=${editing} pickFirst=${fresh === editing}
+        onSwitch=${nid => { setFresh(nid); setEditing(nid); }}
+        onClose=${() => { setEditing(null); setFresh(null); }}/>` : null}
       <${ModelPicker} open=${!!switching} preset=${presets.find(p => p.id === switching)}
         onPick=${m => { svc.switchModel(switching, m); toast(`已切换为 ${m}`, 'ok'); }}
         onClose=${() => setSwitching(null)}/>
