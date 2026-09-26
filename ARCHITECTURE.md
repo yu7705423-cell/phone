@@ -9713,3 +9713,27 @@ HTML 卡片、网页工具、主屏自定义组件在各自的 iframe 里，只�
 心声那一段本来就是每轮必写。
 
 测试 `tests/innerfix.test.mjs`。
+
+### 4.267 线下与作品的文风可以多选
+
+用户的话：「现在为什么线下的文风只能选择一种」。
+
+- 一场戏、一部作品的文风从一个 `tone` 字符串改成 `tones` 数组；`custom`（这一场自己写）也是其中一项，正文仍在 `toneText`。
+  老数据只有 `tone`，`tone.idsOf` 照读成一项，不迁移。
+- `tone.forScene` 把选中的几份按顺序各成一段，空行隔开，仍装进同一个 `skeleton.scene-style`。
+- `sceneToneLast` / `workToneLast` 记数组（老值是字符串，`tone.asTones` 一并收）。
+- 界面：线下新建与「这一场」里的文风单子改成勾选；「我们」那边的 `TonePick` 同样。列表上写的是几份的名字（`tone.labelOf`）。
+
+### 4.268 这一场用哪几本世界书
+
+用户的话：「线下这个也要和线上一样可以挂很多个世界书……可以自选在线下剧情的时候关掉哪些世界书（有一些是针对线上写的世界书）」。
+不在世界书上加「适用范围」，在线下这一场的页面里改。
+
+- 一场戏两份清单：`offBookIds`（这一场关掉的，从角色已挂的与全局的里选）、`bookIds`（这一场额外挂上的，从库里其余对话用途的书里选）。
+- `context/lorebook.js` 的 `activate(char, scan, budget, { extra, off })`：`booksFor` 把 extra 并进已挂的、把 off 剔掉。
+  `sceneBooks(scene)` 把这一场的两份清单折成这个参数；`streamScene` 传它。没有清单时和从前一模一样。
+- 界面：新建那一场和「这一场」里多一行「世界书」，写着几本生效、关掉几本；点开一张单子，上半是角色已挂的与全局的（默认开），
+  下半是只在这一场挂上的（默认关）。生图与语音用途的不列。
+- 上一场的两份清单记在 `sceneBooksOffLast` / `sceneBooksOnLast`，新建时预填；和 `sceneToneLast` 一样只是默认值。
+
+测试 `tests/scenetone.test.mjs`。

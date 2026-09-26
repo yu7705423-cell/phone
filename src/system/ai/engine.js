@@ -2,7 +2,7 @@ import { settings, persona, characters, chats, messages, messagesOf } from '../d
 import * as accounts from '../accounts.js';
 import * as clock from '../time.js';
 import { assemble, assembleOnly } from './context/index.js';
-import { activate as activateLore, split as splitLore, textOf as loreText, voiceBookText } from './context/lorebook.js';
+import { activate as activateLore, split as splitLore, textOf as loreText, voiceBookText, sceneBooks as sceneBooksOf } from './context/lorebook.js';
 import { recallAsync as recallMemory, recall as recallSync, recallText, depthOf as memoryDepth,
   markRecalled, recentOf as recentMemories } from './context/memory.js';
 import { fillTemplate, template } from './templates.js';
@@ -829,7 +829,8 @@ export function streamScene({ scene, chat, char, more = false, omitFrom = '', on
     }
     const s0 = settings.get();
     const scan = sceneScan(list, s0.sceneScan);
-    const lore = activateLore(char, scan, budgets(sceneBudget()).lorebook).items;
+    // 这一场关掉的、额外挂上的书（4.268）
+    const lore = activateLore(char, scan, budgets(sceneBudget()).lorebook, sceneBooksOf(scene)).items;
     const me = accounts.get(chat?.personaId) || accounts.current();
     const queryVec = await queryVecOf(scan);
     const skip = new Set(recentMemories(char.id, me?.id, s0.memoryRecent).map(m => m.id));

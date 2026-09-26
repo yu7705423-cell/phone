@@ -197,7 +197,7 @@ export function ExtraPage() {
     setChatPick(false);
     if (!v) return;
     const row = work.create({ chatId: chat.id, kind: work.EXTRA, title: s.title || v.title || '', premise: v.prompt,
-      tone: db.settings.get().workToneLast || '' });
+      tones: phone.tone.asTones(db.settings.get().workToneLast) });
     const first = work.addChapter(row.id);
     toast('已在「我们」中新建这则番外', 'ok');
     phone.intent.open('us', { route: first ? `/read/${first.id}` : `/work/${row.id}`, back: true });

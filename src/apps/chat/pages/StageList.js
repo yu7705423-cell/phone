@@ -1,9 +1,9 @@
 import { html, useState } from '../../../lib.js';
 import { phone, useStore } from '../../../sdk/index.js';
 import { Page, List, ListItem, IconButton, Icon, Button, Input, Textarea, Field,
-         Segmented, Avatar, EmptyState, Sheet, FullSheet, toast, confirm } from '../../../ui/index.js';
+         Segmented, Avatar, EmptyState, Sheet, FullSheet, Switch, toast, confirm } from '../../../ui/index.js';
 
-const { db, nav, scene: sceneApi, tone } = phone;
+const { db, nav, scene: sceneApi, tone, ai } = phone;
 
 // 线下的场次列表。一条就是一篇稿子的目录行，不画卡片。
 // 见 ARCHITECTURE 4.107
@@ -15,15 +15,16 @@ const dateOf = ts => {
 };
 
 // 文风。内置提示词一个字都不写文风（第 16 条），要写也是用户自己写 ——
-// 这里就是他写的地方。默认不设定，出厂那几份一份都不启用。
+// 这里就是他写的地方。默认不设定，出厂那几份一份都不启用。可以选多份（4.267）
 function ToneField({ v, set }) {
   const [open, setOpen] = useState(false);
   const [edit, setEdit] = useState(null);
 
   const presets = tone.list();
-  const label = v.tone === 'custom' ? '这一场自己写' : (tone.get(v.tone)?.name || '不设定');
-  const pick = id => { set({ tone: id }); setOpen(false); };
-  const tick = on => (on ? html`<${Icon} name="check" size=${16}/>` : null);
+  const picked = tone.idsOf(v);
+  const label = tone.labelOf(v);
+  const flip = id => set({ tones: picked.includes(id) ? picked.filter(x => x !== id) : [...picked, id] });
+  const tick = (on, id) => html`<${Switch} checked=${on} onChange=${() => flip(id)}/>`;
   const firstLine = t => String(t || '').split('\n')[0];
 
   const drop = async row => {
@@ -34,15 +35,15 @@ function ToneField({ v, set }) {
     });
     if (!ok) return;
     tone.remove(row.id);
-    if (v.tone === row.id) set({ tone: '' });
+    if (picked.includes(row.id)) set({ tones: picked.filter(x => x !== row.id) });
   };
 
   return html`
     <${Field} label="文风"
-      desc="写入这一场的提示词，只管怎么写，不管角色是什么人。默认不设定，由角色卡与世界书决定。">
+      desc="写入这一场的提示词，只管怎么写，不管角色是什么人。可以选多份，按选中的顺序依次写入。默认不设定，由角色卡与世界书决定。">
       <${Button} variant="ghost" size="sm" onClick=${() => setOpen(true)}>${label}<//>
     <//>
-    ${v.tone === 'custom' ? html`
+    ${picked.includes('custom') ? html`
       <${Textarea} rows=${5} value=${v.toneText || ''} onInput=${t => set({ toneText: t })}
         placeholder="写这一场要的文风。可以用 {{charName}} 与 {{userName}} 指代双方。"/>` : null}
 
@@ -50,20 +51,20 @@ function ToneField({ v, set }) {
       <${List}>
         <${ListItem} title="不设定" multiline
           subtitle="不写入任何关于文风的内容"
-          right=${tick(!v.tone)} onClick=${() => pick('')}/>
+          right=${picked.length ? null : '当前'} onClick=${() => set({ tones: [] })}/>
         ${presets.map(p => html`
           <${ListItem} key=${p.id} title=${p.name} subtitle=${firstLine(p.text)} multiline
             right=${html`<div class="row-acts">
-              ${tick(v.tone === p.id)}
               <${IconButton} name="edit" label="编辑"
                 onClick=${e => { e.stopPropagation(); setEdit({ ...p }); }}/>
               <${IconButton} name="trash" label="删除"
                 onClick=${e => { e.stopPropagation(); drop(p); }}/>
+              ${tick(picked.includes(p.id), p.id)}
             </div>`}
-            onClick=${() => pick(p.id)}/>`)}
+            onClick=${() => flip(p.id)}/>`)}
         <${ListItem} title="这一场自己写" multiline
           subtitle="只作用于这一场，不进预设库"
-          right=${tick(v.tone === 'custom')} onClick=${() => pick('custom')}/>
+          right=${tick(picked.includes('custom'), 'custom')} onClick=${() => flip('custom')}/>
       <//>
       <${List}>
         <${ListItem} title="新建一份" onClick=${() => setEdit({ id: '', name: '', text: '' })}/>
@@ -79,7 +80,7 @@ function ToneField({ v, set }) {
     const name = String(edit.name || '').trim() || '未命名';
     const text = String(edit.text || '').trim();
     if (edit.id) tone.save(edit.id, { name, text });
-    else set({ tone: tone.create({ name, text }) });
+    else set({ tones: [...picked, tone.create({ name, text })] });
     setEdit(null);
   }}>保存<//>`}>
       <div class="pad">
@@ -94,6 +95,46 @@ function ToneField({ v, set }) {
             onInput=${x => setEdit(e => ({ ...e, text: x }))}/>
         <//>
       </div>
+    <//>`;
+}
+
+// 这一场用哪几本世界书（4.268）。上半是角色已挂的与全局的，默认开，关掉的记进 offBookIds；
+// 下半是库里其余对话用途的书，默认关，打开的记进 bookIds。生图与语音用途的不列。
+function BooksField({ v, set, chatChars }) {
+  useStore(db.lorebooks.store);
+  const [open, setOpen] = useState(false);
+  const off = v.offBookIds || [];
+  const on = v.bookIds || [];
+  const attached = new Set(chatChars.flatMap(c => c.lorebookIds || []));
+  const books = db.lorebooks.all().filter(b => ai.lore.purposeOf(b) === 'chat');
+  const mine = books.filter(b => b.global || attached.has(b.id));
+  const rest = books.filter(b => !(b.global || attached.has(b.id)));
+  const nOn = mine.filter(b => !off.includes(b.id)).length + on.filter(id => rest.some(b => b.id === id)).length;
+  const nOff = mine.filter(b => off.includes(b.id)).length;
+  const label = books.length ? `${nOn} 本生效${nOff ? `，关掉 ${nOff} 本` : ''}` : '没有世界书';
+  const flipOff = id => set({ offBookIds: off.includes(id) ? off.filter(x => x !== id) : [...off, id] });
+  const flipOn = id => set({ bookIds: on.includes(id) ? on.filter(x => x !== id) : [...on, id] });
+  return html`
+    <${Field} label="世界书"
+      desc="这一场生效的世界书。角色已挂的与全局的默认生效，可以在这一场关掉；库里其余的书可以只在这一场挂上。">
+      <${Button} variant="ghost" size="sm" onClick=${() => setOpen(true)}>${label}<//>
+    <//>
+    <${Sheet} open=${open} onClose=${() => setOpen(false)} title="这一场的世界书" height="84%">
+      ${mine.length ? html`
+        <${List} title="角色已挂的与全局的">
+          ${mine.map(b => html`
+            <${ListItem} key=${b.id} title=${b.name || '未命名'} subtitle=${b.global ? '全局' : '角色已挂'}
+              right=${html`<${Switch} checked=${!off.includes(b.id)} onChange=${() => flipOff(b.id)}/>`}
+              onClick=${() => flipOff(b.id)}/>`)}
+        <//>` : null}
+      ${rest.length ? html`
+        <${List} title="只在这一场挂上">
+          ${rest.map(b => html`
+            <${ListItem} key=${b.id} title=${b.name || '未命名'}
+              right=${html`<${Switch} checked=${on.includes(b.id)} onChange=${() => flipOn(b.id)}/>`}
+              onClick=${() => flipOn(b.id)}/>`)}
+        <//>` : null}
+      ${books.length ? null : html`<${EmptyState} icon="book" title="还没有对话用途的世界书"/>`}
     <//>`;
 }
 
@@ -116,6 +157,7 @@ function SetupFields({ v, set, cast, chatChars }) {
         placeholder="例如 两人约好在这里见面，但对方迟到了四十分钟"/>
     <//>
     <${ToneField} v=${v} set=${set}/>
+    <${BooksField} v=${v} set=${set} chatChars=${chatChars}/>
     ${chatChars.length > 1 ? html`
       <${Field} label="在场角色">
         <${List}>
@@ -139,7 +181,8 @@ export function StageList({ chatId }) {
   const [open, setOpen] = useState(false);
   const [v, setV] = useState({
     title: '', place: '', at: '', note: '', castIds: [], opening: 'char',
-    tone: db.settings.get().sceneToneLast || '', toneText: '',
+    tones: tone.asTones(db.settings.get().sceneToneLast), toneText: '',
+    offBookIds: db.settings.get().sceneBooksOffLast || [], bookIds: db.settings.get().sceneBooksOnLast || [],
   });
   const set = patch => setV(x => ({ ...x, ...patch }));
 
@@ -156,11 +199,12 @@ export function StageList({ chatId }) {
   const start = () => {
     const row = sceneApi.create({
       chatId, title: v.title, place: v.place, at: v.at, note: v.note,
-      castIds: cast, opening: v.opening, tone: v.tone, toneText: v.toneText,
+      castIds: cast, opening: v.opening, tones: v.tones, toneText: v.toneText,
+      offBookIds: v.offBookIds, bookIds: v.bookIds,
     });
     setOpen(false);
     setV({ title: '', place: '', at: '', note: '', castIds: [], opening: 'char',
-      tone: v.tone, toneText: '' });
+      tones: v.tones, toneText: '', offBookIds: v.offBookIds, bookIds: v.bookIds });
     nav.push(`/scene/${row.id}`);
   };
 
@@ -224,7 +268,8 @@ export function SceneEdit({ sceneId }) {
   const v = {
     title: row.title || '', place: row.place || '', at: row.at || '',
     note: row.note || '', castIds: row.castIds || [],
-    tone: row.tone || '', toneText: row.toneText || '',
+    tones: tone.idsOf(row), toneText: row.toneText || '',
+    offBookIds: row.offBookIds || [], bookIds: row.bookIds || [],
   };
   const set = patch => sceneApi.update(sceneId, patch);
 

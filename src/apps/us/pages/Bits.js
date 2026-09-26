@@ -52,28 +52,31 @@ export const chapterTitle = (w, c) => (w.kind === work.SAGA
  * 文风。和线下用同一份预设库 —— 那些预设写的是「怎么写一段散文」，
  * 换个体裁不需要换一套（system/tone.js）。
  */
-export function TonePick({ value, text, onChange }) {
+export function TonePick({ value = [], text, onChange }) {
   useStore(db.settings.store);
   const list = tone.list();
+  const picked = Array.isArray(value) ? value : tone.asTones(value);
+  const flip = id => onChange({ tones: picked.includes(id) ? picked.filter(x => x !== id) : [...picked, id] });
   return html`
     <${List} title="文风">
       <${ListItem} title="不设定" multiline subtitle="不写入任何关于文风的内容"
-        right=${value ? null : '当前'} onClick=${() => onChange({ tone: '', toneText: '' })}/>
+        right=${picked.length ? null : '当前'} onClick=${() => onChange({ tones: [], toneText: '' })}/>
       ${list.map(t => html`
         <${ListItem} key=${t.id} title=${t.name} multiline
           subtitle=${(t.text || '').slice(0, 40)}
-          right=${value === t.id ? '当前' : null}
-          onClick=${() => onChange({ tone: t.id, toneText: '' })}/>`)}
+          right=${html`<${Switch} checked=${picked.includes(t.id)} onChange=${() => flip(t.id)}/>`}
+          onClick=${() => flip(t.id)}/>`)}
       <${ListItem} title="这一部自己写" multiline
         subtitle="只作用于这一部，不进预设库"
-        right=${value === 'custom' ? '当前' : null}
-        onClick=${() => onChange({ tone: 'custom' })}/>
+        right=${html`<${Switch} checked=${picked.includes('custom')} onChange=${() => flip('custom')}/>`}
+        onClick=${() => flip('custom')}/>
     <//>
-    ${value === 'custom' ? html`
+    <div class="pad-x field-desc">可以选多份，按选中的顺序依次写入提示词。</div>
+    ${picked.includes('custom') ? html`
       <div class="pad-x">
         <${Field} label="这一部的文风" desc="写给模型看的。一律用英文，中文写的指令会把措辞漏进正文。">
           <${Textarea} rows=${5} value=${text || ''}
-            onInput=${v => onChange({ tone: 'custom', toneText: v })}/>
+            onInput=${v => onChange({ toneText: v })}/>
         <//>
       </div>` : null}`;
 }

@@ -41,11 +41,15 @@ export const purposeOf = b => (b?.forImage === true ? 'image' : b?.forVoice === 
 /** 改用途时写回去的那两个字段。两个都写，免得残留一个旧的 true */
 export const purposePatch = p => ({ forImage: p === 'image', forVoice: p === 'voice' });
 
-/** 这个角色用得上的书，只取某一种用途的。 */
-function booksFor(char, purpose) {
-  const attached = new Set(char?.lorebookIds || []);
+/**
+ * 这个角色用得上的书，只取某一种用途的。
+ * `extra` 是这一场额外挂上的、`off` 是这一场关掉的（线下每一场自己定，ARCHITECTURE 4.268）。
+ */
+function booksFor(char, purpose, { extra = [], off = [] } = {}) {
+  const attached = new Set([...(char?.lorebookIds || []), ...extra]);
+  const gone = new Set(off);
   return lorebooks.all().filter(b =>
-    purposeOf(b) === purpose && (b.global || attached.has(b.id)));
+    purposeOf(b) === purpose && !gone.has(b.id) && (b.global || attached.has(b.id)));
 }
 
 /** 关键词命中没有。常驻的一律算命中。 */
@@ -70,11 +74,11 @@ export const chatBooksFor = char => booksFor(char, 'chat');
 // 模板一个字都不进 prompt。见 ARCHITECTURE 4.250
 const isCardEntry = e => e?.type === 'card';
 
-function pick(char, scanText, purpose) {
+function pick(char, scanText, purpose, opts) {
   const text = String(scanText || '');
   const lower = text.toLowerCase();
   const entries = [];
-  for (const book of booksFor(char, purpose)) {
+  for (const book of booksFor(char, purpose, opts)) {
     for (const e of book.entries || []) {
       if (!e.enabled || isCardEntry(e)) continue;
       entries.push({ ...e, bookName: book.name, bookId: book.id });
@@ -83,9 +87,15 @@ function pick(char, scanText, purpose) {
   return entries.filter(e => hits(e, text, lower)).sort(compare);
 }
 
-export function activate(char, scanText, budget) {
-  return takeTopWithin(pick(char, scanText, 'chat'), budget, e => e.content || '');
+export function activate(char, scanText, budget, opts) {
+  return takeTopWithin(pick(char, scanText, 'chat', opts), budget, e => e.content || '');
 }
+
+/** 一场戏自己增减的那两份清单，交给 activate 的第四个参数 */
+export const sceneBooks = scene => ({
+  extra: Array.isArray(scene?.bookIds) ? scene.bookIds : [],
+  off: Array.isArray(scene?.offBookIds) ? scene.offBookIds : [],
+});
 
 /**
  * 生图那一份。拿**画面描述**去扫，命中的原样拼进生图提示词。

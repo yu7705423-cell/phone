@@ -91,10 +91,31 @@ export function resetBuiltin() {
   settings.set({ tonePresets: ov });
 }
 
-/** 这一场实际要用的那段文字。选了 custom 就用这一场自己写的。 */
+/**
+ * 这一场（或这一部）选了哪几份。可以多选（ARCHITECTURE 4.267）：新数据存 `tones` 数组，
+ * 老数据只有一个 `tone` 字符串，照读成一项。`custom` 也是其中一项，正文在 `toneText`。
+ */
+export function idsOf(row) {
+  if (Array.isArray(row?.tones)) return row.tones.map(x => String(x || '').trim()).filter(Boolean);
+  const one = String(row?.tone || '').trim();
+  return one ? [one] : [];
+}
+
+/** 入库前整理：去重、去空。字符串也收（老调用方还传单个 id） */
+export const asTones = v => [...new Set((Array.isArray(v) ? v : [v]).map(x => String(x || '').trim()).filter(Boolean))];
+
+/** 这一场实际要用的那段文字。选了几份就几段，按选的顺序空行隔开；custom 用这一场自己写的。 */
 export function forScene(scene) {
-  const id = String(scene?.tone || '').trim();
-  if (!id) return '';
-  if (id === 'custom') return String(scene?.toneText || '').trim();
-  return textOf(id);
+  const out = [];
+  for (const id of idsOf(scene)) {
+    const t = id === 'custom' ? String(scene?.toneText || '').trim() : textOf(id);
+    if (t) out.push(t);
+  }
+  return out.join('\n\n');
+}
+
+/** 列表上写几个字：选了哪几份的名字。 */
+export function labelOf(row) {
+  const names = idsOf(row).map(id => (id === 'custom' ? '自己写' : get(id)?.name || '')).filter(Boolean);
+  return names.join('、') || '不设定';
 }

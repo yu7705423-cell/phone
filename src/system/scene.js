@@ -1,6 +1,9 @@
 import { scenes, beats, characters, chats, settings } from './db/index.js';
 import * as accounts from './accounts.js';
 import * as story from './closet-story.js';
+import * as toneLib from './tone.js';
+
+const asIds = v => [...new Set((Array.isArray(v) ? v : []).map(x => String(x || '').trim()).filter(Boolean))];
 
 // 线下。一场戏 + 一段段正文。见 ARCHITECTURE 4.107
 //
@@ -23,17 +26,21 @@ export const ofChat = chatId => scenes.byIndex(chatId)
   .sort((a, b) => (b.updatedAt || b.createdAt || 0) - (a.updatedAt || a.createdAt || 0));
 
 export function create({ chatId, title = '', place = '', at = '', castIds = [], note = '',
-  opening = CHAR, tone = '', toneText = '', inline = false }) {
+  opening = CHAR, tone = '', tones = null, toneText = '', inline = false, offBookIds = [], bookIds = [] }) {
   const chat = chats.get(chatId);
   const cast = castIds.length ? castIds : (chat?.characterIds || []).slice();
-  // 记住这一次挑的文风，下次新建时预填。这不是第二个开关，只是个默认值 ——
+  // 文风可以多选（4.267）。老调用方还传单个 tone，一并收
+  const picked = toneLib.asTones(tones ?? tone);
+  // 记住这一次挑的文风、关掉的书，下次新建时预填。这不是第二个开关，只是个默认值 ——
   // 开关仍然只有一个，在这一场自己身上（第 5 条）
-  settings.set({ sceneToneLast: String(tone || '') });
+  settings.set({ sceneToneLast: picked, sceneBooksOffLast: asIds(offBookIds), sceneBooksOnLast: asIds(bookIds) });
   return scenes.create({
     chatId, title: String(title || '').trim(), place: String(place || '').trim(),
     at: String(at || '').trim(), castIds: cast, note: String(note || '').trim(),
     opening: opening === ME ? ME : CHAR,
-    tone: String(tone || ''), toneText: String(toneText || ''),
+    tones: picked, toneText: String(toneText || ''),
+    // 这一场关掉哪几本世界书、额外挂上哪几本（4.268）
+    offBookIds: asIds(offBookIds), bookIds: asIds(bookIds),
     // 在聊天里直接演的那种。和单开一页只差「画在哪儿」，规则、
     // 提示词、数据全是同一套（见 ARCHITECTURE 4.110）
     inline: !!inline, endedAt: 0,

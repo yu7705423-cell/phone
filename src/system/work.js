@@ -1,5 +1,6 @@
 import { works, chapters, beats, characters, chats, settings } from './db/index.js';
 import * as accounts from './accounts.js';
+import * as toneLib from './tone.js';
 
 // 「我们」。一部作品 + 一篇一篇的正文。见 ARCHITECTURE 4.117
 //
@@ -41,7 +42,7 @@ export const ofChat = chatId => works.byIndex(chatId).slice().sort(byTime);
  */
 export function create({ chatId = '', kind = EXTRA, title = '', castIds = [],
   premise = '', charAs = null, meAs = null, carry = null, solo = false,
-  opening = 'char', tone = '', toneText = '',
+  opening = 'char', tone = '', tones = null, toneText = '',
   genres = [], length = null, inspiration = '', secret = '', outline = null, lorebookIds = [] }) {
   const chat = chats.get(chatId) || null;
   const k = kind === SAGA ? SAGA : EXTRA;
@@ -50,7 +51,8 @@ export function create({ chatId = '', kind = EXTRA, title = '', castIds = [],
   if (k === EXTRA && !chat) throw new Error('番外需要选择一段会话');
   const cast = castIds.length ? castIds.filter(id => characters.has(id)) : (chat?.characterIds || []).slice();
   if (!cast.length) throw new Error('请先选择人物');
-  settings.set({ workToneLast: String(tone || '') });
+  const picked = toneLib.asTones(tones ?? tone);
+  settings.set({ workToneLast: picked });
   return works.create({
     chatId: chat ? chat.id : '', kind: k,
     title: String(title || '').trim(),
@@ -64,7 +66,7 @@ export function create({ chatId = '', kind = EXTRA, title = '', castIds = [],
     // 新的一篇由谁开场。定在作品上而不是每一篇上 —— 一部作品里每一篇
     // 都是同一个写法，不该每开一篇再问一次
     opening: opening === 'me' ? 'me' : 'char',
-    tone: String(tone || ''), toneText: String(toneText || ''),
+    tones: picked, toneText: String(toneText || ''),
     cover: null, state: 'writing',
     // 长篇向导（4.263）：体裁标签、篇幅、灵感、作者私纲、大纲、挂的世界书
     genres: Array.isArray(genres) ? genres.map(x => String(x || '').trim()).filter(Boolean) : [],

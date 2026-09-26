@@ -5,7 +5,7 @@ import { Page, List, ListItem, EmptyState, Button, IconButton,
 import { WorkFields, WorkSwitches, ChatPick, CastPick, KindPick, dateOf } from './Bits.js';
 import { Segmented, Field } from '../../../ui/index.js';
 
-const { db, nav, work } = phone;
+const { db, nav, work, tone } = phone;
 
 const blank = () => ({
   chatId: '', from: 'chat', castIds: [], kind: work.EXTRA, title: '', premise: '',
@@ -57,7 +57,7 @@ export function Home({ chatId = '' }) {
       charAs: { name: v.charName, persona: v.charPersona },
       meAs: { name: v.meName, persona: v.mePersona },
       carry: alone ? false : v.carry, solo: v.solo, opening: v.opening,
-      tone: db.settings.get().workToneLast || '',
+      tones: tone.asTones(db.settings.get().workToneLast),
       });
     } catch (e) { toast(String(e.message || e), 'error'); return; }
     // 番外只有一则，建完直接开写；长篇先进目录，第一章由用户自己起

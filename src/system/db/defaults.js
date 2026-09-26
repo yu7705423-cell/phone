@@ -196,11 +196,13 @@ export const DEFAULT_SETTINGS = {
   // 文风预设。**默认一份都不启用** —— 内置提示词不写文风（第 16 条），
   // 这里存的是用户改过或新建的那些，见 system/tone.js
   tonePresets: {},
-  sceneToneLast: '',              // 上一次新建场次时挑的文风，下次预填
+  sceneToneLast: [],              // 上一次新建场次时挑的文风（可多选，4.267），下次预填。老数据是一个字符串
+  sceneBooksOffLast: [],          // 上一次新建场次时关掉的世界书（4.268），下次预填
+  sceneBooksOnLast: [],           // 上一次额外挂上的
   // 我们（长篇与番外）。正文那一套的旋钮和线下共用，这里只有它自己的三个
   workPrevChars: 600,             // 设定区里每一篇带多长的「写到哪儿了」。0 = 整篇带上
   workSummary: false,             // 一篇收尾时生成摘要。多一次调用，见 cost.js
-  workToneLast: '',               // 上一次新建作品时挑的文风，下次预填
+  workToneLast: [],               // 上一次新建作品时挑的文风（可多选），下次预填。老数据是一个字符串
 
   // 缓存住 prompt 里不变的那一段（目前只有 Anthropic 那条路支持显式声明，
   // OpenAI 那边是自动前缀缓存，开不开都一样）。

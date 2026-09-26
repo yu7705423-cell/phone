@@ -4,7 +4,7 @@ import { Page, List, ListItem, Field, Input, Textarea, Segmented, Switch, Number
          Spinner, Sheet, toast } from '../../../ui/index.js';
 import { ChatPick, CastPick, WorkSwitches, TonePick } from './Bits.js';
 
-const { db, nav, work, ai, novel, toolbox } = phone;
+const { db, nav, work, ai, novel, toolbox, tone } = phone;
 
 // 长篇向导（ARCHITECTURE 4.263）。一页从上往下：标题、人物、体裁标签、篇幅、世界观、灵感与简介、大纲、写法。
 // 调接口的只有两处，各自按钮下写明次数：「生成简介」一次；「生成大纲」章数少时一次，多时总纲卷纲一次、各卷章纲写到时再要。
@@ -13,7 +13,7 @@ const { db, nav, work, ai, novel, toolbox } = phone;
 const blank = () => ({
   title: '', from: 'chat', chatId: '', castIds: [], carry: false, solo: false, opening: 'char',
   genres: [], lengthId: 'mid', chapters: 24, perChapter: 3500, lorebookIds: [],
-  inspiration: '', premise: '', secret: '', outlineMode: novel.NONE, made: null, tone: '', toneText: '',
+  inspiration: '', premise: '', secret: '', outlineMode: novel.NONE, made: null, tones: [], toneText: '',
 });
 
 // 自己加的标签存在 settings.novelTags：{ 类: [标签] }
@@ -128,7 +128,7 @@ export function OutlineMade({ made, mode, hideLines = false }) {
 export function NewSaga({ chatId = '', bookId = '' }) {
   useStore(db.settings.store);
   // 带着世界书进来（世界观生成器「用它开一部长篇」）：书先挂上，人物直接选
-  const [v, setV] = useState({ ...blank(), chatId, from: bookId ? 'cast' : 'chat', tone: db.settings.get().workToneLast || '',
+  const [v, setV] = useState({ ...blank(), chatId, from: bookId ? 'cast' : 'chat', tones: tone.asTones(db.settings.get().workToneLast),
     lorebookIds: bookId && db.lorebooks.has(bookId) ? [bookId] : [] });
   const [busy, setBusy] = useState('');
   const set = patch => setV(x => ({ ...x, ...patch }));
@@ -163,7 +163,7 @@ export function NewSaga({ chatId = '', bookId = '' }) {
       row = work.create({
         chatId: alone ? '' : v.chatId, castIds: alone ? v.castIds : [], kind: work.SAGA,
         title: v.title, premise: v.premise, carry: alone ? false : v.carry, solo: v.solo, opening: v.opening,
-        tone: v.tone, toneText: v.toneText,
+        tones: v.tones, toneText: v.toneText,
         genres: v.genres, length: { chapters: v.chapters, perChapter: v.perChapter }, lorebookIds: v.lorebookIds,
         inspiration: v.inspiration, secret: v.secret,
         outline: v.outlineMode === novel.NONE ? novel.blankOutline(novel.NONE) : null,
@@ -229,7 +229,7 @@ export function NewSaga({ chatId = '', bookId = '' }) {
       ${v.outlineMode === novel.NONE ? null : html`<${OutlineMade} made=${v.made} mode=${v.outlineMode} hideLines=${true}/>`}
 
       <${WorkSwitches} v=${v} set=${set} kind=${work.SAGA} alone=${alone}/>
-      <${TonePick} value=${v.tone} text=${v.toneText} onChange=${patch => set(patch)}/>
+      <${TonePick} value=${tone.idsOf(v)} text=${v.toneText} onChange=${patch => set(patch)}/>
       <div class="settings-foot">建立后仍可在作品页修改简介、大纲与写法。</div>
     <//>`;
 }

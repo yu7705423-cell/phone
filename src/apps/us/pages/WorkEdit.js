@@ -82,7 +82,7 @@ export function WorkEdit({ workId }) {
       </div>
       <${CoverPick} w=${w}/>
       <${WorkSwitches} v=${v} set=${set} kind=${w.kind}/>
-      <${TonePick} value=${w.tone} text=${w.toneText}
+      <${TonePick} value=${phone.tone.idsOf(w)} text=${w.toneText}
         onChange=${patch => work.update(workId, patch)}/>
       <${List}>
         <${ListItem} title="外观" multiline
