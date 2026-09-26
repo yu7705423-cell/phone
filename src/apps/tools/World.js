@@ -180,6 +180,14 @@ export function WorldPage() {
     phone.intent.open('lorebook', { route: '/import', back: true });
   };
 
+  // 用这份世界观开一部长篇（4.265）：先成一本书（同一份只建一本），带着书跳进长篇向导
+  const startSaga = () => {
+    try {
+      const id = phone.novel.bookFromWorld({ name: f.name || '未命名世界观', modules, runId: f.runId || '' });
+      phone.intent.open('us', { route: `/new/book/${id}`, back: true });
+    } catch (e) { toast(String(e.message || e), 'error'); }
+  };
+
   const exportAs = async fmt => {
     try { toast(`已导出 ${await toolbox.exportText(`世界观-${f.name || '未命名'}`, joinWorld(f.name, modules), fmt)}`, 'ok'); }
     catch (e) { toast(String(e.message || e), 'error'); }
@@ -355,6 +363,8 @@ export function WorldPage() {
         <div class="pad">
           <${Button} full onClick=${saveBook}>存为世界书<//>
           <div class="tb-call">每个模块成为一个条目。确认页上可设定用途、常驻与位置。</div>
+          <div class="pad-t"><${Button} full variant="ghost" onClick=${startSaga}>用它开一部长篇<//></div>
+          <div class="tb-call">这份世界观直接成为一本常驻的世界书并挂在新长篇上，进入长篇向导。</div>
           <div class="btn-row pad-t">
             <${Button} variant="ghost" onClick=${() => copyText(joinWorld(f.name, modules))}>复制全文<//>
             <${Button} variant="ghost" onClick=${() => exportAs('txt')}>导出 TXT<//>

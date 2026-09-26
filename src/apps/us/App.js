@@ -19,9 +19,13 @@ export default function UsApp({ route }) {
   const rd = route?.match(/^\/read\/(.+)$/);
   if (rd) return html`<${ReadPage} chapterId=${rd[1]}/>`;
 
-  // 长篇向导（4.263）。/new/<chatId> 是从会话菜单进来、人物已定的那条路
+  // 长篇向导（4.263）。/new/<chatId> 是从会话菜单进来、人物已定的那条路；
+  // /new/book/<bookId> 是世界观生成器「用它开一部长篇」带着书进来（4.265）
+  // key 跟着路由走：从 /new 换到 /new/book/x 要重新起一份表单，不能沿用上一份的状态
+  const nb = route?.match(/^\/new\/book\/(.+)$/);
+  if (nb) return html`<${NewSaga} key=${`book:${nb[1]}`} bookId=${nb[1]}/>`;
   const nw = route?.match(/^\/new(?:\/(.+))?$/);
-  if (nw) return html`<${NewSaga} chatId=${nw[1] || ''}/>`;
+  if (nw) return html`<${NewSaga} key=${`chat:${nw[1] || ''}`} chatId=${nw[1] || ''}/>`;
 
   // 别的 app 说「打开这段关系的作品」时走这里
   const ch = route?.match(/^\/chat\/(.+)$/);

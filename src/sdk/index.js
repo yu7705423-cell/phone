@@ -141,6 +141,7 @@ import * as workTask from '../system/ai/tasks/work.js';
 import * as toolTasks from '../system/ai/tasks/tools.js';
 import * as novelTasks from '../system/ai/tasks/novel.js';
 import * as novelApi from '../system/novel.js';
+import * as worldbook from '../system/worldbook.js';
 import { NOVEL_TAGS, LENGTHS } from '../system/novel-tags.js';
 import * as cardshotApi from '../system/cardshot.js';
 import * as reviewApi from '../system/review.js';
@@ -353,7 +354,7 @@ export const phone = {
   // 转发聊天记录（system/forward.js）
   forward: forwardApi,
   // 长篇的大纲与标签表（system/novel.js、novel-tags.js）
-  novel: { ...novelApi, NOVEL_TAGS, LENGTHS },
+  novel: { ...novelApi, NOVEL_TAGS, LENGTHS, ...worldbook },
   theirs: theirsApi,
   trip: tripApi,
   memcheck: memcheckApi,

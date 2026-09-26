@@ -1,10 +1,10 @@
 import { html, useState } from '../../../lib.js';
 import { phone, useStore } from '../../../sdk/index.js';
 import { Page, List, ListItem, Field, Input, Textarea, Segmented, Switch, NumberInput, Button,
-         Spinner, toast } from '../../../ui/index.js';
+         Spinner, Sheet, toast } from '../../../ui/index.js';
 import { ChatPick, CastPick, WorkSwitches, TonePick } from './Bits.js';
 
-const { db, nav, work, ai, novel } = phone;
+const { db, nav, work, ai, novel, toolbox } = phone;
 
 // 长篇向导（ARCHITECTURE 4.263）。一页从上往下：标题、人物、体裁标签、篇幅、世界观、灵感与简介、大纲、写法。
 // 调接口的只有两处，各自按钮下写明次数：「生成简介」一次；「生成大纲」章数少时一次，多时总纲卷纲一次、各卷章纲写到时再要。
@@ -73,14 +73,36 @@ export function LengthPick({ v, set }) {
 
 export function BookPick({ value, onChange }) {
   useStore(db.lorebooks.store);
+  useStore(db.toolRuns.store);
+  const [picking, setPicking] = useState(false);
   const books = db.lorebooks.all().filter(b => (b.entries || []).some(e => e.type !== 'card'));
   const flip = id => onChange(value.includes(id) ? value.filter(x => x !== id) : [...value, id]);
+  // 世界观生成器生成过的那几份（4.265）：挑一份就成一本书挂上；同一份只建一本
+  const runs = toolbox.runsOf('world').filter(novel.usable);
+  const fromRun = run => {
+    try {
+      const id = novel.bookFromWorld({ name: run.input?.name || run.title, modules: run.output?.modules, runId: run.id });
+      if (!value.includes(id)) onChange([...value, id]);
+      toast('已挂上这份世界观', 'ok');
+    } catch (e) { toast(String(e.message || e), 'error'); }
+    setPicking(false);
+  };
   return html`
     <${List} title="世界观">
       ${books.map(b => html`
         <${ListItem} key=${b.id} title=${b.name} subtitle=${`${(b.entries || []).length} 个条目`}
           right=${html`<${Switch} checked=${value.includes(b.id)} onChange=${() => flip(b.id)}/>`} onClick=${() => flip(b.id)}/>`)}
       ${books.length ? null : html`<${ListItem} title="还没有世界书" subtitle="可在工具箱的世界观生成器中生成后存为世界书" multiline/>`}
+      <${ListItem} title="从世界观生成器导入" subtitle=${runs.length ? `${runs.length} 份可选` : '还没有生成过世界观'} arrow multiline onClick=${() => setPicking(true)}/>
+    <//>
+    <${Sheet} open=${picking} onClose=${() => setPicking(false)} title="选一份世界观" height="70%">
+      <${List} inset=${false}>
+        ${runs.map(r => html`
+          <${ListItem} key=${r.id} title=${r.input?.name || r.title || '未命名世界观'} arrow multiline
+            subtitle=${`${Object.values(r.output?.modules || {}).filter(t => String(t || '').trim()).length} 个模块${r.bookId && db.lorebooks.has(r.bookId) ? ' · 已有对应的世界书' : ''}`}
+            onClick=${() => fromRun(r)}/>`)}
+        ${runs.length ? null : html`<${ListItem} title="还没有生成过世界观" subtitle="先在工具箱的世界观生成器里生成一份" multiline/>`}
+      <//>
     <//>`;
 }
 
@@ -103,9 +125,11 @@ export function OutlineMade({ made, mode, hideLines = false }) {
     <//>`;
 }
 
-export function NewSaga({ chatId = '' }) {
+export function NewSaga({ chatId = '', bookId = '' }) {
   useStore(db.settings.store);
-  const [v, setV] = useState({ ...blank(), chatId, from: chatId ? 'chat' : 'chat', tone: db.settings.get().workToneLast || '' });
+  // 带着世界书进来（世界观生成器「用它开一部长篇」）：书先挂上，人物直接选
+  const [v, setV] = useState({ ...blank(), chatId, from: bookId ? 'cast' : 'chat', tone: db.settings.get().workToneLast || '',
+    lorebookIds: bookId && db.lorebooks.has(bookId) ? [bookId] : [] });
   const [busy, setBusy] = useState('');
   const set = patch => setV(x => ({ ...x, ...patch }));
   const alone = v.from === 'cast';
