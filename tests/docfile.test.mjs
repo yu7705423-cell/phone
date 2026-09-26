@@ -120,7 +120,7 @@ const histOf = () => (last()?.messages || []).slice(1).map(m => m.content).join(
 
 reply = '收到。\n[填写：#3｜林岚]\n[填写：#5｜二十四]\n填好了。';
 const made = await turn('帮我填一下', 't1');
-ok('提示词里有文件的写法与填写的写法', /\[文件：name\.ext\]/.test(sysOf()) && /\[填写：id｜text\]/.test(sysOf()) && /登记表\.docx/.test(sysOf()), sysOf().slice(-700));
+ok('提示词里有文件的写法与填写的写法', /\[文件：name\.ext\]/.test(sysOf()) && /\[填写：#3｜text\]/.test(sysOf()) && /登记表\.docx/.test(sysOf()), sysOf().slice(-700));
 ok('历史里带着这份文件的编号正文', /\[文件：登记表\.docx\]\n#1 登记表\n#2 姓名 \| #3/.test(histOf()), histOf().slice(-300));
 const fileMsg = made.find(m => m.kind === 'file');
 ok('回复里的填写并成一条角色发的文件消息，其余是两条正文', made.filter(m => m.kind === 'text').length === 2 && fileMsg && fileMsg.role === 'char', JSON.stringify(made.map(m => [m.kind, m.name])));
@@ -137,7 +137,7 @@ ok('发回来的文件里字填上了，别的没动', /#1 登记表\n#2 姓名 
 // 填完之后：规则不再注入，历史里只留填好的内容
 reply = '嗯。';
 await turn('好了吗', 't1b');
-ok('填完之后不再注入填写规则', !/\[填写：id｜text\]/.test(sysOf()) && !/can be filled in place/.test(sysOf()), sysOf().slice(-500));
+ok('填完之后不再注入填写规则', !/\[填写：#3｜text\]/.test(sysOf()) && !/can be filled in place/.test(sysOf()), sysOf().slice(-500));
 const h1 = histOf();
 ok('历史里带正文的是填好的那份，原件只剩文件名', /\[文件：已填写-登记表\.docx\]\n#1 登记表\n#2 姓名 \| #3 林岚/.test(h1) && !/\[文件：登记表\.docx\]\n#1/.test(h1), h1.slice(-400));
 ok('历史里没有那几行填写', !/\[填写：/.test(h1), '');

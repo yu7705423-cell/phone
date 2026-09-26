@@ -18,15 +18,16 @@ export async function fill(chatId, msgId) {
   if (!chat || !char) throw new Error('这段对话已不存在');
   if (!src || src.kind !== 'file' || !docfile.fillable(src.ext) || !src.fileId) throw new Error('这份文件不能在原文件上填');
 
-  const recent = messagesOf(chatId).filter(m => m.status !== 'error' && m.kind !== 'side' && m.content)
-    .slice(-8).map(m => `${m.role === 'user' ? 'User' : char.name}：${String(m.content).slice(0, 200)}`).join('\n');
+  // 最近几十条都带上：角色常常先在聊天里把答案说了一遍，这一步要把那些填进表里
+  const recent = messagesOf(chatId).filter(m => m.status !== 'error' && m.kind !== 'side' && m.kind !== 'file' && m.content)
+    .slice(-60).map(m => `${m.role === 'user' ? 'User' : char.name}：${String(m.content).slice(0, 400)}`).join('\n');
   const system = fillTemplate(template('task.file-fill'), {
     charName: char.name || '该角色',
     charPersona: char.persona || '(no character card was written)',
     recent: recent || '(none)',
     doc: src.text || '',
   });
-  const out = await runJSONTask('file.fill', { system, key: key(msgId), maxTokens: 4000 });
+  const out = await runJSONTask('file.fill', { system, key: key(msgId), maxTokens: 8000 });
   const fills = (Array.isArray(out?.fills) ? out.fills : [])
     .filter(f => f && f.id != null).map(f => ({ id: String(f.id).trim(), text: String(f.text ?? '') }));
   if (!fills.length) throw new Error('模型没有给出任何填写内容');

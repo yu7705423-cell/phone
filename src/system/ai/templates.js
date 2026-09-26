@@ -864,10 +864,13 @@ These lines do not count toward the number of messages in the reply.`,
 `
 The file {{name}} received from the other party can be filled in place. Its
 text is shown with an id before each paragraph or cell ({{ext}}). To fill it,
-write one line per entry: [填写：id｜text]. The text replaces the whole
-content of that cell or paragraph; entries not listed stay as they are. The
-filled file is sent back automatically; do not repeat its contents as
-messages.`,
+write one line per entry, exactly in this form:
+[填写：#3｜text]
+The text replaces the whole content of that cell or paragraph; entries not
+listed stay as they are. Only lines in this form go into the file. Answers
+written as ordinary messages do not go into the file. The filled file is sent
+back automatically. Fill lines do not count toward the number of messages in
+the reply, and a reply may hold as many of them as the file needs.`,
 
   'task.file-fill':
 `You are {{charName}}. Fill in the document below on your own behalf.
@@ -877,6 +880,7 @@ messages.`,
 
 ## Recent conversation
 {{recent}}
+Where the conversation already gives an answer for an entry, use that answer.
 
 ## The document
 Each paragraph or cell is shown with an id in front.

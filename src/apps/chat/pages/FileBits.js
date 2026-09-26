@@ -1,8 +1,8 @@
 import { html, useState } from '../../../lib.js';
-import { phone, useFile } from '../../../sdk/index.js';
-import { Icon, Spinner, Sheet, Button, toast } from '../../../ui/index.js';
+import { phone, useFile, useStore } from '../../../sdk/index.js';
+import { Icon, Spinner, Sheet, Button, List, ListItem, Switch, toast } from '../../../ui/index.js';
 
-const { docfile, ai } = phone;
+const { db, docfile, ai } = phone;
 
 // 聊天里的文件（ARCHITECTURE 4.271）：一张卡，点开看正文、另存、让角色填写
 
@@ -27,10 +27,14 @@ function saveBlobUrl(url, name) {
 }
 
 export function FileSheet({ msg, chatId, onClose }) {
+  useStore(db.characters.store);
   const url = useFile(msg?.fileId);
   const [busy, setBusy] = useState(false);
   if (!msg) return null;
   const canFill = msg.role === 'user' && docfile.fillable(msg.ext) && !!msg.fileId;
+  const chat = db.chats.get(chatId);
+  const char = chat ? db.characters.get((chat.characterIds || [])[0]) : null;
+  const capOn = !!char && char.canSendFile === true;
   const askFill = async () => {
     if (busy) return;
     setBusy(true);
@@ -48,6 +52,12 @@ export function FileSheet({ msg, chatId, onClose }) {
           ${canFill ? html`<${Button} size="sm" variant="ghost" disabled=${busy} onClick=${askFill}>${busy ? '填写中' : '让角色填写'}<//>` : null}
         </div>
         ${canFill ? html`<div class="field-desc">「让角色填写」单独调用一次接口，把整篇交给角色，填好后以新文件发回，原文件不变。平时角色也可以在回复里直接填。</div>` : null}
+        ${canFill && char && !capOn ? html`
+          <${List}>
+            <${ListItem} title="角色卡未开启「发文件」" multiline
+              subtitle="关着时角色在回复里不会填写文件，只会把内容当消息发出。开启后角色可以在回复里直接填好发回；「让角色填写」按钮不受此限"
+              right=${html`<${Switch} checked=${false} onChange=${() => { db.characters.update(char.id, { canSendFile: true }); toast('已开启', 'ok'); }}/>`}/>
+          <//>` : null}
         <pre class="file-preview">${msg.text || '(没有可显示的正文)'}</pre>
       </div>
     <//>`;
