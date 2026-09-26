@@ -2,6 +2,7 @@ import { idb } from './db/idb.js';
 import { images, setDiagLog } from './db/images.js';
 import { characters, personas, chats, settings, layout } from './db/index.js';
 import { blobEpoch, resetBlobUrls } from './db/blobs.js';
+import { BUILD } from '../version.js';
 
 // 图片诊断与删图日志。见 ARCHITECTURE 4.272
 //
@@ -86,8 +87,30 @@ export async function check(limit = 40) {
       if (!size) empty.push(t);
     } catch (e) { unreadable.push({ ...t, err: String(e?.message || e) }); }
   }
-  return { records: images.count(), inStore, referenced: list.length, missing, empty, unreadable, sampled,
-    urlsCached: images.cachedUrls(), epoch: blobEpoch() };
+  // 直接从库里读几张、现做地址、真解码一次：这一步过了，数据、地址、解码整条链在这个页面里都是通的
+  const shown = [];
+  const decodeFail = [];
+  for (const t of targets.filter(x => !missing.includes(x) && !empty.includes(x) && !unreadable.includes(x)).slice(0, 8)) {
+    try {
+      const row = await idb.get('images', t.id);
+      if (!row?.blob) continue;
+      const bmp = await createImageBitmap(row.blob);
+      bmp.close && bmp.close();
+      shown.push({ id: t.id, where: t.where, url: URL.createObjectURL(row.blob) });
+    } catch (e) { decodeFail.push({ ...t, err: String(e?.message || e) }); }
+  }
+  return { records: images.count(), inStore, referenced: list.length, missing, empty, unreadable, decodeFail, shown, sampled,
+    urlsCached: images.cachedUrls(), epoch: blobEpoch(), versions: versions() };
+}
+
+/** 页面、脚本、样式表、Service Worker 各是哪一版。对不上就是新旧混着（第 20 条第五路） */
+export function versions() {
+  const page = document.querySelector('meta[name="build"]')?.content || '';
+  const css = [...document.querySelectorAll('link[rel="stylesheet"]')]
+    .map(l => (String(l.getAttribute('href') || '').match(/[?&]v=([^&]+)/) || [])[1] || '').filter(Boolean);
+  const cssSet = [...new Set(css)];
+  const sw = (String(navigator.serviceWorker?.controller?.scriptURL || '').match(/[?&]b=([^&]+)/) || [])[1] || '';
+  return { page, script: BUILD, css: cssSet.join(' / '), sw };
 }
 
 /** 把所有 blob 地址作废重取。显示那一层坏了时用它，数据不动 */
@@ -101,7 +124,11 @@ export function summary(r) {
   if (r.missing.length) lines.push(`记录不在库里 ${r.missing.length} 处：${r.missing.slice(0, 6).map(x => x.where).join('、')}`);
   if (r.empty.length) lines.push(`记录在、数据是空的 ${r.empty.length} 张：${r.empty.slice(0, 6).map(x => x.where).join('、')}`);
   if (r.unreadable.length) lines.push(`读不出来 ${r.unreadable.length} 张：${r.unreadable.slice(0, 3).map(x => `${x.where}（${x.err}）`).join('、')}`);
+  if (r.decodeFail?.length) lines.push(`数据在但解不出图 ${r.decodeFail.length} 张：${r.decodeFail.slice(0, 3).map(x => `${x.where}（${x.err}）`).join('、')}`);
   if (!r.missing.length && !r.empty.length && !r.unreadable.length) lines.push('抽查的图全部读得出来。看不见图的话是显示那一层，点「重新读取图片」');
   lines.push(`地址缓存 ${r.urlsCached} 个，重建过 ${r.epoch} 次`);
+  const v = r.versions || {};
+  const same = v.page && v.page === v.script && (!v.css || v.css === v.page) && (!v.sw || v.sw === v.page);
+  lines.push(`版本：页面 ${v.page || '?'}，脚本 ${v.script || '?'}，样式表 ${v.css || '?'}，Service Worker ${v.sw || '无'}${same ? '' : '。对不上：新旧混着'}`);
   return lines.join('\n');
 }

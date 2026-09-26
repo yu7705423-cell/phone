@@ -84,10 +84,15 @@ export function StoragePage() {
 
   // 「谁还引用着图片」这张单子在 system/purge.js，和存图的地方放在一起维护。
   const [diag, setDiag] = useState('');
+  const [shown, setShown] = useState([]);
   const [logs, setLogs] = useState(null);
   const runCheck = async () => {
     setDiag('检查中');
-    try { setDiag(phone.imgdiag.summary(await phone.imgdiag.check())); } catch (e) { setDiag(`检查失败：${e.message || e}`); }
+    try {
+      const r = await phone.imgdiag.check();
+      setDiag(phone.imgdiag.summary(r));
+      setShown(r.shown || []);
+    } catch (e) { setDiag(`检查失败：${e.message || e}`); }
   };
   const loadLogs = async () => { setLogs(await phone.imgdiag.entries()); };
 
@@ -219,7 +224,11 @@ export function StoragePage() {
           subtitle="核对图标、壁纸、头像、聊天背景引用的图片是否在库里、数据是否读得出来。不改任何数据"
           left=${html`<${Icon} name="eye" size=${18}/>`}
           onClick=${runCheck}/>
-        ${diag ? html`<div class="pad-x pad-b"><pre class="file-preview">${diag}</pre></div>` : null}
+        ${diag ? html`<div class="pad-x pad-b"><pre class="file-preview">${diag}</pre>
+          ${shown.length ? html`
+            <div class="field-desc">下面几张是刚从库里读出来直接画的。这里画得出来而别处空白，就是别处拿的地址或样式表是旧的</div>
+            <div class="diag-strip">${shown.map(x => html`<img key=${x.id} src=${x.url} alt="" title=${x.where}/>`)}</div>` : null}
+        </div>` : null}
         <${ListItem} title="重新读取图片" multiline
           subtitle="把所有图片地址作废后从库里重新读取。图片在库里但显示为空白时使用。不改任何数据"
           left=${html`<${Icon} name="refresh" size=${18}/>`}

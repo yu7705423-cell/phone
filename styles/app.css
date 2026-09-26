@@ -3836,3 +3836,5 @@ button.conv-notice { background: none; border: 0; font: inherit; cursor: pointer
   background: var(--group-fill); font-size: var(--fs-12); line-height: 1.6; color: var(--text-2);
   white-space: pre-wrap; word-break: break-all; max-height: 420px; overflow: auto;
 }
+.diag-strip { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-top: var(--sp-2); }
+.diag-strip img { width: 44px; height: 44px; object-fit: cover; border-radius: var(--r-sm); background: var(--surface-2); }

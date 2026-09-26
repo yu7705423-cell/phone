@@ -42,6 +42,8 @@ ok('都在时：没有缺、没有空', r.clean.missing.length === 0 && r.clean.
 ok('删掉的那张：报「记录不在」并写明是图标', r.after.missing.length === 1 && /图标 chat/.test(r.after.missing[0].where), JSON.stringify(r.after.missing));
 ok('数据是空的那张：报「记录在、数据是空的」并写明是封面', r.after.empty.length === 1 && /封面 阿岚/.test(r.after.empty[0].where), JSON.stringify(r.after.empty));
 ok('几行说明写得出来', /记录不在库里 1 处：图标 chat/.test(r.text) && /数据是空的 1 张：封面 阿岚/.test(r.text), r.text);
+ok('读得出来的几张直接画出来，解码过', r.after.shown.length >= 1 && r.after.shown.every(x => /^blob:/.test(x.url)) && r.after.decodeFail.length === 0, JSON.stringify([r.after.shown.length, r.after.decodeFail]));
+ok('四个版本号列出来，测试里对得上', /版本：页面 \S+，脚本 \S+/.test(r.text) && !/新旧混着/.test(r.text), r.text.split('\n').pop());
 ok('删图日志记着那一笔：哪张、为什么、从哪儿', r.logs[0]?.kind === 'destroy' && /测试：直接删/.test(r.logs[0].why) && r.logs[0].from.length > 0, JSON.stringify(r.logs[0]));
 ok('remove 那条路删的也留痕', r.logs2[0]?.why.includes('没有别处引用'), JSON.stringify(r.logs2[0]));
 
@@ -52,6 +54,8 @@ await page.getByText('检查图片', { exact: true }).click();
 await page.waitForTimeout(1200);
 const txt = await ev(() => document.body.innerText);
 ok('存储页「检查图片」给出结果', /库里记录/.test(txt) && /记录不在库里 1 处/.test(txt), txt.slice(0, 300));
+const strip = await ev(() => [...document.querySelectorAll('.diag-strip img')].map(i => i.naturalWidth > 0));
+ok('面板里那几张真画出来了', strip.length >= 1 && strip.every(Boolean), JSON.stringify(strip));
 await page.getByText('删图日志', { exact: true }).click();
 await page.waitForTimeout(600);
 const txt2 = await ev(() => document.body.innerText);
