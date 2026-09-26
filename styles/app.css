@@ -3869,3 +3869,9 @@ button.conv-notice { background: none; border: 0; font: inherit; cursor: pointer
 .inner-postcard-count { font-size: var(--fs-11); color: var(--text-3); letter-spacing: .08em; }
 .inner-postcard-nav { width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; color: var(--text-2); }
 .inner-postcard-nav:disabled { opacity: .25; }
+.inner-postcard-head { width: 100%; text-align: left; }
+.inner-postcard-list { flex: 1; min-height: 0; overflow: auto; padding: var(--sp-2) 0; display: flex; flex-direction: column; gap: var(--sp-1); }
+.inner-postcard-item { display: flex; flex-direction: column; gap: 2px; padding: var(--sp-2) var(--sp-2); border-radius: var(--r-xs); text-align: left; }
+.inner-postcard-item:where(.is-cur) { background: var(--group-fill); }
+.inner-postcard-item-stamp { font-size: var(--fs-11); color: var(--text-3); }
+.inner-postcard-item-text { font-size: var(--fs-13); color: var(--text-2); line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }

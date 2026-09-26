@@ -33,6 +33,15 @@ await page.locator('.inner-postcard-nav[aria-label="上一张"]').click();
 await page.waitForTimeout(300);
 const card2 = await page.evaluate(() => document.querySelector('.inner-postcard')?.innerText || '');
 ok('翻到上一张：以前那一条', /第一轮的心声/.test(card2) && /1 \/ 2/.test(card2), card2);
+// 点卡上的头像：列出以前的每一条，点一条翻过去
+await page.locator('.inner-postcard-head').click();
+await page.waitForTimeout(300);
+const items = await page.evaluate(() => [...document.querySelectorAll('.inner-postcard-item')].map(x => x.textContent));
+ok('点卡上的头像列出历史心声', items.length === 2 && /第二轮的心声/.test(items[0]) && /第一轮的心声/.test(items[1]), JSON.stringify(items));
+await page.locator('.inner-postcard-item').last().click();
+await page.waitForTimeout(300);
+const card3 = await page.evaluate(() => document.querySelector('.inner-postcard')?.innerText || '');
+ok('点一条翻到那一张', /第一轮的心声/.test(card3) && /1 \/ 2/.test(card3), card3.slice(0, 120));
 const inline = await page.evaluate(() => document.querySelectorAll('.inner-voice').length);
 ok('这一档不在气泡下面展开', inline === 0, String(inline));
 await page.locator('.inner-layer').click({ position: { x: 5, y: 5 } });

@@ -60,25 +60,37 @@ export function InnerSheet({ chatId, msgId, char, onClose }) {
   const all = extras.innerHistory(chatId);
   const start = Math.max(0, all.findIndex(m => m.id === msgId));
   const [i, setI] = useState(start);
+  // 点卡上的头像：把以前的每一条列出来，点一条翻过去
+  const [listing, setListing] = useState(false);
   const avatar = useImage(char?.avatar);
   const name = phone.remark.nameOf(char) || char?.name || '角色';
   const cur = all[i] || null;
   const go = d => setI(x => Math.min(all.length - 1, Math.max(0, x + d)));
   return html`
     <div class="inner-layer" onClick=${onClose}>
-      <div class="inner-postcard" onClick=${e => e.stopPropagation()}>
-        <div class="inner-postcard-head">
+      <div class=${`inner-postcard${listing ? ' is-listing' : ''}`} onClick=${e => e.stopPropagation()}>
+        <button class="inner-postcard-head press" onClick=${() => setListing(v => !v)} aria-label="历史心声">
           ${avatar ? html`<img class="inner-postcard-face" src=${avatar} alt=""/>`
             : html`<span class="inner-postcard-face inner-postcard-face-fallback">${name.slice(0, 1)}</span>`}
           <span class="inner-postcard-name">${name}</span>
-          <span class="inner-postcard-stamp">${cur ? stampOf(cur.createdAt) : ''}</span>
-        </div>
+          <span class="inner-postcard-stamp">${listing ? `共 ${all.length} 条` : (cur ? stampOf(cur.createdAt) : '')}</span>
+        </button>
+        ${listing ? html`
+          <div class="inner-postcard-list">
+            ${all.map((m, k) => html`
+              <button key=${m.id} class=${`inner-postcard-item press${k === i ? ' is-cur' : ''}`}
+                onClick=${() => { setI(k); setListing(false); }}>
+                <span class="inner-postcard-item-stamp">${stampOf(m.createdAt)}</span>
+                <span class="inner-postcard-item-text">${m.inner}</span>
+              </button>`)}
+            ${all.length ? null : html`<div class="inner-postcard-empty">这段会话里还没有心声</div>`}
+          </div>` : html`
         <div class="inner-postcard-body">
           ${cur ? html`
             <div class="inner-postcard-text">${cur.inner}</div>
             <div class="inner-postcard-said">${String(cur.content || '').slice(0, 60)}</div>`
           : html`<div class="inner-postcard-empty">这段会话里还没有心声</div>`}
-        </div>
+        </div>`}
         <div class="inner-postcard-foot">
           <button class="inner-postcard-nav press" disabled=${i >= all.length - 1} onClick=${() => go(1)}
             aria-label="上一张"><${Icon} name="chevronLeft" size=${16}/></button>
