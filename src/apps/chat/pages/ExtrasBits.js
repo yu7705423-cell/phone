@@ -1,5 +1,5 @@
 import { html, useState } from '../../../lib.js';
-import { phone, useStore } from '../../../sdk/index.js';
+import { phone, useStore, useImage } from '../../../sdk/index.js';
 import { Icon, Sheet, List, ListItem } from '../../../ui/index.js';
 
 const { db, extras } = phone;
@@ -49,33 +49,43 @@ const stampOf = ts => {
 };
 
 /**
- * 心声那一页（「显示成什么样」选「打开一页」时，ARCHITECTURE 4.274）。
- * 上面是点开的这一轮，下面是这段会话里以前的每一条，新的在前。
+ * 心声那张卡（「显示成什么样」选「打开一页」时，ARCHITECTURE 4.274）。
+ *
+ * 一张独立的小卡片，像明信片：正中一张纸，上面是谁、什么时候；中间是那一句心声；
+ * 底下写着第几张。左右两头点一下翻到上一张、下一张，这段会话里以前的每一条都能翻到。
+ * 点纸外面收起。不做拟物：一张纸色的卡、一条细线、一枚小头像，没有邮票和邮戳。
  */
 export function InnerSheet({ chatId, msgId, char, onClose }) {
   useStore(db.messages.store);
-  const [showAll, setShowAll] = useState(false);
-  const cur = msgId ? db.messages.get(msgId) : null;
-  const all = extras.innerHistory(chatId).filter(m => m.id !== msgId);
-  const list = showAll ? all : all.slice(0, 20);
+  const all = extras.innerHistory(chatId);
+  const start = Math.max(0, all.findIndex(m => m.id === msgId));
+  const [i, setI] = useState(start);
+  const avatar = useImage(char?.avatar);
   const name = phone.remark.nameOf(char) || char?.name || '角色';
+  const cur = all[i] || null;
+  const go = d => setI(x => Math.min(all.length - 1, Math.max(0, x + d)));
   return html`
-    <${Sheet} open=${true} onClose=${onClose} title=${`${name}的心声`} height="84%">
-      <div class="pad">
-        ${cur ? html`
-          <div class="inner-page-now">
-            <div class="inner-page-stamp">${stampOf(cur.createdAt)} · 这一轮</div>
-            <div class="inner-page-said">${String(cur.content || '').slice(0, 80)}</div>
-            <div class="inner-page-text">${cur.inner}</div>
-          </div>` : html`<div class="field-desc">这一轮没有心声。</div>`}
+    <div class="inner-layer" onClick=${onClose}>
+      <div class="inner-postcard" onClick=${e => e.stopPropagation()}>
+        <div class="inner-postcard-head">
+          ${avatar ? html`<img class="inner-postcard-face" src=${avatar} alt=""/>`
+            : html`<span class="inner-postcard-face inner-postcard-face-fallback">${name.slice(0, 1)}</span>`}
+          <span class="inner-postcard-name">${name}</span>
+          <span class="inner-postcard-stamp">${cur ? stampOf(cur.createdAt) : ''}</span>
+        </div>
+        <div class="inner-postcard-body">
+          ${cur ? html`
+            <div class="inner-postcard-text">${cur.inner}</div>
+            <div class="inner-postcard-said">${String(cur.content || '').slice(0, 60)}</div>`
+          : html`<div class="inner-postcard-empty">这段会话里还没有心声</div>`}
+        </div>
+        <div class="inner-postcard-foot">
+          <button class="inner-postcard-nav press" disabled=${i >= all.length - 1} onClick=${() => go(1)}
+            aria-label="上一张"><${Icon} name="chevronLeft" size=${16}/></button>
+          <span class="inner-postcard-count">${all.length ? `${all.length - i} / ${all.length}` : ''}</span>
+          <button class="inner-postcard-nav press" disabled=${i <= 0} onClick=${() => go(-1)}
+            aria-label="下一张"><${Icon} name="chevronRight" size=${16}/></button>
+        </div>
       </div>
-      ${all.length ? html`
-        <${List} title=${`以前的 · ${all.length}`}>
-          ${list.map(m => html`
-            <${ListItem} key=${m.id} multiline title=${m.inner}
-              subtitle=${`${stampOf(m.createdAt)} · ${String(m.content || '').slice(0, 40)}`}/>`)}
-          ${all.length > list.length ? html`
-            <${ListItem} title=${`还有 ${all.length - list.length} 条`} onClick=${() => setShowAll(true)}/>` : null}
-        <//>` : html`<div class="pad-x settings-foot">这段会话里还没有别的心声。</div>`}
-    <//>`;
+    </div>`;
 }

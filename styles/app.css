@@ -3839,8 +3839,33 @@ button.conv-notice { background: none; border: 0; font: inherit; cursor: pointer
 .diag-strip { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-top: var(--sp-2); }
 .diag-strip img { width: 44px; height: 44px; object-fit: cover; border-radius: var(--r-sm); background: var(--surface-2); }
 
-/* 心声那一页（ARCHITECTURE 4.274） */
-.inner-page-now { padding: var(--sp-3) var(--sp-4); border-radius: var(--r-md); background: var(--group-fill); }
-.inner-page-stamp { font-size: var(--fs-11); color: var(--text-3); margin-bottom: var(--sp-1); }
-.inner-page-said { font-size: var(--fs-12); color: var(--text-3); margin-bottom: var(--sp-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.inner-page-text { font-size: var(--fs-15); line-height: 1.7; color: var(--text); white-space: pre-wrap; }
+/* 心声那张卡（ARCHITECTURE 4.274）：正中一张纸，像明信片，不做拟物 */
+.inner-layer {
+  position: fixed; inset: 0; z-index: var(--z-modal);
+  display: flex; align-items: center; justify-content: center;
+  padding: var(--sp-6); background: var(--scrim);
+  animation: fade-in var(--dur-fast) var(--ease);
+}
+.inner-postcard {
+  width: 100%; max-width: 340px; aspect-ratio: 3 / 4;
+  display: flex; flex-direction: column;
+  padding: var(--sp-5) var(--sp-5) var(--sp-4);
+  border-radius: var(--r-sm); background: var(--surface); color: var(--text);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-3);
+}
+.inner-postcard-head { display: flex; align-items: center; gap: var(--sp-2); padding-bottom: var(--sp-3); border-bottom: 1px solid var(--border); }
+.inner-postcard-face { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; flex: none; }
+.inner-postcard-face-fallback { display: inline-flex; align-items: center; justify-content: center; background: var(--surface-3); color: var(--text-2); font-size: var(--fs-12); }
+.inner-postcard-name { font-size: var(--fs-13); color: var(--text-2); }
+.inner-postcard-stamp { margin-left: auto; font-size: var(--fs-11); color: var(--text-3); letter-spacing: .04em; }
+.inner-postcard-body { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: center; gap: var(--sp-3); padding: var(--sp-4) 0; overflow: auto; }
+.inner-postcard-text { font-family: var(--font-serif); font-size: var(--fs-17); line-height: 1.8; white-space: pre-wrap; word-break: break-word; }
+.inner-postcard-said { font-size: var(--fs-12); color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.inner-postcard-said::before { content: "「"; }
+.inner-postcard-said::after { content: "」"; }
+.inner-postcard-empty { text-align: center; font-size: var(--fs-13); color: var(--text-3); }
+.inner-postcard-foot { display: flex; align-items: center; justify-content: space-between; padding-top: var(--sp-3); border-top: 1px solid var(--border); }
+.inner-postcard-count { font-size: var(--fs-11); color: var(--text-3); letter-spacing: .08em; }
+.inner-postcard-nav { width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; color: var(--text-2); }
+.inner-postcard-nav:disabled { opacity: .25; }
