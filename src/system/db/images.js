@@ -21,6 +21,28 @@ const QUALITY = 0.82;
 // 就是几十兆内存，滚动时反复解。640 在三倍屏上够用，像素数只有四分之一。
 export const THUMB_MAX = 640;
 
+/**
+ * 动图吗。gif 一律算；webp 看 VP8X 块的动画位；apng 看开头几 KB 里有没有 acTL 块。
+ * 过一遍画布只剩第一帧（4.280），所以动图不压、原样存。
+ */
+export async function isAnimated(blob) {
+  if (!blob || !blob.size) return false;
+  if (/gif/i.test(blob.type || '')) return true;
+  const head = new Uint8Array(await blob.slice(0, 4096).arrayBuffer());
+  const ascii = (at, n) => String.fromCharCode(...head.subarray(at, at + n));
+  if (ascii(0, 4) === 'GIF8') return true;
+  if (ascii(0, 4) === 'RIFF' && ascii(8, 4) === 'WEBP') {
+    return ascii(12, 4) === 'VP8X' && (head[20] & 0x02) !== 0;
+  }
+  if (head[0] === 0x89 && ascii(1, 3) === 'PNG') {
+    for (let i = 8; i + 4 <= head.length; i++) {
+      if (head[i] === 0x61 && head[i + 1] === 0x63 && head[i + 2] === 0x54 && head[i + 3] === 0x4c) return true; // acTL
+      if (head[i] === 0x49 && head[i + 1] === 0x44 && head[i + 2] === 0x41 && head[i + 3] === 0x54) return false; // IDAT
+    }
+  }
+  return false;
+}
+
 export async function compress(file, maxEdge = PHOTO_MAX) {
   const bmp = await createImageBitmap(file);
   const scale = Math.min(1, maxEdge / Math.max(bmp.width, bmp.height));
@@ -154,6 +176,18 @@ export const images = {
   },
 
   async put(file, maxEdge = PHOTO_MAX) {
+    // 动图不过画布：过一遍就只剩第一帧（用户反馈：有些动态表情突然不动了，
+    // 是把远程表情缓存到本地、或从文件导入时被压成了静态的 webp，4.280）
+    if (await isAnimated(file)) {
+      const blob = await solidBlob(file);
+      let w = 0, h = 0;
+      try { const bmp = await createImageBitmap(blob); w = bmp.width; h = bmp.height; bmp.close && bmp.close(); } catch { /* 量不出就 0 */ }
+      const row = { id: uid('img'), blob, w, h, bytes: blob.size, createdAt: Date.now(), noThumb: true, animated: true };
+      sizes.set(row.id, row.bytes);
+      await write('images', () => idb.put('images', row));
+      urls.set(row.id, URL.createObjectURL(blob));
+      return row.id;
+    }
     const { blob, w, h } = await compress(file, maxEdge);
     const row = { id: uid('img'), blob, w, h, bytes: blob.size, createdAt: Date.now() };
     // 当场做好。等第一次显示再做，那一下正是列表在滚的时候

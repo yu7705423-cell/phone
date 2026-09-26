@@ -1673,7 +1673,7 @@ export function Conversation({ chatId, focusId = '' }) {
       <${UnwrapSheet} msg=${unwrap} onClose=${() => setUnwrap(null)}/>
       <${LetterSheet} msg=${letter} onClose=${() => setLetter(null)}/>
       <${ForwardSheet} msg=${fwView} onClose=${() => setFwView(null)}/>
-      <${ForwardPickSheet} open=${fwPick} fromChatId=${chatId} count=${picked?.length || 0}
+      <${ForwardPickSheet} open=${fwPick} fromChatId=${chatId} ids=${picked || []} count=${picked?.length || 0}
         onClose=${() => setFwPick(false)}
         onPick=${target => {
           try {

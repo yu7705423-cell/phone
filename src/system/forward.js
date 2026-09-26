@@ -43,8 +43,15 @@ export function textOf(fw) {
 }
 
 /** 能转发到哪些会话：同一个账号名下的，除了自己这一段 */
-export function targets(fromChatId, personaId) {
-  return chats.all().filter(c => c.id !== fromChatId && (!personaId || !c.personaId || c.personaId === personaId))
+/**
+ * 能转发到哪几段。除了自己这一段，**说这几句话的角色所在的会话也不列**（4.280）：
+ * 把角色的话转发给它自己没有意义，而同一个角色可能有别的会话（小号那边、它在的群）
+ */
+export function targets(fromChatId, personaId, authorIds = []) {
+  const said = new Set((authorIds || []).filter(id => id && id !== 'me'));
+  return chats.all().filter(c => c.id !== fromChatId
+    && (!personaId || !c.personaId || c.personaId === personaId)
+    && !(c.characterIds || []).some(id => said.has(id)))
     .sort((a, b) => (b.lastMessageAt || 0) - (a.lastMessageAt || 0));
 }
 

@@ -52,10 +52,11 @@ function TargetRow({ chat, onPick }) {
       onClick=${() => onPick(chat)}/>`;
 }
 
-/** 选转发到哪一段。只列当前账号名下的会话，除了自己这一段 */
-export function ForwardPickSheet({ open, fromChatId, count, onPick, onClose }) {
+/** 选转发到哪一段。只列当前账号名下的会话，除了自己这一段与说这几句话的角色所在的会话 */
+export function ForwardPickSheet({ open, fromChatId, ids = [], count, onPick, onClose }) {
   const me = phone.accounts.currentId();
-  const list = open ? forward.targets(fromChatId, me) : [];
+  const authors = ids.map(id => phone.db.messages.get(id)?.authorId).filter(Boolean);
+  const list = open ? forward.targets(fromChatId, me, authors) : [];
   return html`
     <${Sheet} open=${open} onClose=${onClose} title=${`转发 ${count} 条消息给`} height="70%">
       ${list.length ? html`

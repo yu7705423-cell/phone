@@ -850,6 +850,8 @@ input[type="range"] {
 
 .stk-panel { display: flex; flex-direction: column; gap: var(--sp-2); max-height: 260px; }
 .stk-tabs { display: flex; gap: var(--sp-2); overflow-x: auto; padding-bottom: var(--sp-1); }
+/* 分组多了横着滚，不许挤：flex 子项默认会缩，几十个分组一挤名字就溢出来了 */
+.stk-tabs > .chip { flex: none; white-space: nowrap; }
 .stk-tabs::-webkit-scrollbar { display: none; }
 .stk-grid {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
