@@ -21,15 +21,16 @@ const p = await page.evaluate(async () => {
 
   const all=panel.ITEMS.map(x=>x.id);
   ok('顺序一开始就是全部', panel.order().join()===all.join(), panel.order().join());
-  // 默认收进「更多」的现在是七格（video/share/dice/request/makeclip/card/file）
-  ok('默认收了几格进更多', panel.onPanel().length===all.length-7, panel.onPanel().length);
+  // 默认收进「更多」的现在是八格（lore/video/share/dice/request/makeclip/card/file）
+  ok('默认收了几格进更多', panel.onPanel().length===all.length-8, panel.onPanel().length);
   ok('收进去的确实不在面板上', !panel.onPanel().includes('dice'));
 
   // 丢掉不认识的、补上缺失的 —— 老配置里少一格不能静默丢掉
   db.settings.set({panelOrder:['dice','根本没有这一格','photo']});
   const o=panel.order();
   ok('不认识的 id 丢掉', !o.includes('根本没有这一格'), o.join());
-  ok('配置里写了的排在前面', o.slice(0,2).join()==='dice,photo', o.slice(0,3).join());
+  // 世界书那一格例外：配置里没写它时补在最前面（4.282）
+  ok('配置里写了的排在前面', o.slice(0,3).join()==='lore,dice,photo', o.slice(0,3).join());
   ok('缺的全补回来了', o.length===all.length && all.every(x=>o.includes(x)), o.length);
   panel.reset();
 
@@ -54,7 +55,7 @@ const p = await page.evaluate(async () => {
   db.settings.set({panelMore:[]});
   ok('设成空数组就是全都放面板上', panel.onPanel().length===all.length, panel.onPanel().length);
   panel.reset();
-  ok('恢复默认回得去', panel.onPanel().length===all.length-7, panel.onPanel().length);
+  ok('恢复默认回得去', panel.onPanel().length===all.length-8, panel.onPanel().length);
   return R;
 });
 p.forEach(r=>ok(r.name,r.pass,r.extra));

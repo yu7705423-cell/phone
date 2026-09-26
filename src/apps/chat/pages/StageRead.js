@@ -350,7 +350,7 @@ export function StageRead({ sceneId }) {
     : cards ? html`
           <div class="sg-feed" ref=${bodyRef} onClick=${onFeedTap}>
             ${pages.map(p => html`
-              <${Card} key=${p.key} page=${p} marks=${cfg.marks} drop=${cfg.drop} Face=${Face}
+              <${Card} key=${p.key} page=${p} marks=${cfg.marks} Face=${Face}
                 grow=${cfg.cardGrow !== false}
                 vers=${p.beat ? versOf(p.beat) : null}
                 onPick=${i => pickVer(p.beat, i)}
@@ -378,8 +378,7 @@ export function StageRead({ sceneId }) {
                 ${writing
     ? html`<div class="sg-text sg-live" ref=${liveRef}></div>`
     : html`
-                    <${Prose} text=${cur?.text || ''} marks=${cfg.marks}
-                      drop=${cfg.drop && cur?.first}/>
+                    <${Prose} text=${cur?.text || ''} marks=${cfg.marks}/>
                     ${!cur?.text && cur?.notes?.length
     ? html`<div class="sg-eyebrow">这一张只有场外指示。</div>` : null}
                     ${!pages.length ? emptyStart : null}

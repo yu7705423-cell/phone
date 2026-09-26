@@ -73,7 +73,7 @@ export function SceneBlock({ sceneId, onSetup }) {
     : cfg.sign === 'line'
       ? html`<${Byline} sign=${sign} no=${index}/>`
       : html`<${Sign} sign=${sign} no=${index} Face=${cfg.layout === 'cards' ? Face : null}/>`}
-        <${Prose} text=${b.text} marks=${cfg.marks} drop=${cfg.drop}/>
+        <${Prose} text=${b.text} marks=${cfg.marks}/>
         ${v ? html`<${Versions} ...${v} onPick=${i => sceneApi.pickSwipe(b.id, i)}/>` : null}
       </div>`;
   }).filter(Boolean);

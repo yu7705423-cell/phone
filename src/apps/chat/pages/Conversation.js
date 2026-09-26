@@ -12,6 +12,7 @@ import { PactBubble, LetterBubble, LetterSheet, PactSheet } from './SpaceBits.js
 import { ForwardBubble, ForwardSheet, ForwardPickSheet } from './ForwardBits.js';
 import { FaceChooser, FaceSheet, FaceBar, SideLine } from './FaceBits.js';
 import { FileBubble, FileSheet } from './FileBits.js';
+import { LoreSheet } from './LoreSheet.js';
 import { DiceBubble, InnerVoice, DiceSheet, InnerSheet } from './ExtrasBits.js';
 import { TakeoutBubble, TakeoutSheet, MealSettleSheet, ShareSheet, MoreSheet } from './MealBits.js';
 import { TripBubble, TripSettleSheet } from './TripBits.js';
@@ -510,6 +511,7 @@ export function Conversation({ chatId, focusId = '' }) {
   const [letter, setLetter] = useState(null);    // 正在读的那封信
   const [fwView, setFwView] = useState(null);    // 展开看的那条转发记录
   const [fwPick, setFwPick] = useState(false);   // 多选后选转发到哪一段
+  const [loreOpen, setLoreOpen] = useState(false); // 更多 - 世界书与文风（4.282）
   const [pact, setPact] = useState(null);        // 正在标完成的那条约定
   const [dicing, setDicing] = useState(false);
   const [carding, setCarding] = useState(false);
@@ -1450,6 +1452,7 @@ export function Conversation({ chatId, focusId = '' }) {
     },
     // 先问一句是就在这里用气泡演（4.269），还是写成长文（4.107 / 4.110）
     offline: () => setFacePick(true),
+    lore: () => setLoreOpen(true),
     offlineProse: () => {
       if (stage.get().placement !== 'inline') { nav.push(`/stage/${chatId}`); return; }
       if (live) { toast('这一场还没有收场'); return; }
@@ -1727,6 +1730,7 @@ export function Conversation({ chatId, focusId = '' }) {
       <${MealSettleSheet} msg=${meal} onClose=${() => setMeal(null)}/>
       <${TripSettleSheet} msg=${going} onClose=${() => setGoing(null)}/>
       <${MoreSheet} open=${more} onClose=${() => setMore(false)} onTap=${runTap}/>
+      <${LoreSheet} open=${loreOpen} chat=${chat} char=${char} onClose=${() => setLoreOpen(false)}/>
       <${FaceChooser} open=${facePick} onClose=${() => setFacePick(false)}
         onHere=${() => setFaceSetup(true)} onProse=${() => TAP.offlineProse()}/>
       ${faceSetup ? html`<${FaceSheet} open=${faceSetup} chat=${chat} chars=${isGroup ? phone.group.members(chat) : [char]}

@@ -59,7 +59,6 @@ export const DEFAULTS = {
   tapTurn: true,
   sign: 'full',         // 署名：full 编号加细线 | line 只一行 | none 不显示
   marks: true,          // 对白与动作分样式（只是展示层）
-  drop: true,           // 首字下沉。一段的第一张才有
   cardGrow: true,       // 明信片跟着内容长；关了每片一样大，文字在片内滚
   serif: true,
   bgColor: '', ink: '', dim: '', line: '', mark: '',   // theme 为 custom 时用

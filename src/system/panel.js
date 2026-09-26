@@ -10,6 +10,8 @@ import { settings } from './db/index.js';
 // 分开存，挪进挪出都不动顺序。
 
 export const ITEMS = [
+  // 世界书与文风：这段会话用哪几本书、线下时的文风。放在「更多」最上面（4.282）
+  { id: 'lore', icon: 'book', label: '世界书与文风' },
   { id: 'photo', icon: 'image', label: '图片' },
   { id: 'voice', icon: 'headphone', label: '语音' },
   { id: 'transfer', icon: 'wallet', label: '转账' },
@@ -35,7 +37,7 @@ const ALL = ITEMS.map(x => x.id);
 export const itemOf = id => ITEMS.find(x => x.id === id) || null;
 
 // 默认收进「更多」的：不常用，或者一次配好就不怎么动的那几个
-const DEFAULT_MORE = ['video', 'share', 'dice', 'request', 'makeclip', 'card', 'file'];
+const DEFAULT_MORE = ['lore', 'video', 'share', 'dice', 'request', 'makeclip', 'card', 'file'];
 
 /**
  * 读出一份干净的顺序。丢掉不认识的 id，补上配置里缺失的 ——
@@ -49,7 +51,8 @@ export function order() {
   (Array.isArray(raw) ? raw : []).forEach(id => {
     if (ALL.includes(id) && !seen.has(id)) { seen.add(id); out.push(id); }
   });
-  ALL.forEach(id => { if (!seen.has(id)) { seen.add(id); out.push(id); } });
+  // 新加的一格补在末尾；只有世界书那一格补在最前面 —— 它就该在「更多」的顶上（4.282）
+  ALL.forEach(id => { if (!seen.has(id)) { seen.add(id); if (id === 'lore') out.unshift(id); else out.push(id); } });
   return out;
 }
 

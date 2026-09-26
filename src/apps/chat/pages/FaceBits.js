@@ -1,6 +1,7 @@
 import { html, useState } from '../../../lib.js';
 import { phone, useStore } from '../../../sdk/index.js';
 import { Sheet, FullSheet, List, ListItem, Field, Input, Textarea, Switch, Button, toast } from '../../../ui/index.js';
+import { ToneEditor } from './LoreSheet.js';
 
 const { db, face, tone, ai } = phone;
 
@@ -58,6 +59,7 @@ function TonePart({ chat }) {
   useStore(db.settings.store);
   const picked = face.tonesOf(chat);
   const list = tone.list();
+  const [edit, setEdit] = useState(null);
   const flip = id => face.setTones(chat.id, picked.includes(id) ? picked.filter(x => x !== id) : [...picked, id]);
   return html`
     <${List} title="线下时的文风">
@@ -75,7 +77,11 @@ function TonePart({ chat }) {
           placeholder="写线下要的文风。一律用英文，可以用 {{charName}} 与 {{userName}} 指代双方。"
           onInput=${v => face.setTones(chat.id, picked, v)}/>
       </div>` : null}
-    <div class="settings-foot">可以选多份，按选中的顺序写入提示词。预设在「线下」页新建那一场时编辑。</div>`;
+    <${List}>
+      <${ListItem} title="新建一份文风" onClick=${() => setEdit({ id: '', name: '', text: '' })}/>
+    <//>
+    ${edit ? html`<${ToneEditor} edit=${edit} onClose=${() => setEdit(null)} onSaved=${(id, fresh) => { if (fresh) flip(id); }}/>` : null}
+    <div class="settings-foot">可以选多份，按选中的顺序写入提示词。面板「更多」最上面的「世界书与文风」里也能编辑预设。</div>`;
 }
 
 /** 切到线下之前的那张单子；线下期间点顶上那一条也是它，改的是同一份 */

@@ -38,16 +38,10 @@ export function runsOf(text) {
  * **头一段得够长。** 下沉的那个字比一行高，头一段只有一行的话，它比整段还大，
  * 看着像出了错。杂志也不会给两行的段落做首字下沉。
  */
-const DROPPABLE = /^[\u4e00-\u9fff\u3400-\u4dbfA-Za-z0-9]/;
-const DROP_MIN = 16;
-export const canDrop = (text) => {
-  const t = String(text || '').trimStart();
-  return DROPPABLE.test(t) && t.length >= DROP_MIN;
-};
-
-export const Prose = ({ text, marks, drop }) => {
+// 首字下沉去掉了（4.282）：::first-letter 加浮动在各家浏览器上高低不齐，中文开头带引号时更乱
+export const Prose = ({ text, marks }) => {
   const lines = String(text || '').split('\n');
-  const cls = `sg-text no-callout${drop && canDrop(lines[0]) ? ' is-drop' : ''}`;
+  const cls = 'sg-text no-callout';
   return html`
     <div class=${cls}>
       ${lines.map((line, i) => html`
@@ -101,13 +95,13 @@ export const Byline = ({ sign, no }) => {
 
 // 明信片那一档的一张。竖着滑，一张一张排下去。
 // `Face` 原样递给署名，见文件开头。
-export const Card = ({ page, sign, marks, drop, showSign, Face, grow, vers, onPick, onHold, onEnd }) => html`
+export const Card = ({ page, sign, marks, showSign, Face, grow, vers, onPick, onHold, onEnd }) => html`
   <article class=${`sg-card no-callout${grow ? '' : ' is-fixed'}`}
     onTouchStart=${onHold} onTouchEnd=${onEnd} onTouchMove=${onEnd} onTouchCancel=${onEnd}
     onContextMenu=${e => { e.preventDefault(); if (onHold) onHold(); }}>
     ${showSign && sign ? html`<${Sign} sign=${sign} no=${page.beatIndex} Face=${Face}/>` : null}
     <div class="sg-card-body">
-      <${Prose} text=${page.text} marks=${marks} drop=${drop && page.first}/>
+      <${Prose} text=${page.text} marks=${marks}/>
       ${vers && page.page === page.pages - 1
     ? html`<${Versions} n=${vers.n} at=${vers.at} onPick=${onPick}/>` : null}
     </div>

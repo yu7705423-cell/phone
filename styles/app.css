@@ -366,6 +366,8 @@ input[type="range"] {
   display: flex; gap: var(--sp-2);
   padding: 0 var(--sp-4) var(--sp-3);
 }
+/* 更多 - 世界书与文风：展开的那本书的条目，往里缩一点 */
+.lore-entries { padding-left: var(--sp-6); }
 /* 支出分类那一条占比。细细一道，看的是长短不是数字 */
 .sp-bar {
   display: block; height: 3px; border-radius: var(--r-full);
@@ -2541,17 +2543,6 @@ button.search-bar { width: 100%; border: none; }
 .sg-face {
   flex: none; width: 46px; height: 46px; object-fit: cover;
   border-radius: 3px; border: 1px solid var(--sg-line);
-}
-
-/* 首字下沉。杂志开篇那一页真正的大件。
-   initial-letter 各家支持不齐，稳的是 ::first-letter 加浮动。
-   开头是标点的那一段不加（canDrop 在 StageBits.js 里判） */
-:where(.sg-text.is-drop) > p:where(:first-child)::first-letter {
-  float: left;
-  font-size: 3em; line-height: .86;
-  padding: .06em .12em 0 0;
-  color: var(--sg-ink);
-  font-weight: var(--fw-normal);
 }
 
 /* 只要一行的那一档。同一份字距，去掉头像与细线 */

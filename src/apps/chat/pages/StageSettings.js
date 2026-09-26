@@ -126,9 +126,6 @@ export function StageSettings({ sceneId }) {
       <//>
 
       <${List} title="排版" inset=${false}>
-        <${ListItem} title="首字下沉" multiline
-          subtitle="每段第一张的第一个字放大到两行多高，杂志开篇那一页的排法。开头是标点的那一段不做"
-          right=${html`<${Switch} checked=${cfg.drop} onChange=${v => set({ drop: v })}/>`}/>
         ${cfg.layout === 'cards' ? html`
           <${ListItem} title="明信片铺开文字" multiline
             subtitle="开启后每片跟着内容长，长的一段就是长的一片。关闭时每片一样大，按明信片的比例，文字在片内滚动"
