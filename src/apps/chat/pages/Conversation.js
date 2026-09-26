@@ -1050,10 +1050,8 @@ export function Conversation({ chatId, focusId = '' }) {
     e.target.value = '';
     if (!file) return;
     setPanel(null);
-    try {
-      await phone.docfile.sendFromUser(chatId, file);
-      afterSend(`[文件：${file.name}]`);
-    } catch (err) { toast(String(err.message || err), 'error'); }
+    // 和发图片一样，文件本身不触发回复：说一句「填一下」再回，不多打一次
+    try { await phone.docfile.sendFromUser(chatId, file); } catch (err) { toast(String(err.message || err), 'error'); }
   };
 
   const sendClip = async e => {

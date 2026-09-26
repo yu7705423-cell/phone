@@ -110,7 +110,7 @@ export function FaceSheet({ open, chat, chars, onClose }) {
       <${TonePart} chat=${chat}/>
       <div class="settings-foot">
         线下期间：角色每轮至少写一行旁白；转账、外卖、表情、图片、语音、通话等手机上的动作不可用；
-        角色不主动发起对话；延迟回复按发完就回处理。切回线上后全部恢复。
+        角色不主动发起对话；回复节奏不变，延迟回复按空闲状态计算。接口调用次数与线上相同。切回线上后全部恢复。
       </div>
     <//>`;
 }

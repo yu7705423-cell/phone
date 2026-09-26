@@ -34,9 +34,7 @@ export const PACED = 'paced';
 export const MODES = [MANUAL, NOW, PACED];
 
 export function modeOf(chat) {
-  // 会话切到线下时当面即答，不排延迟（system/face.js）。按按钮那一档照旧
   const m = chat?.paceMode;
-  if (chat?.face?.on === true && m === PACED) return NOW;
   return MODES.includes(m) ? m : MANUAL;
 }
 export function setMode(chatId, mode) {
@@ -82,6 +80,9 @@ export function stateOf(chat, when = clock.now()) {
   const at = +when;   // 传进来的可能是 Date，下面要做加减
   const char = characters.get((chat?.characterIds || [])[0]);
   if (!char) return { kind: 'free', what: '', until: 0 };
+  // 会话切到线下时两个人在一处（system/face.js）：不忙也不在休息，按空闲算。
+  // 档位不换 —— 换成「发完就回」会把延迟回复里几条并成一次回的省法丢掉，多花的账用户看不见
+  if (chat?.face?.on === true) return { kind: 'free', what: '', until: 0 };
   const from = clampHour(char.proactiveQuietFrom, 0), to = clampHour(char.proactiveQuietTo, 8);
   const h = Number(clock.partsOf(new Date(at), clock.charZone(char)).hour);
   if (sleepOf(chat) && inWindow(h, from, to)) return { kind: 'asleep', what: '休息中', until: nextHourAt(char, at, to) };

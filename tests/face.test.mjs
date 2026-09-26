@@ -70,11 +70,11 @@ const st = await ev(async o => {
   const line = face.enter(o.chat, { place: '旧书店', at: '周三 14:30', note: '对方迟到了四十分钟' });
   const chat = db.chats.get(o.chat);
   return { on: face.on(chat), line: { kind: line.kind, side: line.side, content: line.content },
-    mode: pace.modeOf(chat), ready: !!pro.chatReady(o.char) };
+    mode: pace.modeOf(chat), state: pace.stateOf(chat).kind, ready: !!pro.chatReady(o.char) };
 }, ids);
 ok('切过去：会话记着在线下', st.on, JSON.stringify(st));
 ok('切过去：消息流里落一条分隔线', st.line.kind === 'side' && st.line.side === 'face' && st.line.content === '[线下 · 旧书店 · 周三 14:30]', JSON.stringify(st.line));
-ok('线下期间延迟回复按发完就回', st.mode === 'now', st.mode);
+ok('线下期间延迟回复档位不变、状态按空闲算（调用次数不变）', st.mode === 'paced' && st.state === 'free', `${st.mode} ${st.state}`);
 ok('线下期间不主动发消息', st.ready === false, String(st.ready));
 
 reply = '[旁白：他抬起头。]\n你来了。\n坐。';
@@ -98,7 +98,7 @@ const back = await ev(async o => {
   const line = face.leave(o.chat);
   return { on: face.on(db.chats.get(o.chat)), line: line.content, mode: pace.modeOf(db.chats.get(o.chat)) };
 }, ids);
-ok('切回来：分隔线写「回到线上」，延迟回复恢复', !back.on && back.line === '[回到线上]' && back.mode === 'paced', JSON.stringify(back));
+ok('切回来：分隔线写「回到线上」，节奏照旧', !back.on && back.line === '[回到线上]' && back.mode === 'paced', JSON.stringify(back));
 reply = '到家了？';
 await turn('到家了', 't2');
 ok('切回来：开场回到发消息，世界书恢复', /texting .* on a phone/.test(sysOf()) && /ONLINE-BOOK/.test(sysOf()), '');
