@@ -42,7 +42,7 @@ export function ExtrasPage({ chatId }) {
     <${Page} title="互动" onBack=${nav.pop}>
       <${List} title="旁白">
         <${ListItem} title="开启旁白" multiline
-          subtitle="开启后，角色可以在消息之间写一行旁白，描写此刻的神态、动作与环境，显示为居中的一行小字，不算作一条消息。不额外调用接口。颜色可在「聊天背景」中修改"
+          subtitle="开启后，角色每轮回复至少写一行旁白，描写此刻的神态、动作与环境，显示为居中的一行小字，不算作一条消息。群聊中同样生效。不额外调用接口。颜色可在「聊天背景」中修改"
           right=${html`<${Switch} checked=${extras.narrationOn(chat)}
             onChange=${v => extras.setNarration(chatId, v)}/>`}/>
       <//>

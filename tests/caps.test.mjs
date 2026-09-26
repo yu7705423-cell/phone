@@ -56,7 +56,7 @@ ck('关掉之后拍一拍一个字都没有', r.patGone);
 ck('关掉之后骰子标记也没有', r.diceGone);
 ck('prompt 确实变短了', r.shorter);
 ck('全关之后短得多 (' + r.lenAll + ' -> ' + r.lenNone + ')', r.muchShorter);
-ck('协议那两样不在开关表里', r.switchableCount === r.totalCount - 2);
+ck('协议那两样、自己有开关的旁白与心声，不在开关表里', r.switchableCount === r.totalCount - 4);
 ck('时间戳全关之后仍然生效', r.timeStillOn);
 ck('每个能力都有名字', r.labelled);
 

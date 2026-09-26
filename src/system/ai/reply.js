@@ -585,8 +585,23 @@ export function splitReply(raw) {
   // 只写了「[译文]」这个标签，正文在下一行
   let transNext = false;
 
+  // 心声在等一条正文（写在旁白、表情、图片后面，或整轮开头时会这样）
+  let pendingInner = '';
+  // 心声挂到**最近一条正文**上，不是刚落下的那一条。开了旁白之后模型常见的写法是
+  // 先一行 [旁白：…] 再一行 [心声：…]，挂到旁白上等于丢掉：旁白画成一行小字，
+  // 不画心声，点头像找到的也是它。前面一条正文都没有就先记着，下一条正文落下来时补上
+  const attachInner = body => {
+    const text = String(body || '').trim();
+    if (!text) return;
+    for (let i = parts.length - 1; i >= 0; i--) {
+      if (parts[i].type === 'text') { parts[i].inner = text; return; }
+    }
+    pendingInner = text;
+  };
+
   const push = part => {
     if (pendingQuote) { part.quote = pendingQuote; pendingQuote = null; }
+    if (pendingInner && part.type === 'text') { part.inner = pendingInner; pendingInner = ''; }
     if (pendingTrans && (part.type === 'text' || part.type === 'voice') && !part.translation) {
       part.translation = pendingTrans; pendingTrans = null;
     }
@@ -714,11 +729,7 @@ export function splitReply(raw) {
       // 心声和译文一样，挂到刚刚那一条上 —— 它是那句话背后的那一层，
       // 前面没有话就无从谈起。
       const iv = t.match(INNER_LINE);
-      if (iv) {
-        const prev = parts[parts.length - 1];
-        if (prev) prev.inner = iv[1].trim();
-        return;
-      }
+      if (iv) { attachInner(iv[1]); return; }
 
       // 译文。挂到第几条上由 attachTrans 按顺序配，这一行自己不占气泡。
       const tv = transOf(t);
@@ -792,8 +803,7 @@ export function splitReply(raw) {
         const o = takeout.parse(body);
         if (o && o.amount > 0) push({ type: 'request', kind: request.CARD, amount: o.amount });
       } else if (INNER_KINDS.has(kind)) {
-        const prev = parts[parts.length - 1];
-        if (prev) prev.inner = body;
+        attachInner(body);
       } else if (WEAR_KINDS.has(kind)) {
         push({ type: 'wear', name: body });
       } else if (REMARK_KINDS.has(kind)) {

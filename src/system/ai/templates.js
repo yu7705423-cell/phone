@@ -786,10 +786,10 @@ passcode changed, not the digits.`,
 A line on its own, [旁白：text], is shown between the messages as narration: a
 separate line in a smaller font, not a message from you. Narration is written in
 the third person and describes what can be observed at this moment, such as
-expression, movement or surroundings. A reply may contain several narration
-lines, each on its own line and each shown where it is written; one line may
-hold more than one sentence. Narration lines do not count toward the number of
-messages in the reply.`,
+expression, movement or surroundings. Every reply contains at least one
+narration line. A reply may contain several, each on its own line and each shown
+where it is written; one line may hold more than one sentence. Narration lines
+do not count toward the number of messages in the reply.`,
 
   'skeleton.outfit':
 `[搭配]

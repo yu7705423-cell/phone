@@ -106,13 +106,16 @@ const hasPending = (msgs, kind, field, value) =>
 // 时间戳与译文是**协议**，不是「想用再用」的功能：关掉它们，模型写出来的
 // 那几行本地就解析不出来。所以它们不进那张开关表（见 switchable）。
 export const PROTOCOL = new Set(['time', 'translate']);
+// 自己有开关的那几样（会话「互动」里的旁白与心声）。同一个开关只能有一个入口（第 5 条）：
+// 从前这里也列着它们，在这儿关过一次，会话里开着也不注入，界面上看不出来
+export const OWN_SWITCH = new Set(['narration', 'inner']);
 
-/** 用户能自己关掉的那些。协议那两样不在里面。 */
-export const switchable = () => CAPS.filter(c => !PROTOCOL.has(c.id));
+/** 用户能在「能力开关」里关掉的那些。协议那两样、自己有开关的那两样不在里面。 */
+export const switchable = () => CAPS.filter(c => !PROTOCOL.has(c.id) && !OWN_SWITCH.has(c.id));
 
-/** 关掉了哪几样。存的是 id 清单，没有就是一样都没关。 */
+/** 关掉了哪几样。存的是 id 清单，没有就是一样都没关。老设置里关过的旁白与心声不再认 */
 export const offSet = settings =>
-  new Set(Array.isArray(settings?.capsOff) ? settings.capsOff : []);
+  new Set((Array.isArray(settings?.capsOff) ? settings.capsOff : []).filter(id => !OWN_SWITCH.has(id)));
 
 // 撤回动态那一句：最近一条还挂着的动态是什么。没有就不提这一半
 function postLine(char) {
@@ -490,7 +493,8 @@ export const CAPS = [
  */
 // 群聊里说得通的那几样。转账、礼物、一起听、约定、出行这些都是「你和我」
 // 之间的事，群里没有一个对象可以接；心声、换头像按一个角色设计，群里一次写几个人。
-const GROUP_CAPS = new Set(['image', 'video', 'voice', 'sticker', 'quote', 'dice', 'time', 'translate', 'award']);
+// 旁白与心声是这段会话的写法，群里同样成立；从前漏在外面，群聊里开了也一个字不注入
+const GROUP_CAPS = new Set(['image', 'video', 'voice', 'sticker', 'quote', 'dice', 'time', 'translate', 'award', 'narration', 'inner']);
 
 export function capabilityBlock(raw) {
   // 注入块那边把消息列表叫 messages，这里一路叫 msgs，入口处对齐一次
