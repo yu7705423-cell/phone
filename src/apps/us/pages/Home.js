@@ -2,12 +2,13 @@ import { html, useState } from '../../../lib.js';
 import { phone, useStore } from '../../../sdk/index.js';
 import { Page, List, ListItem, EmptyState, Button, IconButton,
          FullSheet, toast } from '../../../ui/index.js';
-import { WorkFields, WorkSwitches, ChatPick, KindPick, dateOf } from './Bits.js';
+import { WorkFields, WorkSwitches, ChatPick, CastPick, KindPick, dateOf } from './Bits.js';
+import { Segmented, Field } from '../../../ui/index.js';
 
 const { db, nav, work } = phone;
 
 const blank = () => ({
-  chatId: '', kind: work.EXTRA, title: '', premise: '',
+  chatId: '', from: 'chat', castIds: [], kind: work.EXTRA, title: '', premise: '',
   charName: '', charPersona: '', meName: '', mePersona: '',
   carry: false, solo: false, opening: 'char',
 });
@@ -46,14 +47,19 @@ export function Home({ chatId = '' }) {
     : '';
 
   const start = () => {
-    if (!v.chatId) { toast('请先选择和谁'); return; }
-    const row = work.create({
-      chatId: v.chatId, kind: v.kind, title: v.title, premise: v.premise,
+    // 长篇可以不挂会话，直接选人物（4.262）；番外一定挂在会话上
+    const alone = v.kind === work.SAGA && !chatId && v.from === 'cast';
+    if (alone ? !v.castIds.length : !v.chatId) { toast(alone ? '请先选择人物' : '请先选择和谁'); return; }
+    let row;
+    try {
+      row = work.create({
+      chatId: alone ? '' : v.chatId, castIds: alone ? v.castIds : [], kind: v.kind, title: v.title, premise: v.premise,
       charAs: { name: v.charName, persona: v.charPersona },
       meAs: { name: v.meName, persona: v.mePersona },
-      carry: v.carry, solo: v.solo, opening: v.opening,
+      carry: alone ? false : v.carry, solo: v.solo, opening: v.opening,
       tone: db.settings.get().workToneLast || '',
-    });
+      });
+    } catch (e) { toast(String(e.message || e), 'error'); return; }
     // 番外只有一则，建完直接开写；长篇先进目录，第一章由用户自己起
     const first = v.kind === work.EXTRA ? work.addChapter(row.id) : null;
     setOpen(false);
@@ -94,7 +100,18 @@ export function Home({ chatId = '' }) {
           <${KindPick} value=${v.kind} onChange=${x => set({ kind: x })}/>
           <${WorkFields} v=${v} set=${set} kind=${v.kind}/>
         </div>
-        ${chatId ? null : html`<${ChatPick} value=${v.chatId} onChange=${x => set({ chatId: x })}/>`}
-        <${WorkSwitches} v=${v} set=${set} kind=${v.kind}/>
+        ${chatId ? null : html`
+          ${v.kind === work.SAGA ? html`
+            <div class="pad-x">
+              <${Field} label="人物来源"
+                desc=${v.from === 'cast' ? '直接从联系里选人物，不挂在任何会话上，因此没有「带上原来的记忆」。' : '挂在一段会话上，可以带上那段关系的记忆。'}>
+                <${Segmented} value=${v.from} onChange=${x => set({ from: x })}
+                  items=${[{ value: 'chat', label: '一段会话' }, { value: 'cast', label: '直接选人物' }]}/>
+              <//>
+            </div>` : null}
+          ${v.kind === work.SAGA && v.from === 'cast'
+            ? html`<${CastPick} value=${v.castIds} onChange=${x => set({ castIds: x })}/>`
+            : html`<${ChatPick} value=${v.chatId} onChange=${x => set({ chatId: x })}/>`}`}
+        <${WorkSwitches} v=${v} set=${set} kind=${v.kind} alone=${v.kind === work.SAGA && !chatId && v.from === 'cast'}/>
       <//>` : null}`;
 }

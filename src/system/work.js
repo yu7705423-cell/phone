@@ -39,22 +39,26 @@ export const ofChat = chatId => works.byIndex(chatId).slice().sort(byTime);
  * `solo` 是「整篇它写」：开着时模型连「我」那个角色的言行一起写，读起来
  * 是小说；关着是轮流写，和线下一样。也由用户定。
  */
-export function create({ chatId, kind = EXTRA, title = '', castIds = [],
+export function create({ chatId = '', kind = EXTRA, title = '', castIds = [],
   premise = '', charAs = null, meAs = null, carry = null, solo = false,
   opening = 'char', tone = '', toneText = '' }) {
-  const chat = chats.get(chatId);
-  const cast = castIds.length ? castIds : (chat?.characterIds || []).slice();
+  const chat = chats.get(chatId) || null;
   const k = kind === SAGA ? SAGA : EXTRA;
+  // 长篇可以不挂会话（4.262）：人物直接从联系里选。没有会话就没有「带上原来的记忆」这一项。
+  // 番外一定挂在会话上 —— 它就是这段关系的小剧场
+  if (k === EXTRA && !chat) throw new Error('番外需要选择一段会话');
+  const cast = castIds.length ? castIds.filter(id => characters.has(id)) : (chat?.characterIds || []).slice();
+  if (!cast.length) throw new Error('请先选择人物');
   settings.set({ workToneLast: String(tone || '') });
   return works.create({
-    chatId, kind: k,
+    chatId: chat ? chat.id : '', kind: k,
     title: String(title || '').trim(),
     castIds: cast,
     premise: String(premise || '').trim(),
     charAs: asIdentity(charAs),
     meAs: asIdentity(meAs),
     // 番外不给这个开关：它就是这段关系的小剧场，不带原来的事就写不出来
-    carry: k === EXTRA ? true : carry === true,
+    carry: k === EXTRA ? true : (!!chat && carry === true),
     solo: !!solo,
     // 新的一篇由谁开场。定在作品上而不是每一篇上 —— 一部作品里每一篇
     // 都是同一个写法，不该每开一篇再问一次

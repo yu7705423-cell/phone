@@ -111,7 +111,7 @@ export function WorkFields({ v, set, kind }) {
 }
 
 /** 两个开关。番外没有第一个 —— 它就是这段关系的小剧场。 */
-export function WorkSwitches({ v, set, kind }) {
+export function WorkSwitches({ v, set, kind, alone = false }) {
   return html`
     <div class="pad-x">
       <${Field} label="新的一篇由谁开场"
@@ -121,7 +121,7 @@ export function WorkSwitches({ v, set, kind }) {
       <//>
     </div>
     <${List} title="这一部怎么写">
-      ${kind === work.SAGA ? html`
+      ${kind === work.SAGA && !alone ? html`
         <${ListItem} title="带上原来的记忆与关系" multiline
           subtitle=${v.carry
     ? '角色记得聊天里发生过的事。适合「还是我们俩，只是换了个世界」。'
@@ -152,6 +152,22 @@ export function ChatPick({ value, onChange }) {
             right=${value === c.id ? '当前' : null}
             onClick=${() => onChange(c.id)}/>`;
   })}
+    <//>`;
+}
+
+/** 直接从联系里选人物，不经过会话（4.262）。长篇才有这条路 */
+export function CastPick({ value = [], onChange }) {
+  useStore(db.characters.store);
+  const list = db.characters.all().filter(c => !c.parentId)
+    .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'zh'));
+  const flip = id => onChange(value.includes(id) ? value.filter(x => x !== id) : [...value, id]);
+  return html`
+    <${List} title="人物">
+      ${list.map(c => html`
+        <${ListItem} key=${c.id} title=${phone.remark.nameOf(c)} subtitle=${c.signature || ''}
+          right=${html`<${Switch} checked=${value.includes(c.id)} onChange=${() => flip(c.id)}/>`}
+          onClick=${() => flip(c.id)}/>`)}
+      ${list.length ? null : html`<${ListItem} title="还没有角色" subtitle="先在「联系」中创建角色"/>`}
     <//>`;
 }
 

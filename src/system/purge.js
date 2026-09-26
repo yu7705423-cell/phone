@@ -133,6 +133,14 @@ export function dropCharacter(charId) {
   // 「上次自己存照片是什么时候」记在 localStorage 里，不在数据域中，
   // 所以那几张登记表管不到它，只能在这儿一并抹掉
   forgetSnap(charId);
+  // 不挂会话的长篇（4.262）：人物没了作品也就没了，连着每一章与正文
+  works.all().filter(w => !w.chatId && (w.castIds || []).includes(charId)).forEach(w => {
+    chapters.byIndex(w.id).slice().forEach(c => {
+      beats.byIndex(c.id).slice().forEach(b => beats.remove(b.id));
+      chapters.remove(c.id);
+    });
+    works.remove(w.id);
+  });
   memories.removeWhere(m => m.charId === charId);
   moments.removeWhere(m => m.authorId === charId);
   days.byIndex(charId).slice().forEach(r => days.remove(r.id));

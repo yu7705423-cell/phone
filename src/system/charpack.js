@@ -54,7 +54,9 @@ export function collect(charId, { history = true } = {}) {
 
   // 挂在这几段会话上的
   const sceneRows = chatRows.flatMap(c => scenes.byIndex(c.id));
-  const workRows = chatRows.flatMap(c => works.byIndex(c.id));
+  // 挂在会话上的作品跟着会话走；不挂会话的长篇（4.262）按人物认
+  const workRows = [...chatRows.flatMap(c => works.byIndex(c.id)),
+    ...works.all().filter(w => !w.chatId && (w.castIds || []).some(x => castIds.has(x)))];
   const chapterRows = workRows.flatMap(w => chapters.byIndex(w.id));
   // 线下的段与作品的段在同一个域里，一起带走（见 ARCHITECTURE 4.117）
   const beatRows = [...sceneRows, ...chapterRows].flatMap(x => beats.byIndex(x.id));
@@ -354,8 +356,9 @@ export async function install(pack) {
   // 「我们」的作品与每一篇。正文和线下共用 beats，所以两张表一起查
   const workMap = new Map();
   (data.works || []).forEach(w => {
-    const chatId = chatMap.get(w.chatId);
-    if (!chatId) return;
+    // 不挂会话的长篇照样装回来（chatId 留空）；挂会话的，会话没带来就不装
+    const chatId = w.chatId ? chatMap.get(w.chatId) : '';
+    if (w.chatId && !chatId) return;
     works.put({
       ...w, id: fresh(workMap, works, w, 'wk'), chatId,
       castIds: (w.castIds || []).map(remap),
