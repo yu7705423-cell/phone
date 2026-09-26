@@ -15,6 +15,7 @@ import { listen } from '../listen.js';
 import { PACT_OPEN } from '../space.js';
 import * as dayStore from '../day.js';
 import * as extras from '../extras.js';
+import * as faceLib from '../face.js';
 import * as avatarLib from '../avatar.js';
 import * as remark from '../remark.js';
 import * as recall from '../recall.js';
@@ -454,7 +455,8 @@ export const CAPS = [
     // 旁白。会话「互动」里开了才有；开了就常驻：它是这一段会话的写法，不是想用再用的功能
     id: 'narration',
     label: '旁白',
-    on: ({ chat }) => extras.narrationOn(chat),
+    // 会话切到线下时（system/face.js）旁白必开：那是线下的写法
+    on: ({ chat }) => extras.narrationOn(chat) || faceLib.on(chat),
     always: true,
     detail: () => template('skeleton.narration'),
   },
@@ -512,7 +514,10 @@ export function capabilityBlock(raw) {
   // 就成了「界面上说关了，模型那边照样看得见」
   const off = offSet(ctx.settings);
 
+  // 会话切到线下时只给当面说得通的那几样（face.CAPS）
+  const face = faceLib.on(ctx.chat);
   for (const cap of CAPS) {
+    if (face && !faceLib.CAPS.has(cap.id)) continue;
     if (off.has(cap.id) && !PROTOCOL.has(cap.id)) continue;
     if (!onFor(cap)) continue;
     const hot = !lean || cap.always || (cap.hot ? cap.hot(ctx) : false);

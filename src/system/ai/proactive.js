@@ -210,6 +210,8 @@ function chatFor(charId) {
   const chat = chats.all().find(c => (c.characterIds || []).length === 1
     && c.characterIds[0] === charId && (c.personaId || me) === me);
   if (!chat) return null;
+  // 会话切到线下时不主动发消息：两个人正在一处（system/face.js）
+  if (chat.face?.on === true) return null;
   const unreadCap = maxUnread();
   if (unreadCap && (chat.unread || 0) >= unreadCap) return null;
   if (isReplying(chat.id, charId)) return null;

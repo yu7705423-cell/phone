@@ -113,6 +113,8 @@ export async function extract(chatId) {
   }
 
   const dialogue = pending.map(m => {
+    // 线上 / 线下的分界照原样给（4.269）：模板里说了哪段是当面、哪段是手机上
+    if (m.kind === 'side') return m.side === 'face' ? '[以下当面]' : '[以下在手机上]';
     const who = m.role === 'user' ? 'User' : (characters.get(m.authorId)?.name || 'Character');
     return `${who}：${m.content}`;
   }).join('\n');

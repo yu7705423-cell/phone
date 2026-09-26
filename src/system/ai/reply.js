@@ -24,6 +24,7 @@ import { releaseImages } from '../purge.js';
 import * as space from '../space.js';
 import * as dayStore from '../day.js';
 import * as extras from '../extras.js';
+import * as faceLib from '../face.js';
 import * as avatar from '../avatar.js';
 import * as remark from '../remark.js';
 import * as recall from '../recall.js';
@@ -1544,6 +1545,8 @@ async function renderPlan({ chat, plan, raw, turnId, swipes, swipeIndex, onEach,
     const msg = materialize(part, {
       chatId: chat.id, role: 'char', authorId: char.id,
       turnId, status: 'done',
+      // 会话切到线下时生成的，记一个 side（4.269）
+      ...(faceLib.on(chat) ? { side: faceLib.FACE } : {}),
       // 整轮的原文、候选与自检只挂在第一条上，切换候选时整轮重放
       ...(i === 0 ? { raw, think, swipes: swipes || [raw], swipeIndex: swipeIndex ?? 0 } : {}),
     }, char);

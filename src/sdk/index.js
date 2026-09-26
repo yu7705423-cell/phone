@@ -130,6 +130,7 @@ import * as sidestoryApi from '../system/sidestory.js';
 import * as imghostApi from '../system/imghost.js';
 import * as receiptApi from '../system/receipt.js';
 import * as toneApi from '../system/tone.js';
+import * as faceApi from '../system/face.js';
 import * as alarmApi from '../system/alarm.js';
 import * as whenApi from '../system/when.js';
 import * as noteApi from '../system/note.js';
@@ -381,6 +382,7 @@ export const phone = {
   imghost: imghostApi,
   receipt: receiptApi,
   tone: toneApi,
+  face: faceApi,
   alarm: alarmApi,
   when: whenApi,
   note: noteApi,

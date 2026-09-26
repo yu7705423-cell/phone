@@ -3803,3 +3803,17 @@ button.conv-notice { background: none; border: 0; font: inherit; cursor: pointer
 .qb-panel .switch { background: rgba(255, 255, 255, 0.2); }
 .qb-panel .switch:where(.is-on) { background: var(--ios-green); }
 .qb-panel .switch-dot { background: rgba(255, 255, 255, 0.98); }
+
+/* 会话里切到线下（ARCHITECTURE 4.269）：顶上那一条，和消息流里的分隔线 */
+.face-bar {
+  flex: none; display: flex; align-items: stretch; margin-bottom: var(--sp-2);
+  font-size: var(--fs-12); background: var(--group-fill);
+}
+.face-bar-main { flex: 1; padding: var(--sp-2) var(--sp-4); text-align: left; color: var(--text-2); }
+.face-bar-back { flex: none; padding: var(--sp-2) var(--sp-4); color: var(--accent); }
+.side-div {
+  display: flex; align-items: center; gap: var(--sp-3);
+  margin: var(--sp-3) var(--sp-4);
+}
+.side-div-line { flex: 1; height: 1px; background: var(--border-2); }
+.side-div-text { flex: none; font-size: var(--fs-11); letter-spacing: .12em; color: var(--text-3); }

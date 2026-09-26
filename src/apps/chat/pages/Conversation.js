@@ -10,6 +10,7 @@ import { MediaBubble } from './MediaBubble.js';
 import { MsgMenu } from './MsgMenu.js';
 import { PactBubble, LetterBubble, LetterSheet, PactSheet } from './SpaceBits.js';
 import { ForwardBubble, ForwardSheet, ForwardPickSheet } from './ForwardBits.js';
+import { FaceChooser, FaceSheet, FaceBar, SideLine } from './FaceBits.js';
 import { DiceBubble, InnerVoice, DiceSheet } from './ExtrasBits.js';
 import { TakeoutBubble, TakeoutSheet, MealSettleSheet, ShareSheet, MoreSheet } from './MealBits.js';
 import { TripBubble, TripSettleSheet } from './TripBits.js';
@@ -276,6 +277,10 @@ export const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, o
     if (hold.current.fired) { hold.current.fired = false; e.preventDefault(); e.stopPropagation(); }
   };
 
+  // 线上 / 线下的分界（ARCHITECTURE 4.269）：一条线，不是谁说的话
+  if (msg.kind === 'side') {
+    return html`<div id=${`msg-${msg.id}`}><${SideLine} msg=${msg}/></div>`;
+  }
   // 提示行不是谁说的话，不给头像也不给气泡，居中一行就够
   if (msg.kind === 'notice') {
     return html`<div id=${`msg-${msg.id}`}><${NoticeLine} msg=${msg}/></div>`;
@@ -298,7 +303,7 @@ export const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, o
 
   const body = html`
     <div id=${gone ? undefined : `msg-${msg.id}`}
-      class=${`msg no-callout ph-msg ${mine ? 'ph-msg-mine is-mine' : 'ph-msg-theirs'}${selecting && !frozen ? ' is-picking' : ''}${selected ? ' is-picked' : ''}${hasMeta && slot === 'side' ? ' has-aside' : ''}${cont ? ' is-cont' : ''}${gone ? ' is-recalled' : ''}`}
+      class=${`msg no-callout ph-msg ${mine ? 'ph-msg-mine is-mine' : 'ph-msg-theirs'}${msg.side === 'face' ? ' ph-msg-face is-face' : ''}${selecting && !frozen ? ' is-picking' : ''}${selected ? ' is-picked' : ''}${hasMeta && slot === 'side' ? ' has-aside' : ''}${cont ? ' is-cont' : ''}${gone ? ' is-recalled' : ''}`}
       ref=${row}
       onClickCapture=${capture}
       onTouchStart=${start} onTouchEnd=${release} onTouchMove=${move} onTouchCancel=${release}
@@ -503,6 +508,8 @@ export function Conversation({ chatId, focusId = '' }) {
   const [sharing, setSharing] = useState(false);    // 共享位置面板开着
   const [songing, setSonging] = useState(false);    // 挑一首歌分享出去
   const [more, setMore] = useState(false);          // 面板的「更多」开着
+  const [facePick, setFacePick] = useState(false);  // 面板「线下」：就在这里还是写成长文
+  const [faceSetup, setFaceSetup] = useState(false); // 切到线下的那张单子（4.269）
   const [meal, setMeal] = useState(null);           // 正在处理的那一单
   const [going, setGoing] = useState(null);         // 正在回应的那次出行
   // 只画最近这么多条。聊了两万条的会话一次性铺出来要一两秒，手机上十几秒，
@@ -961,7 +968,9 @@ export function Conversation({ chatId, focusId = '' }) {
     // 群里 @ 了谁。存 id，改名之后照样认得（见 system/group.js）
     const called = isGroup ? phone.group.mentionsIn(text, chat) : [];
     const msg = db.messages.create({ chatId, role: 'user', authorId: 'me', kind: 'text',
-      content: text, status: 'done', ...q, ...(called.length ? { mentions: called } : {}) });
+      content: text, status: 'done', ...q, ...(called.length ? { mentions: called } : {}),
+      // 会话切到线下时发的，记一个 side（4.269）
+      ...(phone.face.on(chat) ? { side: phone.face.FACE } : {}) });
     db.chats.update(chatId, { lastMessageAt: Date.now() });
     // 本地那一道监督：刚发出去的这句里有没有「我想 / 打算 / 记得」一类的线索。
     // 不花钱也不延迟，落成待确认，下面那条栏问一句（见 system/todo.js）
@@ -1394,7 +1403,9 @@ export function Conversation({ chatId, focusId = '' }) {
       }
       setClipText(''); setMaking(true);
     },
-    offline: () => {
+    // 先问一句是就在这里用气泡演（4.269），还是写成长文（4.107 / 4.110）
+    offline: () => setFacePick(true),
+    offlineProse: () => {
       if (stage.get().placement !== 'inline') { nav.push(`/stage/${chatId}`); return; }
       if (live) { toast('这一场还没有收场'); return; }
       const row = sceneApi.create({ chatId, castIds: [char.id], inline: true });
@@ -1462,6 +1473,7 @@ export function Conversation({ chatId, focusId = '' }) {
         <div class="conv-strips" ref=${stripsRef}>
         <${ListenBar} chatId=${chatId}/>
         <${WatchBar} chatId=${chatId}/>
+        ${phone.face.on(chat) ? html`<${FaceBar} chat=${chat} onEdit=${() => setFaceSetup(true)}/>` : null}
         ${(() => {
           const banner = autoReply.bannerOf(chat);
           const left = pace.leftOf(chat);
@@ -1665,6 +1677,10 @@ export function Conversation({ chatId, focusId = '' }) {
       <${MealSettleSheet} msg=${meal} onClose=${() => setMeal(null)}/>
       <${TripSettleSheet} msg=${going} onClose=${() => setGoing(null)}/>
       <${MoreSheet} open=${more} onClose=${() => setMore(false)} onTap=${runTap}/>
+      <${FaceChooser} open=${facePick} onClose=${() => setFacePick(false)}
+        onHere=${() => setFaceSetup(true)} onProse=${() => TAP.offlineProse()}/>
+      ${faceSetup ? html`<${FaceSheet} open=${faceSetup} chat=${chat} chars=${isGroup ? phone.group.members(chat) : [char]}
+        onClose=${() => setFaceSetup(false)}/>` : null}
       <${PhotoSource} open=${picking === 'photo'} onClose=${() => setPicking(null)}
         onFile=${() => { setPicking(null); imgRef.current?.click(); }}
         onClip=${() => { setPicking(null); clipRef.current?.click(); }}

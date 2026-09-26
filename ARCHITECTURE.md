@@ -9737,3 +9737,28 @@ HTML 卡片、网页工具、主屏自定义组件在各自的 iframe 里，只�
 - 上一场的两份清单记在 `sceneBooksOffLast` / `sceneBooksOnLast`，新建时预填；和 `sceneToneLast` 一样只是默认值。
 
 测试 `tests/scenetone.test.mjs`。
+
+### 4.269 会话里切到线下：还是气泡，两个人在同一处
+
+用户的话：「直接在线上手机聊天的那个页面转为线下」「直接发短信但是变成我们俩在线下面对面」「不要把线上线下搞混，
+比如我在线下剧情但是觉得我在发消息 / 我在发消息觉得我在线下」。
+
+不另开页面、不另开会话、不写长文（那是「线下」app 那条链路，4.107，照旧）。`system/face.js`：
+
+- **存法**：会话上 `face: { on, place, at, note, since }`；切换那一刻落一条 `kind: 'side'` 的消息当分隔线（`side: 'face'` 或 `'phone'`，
+  进线下那条带着 `face: { place, at, note }`）；之后发出和生成的每条消息记 `side: 'face'`（`Conversation.send`、`reply.renderTurn`）。
+  老消息没有这个字段，一律视为线上。
+- **提示词**（`engine.buildChatSystem`）：开场换成 `skeleton.face-opening`（同一处，面对面，每条是此刻说出口的一句）；
+  `[这一场]` 用线下那一场的 `skeleton.scene-setup` 装地点、时刻、情境；规则仍是每轮 3 到 5 条；旁白能力强制开着（每轮至少一行）；
+  能力清单只留 `face.CAPS`（旁白、心声、时刻、译文、引用、骰子、礼物、标识、衣帽间标记、备注、撤回、卡片、工具），
+  转账、外卖、表情、图片、语音、通话这些手机上的动作不给；「最近一次见面」那一块不带（此刻正在见面）；
+  文风按会话选的几份（`faceTones` / `faceToneText`，多选，4.267）；世界书按会话关掉的、挂上的（`faceOffBookIds` / `faceBookIds`，4.268 同一个参数）。
+- **历史**（`engine.buildHistory`）：分隔线那条读成 `skeleton.face-mark`（`[以下当面]` 加地点时刻）或 `skeleton.phone-mark`（`[以下在手机上]`）；
+  窗口把分隔线裁掉、剩下第一条已经是当面的，最前面补一条。模型看见的历史里每一段都标着是发消息还是见面，这就是「不混」的全部机制。
+- **记忆提取**：`pendingOf` 里的分隔线原样进对话（`[以下当面]` / `[以下在手机上]`），`task.memory-extract` 多一条：要紧时在 content 里写明是当面还是手机上。
+- **线下期间不跑的**：主动消息（`proactive.chatFor` 返回空，后台消息服务器拼任务时同样经它）；延迟回复按发完就回（`pace.modeOf`）。切回线上恢复。
+- **界面**：面板里「线下」先问一句：就在这里（气泡）还是写成长文（原来那条路）。就在这里 → `FaceSheet`（地点、时刻、情境、线下时生效的世界书、线下时的文风）→ 开始。
+  线下期间顶上一条 `face-bar`（写着在哪，点一下改；旁边「回到线上」）。消息流里分隔线 `.side-div.ph-side`；线下的气泡多挂 `ph-msg-face`。
+  两个钩子登记在 `skin-contract.js`。
+
+测试 `tests/face.test.mjs`。

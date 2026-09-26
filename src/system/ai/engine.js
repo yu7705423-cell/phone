@@ -24,6 +24,7 @@ import { beatsOf, timeOf, DIRECTOR, ME } from '../scene.js';
 import * as work from '../work.js';
 import * as novel from '../novel.js';
 import * as tone from '../tone.js';
+import * as faceLib from '../face.js';
 import { markRead } from '../receipt.js';
 import * as group from '../group.js';
 import { sync as syncBadges } from '../badges.js';
@@ -333,7 +334,9 @@ export function buildChatSystem(chat, char, msgs, opts = {}) {
   };
 
   const names = { charName: char.name || '对方', userName: me.name || '对方' };
-  let out = fillTemplate(template('skeleton.opening'), names);
+  // 会话切到线下时（4.269）：开场换成面对面，其余照旧
+  const face = faceLib.on(chat) && !opts.call;
+  let out = fillTemplate(template(face ? 'skeleton.face-opening' : 'skeleton.opening'), names);
 
   // 性别锚点。这是唯一一处绝对不能弄错的事实，所以首尾各放一次 ——
   // 长上下文里只说一遍的东西会被忽略掉，两头都说才钉得住。
@@ -342,8 +345,18 @@ export function buildChatSystem(chat, char, msgs, opts = {}) {
 
   // 每轮都变的那几块不进设定区，交给 buildHistory 插到对话末尾去
   // （见 context/index.js 的 VOLATILE 那一段）
-  const { text, volatile: hot, failed } = assemble(s.injectOrder, ctx);
+  // 线下时不带「最近一次见面」那一块：此刻正在见面
+  const order = face ? (s.injectOrder || []).filter(id => id !== 'bridge') : s.injectOrder;
+  const { text, volatile: hot, failed } = assemble(order, ctx);
   out += text;
+
+  if (face) {
+    // 这一场的事实：地点、时刻、情境。和线下那一场同一个模板
+    const info = faceLib.infoOf(chat);
+    const lines = [info?.place ? `地点：${info.place}` : '', info?.at ? `时刻：${info.at}` : '',
+      info?.note ? `情境：${info.note}` : ''].filter(Boolean);
+    if (lines.length) out += '\n\n' + fillTemplate(template('skeleton.scene-setup'), { lines: lines.join('\n') });
+  }
 
   if (chat.summary) out += `\n\n[更早之前发生过什么]\n${chat.summary}`;
 
@@ -361,6 +374,9 @@ export function buildChatSystem(chat, char, msgs, opts = {}) {
     out += '\n\n' + template('skeleton.rules');
     // 各项能力。平时只列一张单子，这一轮真沾边了才给整段细则，见 capabilities.js
     out += capabilityBlock(ctx);
+    // 线下时的文风：会话自己选的几份（4.267），没选就没有
+    const style = face ? fillTemplate(faceLib.toneText(chat), names) : '';
+    if (style) out += '\n\n' + fillTemplate(template('skeleton.scene-style'), { text: style });
   }
 
   // 收尾两件，贴着输出放：核心设定、性别。靠后的位置模型读得最重。
@@ -506,6 +522,12 @@ function withFollowUp(list) {
 }
 
 // 历史消息转 API 格式。群聊时给非本人的发言加上说话人前缀。
+/** 「以下当面」那一行：带着地点、时刻（有就写） */
+function faceMarkText(info) {
+  const lines = [info?.place ? `地点：${info.place}` : '', info?.at ? `时刻：${info.at}` : ''].filter(Boolean);
+  return fillTemplate(template('skeleton.face-mark'), { lines: lines.length ? '\n' + lines.join('\n') : '' });
+}
+
 export function buildHistory(chat, char, msgs, opts = {}) {
   const s = settings.get();
   const isGroup = (chat.characterIds || []).length > 1;
@@ -525,7 +547,16 @@ export function buildHistory(chat, char, msgs, opts = {}) {
   // 「不必翻」，设定区里那段规则拗不过几十个反例 —— 掉翻译多半是这么掉的。
   // 界面上那一行是从消息里剥出来单独存的（reply.js），这里再拼回去。
   const inlineTrans = !!chat.translateTo && translateMode() === 'inline';
+  // 线上 / 线下的分界（4.269）：切换那一刻落的分隔线读成标记；窗口把分隔线裁掉了、
+  // 而剩下的第一条已经是当面的，就在最前面补一条，模型才知道这一段是见面
+  const marks = [];
+  if (view.length && !faceLib.isMark(view[0]) && faceLib.sideOf(view[0]) === faceLib.FACE) {
+    marks.push({ role: 'user', content: faceMarkText(chat.face) });
+  }
   const view2 = view.flatMap((m, i) => {
+    if (faceLib.isMark(m)) {
+      return { role: 'user', content: faceLib.sideOf(m) === faceLib.FACE ? faceMarkText(m.face) : template('skeleton.phone-mark') };
+    }
     const mine = m.role === 'char' && m.authorId === char.id;
     // 我撤回的那一条换成一行标记（见 system/recall.js）；角色撤回的在末尾补 [撤回]
     const text = timeLine(m, view[i - 1]) + withdraw.historyText(m, withQuote(m));
@@ -551,7 +582,7 @@ export function buildHistory(chat, char, msgs, opts = {}) {
   // 先合并再插：合并会把相邻同角色的消息并成一条，插完再合并就把
   // 刚插进去的位置又挪了。
   const lore = opts.lore
-    || (char ? activateLore(char, scanTextOf(msgs, s.scanWindow), budgets(s.contextBudget).lorebook).items : []);
+    || (char ? activateLore(char, scanTextOf(msgs, s.scanWindow), budgets(s.contextBudget).lorebook, faceLib.on(chat) ? faceLib.books(chat) : undefined).items : []);
   const depths = splitLore(lore).depths;
 
   // 每轮都变的那几块，连同本轮召回，一起插到对话末尾。
@@ -574,7 +605,7 @@ export function buildHistory(chat, char, msgs, opts = {}) {
   // 「对方还没回」那一行要在按深度插之前补上：深度数的是离末尾几条，
   // 补在后面的话，本该贴着最后一条的那几块就隔了一条
   // closing：调用方自己的收尾一句（主动发起的「这次由你开口」），同样要在插之前补
-  const convo = mergeAdjacent(view2);
+  const convo = mergeAdjacent([...marks, ...view2]);
   const closed = opts.closing ? mergeAdjacent([...convo, { role: 'user', content: opts.closing }])
     : opts.followUp ? withFollowUp(convo) : convo;
   return insertLore(closed, depths);
@@ -1084,8 +1115,9 @@ export function streamReply({ chat, char, onDelta }) {
     // 一轮只激活一次世界书：设定区和对话里各要一份。各算各的会把带概率的
     // 条目掷两次骰子，于是「设定区里有、对话里没有」这种鬼事就出现了。
     const s0 = settings.get();
+    // 线下时按会话自己关掉的、挂上的书（4.269）
     const lore = activateLore(char, scanTextOf(msgs, s0.scanWindow),
-      budgets(s0.contextBudget).lorebook).items;
+      budgets(s0.contextBudget).lorebook, faceLib.on(chat) ? faceLib.books(chat) : undefined).items;
     const queryVec = await queryVecFor(msgs);
     // 召回也是一轮只算一次：设定区与对话里用的必须是同一份，
     // 而且向量检索本身要花一次接口调用。

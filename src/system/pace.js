@@ -34,7 +34,9 @@ export const PACED = 'paced';
 export const MODES = [MANUAL, NOW, PACED];
 
 export function modeOf(chat) {
+  // 会话切到线下时当面即答，不排延迟（system/face.js）。按按钮那一档照旧
   const m = chat?.paceMode;
+  if (chat?.face?.on === true && m === PACED) return NOW;
   return MODES.includes(m) ? m : MANUAL;
 }
 export function setMode(chatId, mode) {

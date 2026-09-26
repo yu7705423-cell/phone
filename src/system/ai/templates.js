@@ -45,6 +45,23 @@ conform to them.`,
 `[消息规则]
 Write each reply as 3 to 5 separate messages, one per line.`,
 
+  // ---- 会话里切到线下（ARCHITECTURE 4.269）----
+  //
+  // 还是气泡、还是这条消息流，只是两个人在同一处。开场换成面对面，规则仍是线上那条
+  //（每轮 3 到 5 条），外加旁白每轮至少一行。历史里按 side 的变化插两种标记。
+  'skeleton.face-opening':
+`You are {{charName}}. You and {{userName}} are in the same place, face to
+face. Each message is one thing you say aloud at this moment.`,
+
+  'skeleton.face-mark':
+`[以下当面]{{lines}}
+From here on the two of you are together in person. Each message is said
+aloud, not typed.`,
+
+  'skeleton.phone-mark':
+`[以下在手机上]
+From here on the two of you are apart, texting each other on the phone.`,
+
   // ---- 线下 ----
   //
   // 线上是一条条短气泡，线下是大段散文，所以另起一套骨架，不在
@@ -1356,6 +1373,9 @@ C is for material worth filing but not worth bringing into conversation.
   note （更新） inside content, and point updateId at the entry it replaces
 - When a pending item has been resolved, note （已完结）
 - Extract only what is worth keeping; ordinary pleasantries are not extracted
+- Lines after [以下当面] were said in person; lines after [以下在手机上] were
+  texted. When it matters, state in content whether it happened in person or
+  over the phone
 - Return an empty array when there is nothing new
 - Write content as a concise third-person statement, in the same language as
   the conversation above
