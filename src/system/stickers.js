@@ -1,5 +1,6 @@
 import { stickers, images, settings } from './db/index.js';
 import { readZip } from './unzip.js';
+import { fetchBlob } from './imghost.js';
 
 export const DEFAULT_GROUP = '默认';
 
@@ -95,24 +96,34 @@ export async function addFromBlob({ name, keywords, blob, group }) {
   });
 }
 
-// 把远程表情缓存到本地。跨域取不回来的原样保留链接。
+/**
+ * 外链在这个页面上能用的写法：页面是 https 时，http 的图一律被浏览器当混合内容拦下，
+ * 换成 https 再试（大多数图床两种都通）。页面本身是 http（本地调试）就原样不动
+ */
+export function displayUrl(url, secure = (typeof location !== 'undefined' && location.protocol === 'https:')) {
+  const u = String(url || '').trim();
+  return secure && /^http:\/\//i.test(u) ? u.replace(/^http:/i, 'https:') : u;
+}
+
+// 把远程表情缓存到本地。走图床那边的取图（imghost.fetchBlob）：配了中转 Worker 就经中转，
+// 能绕开跨域与防盗链；没配就直接取，不带 Referer。取不回来的原样保留链接，原因记在 why 里（4.284）
 export async function cacheRemote(list, onProgress) {
   let ok = 0, fail = 0;
+  const why = new Map();
   for (let i = 0; i < list.length; i++) {
     const s = list[i];
     onProgress && onProgress(i + 1, list.length);
     if (!s.url || s.imageId) continue;
+    const r = await fetchBlob(displayUrl(s.url));
+    if (!r.ok) { fail++; why.set(r.error || '取回失败', (why.get(r.error || '取回失败') || 0) + 1); continue; }
     try {
-      const res = await fetch(s.url);
-      if (!res.ok) throw new Error(String(res.status));
-      const blob = await res.blob();
-      const file = new File([blob], `${s.name}.png`, { type: blob.type || 'image/png' });
+      const file = new File([r.blob], `${s.name}.png`, { type: r.blob.type || 'image/png' });
       const imageId = await images.put(file, 512);
       stickers.update(s.id, { imageId });
       ok++;
-    } catch { fail++; }
+    } catch (err) { fail++; why.set(String(err.message || err), (why.get(String(err.message || err)) || 0) + 1); }
   }
-  return { ok, fail };
+  return { ok, fail, why: [...why.entries()].sort((a, b) => b[1] - a[1]).map(([k, n]) => `${k} × ${n}`) };
 }
 
 // ---- 匹配 ----

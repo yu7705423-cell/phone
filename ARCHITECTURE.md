@@ -10019,3 +10019,21 @@ iOS 在点输入框时把整页往上推（窗口本身滚动，`overflow: hidde
   `scene.signOf` 署新名字。改写任务把这一场装成作品的形状交过去（地点与情境当简介，角色挂的书加这一场挂上的当世界书）。
 
 `work.identity` 归「任务用哪套接口」里长篇那一组。测试 `tests/identity.test.mjs`。
+
+### 4.284 外链加载不出来：不带 Referer、http 换 https、缓存经中转
+
+用户反馈「总是加载不出来外链」（表情包里从 txt / docx 读进来的那些链接）。查下来是三件事叠在一起：
+
+- **防盗链。** 多数图床与社交站的防盗链只看 Referer，带着本站地址去就是 403 或一张占位图。
+  从前只有歌曲封面、图床工具那几处标了 `referrerpolicy="no-referrer"`，表情的 `<img>` 没有。
+  现在 `index.html` 加 `<meta name="referrer" content="no-referrer">`，整页所有图与请求都不带 Referer；表情的 `<img>` 也单独标上。
+- **混合内容。** 正式版是 https，链接是 http 的图浏览器一律拦下，控制台之外什么都看不到。
+  `stickers.displayUrl` 在 https 页面上把 http 换成 https 再试（多数图床两种都通）；页面本身是 http（本地调试）不动。
+  没有用 CSP 的 `upgrade-insecure-requests`：它会把局域网 http 调试时的全部请求都升上去，整页打不开。
+- **缓存到本地一律跨域失败。** 从前 `cacheRemote` 直接 `fetch`，对方没开 CORS 就取不回来，提示只有一句「通常为跨域限制」。
+  现在走图床那边的 `imghost.fetchBlob`：在「工具箱 - 图床」里配了中转 Worker 的经中转取回（绕开跨域与防盗链），
+  没配就直接取（不带 Referer）；失败原因按条数汇总写在提示里。
+
+取不回来的表情在气泡与面板上画成「无法打开」的格子（`.stk-miss`），不再是一个破图标。
+
+测试 `tests/extlink.test.mjs`。

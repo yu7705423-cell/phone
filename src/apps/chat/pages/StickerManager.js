@@ -76,7 +76,7 @@ function Review({ rows, blobs, onDone, onCancel }) {
     <${Sheet} open=${true} onClose=${busy ? () => {} : onCancel} title="确认导入" height="82%">
       <div class="hint-box">
         解析出 ${rows.length} 条带链接的，${blobs.length} 张内嵌图片。
-        链接类的先按原样存，之后可以一键缓存到本地。
+        链接类的先按原样存，之后可以一键缓存到本地。取回时不带 Referer；在「工具箱 - 图床」里配了中转 Worker 的，经中转取回，能绕开跨域与防盗链。
       </div>
 
       <${Field} label="放进哪个分组">
@@ -91,7 +91,7 @@ function Review({ rows, blobs, onDone, onCancel }) {
       <div class="stk-preview">
         ${rows.slice(0, 24).map((r, i) => html`
           <div key=${i} class="stk-prev-item">
-            <img class="stk-img" src=${r.url} alt="" loading="lazy"/>
+            <img class="stk-img" src=${r.url} alt="" loading="lazy" referrerpolicy="no-referrer"/>
             <span class="ellipsis">${r.name}</span>
           </div>`)}
         ${blobs.slice(0, 12).map((b, i) => html`
@@ -218,8 +218,8 @@ export function StickerManager() {
     setCaching({ done: 0, total: remote.length });
     const r = await api.cacheRemote(remote, (done, total) => setCaching({ done, total }));
     setCaching(null);
-    toast(`已缓存 ${r.ok} 个${r.fail ? `，${r.fail} 个获取失败（通常为跨域限制）` : ''}`,
-      r.fail ? 'error' : 'ok', 4000);
+    toast(`已缓存 ${r.ok} 个${r.fail ? `，${r.fail} 个取回失败：${(r.why || []).slice(0, 2).join('；')}` : ''}`,
+      r.fail ? 'error' : 'ok', 6000);
   };
 
   const wipeGroup = async g => {

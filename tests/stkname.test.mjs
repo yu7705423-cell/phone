@@ -90,7 +90,8 @@ const after = await page.evaluate(async ([chat, sid]) => {
 ok('指认之后这条消息挂上了那个表情', after.bound === true, JSON.stringify(after));
 ok('那个名字记成了关键词', after.learned === true, JSON.stringify(after));
 ok('下次再写同一个名字，自己就对上了', after.nextTime === true, JSON.stringify(after));
-ok('气泡换成了图', await page.locator('.bubble-sticker img').count() === 1);
+// 测试里的外链取不回来，画成「无法打开」的格子也算换成了图（4.284）
+ok('气泡换成了图', await page.locator('.bubble-sticker img, .bubble-sticker .stk-miss').count() === 1);
 
 ok('全程没有运行时报错', errs.length===0, errs.join(' | '));
 await browser.close();
