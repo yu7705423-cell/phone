@@ -40,7 +40,7 @@
    有顶栏的页面不让，由顶栏自己把高度加上这一条、底色铺上去，字和按钮仍在安全区以下 */
 .home-layer, .app-layer { padding-top: var(--top-inset); }
 .app-layer:has(> .page > .navbar:first-child) { padding-top: 0; }
-.app-layer > .page > .navbar:first-child {
+:where(.app-layer > .page) > .navbar:where(:first-child) {
   height: calc(var(--navbar-h) + var(--top-inset));
   padding-top: var(--top-inset);
 }
@@ -79,20 +79,20 @@
    --tile-ratio 算的，这里单独把 .app-tile 调高，胶囊不会跟着长，
    图标就顶出胶囊了。名称只是藏起来，格子里剩下的空间靠居中吃掉。 */
 :root[data-icon-label="off"] .cell-app { justify-content: center; }
-:root[data-icon-shadow="off"] .app-tile { box-shadow: none; }
+:where(:root[data-icon-shadow="off"]) .app-tile { box-shadow: none; }
 /* 只能写 background-color。写 background 简写会把下面 .has-image 的
    background-size 一起重置成 auto，自定义图标就按原尺寸画、只露出一角。 */
-:root[data-wallpaper="on"] .app-tile {
+:where(:root[data-wallpaper="on"]) .app-tile {
   background-color: var(--capsule-bg); border: 1px solid var(--capsule-border);
   box-shadow: none;
 }
-:root[data-wallpaper="on"][data-glass="on"] .app-tile { backdrop-filter: blur(var(--glass-blur)); -webkit-backdrop-filter: blur(var(--glass-blur)); }
+:where(:root[data-wallpaper="on"][data-glass="on"]) .app-tile { backdrop-filter: blur(var(--glass-blur)); -webkit-backdrop-filter: blur(var(--glass-blur)); }
 /* 变量没设上时退回当前文字色。少了这个兜底，`--icon-color` 一旦缺失，
    整格图标就是「位置在、画不出来」，而那正是最难查的一种 */
 .app-tile svg { color: var(--icon-color, currentColor); width: 52%; height: 52%; }
 /* 图标整张放进去，永远不裁。存的时候已经补成方图带透明边，
    这里再用 contain 兜一层：格子万一不是正方也不会切掉。 */
-.app-tile.has-image {
+.app-tile:where(.has-image) {
   /* 图走变量，不走内联样式。挂了契约钩子的元素上写内联样式，作者写什么
      都盖不住它（见 ARCHITECTURE 4.136）。变量喂进来，这条声明在这儿 */
   background-image: var(--tile-img, none);
@@ -100,8 +100,8 @@
 }
 /* 异形图标：不要底板（换图标那张表里「显示底板」关掉）。只剩图片本身 ——
    底色、描边、阴影、毛玻璃、圆角一概去掉。描边只改成透明不去掉，格子大小不变。
-   前面挂 :root 是为了压过有壁纸、毛玻璃那两条 */
-:root .app-tile.has-image.is-bare {
+   排在壁纸、毛玻璃那两条后面才压得过它们：几条特异度相同，靠先后 */
+:where(:root) .app-tile:where(.has-image.is-bare) {
   background-color: transparent; border-color: transparent; box-shadow: none; border-radius: 0;
   backdrop-filter: none; -webkit-backdrop-filter: none;
 }

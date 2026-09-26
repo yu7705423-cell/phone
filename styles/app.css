@@ -202,14 +202,15 @@ input[type="range"] {
 /* 左右滑一下引用这一条：跟着手指平移，松手弹回（Conversation.js 的 Bubble）。
    位移由脚本写进 --swipe-x，不写内联 transform */
 .msg.is-swiping { transform: translateX(var(--swipe-x, 0)); transition: none; }
-.msg.is-mine { flex-direction: row-reverse; }
+/* 状态类一律包进 :where()：挂了 ph- 钩子的元素，作者写单个契约钩子就要盖得住（ARCHITECTURE 4.257）*/
+.msg:where(.is-mine) { flex-direction: row-reverse; }
 /* 同一个人接着说的那一条，和上一条之间收紧。收紧到的距离跟着「同一轮里两个气泡之间」走，
    美化里改了那个间距，这里跟着变 */
 .msg.is-cont { margin-top: calc(var(--bubble-gap-in) * 2 - var(--bubble-gap)); }
 /* 两条消息中间居中的那一行时间（相隔五分钟以上才有） */
 .time-sep { align-self: center; padding: var(--sp-1) 0; font-size: var(--fs-12); color: var(--text-3); }
 .msg-col { display: flex; flex-direction: column; gap: var(--bubble-gap-in); max-width: 74%; min-width: 0; }
-.msg.is-mine .msg-col { align-items: flex-end; }
+:where(.msg.is-mine) .msg-col { align-items: flex-end; }
 /* 气泡上的时刻与已读回执。两样默认都关着，开了才有这个节点。
    靠着气泡画的时候要给它让出位置，否则窄屏上会把气泡挤出去 */
 .msg.has-aside .msg-col { max-width: 62%; }
@@ -230,7 +231,7 @@ input[type="range"] {
   white-space: pre-wrap; word-break: break-word;
   box-shadow: var(--shadow-1);
 }
-.msg.is-mine .bubble { background: var(--accent); color: var(--on-accent); }
+:where(.msg.is-mine) .bubble { background: var(--accent); color: var(--on-accent); }
 
 /* 正在输入写在标题栏上，名字整个换掉 —— 这句话说的是「对方现在在干什么」，
    属于这段对话的状态，不属于消息流。聊天记录里凭空多一个空泡，
@@ -456,9 +457,9 @@ input[type="range"] {
 }
 .send-btn::after { content: ''; position: absolute; inset: -8px -3px -4px; }
 .send-btn:disabled { opacity: .35; }
-.send-btn.is-stop { background: var(--surface-3); color: var(--text); }
+.send-btn:where(.is-stop) { background: var(--surface-3); color: var(--text); }
 /* 让对方回复：不要底色，只留图标 */
-.send-btn.is-ghost { background: none; color: var(--text); }
+.send-btn:where(.is-ghost) { background: none; color: var(--text); }
 
 /* 主页（Instagram 式，见 ARCHITECTURE 4.149） */
 .ig-head { display: flex; align-items: center; gap: var(--sp-5); padding: var(--sp-4) var(--sp-4) var(--sp-3); }
@@ -540,7 +541,7 @@ input[type="range"] {
   font-size: var(--fs-15); font-weight: var(--fw-semi); color: var(--on-scrim);
   text-shadow: 0 1px 6px rgba(0, 0, 0, .55); padding-bottom: 34px;
 }
-.mo-header-me .avatar { box-shadow: 0 0 0 3px var(--bg); }
+:where(.mo-header-me) .avatar { box-shadow: 0 0 0 3px var(--bg); }
 .mo-card {
   display: flex; gap: var(--sp-3); padding: var(--sp-4);
   border-bottom: 1px solid var(--border); background: var(--surface);
@@ -799,7 +800,7 @@ input[type="range"] {
 }
 .msg-main { flex: 1; min-width: 0; }
 .msg-line { display: flex; align-items: baseline; gap: var(--sp-2); }
-.msg-line + .msg-line { margin-top: 3px; }
+:where(.msg-line) + .msg-line { margin-top: 3px; }
 .msg-name { flex: 1; min-width: 0; font-size: var(--fs-15); font-weight: var(--fw-medium); }
 .msg-time { flex: none; font-size: var(--fs-11); color: var(--text-3); }
 .msg-preview { flex: 1; min-width: 0; font-size: var(--fs-12); color: var(--text-3); }
@@ -1373,7 +1374,7 @@ button.search-bar { width: 100%; border: none; }
 }
 .conv-strips > * { pointer-events: auto; }
 .conv-strips:empty { padding-top: 0; }
-.conv-main > .conv-body { padding-top: calc(var(--sp-4) + var(--strips-h, 0px)); }
+:where(.conv-main) > .conv-body { padding-top: calc(var(--sp-4) + var(--strips-h, 0px)); }
 
 /* 一起听的播放条。压在会话顶上，不占页面 —— 听歌是背景，聊天还是主角 */
 .listen-bar {
@@ -2877,7 +2878,7 @@ button.search-bar { width: 100%; border: none; }
 .bd-list { flex: none; display: inline-flex; align-items: center; gap: var(--sp-1); }
 /* 名字与标识挨着，时刻仍然靠右 */
 .msg-name-wrap { flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--sp-1); }
-.msg-name-wrap .msg-name { flex: 0 1 auto; }
+:where(.msg-name-wrap) .msg-name { flex: 0 1 auto; }
 
 /* 头像外那一圈：比头像大一圈，圈本身不挡点击 */
 .lv-ring { position: relative; display: inline-flex; width: var(--lv-size); height: var(--lv-size); color: var(--text); }

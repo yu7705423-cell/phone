@@ -47,7 +47,7 @@
   justify-content: center; gap: 3px; color: var(--text-3);
   transition: color var(--dur-fast) var(--ease);
 }
-.tab.is-active { color: var(--accent); }
+.tab:where(.is-active) { color: var(--accent); }
 .tab-icon { position: relative; }
 .tab-label { font-size: var(--fs-11); }
 .tab-badge {
@@ -84,7 +84,7 @@ a.btn { text-decoration: none; }
 .icon-btn::after {
   content: ''; position: absolute; inset: -5px;
 }
-.icon-btn.is-active { color: var(--accent); background: var(--accent-weak); }
+.icon-btn:where(.is-active) { color: var(--accent); background: var(--accent-weak); }
 
 /* ---- 表单 ---- */
 .field { display: block; margin-bottom: var(--sp-4); }
@@ -139,7 +139,7 @@ a.btn { text-decoration: none; }
   border-radius: var(--ph-avatar-r, var(--avatar-r, var(--av-r, 14px)));
   font-size: var(--av-fs, 17px);
 }
-.ph-face .avatar {
+:where(.ph-face) .avatar {
   width: var(--ph-avatar-size, var(--av-size, 36px));
   height: var(--ph-avatar-size, var(--av-size, 36px));
 }
@@ -167,7 +167,7 @@ a.btn { text-decoration: none; }
   padding: var(--sp-3) var(--sp-4); min-height: 50px;
   border-bottom: 1px solid var(--border);
 }
-.list-item:last-child { border-bottom: none; }
+.list-item:where(:last-child) { border-bottom: none; }
 /* 区域内滚动。条数不定的列表在这里截断并自己滚，页面本身的滚动不受影响。
    高度取的是「四行半」——露半行出来，一眼就知道下面还有 */
 .list-cap {

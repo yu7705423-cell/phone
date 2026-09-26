@@ -54,10 +54,10 @@ function markdown() {
   L.push('');
   L.push('## 几条规矩');
   L.push('');
-  L.push('1. 多数属性不必写 `!important`：美化那段挂在最后，同样特异度下它胜出。');
-  L.push('   但应用自己的样式表里有 `.msg.is-mine .bubble` 这类复合选择器，');
-  L.push('   它们的特异度更高，改气泡底色、文字色这几项时仍然要写。');
-  L.push('   拿不准就写上，或者直接用应用里的「生成」页，它一律写。');
+  L.push('1. 不必写 `!important`：美化那段挂在最后，而应用自己的样式在挂了钩子的元素上');
+  L.push('   一律压到单个类名的特异度（状态类包在 `:where()` 里），单写 `.ph-send { ... }`');
+  L.push('   就能盖住「让对方回复」「停止」这些状态下的发送键，`.ph-tile` 能盖住换过图的图标。');
+  L.push('   例外只有「生成」页写出来的那一段，它带 `!important`，手写要盖它才要写。');
   L.push('2. 写死尺寸之前先看变量表。改变量比改选择器稳，界面改版也跟得上。');
   L.push('3. 图片写成 `data:` 或者一个公网地址。本机路径在别人那里是空白。');
   L.push('4. 用 `::before` 与 `::after` 贴装饰时记得 `pointer-events: none`，');
@@ -153,9 +153,10 @@ export function ContractPage() {
 
       ${tab === 'how' ? html`
         <${List} title="几条规矩">
-          <${ListItem} title="多数属性不必写 !important" multiline
-            subtitle="美化那段样式挂在最后，同样特异度下它胜出。但应用自己的样式表里有
-              复合选择器，改气泡底色、文字色这几项时仍然要写。拿不准就写上"/>
+          <${ListItem} title="不必写 !important" multiline
+            subtitle="美化那段样式挂在最后；应用自己的样式在挂了钩子的元素上一律压到单个类名的特异度，
+              单写一个钩子即可覆盖，包括发送键、选中的标签、换过图片的主屏图标。
+              只有「生成」页写出的那一段带 !important，要覆盖它时才需要写"/>
           <${ListItem} title="写死尺寸之前先看变量表" multiline
             subtitle="变量在界面改版时仍然有效，选择器可能失效"/>
           <${ListItem} title="图片写成 data: 或公网地址" multiline
