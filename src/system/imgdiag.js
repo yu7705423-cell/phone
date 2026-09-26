@@ -94,13 +94,34 @@ export async function check(limit = 40) {
     try {
       const row = await idb.get('images', t.id);
       if (!row?.blob) continue;
-      const bmp = await createImageBitmap(row.blob);
+      let bmp;
+      try { bmp = await createImageBitmap(row.blob); } catch (e) {
+        // 解不出来：看头几个字节长什么样，才知道是哪一种坏法
+        decodeFail.push({ ...t, err: String(e?.message || e), head: await headOf(row.blob), size: row.blob.size, type: row.blob.type || '' });
+        continue;
+      }
       bmp.close && bmp.close();
       shown.push({ id: t.id, where: t.where, url: URL.createObjectURL(row.blob) });
     } catch (e) { decodeFail.push({ ...t, err: String(e?.message || e) }); }
   }
   return { records: images.count(), inStore, referenced: list.length, missing, empty, unreadable, decodeFail, shown, sampled,
     urlsCached: images.cachedUrls(), epoch: blobEpoch(), versions: versions() };
+}
+
+/** 头 16 个字节：十六进制，加一句判断（PNG / WebP / JPEG / 全零 / 文本 / 其他） */
+async function headOf(blob) {
+  try {
+    const u8 = new Uint8Array(await blob.slice(0, 16).arrayBuffer());
+    const hex = [...u8].map(b => b.toString(16).padStart(2, '0')).join(' ');
+    const ascii = [...u8].map(b => (b >= 32 && b < 127 ? String.fromCharCode(b) : '.')).join('');
+    let kind = '其他';
+    if (u8[0] === 0x89 && u8[1] === 0x50) kind = 'PNG';
+    else if (ascii.startsWith('RIFF') && ascii.slice(8, 12) === 'WEBP') kind = 'WebP';
+    else if (u8[0] === 0xff && u8[1] === 0xd8) kind = 'JPEG';
+    else if (u8.every(b => b === 0)) kind = '全零';
+    else if ([...u8].every(b => b >= 32 && b < 127)) kind = `文本「${ascii}」`;
+    return `${kind} ${hex}`;
+  } catch (e) { return `读不出头几个字节：${e?.message || e}`; }
 }
 
 /** 页面、脚本、样式表、Service Worker 各是哪一版。对不上就是新旧混着（第 20 条第五路） */
@@ -124,7 +145,10 @@ export function summary(r) {
   if (r.missing.length) lines.push(`记录不在库里 ${r.missing.length} 处：${r.missing.slice(0, 6).map(x => x.where).join('、')}`);
   if (r.empty.length) lines.push(`记录在、数据是空的 ${r.empty.length} 张：${r.empty.slice(0, 6).map(x => x.where).join('、')}`);
   if (r.unreadable.length) lines.push(`读不出来 ${r.unreadable.length} 张：${r.unreadable.slice(0, 3).map(x => `${x.where}（${x.err}）`).join('、')}`);
-  if (r.decodeFail?.length) lines.push(`数据在但解不出图 ${r.decodeFail.length} 张：${r.decodeFail.slice(0, 3).map(x => `${x.where}（${x.err}）`).join('、')}`);
+  if (r.decodeFail?.length) {
+    lines.push(`数据在但解不出图 ${r.decodeFail.length} 张：`);
+    r.decodeFail.slice(0, 4).forEach(x => lines.push(`  ${x.where}：${x.size ?? '?'} 字节，类型「${x.type || '空'}」，头几个字节 ${x.head || '?'}`));
+  }
   if (!r.missing.length && !r.empty.length && !r.unreadable.length) lines.push('抽查的图全部读得出来。看不见图的话是显示那一层，点「重新读取图片」');
   lines.push(`地址缓存 ${r.urlsCached} 个，重建过 ${r.epoch} 次`);
   const v = r.versions || {};
