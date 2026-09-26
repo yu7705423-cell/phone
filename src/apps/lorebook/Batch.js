@@ -21,12 +21,10 @@ const PARTS = [
   { value: 'after', label: '角色后' },
 ];
 
-// 读出来的草稿放在模块里：选文件在列表页，确认在这一页，中间隔着一次导航
-let pending = { drafts: [], failed: [] };
-let batch = 0;
-export const setPending = p => { pending = p; batch += 1; };
-// 每一批一个编号。确认页按它当 key：上一批的勾选与设置不许带到下一批
-export const batchKey = () => batch;
+// 读出来的草稿放在 system/lorefile.js：选文件在列表页，确认在这一页，中间隔着一次导航；
+// 工具箱生成的世界书也从那里交过来
+export const setPending = p => lorefile.setPending(p);
+export const batchKey = () => lorefile.batchKey();
 
 function settingsOf(d) {
   return {
@@ -85,14 +83,14 @@ function DraftCard({ d, s, onChange }) {
 }
 
 export function ImportPage() {
-  const { drafts, failed } = pending;
+  const { drafts, failed } = lorefile.pending();
   const [sets, setSets] = useState(() => Object.fromEntries(drafts.map(d => [d.key, settingsOf(d)])));
   const chosen = drafts.filter(d => sets[d.key]?.include);
 
   const saveAll = () => {
     chosen.forEach(d => lorefile.save(d, sets[d.key]));
     toast(`已导入 ${chosen.length} 本世界书`, 'ok');
-    pending = { drafts: [], failed: [] };
+    lorefile.setPending({ drafts: [], failed: [] });
     nav.pop();
   };
 

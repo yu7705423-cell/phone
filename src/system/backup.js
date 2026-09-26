@@ -36,6 +36,7 @@ const COLLECTIONS = [
   'scenes', 'beats', 'skins',
   'works', 'chapters',
   'closet',
+  'tools', 'toolRuns',
 ];
 
 const FORMAT = 'mini-phone-backup';

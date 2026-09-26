@@ -156,7 +156,7 @@ export function WidgetEditor({ cell, onClose }) {
       ${live.ref === 'custom' ? html`
         <${Field} label="HTML 文件"
           desc=${`上限 ${kb(CUSTOM_MAX_BYTES)}，保存在本设备。组件运行在隔离环境中，`
-            + '读不到本应用的数据，也无法访问已保存的接口密钥。'}>
+            + '读不到本应用的数据与已保存的接口密钥，无法联网，也无法加载外部的脚本、图片与字体。'}>
           <div class="wg-edit-cover">
             <${Button} size="sm" variant="ghost" icon="upload"
               onClick=${() => htmlRef.current?.click()}>${c.fileId ? '更换文件' : '选择文件'}<//>

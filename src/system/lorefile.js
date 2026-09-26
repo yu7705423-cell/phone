@@ -99,7 +99,7 @@ function entryOf(title, body) {
  * 一段文本读成一本书的草稿。name 是取不到 # 标题时用的名字（文件名）。
  * own 为真表示条目里带着我们自己写的设置行（导出再导回来的那种），确认页默认保留它们
  */
-function fromText(text, name = '') {
+export function fromText(text, name = '') {
   const src = String(text || '').replace(/\r\n/g, '\n').replace(/^﻿/, '');
   const lines = src.split('\n');
   const draft = { name: name || '未命名世界书', purpose: 'chat', global: false, description: '', entries: [], own: false };
@@ -163,6 +163,25 @@ export async function readFiles(fileList) {
     } else await one(f, f.name);
   }
   return { drafts, failed };
+}
+
+// ---- 等着确认的那一批 ----
+//
+// 选文件在列表页、确认在导入页，中间隔着一次导航；工具箱里生成的世界观、世界书
+// 也交到同一个确认页（跨 app 不能互相 import，所以放在这里）。
+let pendingBatch = { drafts: [], failed: [] };
+let batchNo = 0;
+export function setPending(p) {
+  pendingBatch = { drafts: p?.drafts || [], failed: p?.failed || [] };
+  batchNo += 1;
+}
+export const pending = () => pendingBatch;
+// 每一批一个编号。确认页按它当 key：上一批的勾选与设置不许带到下一批
+export const batchKey = () => batchNo;
+
+/** 一段文字（生成出来的、粘贴来的）读成一本草稿，交给确认页 */
+export function draftFromText(text, name = '', source = '') {
+  return { key: uid('d'), source: source || name || '生成结果', ...fromText(String(text || ''), name) };
 }
 
 /**

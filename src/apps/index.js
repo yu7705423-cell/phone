@@ -19,9 +19,10 @@ import { manifest as usApp } from './us/manifest.js';
 import { manifest as skinApp } from './skin/manifest.js';
 import { manifest as mcpApp } from './mcp/manifest.js';
 import { manifest as closetApp } from './closet/manifest.js';
+import { manifest as toolsApp } from './tools/manifest.js';
 import { manifest as settingsApp } from './settings/manifest.js';
 
 export function registerApps() {
   [chat, contact, lorebook, memory, space, daily, todoApp, music, bill, theater,
-    healthApp, albumApp, travelApp, theirsApp, usApp, skinApp, closetApp, mcpApp, settingsApp].forEach(registerApp);
+    healthApp, albumApp, travelApp, theirsApp, usApp, skinApp, closetApp, mcpApp, toolsApp, settingsApp].forEach(registerApp);
 }

@@ -152,6 +152,11 @@ export function NpcPage({ id }) {
             ${busy ? html`<${Spinner} size=${15}/> 正在写` : `生成 ${count} 个`}
           <//>
         </div>
+        <${List}>
+          <${ListItem} title="更多设置" arrow multiline left=${html`<${Icon} name="tool" size=${18}/>`}
+            subtitle="在工具箱的 NPC 生成器中按世界观、关系标签、禁止项与字段详细设定，生成后同样关联到该角色"
+            onClick=${() => phone.intent.open('tools', { route: `/npc/char/${id}`, back: true })}/>
+        <//>
       `}
 
       <${Sheet} open=${!!draft} onClose=${() => setDraft(null)} title="新建一个人" height="86%">

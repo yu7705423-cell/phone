@@ -1932,6 +1932,272 @@ schedule.
 
 ## Output JSON only
 {"seeds":["",""]}`,
+
+  // ---- 工具箱（apps/tools，ARCHITECTURE 4.247）----
+  // 这几份是生成任务的规格书，不注入聊天（CLAUDE.md 第 16 条的 task.* 那一档）。
+
+  'task.world-build':
+`You are building a world setting that a model will live inside while it writes
+fiction and plays characters. A world setting here is not an encyclopedia. It
+covers what the world is, why it became this way, and how people live in it.
+
+## The user's core premise
+{{premise}}
+
+{{notes}}
+
+{{existing}}
+
+{{people}}
+
+## Modules to write, in this order
+{{modules}}
+
+## Rules
+- Write only the modules listed above, in the listed order. Start each one with
+  a heading line of the form "## <module title>", using the title exactly as
+  given above
+- Every item should answer a practical question: how does this setting change
+  what a person in this world does today? Leave out background that changes
+  nothing anyone does
+- For each important setting, state the cause behind it, not only the setting
+- Where the user wrote notes for a module, keep them and build on them. Do not
+  replace them with something else
+- Keep the modules consistent with each other and with any existing setting
+  given above
+- {{length}}
+- Write in the same language as the user's premise
+- Output the modules only, with no preface and no closing remarks`,
+
+  'task.world-module':
+`You are revising one module of a world setting.
+
+## The whole setting as it stands
+{{world}}
+
+## The module to rewrite: {{title}}
+What this module covers: {{covers}}
+
+{{instruction}}
+
+## Rules
+- Output only the new content of this module, without its heading line
+- Stay consistent with the other modules
+- Every item should answer how the setting changes what a person in this world
+  does today
+- {{length}}
+- Write in the same language as the existing setting
+- No preface and no closing remarks`,
+
+  'task.npc-tool':
+`You are writing supporting characters for a story.
+
+## The main character
+{{main}}
+
+{{cast}}
+
+{{world}}
+
+{{existing}}
+
+## What the user asked for
+{{requirements}}
+
+{{banned}}
+
+## Fields
+Each person carries these fields, in this order: {{fields}}
+{{length}}
+
+## Rules
+- Write {{count}} people
+- relation is what the main character is to this person, two to six characters
+  long. reverse is what this person is to the main character
+- signature is one line this person would put on a social profile
+- Names differ from each other and from the people listed as already existing
+- The fields object uses the field names exactly as listed above
+- Write every value in the same language as the main character's card
+
+## Output JSON only, with no other text
+{"npcs":[{"name":"","gender":"","age":"","birthday":"","signature":"","relation":"","reverse":"","fields":{"<field name>":"<content>"}}]}`,
+
+  'task.lore-outline':
+`You are planning a lorebook: a set of runtime rules that will be injected into
+another model while it writes. It is a specification for a model, not a
+setting document for people.
+
+{{request}}
+
+## Output
+An outline only. Use "## " headings for sections and "- " lines for the points
+each section will cover. Name what each section is responsible for, so that no
+constraint belongs to two sections. No body text, no preface.`,
+
+  'task.lore-body':
+`You are writing a lorebook: a set of runtime rules that will be injected into
+another model while it writes. It is a specification for a model, not a
+setting document for people.
+
+{{request}}
+
+{{outline}}
+
+## Writing contract
+- R1 Guidance before prohibition. By default write what to do. Keep "do not"
+  lines for the few real red lines, and give each one the thing to do instead
+- R2 Find the root cause and group by kind. One rule covers a family of
+  problems; do not patch symptoms one by one
+- R3 Do not copy the user's wording. The request describes symptoms; translate
+  them into executable rules
+- R4 Structure. Each section has one responsibility; a constraint appears in
+  one place only; the format stays consistent
+- R6 Follow the outline section by section, covering every node, when an
+  outline is given
+- R7 Executable sentences. Write condition, action and degree: when, what to
+  do, how far. Not atmosphere prose
+- R8 No stock phrasing. Write things specific to this world instead of
+  formulaic expressions
+{{format}}
+{{length}}
+
+## Output
+The lorebook body only. Use "## " headings for sections so that each section can
+become one entry. No preface and no closing remarks.`,
+
+  'task.lore-examples':
+`Below is a lorebook. Write short examples that show how a model following it
+behaves: normal cases, edge cases, and easy mistakes with their corrections.
+
+## The lorebook
+{{body}}
+
+## Output
+{{count}} examples per kind, under three heading lines: ## 正常, ## 边界 and
+## 易错.
+Each example is a short situation followed by the behaviour the lorebook
+requires. The examples show the method; they are not sentences to reuse.
+Write in the same language as the lorebook. No preface.`,
+
+  'task.lore-selfcheck':
+`Check the lorebook below against its writing contract, one rule at a time.
+
+## The lorebook
+{{body}}
+
+## The contract
+{{contract}}
+
+## Output JSON only
+{"items":[{"rule":"R1","claim":"kept|partly|broken","note":"one sentence"}],"weakest":"the one place you are least satisfied with, one sentence","left_open":"what you deliberately left for the model to decide, one sentence"}`,
+
+  'task.lore-review':
+`You are an independent reviewer. Review the lorebook below against the request
+and the writing contract. Judge only what is on the page.
+
+{{request}}
+
+## The lorebook
+{{body}}
+
+## The contract
+{{contract}}
+
+## Local checks already run
+{{audit}}
+
+## Output JSON only
+{"items":[{"rule":"R1","status":"pass|warn|fail","summary":"one sentence","evidence":"the quoted fragment","advice":"what to write instead, stated positively"}],"biggest":"if only one thing could change, which one and why","density":"whether the constraints leave room for the model, one sentence"}`,
+
+  'task.lore-revise':
+`You are revising a lorebook. First find the root causes behind the problems
+reported, then rewrite the lorebook so that one change covers a family of
+problems.
+
+{{request}}
+
+## The current version
+{{body}}
+
+## What is wrong with it
+{{feedback}}
+
+{{audit}}
+
+## Writing contract
+{{contract}}
+
+## Output
+Start with a section headed ## 根因, listing each root cause in one line with
+the change that addresses it. Then a section headed ## 正文, containing the
+full revised lorebook, with its own section headings written as "### ". No
+other text.`,
+
+  'task.extra-compile':
+`You are a prompt compiler, not a fiction writer. Turn the user's scattered idea
+and tags into one prompt that can be pasted into another model to write a
+side story.
+
+## Hard rules
+1. Do not write any of the story itself
+2. Keep the core intent of the user's idea. Organise the wording and add
+   executable detail only
+3. Do not add large plot events, new characters or new settings
+4. Do not apply character templates because of a tag, and do not derive
+   personality or ability from gender, job or status
+5. Information the user did not give stays unknown
+6. Turn abstract tags into concrete, executable behaviour
+7. {{level}}
+8. Write the prompt in the same language as the user's material
+
+## The user's material
+{{material}}
+
+## Output JSON only, with no code fence
+{"title":"a short title of at most twelve characters if the user gave none, otherwise the user's title","understanding":"your reading of the idea, a few short lines","direction":"the direction of this side story, a few short lines","prompt":"the complete prompt, ready to paste"}`,
+
+  'task.extra-storyline':
+`Turn the user's scattered tropes into a plot setting that can be handed to a
+model to write a side story.
+
+## Requirements
+1. Output the story itself: who, in what situation, what happens, why, where it
+   turns, and the moment it ends on
+2. One continuous paragraph, the way a person writes a request by hand. No
+   bullet points, no headings
+3. No prose of the story, no dialogue, no scenery. This is a setting
+4. No writing instructions and no explanation of your thinking
+5. Do not repeat tag names; turn tags into concrete events and situations
+6. 150 to 400 characters, in the same language as the material. Output only
+   the paragraph
+
+{{material}}`,
+
+  'task.extra-tags':
+`You are extending a tag library for side-story writing. A tag is a short phrase
+describing a feeling the reader wants: a trope, a relationship state, an
+emotion, a plot situation. It is not a writing instruction.
+
+## Category
+{{category}}
+
+## Direction from the user
+{{theme}}
+
+## Tags that already exist. Do not repeat them
+{{existing}}
+
+## Requirements
+1. Write {{count}} tags, each two to ten characters
+2. No vague adjectives, no sentences, no instructions
+3. Each tag has a behaviour translation: how this feeling shows in the story,
+   through what behaviour, reaction or detail, and which misreading to avoid.
+   A declarative sentence of 30 to 80 characters
+4. The translation does not contain the tag's own words
+5. Write in the same language as the existing tags
+
+## Output a JSON array only
+[{"tag":"","meaning":""}]`,
 };
 
 // 运行时取模板：用户改过就用用户那份，没改过回落到上面的默认值。

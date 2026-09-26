@@ -1,4 +1,4 @@
-import { html } from '../../lib.js';
+import { html, useState, useEffect, useRef } from '../../lib.js';
 import { Icon } from '../../icons/Icon.js';
 import { registerWidget } from '../../system/registry.js';
 import { chats, moments, memories, characters, lastMessageOf, persona } from '../../system/db/index.js';
@@ -8,7 +8,8 @@ import * as accounts from '../../system/accounts.js';
 import * as group from '../../system/group.js';
 import { openApp } from '../../system/nav.js';
 import { useImage, useThumb } from '../../system/db/useImage.js';
-import { useFile } from '../../system/db/useFile.js';
+import { files } from '../../system/db/files.js';
+import { wrap, escapeGuard, SANDBOX } from '../../system/sandbox.js';
 
 function relTime(ts) {
   if (!ts) return '';
@@ -404,16 +405,37 @@ registerWidget({
 
 // ---- 自定义组件：自己传一个 HTML 进来 ----
 //
-// 一律关进 sandbox 的 iframe，且**不给 allow-same-origin**。
-// 这样它拿到的是一个不透明源，读不到本应用的 IndexedDB 与 localStorage ——
-// 接口密钥就存在那里面，一个随手传进来的 HTML 不该够得着。
+// 一律关进 system/sandbox.js 的盒子（ARCHITECTURE 4.247）：sandbox 的 iframe，
+// **不给 allow-same-origin**，读不到本应用的 IndexedDB 与 localStorage —— 接口密钥就存在那里面；
+// 文档最前面插一条 CSP，连不了外网、加载不了外部脚本；它把自己跳走就当场拆掉。
+// 从前只有第一道：它能联网、能拉外部脚本、能把自己跳到别的网址。
 // 代价是它也用不了本应用的任何数据，只能自己画自己的。
 export const CUSTOM_DEFAULT = { fileId: null, name: '' };
 export const CUSTOM_MAX_BYTES = 512 * 1024;
 
+// 读出来的 HTML 按文件缓存。主屏翻页、重排时组件会重挂，不必每次再读一遍
+const htmlCache = new Map();
+
 function CustomBody({ cell }) {
   const c = { ...CUSTOM_DEFAULT, ...(cell?.config || {}) };
-  const url = useFile(c.fileId);
+  const [text, setText] = useState(() => htmlCache.get(c.fileId) ?? null);
+  const [escaped, setEscaped] = useState(false);
+  const guard = useRef({ id: null, fn: null });
+  if (guard.current.id !== c.fileId) guard.current = { id: c.fileId, fn: escapeGuard(() => setEscaped(true)) };
+
+  useEffect(() => {
+    let live = true;
+    setEscaped(false);
+    if (!c.fileId) { setText(null); return undefined; }
+    if (htmlCache.has(c.fileId)) { setText(htmlCache.get(c.fileId)); return undefined; }
+    setText(null);
+    files.blob(c.fileId).then(b => b?.text()).then(t => {
+      const v = String(t || '');
+      htmlCache.set(c.fileId, v);
+      if (live) setText(v);
+    }).catch(() => { if (live) setText(''); });
+    return () => { live = false; };
+  }, [c.fileId]);
 
   if (!c.fileId) {
     return html`
@@ -422,11 +444,14 @@ function CustomBody({ cell }) {
         <span>点这里上传一个 HTML 文件</span>
       </div>`;
   }
-  if (!url) return html`<div class="wg wg-custom-empty"><span class="spinner"></span></div>`;
+  if (text == null) return html`<div class="wg wg-custom-empty"><span class="spinner"></span></div>`;
+  if (escaped) {
+    return html`<div class="wg wg-custom-empty"><${Icon} name="lock" size=${20}/><span>该组件试图打开外部网页，已停止</span></div>`;
+  }
 
   return html`
-    <iframe class="wg-custom" src=${url} sandbox="allow-scripts"
-      title=${c.name || '自定义组件'} loading="lazy"></iframe>`;
+    <iframe key=${c.fileId} class="wg-custom" srcdoc=${wrap(text)} sandbox=${SANDBOX}
+      title=${c.name || '自定义组件'} onLoad=${guard.current.fn}></iframe>`;
 }
 
 registerWidget({

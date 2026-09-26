@@ -120,6 +120,10 @@ import * as stageApi from '../system/stage.js';
 import * as skinApi from '../system/skin.js';
 import * as skinfileApi from '../system/skinfile.js';
 import * as termsApi from '../system/terms.js';
+import * as toolboxApi from '../system/toolbox.js';
+import * as sandboxApi from '../system/sandbox.js';
+import * as lorecheckApi from '../system/lorecheck.js';
+import * as sidestoryApi from '../system/sidestory.js';
 import * as receiptApi from '../system/receipt.js';
 import * as toneApi from '../system/tone.js';
 import * as alarmApi from '../system/alarm.js';
@@ -130,6 +134,7 @@ import * as phoneTask from '../system/ai/tasks/phone.js';
 import * as tripTask from '../system/ai/tasks/trip.js';
 import * as sceneTask from '../system/ai/tasks/scene.js';
 import * as workTask from '../system/ai/tasks/work.js';
+import * as toolTasks from '../system/ai/tasks/tools.js';
 import * as cardshotApi from '../system/cardshot.js';
 import * as reviewApi from '../system/review.js';
 import * as booksearchApi from '../system/booksearch.js';
@@ -257,6 +262,8 @@ export const phone = {
     trip: tripTask,
     scene: sceneTask,
     work: workTask,
+    // 工具箱内置工具的请求（世界观、NPC、世界书、番外）
+    tools: toolTasks,
     eventBatch,
     dayTask,
     healthTask,
@@ -342,6 +349,13 @@ export const phone = {
   skin: skinApi,
   skinfile: skinfileApi,
   terms: termsApi,
+  // 工具箱：用户的工具、历史、网页工具的盒子（见 system/toolbox.js、system/sandbox.js）
+  toolbox: toolboxApi,
+  sandbox: sandboxApi,
+  // 世界书生成器的本地审查（不调接口）
+  lorecheck: lorecheckApi,
+  // 番外生成器：标签、语义词典、本地编译（不调接口）
+  sidestory: sidestoryApi,
   receipt: receiptApi,
   tone: toneApi,
   alarm: alarmApi,

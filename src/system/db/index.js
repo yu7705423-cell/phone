@@ -71,8 +71,12 @@ export const works      = makeCollection('works', 'wk', { indexBy: 'chatId' });
 export const chapters   = makeCollection('chapters', 'cp', { indexBy: 'workId' });
 // 衣帽间：衣橱与妆台里的每一件。'me' 是自己，别的是角色 id（见 system/closet.js）
 export const closet     = makeCollection('closet', 'cl', { indexBy: 'owner' });
+// 工具箱：用户自己加的工具（提示词工具、网页工具），以及内置工具存的设置（一个内置工具一行）。
+// 生成过的结果另开一域，按工具挂着 —— 历史会越攒越多，不该每读一次工具列表都带上它们
+export const tools      = makeCollection('tools', 'tl');
+export const toolRuns   = makeCollection('toolRuns', 'tlr', { indexBy: 'toolId' });
 
-const COLLECTIONS = { characters, lorebooks, memories, chats, messages, moments, stickers, looks, personas, songs, playlists, videos, spaceItems, events, days, todos, notes, recipes, meals, books, entries, ebooks, reviews, readnotes, health, cycles, meds, albums, photos, shots, phones, phoneChats, trips, scenes, beats, skins, works, chapters, closet };
+const COLLECTIONS = { characters, lorebooks, memories, chats, messages, moments, stickers, looks, personas, songs, playlists, videos, spaceItems, events, days, todos, notes, recipes, meals, books, entries, ebooks, reviews, readnotes, health, cycles, meds, albums, photos, shots, phones, phoneChats, trips, scenes, beats, skins, works, chapters, closet, tools, toolRuns };
 
 // ---- kv: settings / persona / layout ----
 function makeKV(key, fallback, { deep = false } = {}) {
@@ -181,7 +185,7 @@ export const db = {
   characters, lorebooks, memories, chats, messages, moments, stickers, looks, personas,
   songs, playlists, videos, spaceItems, events, days, todos, notes, recipes, meals,
   books, entries, ebooks, reviews, readnotes, health, cycles, meds,
-  albums, photos, shots, phones, phoneChats, trips, scenes, beats, skins, works, chapters, closet,
+  albums, photos, shots, phones, phoneChats, trips, scenes, beats, skins, works, chapters, closet, tools, toolRuns,
   images, files, settings, persona, layout,
   messagesOf, lastMessageOf, ready,
 };

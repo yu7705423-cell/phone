@@ -100,6 +100,10 @@ export const PATHS = {
   boat:     '<path d="M3 15h18l-2.6 4.5H5.6z"/><path d="M12 4v11"/><path d="M12 5.5l5.5 7.5H12"/>',
   ship:     '<path d="M2.5 15.5h19l-3 4H5.5z"/><path d="M5.5 15.5V11h13v4.5"/><path d="M8.5 11V7.5h7V11"/><path d="M12 7.5V4"/>',
   medal:    '<circle cx="12" cy="15" r="5"/><path d="M8.5 3l3.5 7 3.5-7"/><path d="m12 12.6.8 1.6 1.7.2-1.2 1.2.3 1.7-1.6-.8-1.6.8.3-1.7-1.2-1.2 1.7-.2z"/>',
+  // 工具箱：一把扳手
+  tool:     '<path d="M14.7 6.3a4 4 0 0 0-5.3 5.3L3.6 17.4a1.4 1.4 0 0 0 0 2l1 1a1.4 1.4 0 0 0 2 0l5.8-5.8a4 4 0 0 0 5.3-5.3l-2.6 2.6-2.3-.7-.7-2.3z"/>',
+  // 网页 / 代码
+  code:     '<path d="M8 7l-5 5 5 5"/><path d="M16 7l5 5-5 5"/><path d="M13.5 4l-3 16"/>',
 };
 
 export const ICON_NAMES = Object.keys(PATHS);
