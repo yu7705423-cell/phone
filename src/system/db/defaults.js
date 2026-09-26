@@ -96,7 +96,7 @@ export const DEFAULT_SETTINGS = {
   failoverMax: 1,                 // 最多再换几套。0 = 列表里其余的全试（第 13 条）
 
   // 翻译。语言挂在会话上（chat.translateTo），这里只管怎么显示
-  translateOpen: 'tap',           // tap | always
+  translateOpen: 'tap',           // tap 点开保持 | turn 点开后下一轮收起 | always 一直展开（4.270）
   // 消息上的时刻与已读回执。时刻默认是聊天软件通行的那种：相隔五分钟以上
   // 才在中间写一行（见 system/receipt.js）。已读回执是新画到气泡上的东西，默认关着
   msgStamp: 'gap',                // gap | side | below | off

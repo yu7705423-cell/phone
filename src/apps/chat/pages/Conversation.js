@@ -167,7 +167,7 @@ function innerOf(msg) {
 }
 
 export const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, onSwipe, onHold, onBind,
-                  selecting, selected, onToggle, transOpen, onSettle, onOpenLog, onUnwrap,
+                  selecting, selected, onToggle, transOpen, onTrans, onSettle, onOpenLog, onUnwrap,
                   onPat, innerStyle, fold, foldCount, onScene, onQuote, who = '', cont = false,
                   stampAt = 'off', readOn = false, readUpTo = 0 }) {
   const mine = msg.role === 'user';
@@ -181,8 +181,8 @@ export const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, o
   const hasMeta = !!(metaStamp || metaRead);
   const avatar = useImage(mine ? phone.accounts.current()?.avatar : char?.avatar);
   const hold = useRef({ timer: null, fired: false });
-  // 默认展开时就一直开着；点一下展开这一档，点过才开
-  const [openTrans, setOpenTrans] = useState(false);
+  // 译文开没开记在页面上（按消息 id），不记在这个组件里：组件一重挂状态就丢，
+  // 表现是「点开之后下一轮又自己收回去」（ARCHITECTURE 4.270）。transOpen 是 'always' 或者这一条开没开
   // 心声默认藏着，点头像才展开
   const [openInner, setOpenInner] = useState(false);
   // 点的是同一轮里别的那一条的头像，也要展开这一条的（见 innerOf）
@@ -211,7 +211,7 @@ export const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, o
   const sticker = msg.kind === 'sticker' ? db.stickers.get(msg.stickerId) : null;
   const quote = quoteOf(msg, { char, chat });
   const trans = (msg.translation || '').trim();
-  const showTrans = trans && (transOpen === 'always' || openTrans);
+  const showTrans = trans && (transOpen === 'always' || transOpen === true);
 
   // ---- 左右滑一下：引用这一条 ----
   //
@@ -391,7 +391,7 @@ export const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, o
               <div key=${i}
                 class=${`bubble ph-bubble ${mine ? 'ph-bubble-mine' : 'ph-bubble-theirs'}${trans && i === parts.length - 1 ? ' has-trans' : ''}`}
                 onClick=${trans && i === parts.length - 1 && !selecting
-                  ? () => setOpenTrans(v => !v) : null}>
+                  ? () => onTrans?.(msg.id) : null}>
                 ${i === 0 ? html`<${QuoteIn} quote=${quote} onClick=${() => jumpTo(quote.id)}/>` : null}
                 ${p}
                 ${trans && i === parts.length - 1 && showTrans ? html`
@@ -536,8 +536,16 @@ export function Conversation({ chatId, focusId = '' }) {
     onScene: (kind, id) => latest.current.onScene(kind, id),
     onBind: m => latest.current.onBind(m),
     onQuote: m => latest.current.onQuote(m),
+    onTrans: id => latest.current.toggleTrans(id),
     noop: () => {},
   }), []);
+  // 点开了译文的那几条。记在页面上，气泡重挂也保得住（4.270）
+  const [transOpenIds, setTransOpenIds] = useState(() => new Set());
+  const toggleTrans = id => setTransOpenIds(prev => {
+    const n = new Set(prev);
+    if (n.has(id)) n.delete(id); else n.add(id);
+    return n;
+  });
   const pickedSet = useMemo(() => new Set(picked || []), [picked]);
   const innerStyle = extras.innerStyle();
 
@@ -629,6 +637,10 @@ export function Conversation({ chatId, focusId = '' }) {
   for (let i = msgs.length - 1; i >= 0; i--) {
     if (msgs[i].role === 'char' && msgs[i].turnId) { lastTurnId = msgs[i].turnId; break; }
   }
+  // 「点开后下一轮收起」那一档：角色新的一轮到了，点开的全收起（4.270）。换会话也清
+  useEffect(() => {
+    if (settings.translateOpen === 'turn' || !lastTurnId) setTransOpenIds(prev => (prev.size ? new Set() : prev));
+  }, [lastTurnId, chatId]);
 
   useEffect(() => {
     if (chat?.unread) db.chats.update(chatId, { unread: 0 });
@@ -1279,7 +1291,7 @@ export function Conversation({ chatId, focusId = '' }) {
   const settleAny = m => (m.kind === 'takeout' ? setMeal(m)
     : m.kind === 'trip' ? setGoing(m)
     : m.kind === 'request' ? setVoting(m) : setSettling(m));
-  latest.current = { onRetry, onSwipe, togglePick, onSettle: settleAny,
+  latest.current = { onRetry, onSwipe, togglePick, onSettle: settleAny, toggleTrans,
     // 滑一下引用（见 Bubble 里的 swipe）。和长按菜单里「引用」是同一件事
     onQuote: m => { setQuoting(m); setPanel(null); try { navigator.vibrate?.(10); } catch { /* 不支持就算了 */ } },
     onOpenLog: openLog, onUnwrap: setUnwrap,
@@ -1509,7 +1521,8 @@ export function Conversation({ chatId, focusId = '' }) {
               onRetry=${stable.onRetry} onSwipe=${stable.onSwipe} onHold=${setHeld}
               onBind=${stable.onBind} onQuote=${stable.onQuote}
               selecting=${selecting} selected=${selecting && pickedSet.has(row.id)}
-              onToggle=${stable.onToggle} transOpen=${settings.translateOpen}
+              onToggle=${stable.onToggle} onTrans=${stable.onTrans}
+              transOpen=${settings.translateOpen === 'always' ? 'always' : transOpenIds.has(row.id)}
               onSettle=${stable.onSettle} onOpenLog=${stable.onOpenLog}
               onUnwrap=${stable.onUnwrap} onPat=${stable.onPat}
               onScene=${stable.onScene} innerStyle=${innerStyle}

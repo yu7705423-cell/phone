@@ -9762,3 +9762,16 @@ HTML 卡片、网页工具、主屏自定义组件在各自的 iframe 里，只�
   两个钩子登记在 `skin-contract.js`。
 
 测试 `tests/face.test.mjs`。
+
+### 4.270 译文点开之后保持；「点开后下一轮收起」另一档
+
+用户反馈：译文点击展开之后，下一轮打字又自动收回。
+
+从前展开与否是气泡组件自己的 state，组件一重挂就丢；哪种情况下重挂说不清（窗口裁掉再翻回来、重新分组都算），
+所以不去追，把状态提出来：`Conversation` 上一个按消息 id 记的 `transOpenIds`，气泡只收 `transOpen`
+（`'always'` 或这一条开没开）和 `onTrans(id)`。这样不管气泡怎么重挂，点开的都还开着。
+
+「译文怎么显示」三档（`settings.translateOpen`）：`tap` 点开保持（默认）、`turn` 点开后角色下一轮回复到达时全部收起、
+`always` 一直展开。`turn` 那一档靠 `lastTurnId` 变化清那个集合；换会话也清。
+
+测试 `tests/transkeep.test.mjs`。

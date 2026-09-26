@@ -9,8 +9,14 @@ const COMMON = ['中文', '英文', '日文', '韩文', '法文', '德文', '西
 
 const OPEN_MODES = [
   { value: 'tap', label: '点击展开' },
+  { value: 'turn', label: '下一轮收起' },
   { value: 'always', label: '默认展开' },
 ];
+const OPEN_DESC = {
+  tap: '译文默认收起，点击气泡展开，再次点击收起。展开的一直保持，直到再次点击。',
+  turn: '译文默认收起，点击气泡展开。角色下一轮回复到达时，已展开的全部收起。',
+  always: '译文直接显示在原文下方。',
+};
 
 export function TranslatePage({ chatId }) {
   useStore(db.chats.store);
@@ -70,10 +76,8 @@ export function TranslatePage({ chatId }) {
 
         <div class="pad-x">
           <${Field} label="译文怎么显示"
-            desc=${s.translateOpen === 'always'
-              ? '译文直接显示在原文下方。'
-              : '译文默认收起，点击气泡展开，再次点击收起。'}>
-            <${Segmented} value=${s.translateOpen === 'always' ? 'always' : 'tap'}
+            desc=${OPEN_DESC[s.translateOpen] || OPEN_DESC.tap}>
+            <${Segmented} value=${OPEN_DESC[s.translateOpen] ? s.translateOpen : 'tap'}
               items=${OPEN_MODES}
               onChange=${v => db.settings.set({ translateOpen: v })}/>
           <//>
