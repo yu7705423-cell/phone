@@ -25,6 +25,7 @@ import * as space from '../space.js';
 import * as dayStore from '../day.js';
 import * as extras from '../extras.js';
 import * as faceLib from '../face.js';
+import * as docfile from '../docfile.js';
 import * as avatar from '../avatar.js';
 import * as remark from '../remark.js';
 import * as recall from '../recall.js';
@@ -47,7 +48,7 @@ import { foldMarks } from '../markfold.js';
 // 中英文冒号都认，方括号也认全角。
 // 「约定完成」必须排在「约定」前面 —— 交替是从左往右试的，反过来写
 // 「约定完成：早点睡」会先被「约定」吃掉，剩下「完成：早点睡」当成内容。
-const MARK = /[[【]\s*(图片|照片|image|pic|视频|video|语音|voice|audio|表情|sticker|emoji|转账|transfer|位置|定位|location|礼物|gift|点歌|建歌单|加入歌单|分享歌曲|分享音乐|调用|tool|约定完成|约定|pact|信|letter|事项完成|事项取消|心声|换头像|改备注|备注|外卖|请客|代付|申请|亲属卡|旅行|攻略|待办|todo|授予|award|搭配|outfit|换上|借走|借给你|归还|旁白|narration|改密码|卡片|card)\s*[:：]\s*([^\]】]+)[\]】]/gi;
+const MARK = /[[【]\s*(图片|照片|image|pic|视频|video|语音|voice|audio|表情|sticker|emoji|转账|transfer|位置|定位|location|礼物|gift|点歌|建歌单|加入歌单|分享歌曲|分享音乐|调用|tool|约定完成|约定|pact|信|letter|事项完成|事项取消|心声|换头像|改备注|备注|外卖|请客|代付|申请|亲属卡|旅行|攻略|待办|todo|授予|award|搭配|outfit|换上|借走|借给你|归还|旁白|narration|改密码|卡片|card|文件|file|填写|fill)\s*[:：]\s*([^\]】]+)[\]】]/gi;
 
 const IMAGE_KINDS = new Set(['图片', '照片', 'image', 'pic']);
 // 「视频通话」那一格叫 video，这里是会话里那一段片子，两回事。
@@ -66,6 +67,9 @@ const LETTER_KINDS = new Set(['信', 'letter']);
 const AWARD_KINDS = new Set(['授予', 'award']);
 const OUTFIT_KINDS = new Set(['搭配', 'outfit']);
 const NARRATION_KINDS = new Set(['旁白', 'narration']);
+// 文件（ARCHITECTURE 4.271）：[文件：名字] … [/文件] 整块先摘出来（liftFiles），[填写：编号｜内容] 一行一处
+const FILE_KINDS = new Set(['文件', 'file']);
+const FILL_KINDS = new Set(['填写', 'fill']);
 const LOCK_KINDS = new Set(['改密码']);
 // 剧情里的衣帽间：换上、借走、借给你、归还（system/closet-story.js，ARCHITECTURE 4.217）
 const CLOSET_ACT_KINDS = new Set(['换上', '借走', '借给你', '归还']);
@@ -188,6 +192,32 @@ function liftCards(text) {
     CARD_HEAD.lastIndex = stop;
   }
   return { text: out + text.slice(last), cards };
+}
+
+// 文件块：[文件：名字.ext] 起、[/文件] 止，正文原样保留（换行、竖线表格都要）。
+// 和卡片一样先摘出来换成占位行，按行切分时才不会把正文切成十几条气泡
+const FILE_HEAD = /[[【]\s*(?:文件|file)\s*[:：]\s*([^\]】\n#][^\]】\n]*?)\s*[\]】][ \t]*\n?/gi;
+const FILE_END = /[[【]\s*\/\s*(?:文件|file)\s*[\]】]/i;
+function liftFiles(text) {
+  const list = [];
+  let out = '';
+  let last = 0;
+  let m;
+  FILE_HEAD.lastIndex = 0;
+  while ((m = FILE_HEAD.exec(text))) {
+    const name = m[1].trim();
+    const from = m.index + m[0].length;
+    const rest = text.slice(from);
+    const end = rest.search(FILE_END);
+    // 没写收尾标记的：正文一直到这一轮末尾
+    const body = end >= 0 ? rest.slice(0, end) : rest;
+    const stop = end >= 0 ? from + end + rest.slice(end).match(FILE_END)[0].length : text.length;
+    out += `${text.slice(last, m.index)}\n[文件：#${list.length}]\n`;
+    list.push({ name, body: body.replace(/^\n+|\n+$/g, '') });
+    last = stop;
+    FILE_HEAD.lastIndex = stop;
+  }
+  return { text: out + text.slice(last), files: list };
 }
 
 const TRIP_KINDS = new Set(['旅行']);
@@ -570,7 +600,9 @@ export function splitReply(raw) {
   if (!unstamped.trim()) return [];
   const lifted = liftCalls(unstamped);
   const calls = lifted.calls;
-  const { text, cards } = liftCards(lifted.text);
+  const lifted2 = liftFiles(lifted.text);
+  const newFiles = lifted2.files;
+  const { text, cards } = liftCards(lifted2.text);
 
   const parts = [];
   let last = 0;
@@ -781,6 +813,19 @@ export function splitReply(raw) {
       } else if (CARD_KINDS_MARK.has(kind)) {
         const c = /^#\d+$/.test(body) ? cards[Number(body.slice(1))] : null;
         if (c) push({ type: 'card', ...c });
+      } else if (FILE_KINDS.has(kind)) {
+        const f = /^#\d+$/.test(body) ? newFiles[Number(body.slice(1))] : null;
+        if (f) push({ type: 'newfile', ...f });
+      } else if (FILL_KINDS.has(kind)) {
+        // 几行填写并成一处，不占气泡。编号在前，竖线后面是填的内容
+        const i = body.search(/[|｜]/);
+        const id = (i < 0 ? body : body.slice(0, i)).trim();
+        const val = i < 0 ? '' : body.slice(i + 1).trim();
+        if (id) {
+          const prev = parts.find(x => x.type === 'fill');
+          if (prev) prev.fills.push({ id, text: val });
+          else push({ type: 'fill', fills: [{ id, text: val }] });
+        }
       } else if (CALL_KINDS.has(kind)) {
         const c = /^#\d+$/.test(body) ? calls[Number(body.slice(1))] : null;
         if (c) push({ type: 'tool', ...c });
@@ -1366,6 +1411,9 @@ export function materialize(part, base, char) {
       card: { name: part.name, bookId: entry?.bookId || '', entryId: entry?.id || '', values },
     });
   }
+  // 文件（4.271）：填我发的那份，或者从头写一份。先占位，文件造好再补上 fileId
+  if (part.type === 'fill') return docfile.deliverFill(row, part.fills);
+  if (part.type === 'newfile') return docfile.deliverNew(row, part.name, part.body);
   if (part.type === 'narration') {
     // 旁白：一行夹在消息中间的小字（ARCHITECTURE 4.221）。正文照原样留着标记，历史里角色读到的就是它
     return messages.create({ ...row, kind: 'narration', content: `[旁白：${part.text}]`, narration: part.text });
@@ -1446,7 +1494,7 @@ const BODY_OF = {
   location: '[位置]', call: '[通话]', listen: '[一起听]', watch: '[一起看]',
   takeout: '[外卖]', request: '[申请]', share: '[分享]', dice: '[骰子]', song: '[分享歌曲]', tool: '[调用工具]',
   trip: '[旅行]',
-  pact: '[约定]', letter: '[信]', vote: '[投票]', outfit: '[搭配]', groom: '[动作]', dresscode: '[穿搭盲盒]', slip: '[包里多了一样东西]', narration: '[旁白]',
+  pact: '[约定]', letter: '[信]', vote: '[投票]', outfit: '[搭配]', groom: '[动作]', dresscode: '[穿搭盲盒]', slip: '[包里多了一样东西]', narration: '[旁白]', file: '[文件]',
   card: '[卡片]', forward: '[聊天记录]',
 };
 const bodyOf = m => (m.kind === 'text' ? m.content : BODY_OF[m.kind]) || '发来一条消息';

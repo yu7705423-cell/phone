@@ -16,6 +16,7 @@ import { PACT_OPEN } from '../space.js';
 import * as dayStore from '../day.js';
 import * as extras from '../extras.js';
 import * as faceLib from '../face.js';
+import * as docfile from '../docfile.js';
 import * as avatarLib from '../avatar.js';
 import * as remark from '../remark.js';
 import * as recall from '../recall.js';
@@ -450,6 +451,21 @@ export const CAPS = [
     detail: ({ char, scanText }) => fillTemplate(template('skeleton.card'), {
       cards: htmlcard.promptList(htmlcard.hitCards(char, scanText)),
     }),
+  },
+  {
+    // 文件（ARCHITECTURE 4.271）：从头写一份，或者把我发的那份在原文件上填了发回来。
+    // 最近有文件消息时给整段细则，细则里说明我发的那份是哪一种、编号怎么认
+    id: 'file',
+    label: '文件',
+    on: ({ char }) => char.canSendFile !== false,
+    hot: ({ msgs }) => msgs.slice(-WINDOW).some(m => m.kind === 'file'),
+    line: () => 'Send a file: a line [文件：name.ext], the contents, then a line [/文件]',
+    detail: ({ msgs }) => {
+      const src = docfile.latestFillable(msgs[msgs.length - 1]?.chatId || '');
+      return fillTemplate(template('skeleton.file'), {
+        fill: src ? fillTemplate(template('skeleton.file-fill'), { name: src.name, ext: src.ext }) : '',
+      });
+    },
   },
   {
     // 旁白。会话「互动」里开了才有；开了就常驻：它是这一段会话的写法，不是想用再用的功能

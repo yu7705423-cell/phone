@@ -42,6 +42,7 @@ export const TASKS = {
   'moment.reply':        { label: '朋友圈回复', auto: true },
   'inner.voice':         { label: '心声', auto: true },
   'translate.lines':     { label: '翻译' },
+  'file.fill':           { label: '角色填写文件' },
   'chat.vision-describe': { label: '发给角色的图写成描述', auto: true },
   'chat.face-describe':  { label: '头像写成外貌描述', auto: true },
   'call.summary':        { label: '通话小结', auto: true },

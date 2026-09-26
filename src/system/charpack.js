@@ -102,6 +102,7 @@ export function collect(charId, { history = true } = {}) {
     (m.forward?.items || []).forEach(i => i?.imageId && imgIds.add(i.imageId));   // 转发的记录里的图
     if (m.audioId) fileIds.add(m.audioId);
     if (m.clipId) fileIds.add(m.clipId);
+    if (m.fileId) fileIds.add(m.fileId);
     // 通话里存下来的那几段声音
     if (m.kind === 'call') (m.callLog || []).forEach(l => (l?.audio || []).forEach(id => id && fileIds.add(id)));
   });

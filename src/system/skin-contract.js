@@ -134,6 +134,7 @@ export const HOOKS = [
   { hook: 'outfit', label: '搭配卡片', on: ['chat'], since: 2, needs: '会话中出现衣帽间的搭配',
     note: '自己发的另带内部类名 is-mine；穿搭盲盒里未揭晓的另带 is-sealed' },
   { hook: 'narration', label: '旁白那一行', on: ['chat'], since: 2, needs: '会话的「互动」里开启旁白，并且角色写了旁白' },
+  { hook: 'file', label: '文件那一张卡', on: ['chat'], since: 2, needs: '在会话里发一份文件，或角色发回一份' },
   { hook: 'msg-face', label: '线下时的那一条', on: ['chat'], since: 2, needs: '在会话里切到线下之后发出或生成的消息',
     note: '和 msg 挂在同一个元素上，线上的消息没有它' },
   { hook: 'side', label: '线上与线下之间的分隔线', on: ['chat'], since: 2, needs: '在会话里切到线下或切回线上' },

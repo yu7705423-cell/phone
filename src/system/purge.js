@@ -295,12 +295,13 @@ export function fileUsers() {
       const who = (chat?.characterIds || []).map(id => characters.get(id)?.name).filter(Boolean).join('、');
       said.forEach(id => put(id, 'call', who ? `与${who}的通话` : '通话中的声音'));
     }
-    if (!m.audioId && !m.clipId) return;
+    if (!m.audioId && !m.clipId && !m.fileId) return;
     const chat = chats.get(m.chatId);
     const who = (chat?.characterIds || [])
       .map(id => characters.get(id)?.name).filter(Boolean).join('、');
     put(m.audioId, 'voice', who ? `与${who}的语音` : '会话中的语音');
     put(m.clipId, 'clip', who ? `与${who}的视频` : '会话中的视频');
+    put(m.fileId, 'doc', who ? `与${who}的文件 ${m.name || ''}` : `会话中的文件 ${m.name || ''}`);
   });
 
   const s = settings.get();

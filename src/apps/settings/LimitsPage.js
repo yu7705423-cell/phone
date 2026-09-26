@@ -289,6 +289,13 @@ export function LimitsPage() {
             onChange=${v => set({ closetMemMax: v })}/>
         <//>
 
+        <${Field} label="发给角色的文件正文最多带多少字"
+          desc="在会话里发出的文件，最近一份的正文随每次请求进入上下文，按这个字数截断；更早的文件只带文件名。
+            填 0 表示整篇都带。不多调用接口，只影响每次请求的长度。">
+          <${NumberInput} value=${s.fileTextMax} unit="字" placeholder="全部"
+            onChange=${v => set({ fileTextMax: v })}/>
+        <//>
+
         <${Field} label="线下带上手机里最近几条"
           desc="线下的每次请求带上这段会话里最近这么多条消息的原文。
             气泡很短，二十条也只有几百字，所以带的是原文而不是摘要。

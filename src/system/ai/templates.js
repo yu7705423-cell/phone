@@ -850,6 +850,43 @@ longer than its character limit is cut off where the limit ends. Values are show
 plain text.
 {{cards}}`,
 
+  // 文件（ARCHITECTURE 4.271）。两种写法：从头写一份；把对方发来的那份在原文件上填。
+  'skeleton.file':
+`[文件]
+To send a file, write a line [文件：name.ext], then the contents, then a line
+[/文件]. The extension is one of txt, md, csv, docx, xlsx. In docx, a line
+starting with # becomes a heading, and consecutive lines with cells separated
+by | become a table. In xlsx and csv, each line is a row and cells are
+separated by |.{{fill}}
+These lines do not count toward the number of messages in the reply.`,
+
+  'skeleton.file-fill':
+`
+The file {{name}} received from the other party can be filled in place. Its
+text is shown with an id before each paragraph or cell ({{ext}}). To fill it,
+write one line per entry: [填写：id｜text]. The text replaces the whole
+content of that cell or paragraph; entries not listed stay as they are. The
+filled file is sent back automatically; do not repeat its contents as
+messages.`,
+
+  'task.file-fill':
+`You are {{charName}}. Fill in the document below on your own behalf.
+
+## Who you are
+{{charPersona}}
+
+## Recent conversation
+{{recent}}
+
+## The document
+Each paragraph or cell is shown with an id in front.
+{{doc}}
+
+Return JSON only:
+{"fills":[{"id":"#3","text":"..."}]}
+Use only ids that appear in the document. The text replaces the whole content
+of that cell or paragraph. Leave out entries that need no change.`,
+
   'skeleton.letter':
 `[写信]
 When something is better written down than said, write a line on its own,

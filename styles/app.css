@@ -3817,3 +3817,22 @@ button.conv-notice { background: none; border: 0; font: inherit; cursor: pointer
 }
 .side-div-line { flex: 1; height: 1px; background: var(--border-2); }
 .side-div-text { flex: none; font-size: var(--fs-11); letter-spacing: .12em; color: var(--text-3); }
+
+/* 聊天里的文件卡（ARCHITECTURE 4.271） */
+.file-card {
+  display: flex; align-items: center; gap: var(--sp-3);
+  min-width: 180px; max-width: 260px; padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--r-lg); background: var(--surface); border: 1px solid var(--border);
+  text-align: left;
+}
+.file-card:where(.is-failed) .file-card-meta { color: var(--danger); }
+.file-card-icon { flex: none; display: flex; color: var(--text-2); }
+.file-card-body { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.file-card-name { font-size: var(--fs-14); color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file-card-meta { font-size: var(--fs-11); color: var(--text-3); }
+.file-actions { display: flex; gap: var(--sp-2); margin-bottom: var(--sp-3); }
+.file-preview {
+  margin: var(--sp-3) 0 0; padding: var(--sp-3); border-radius: var(--r-md);
+  background: var(--group-fill); font-size: var(--fs-12); line-height: 1.6; color: var(--text-2);
+  white-space: pre-wrap; word-break: break-all; max-height: 420px; overflow: auto;
+}

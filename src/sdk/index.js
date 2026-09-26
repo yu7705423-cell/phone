@@ -72,6 +72,8 @@ import * as panelApi from '../system/panel.js';
 import * as paceApi from '../system/pace.js';
 import * as autoReplyApi from '../system/autoreply.js';
 import * as innerTask from '../system/ai/tasks/inner.js';
+import * as docfillTask from '../system/ai/tasks/docfill.js';
+import * as docfileApi from '../system/docfile.js';
 import * as foodApi from '../system/food.js';
 import * as dayTask from '../system/ai/tasks/day.js';
 import * as healthTask from '../system/ai/tasks/health.js';
@@ -282,6 +284,7 @@ export const phone = {
     dayTask,
     healthTask,
     inner: innerTask,
+    docfill: docfillTask,
     recipeBatch,
     shelfBatch,
     impression,
@@ -383,6 +386,7 @@ export const phone = {
   receipt: receiptApi,
   tone: toneApi,
   face: faceApi,
+  docfile: docfileApi,
   alarm: alarmApi,
   when: whenApi,
   note: noteApi,

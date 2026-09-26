@@ -11,6 +11,7 @@ import { MsgMenu } from './MsgMenu.js';
 import { PactBubble, LetterBubble, LetterSheet, PactSheet } from './SpaceBits.js';
 import { ForwardBubble, ForwardSheet, ForwardPickSheet } from './ForwardBits.js';
 import { FaceChooser, FaceSheet, FaceBar, SideLine } from './FaceBits.js';
+import { FileBubble, FileSheet } from './FileBits.js';
 import { DiceBubble, InnerVoice, DiceSheet } from './ExtrasBits.js';
 import { TakeoutBubble, TakeoutSheet, MealSettleSheet, ShareSheet, MoreSheet } from './MealBits.js';
 import { TripBubble, TripSettleSheet } from './TripBits.js';
@@ -167,7 +168,7 @@ function innerOf(msg) {
 }
 
 export const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, onSwipe, onHold, onBind,
-                  selecting, selected, onToggle, transOpen, onTrans, onSettle, onOpenLog, onUnwrap,
+                  selecting, selected, onToggle, transOpen, onTrans, onFile, onSettle, onOpenLog, onUnwrap,
                   onPat, innerStyle, fold, foldCount, onScene, onQuote, who = '', cont = false,
                   stampAt = 'off', readOn = false, readUpTo = 0 }) {
   const mine = msg.role === 'user';
@@ -385,6 +386,8 @@ export const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, o
                     <span class="stk-gone-hint">点击指认</span>
                   </button>`}
             </div>`
+          : msg.kind === 'file'
+          ? html`<${FileBubble} msg=${msg} onOpen=${onFile}/>`
           : (msg.kind === 'image' || msg.kind === 'voice' || msg.kind === 'clip')
           ? html`<${MediaBubble} msg=${msg} char=${char}/>`
           : parts.length ? parts.map((p, i) => html`
@@ -521,6 +524,8 @@ export function Conversation({ chatId, focusId = '' }) {
   const localRef = useRef(null);
   const imgRef = useRef(null);
   const clipRef = useRef(null);
+  const docRef = useRef(null);                      // 发文件（4.271）
+  const [openFile, setOpenFile] = useState(null);   // 点开看的那一份文件
 
   // 气泡是记忆化的，传给它的函数属性身份必须稳定，否则每来一段流式内容
   // 整屏气泡都要重画。外面这一层永远不变，里面读 ref 拿当前这次渲染的闭包。
@@ -537,6 +542,7 @@ export function Conversation({ chatId, focusId = '' }) {
     onBind: m => latest.current.onBind(m),
     onQuote: m => latest.current.onQuote(m),
     onTrans: id => latest.current.toggleTrans(id),
+    onFile: m => latest.current.openFile(m),
     noop: () => {},
   }), []);
   // 点开了译文的那几条。记在页面上，气泡重挂也保得住（4.270）
@@ -1038,6 +1044,18 @@ export function Conversation({ chatId, focusId = '' }) {
    * 把海报送去识图也只是在说第一帧，不是在说这段视频。所以照实写
    * 「角色看不到」，不去假装它看见了。
    */
+  // 发一份文件（4.271）：存进文件域，正文带着编号进上下文，角色可以在原文件上填
+  const sendFile = async e => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setPanel(null);
+    try {
+      await phone.docfile.sendFromUser(chatId, file);
+      afterSend(`[文件：${file.name}]`);
+    } catch (err) { toast(String(err.message || err), 'error'); }
+  };
+
   const sendClip = async e => {
     const file = e.target.files?.[0];
     e.target.value = '';
@@ -1291,7 +1309,7 @@ export function Conversation({ chatId, focusId = '' }) {
   const settleAny = m => (m.kind === 'takeout' ? setMeal(m)
     : m.kind === 'trip' ? setGoing(m)
     : m.kind === 'request' ? setVoting(m) : setSettling(m));
-  latest.current = { onRetry, onSwipe, togglePick, onSettle: settleAny, toggleTrans,
+  latest.current = { onRetry, onSwipe, togglePick, onSettle: settleAny, toggleTrans, openFile: setOpenFile,
     // 滑一下引用（见 Bubble 里的 swipe）。和长按菜单里「引用」是同一件事
     onQuote: m => { setQuoting(m); setPanel(null); try { navigator.vibrate?.(10); } catch { /* 不支持就算了 */ } },
     onOpenLog: openLog, onUnwrap: setUnwrap,
@@ -1408,6 +1426,7 @@ export function Conversation({ chatId, focusId = '' }) {
     share: () => setSharing(true),
     dice: () => setDicing(true),
     card: () => setCarding(true),
+    file: () => docRef.current?.click(),
     makeclip: () => {
       if (!ai.video.isVideoReady()) {
         toast('还没有配置视频接口，请在「设置 - 生成视频」中添加', 'error', 4500);
@@ -1521,7 +1540,7 @@ export function Conversation({ chatId, focusId = '' }) {
               onRetry=${stable.onRetry} onSwipe=${stable.onSwipe} onHold=${setHeld}
               onBind=${stable.onBind} onQuote=${stable.onQuote}
               selecting=${selecting} selected=${selecting && pickedSet.has(row.id)}
-              onToggle=${stable.onToggle} onTrans=${stable.onTrans}
+              onToggle=${stable.onToggle} onTrans=${stable.onTrans} onFile=${stable.onFile}
               transOpen=${settings.translateOpen === 'always' ? 'always' : transOpenIds.has(row.id)}
               onSettle=${stable.onSettle} onOpenLog=${stable.onOpenLog}
               onUnwrap=${stable.onUnwrap} onPat=${stable.onPat}
@@ -1629,6 +1648,9 @@ export function Conversation({ chatId, focusId = '' }) {
 
       <input type="file" accept="video/*" ref=${clipRef}
         onChange=${sendClip} style="display:none"/>
+      <input type="file" accept=${phone.docfile.ACCEPT} ref=${docRef}
+        onChange=${sendFile} style="display:none"/>
+      ${openFile ? html`<${FileSheet} msg=${openFile} chatId=${chatId} onClose=${() => setOpenFile(null)}/>` : null}
 
       <${CallLogSheet} msg=${callLog} onClose=${() => setCallLog(null)}/>
       <${ListenLogSheet} msg=${listenLog} onClose=${() => setListenLog(null)}/>

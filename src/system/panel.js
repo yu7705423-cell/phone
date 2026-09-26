@@ -28,13 +28,14 @@ export const ITEMS = [
   { id: 'makeclip', icon: 'sparkle', label: '生成视频' },
   // HTML 卡片：自己填一张发出去（ARCHITECTURE 4.253）
   { id: 'card', icon: 'layers', label: '卡片' },
+  { id: 'file', icon: 'folder', label: '文件' },
 ];
 
 const ALL = ITEMS.map(x => x.id);
 export const itemOf = id => ITEMS.find(x => x.id === id) || null;
 
 // 默认收进「更多」的：不常用，或者一次配好就不怎么动的那几个
-const DEFAULT_MORE = ['video', 'share', 'dice', 'request', 'makeclip', 'card'];
+const DEFAULT_MORE = ['video', 'share', 'dice', 'request', 'makeclip', 'card', 'file'];
 
 /**
  * 读出一份干净的顺序。丢掉不认识的 id，补上配置里缺失的 ——

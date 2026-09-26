@@ -553,6 +553,14 @@ export function buildHistory(chat, char, msgs, opts = {}) {
   if (view.length && !faceLib.isMark(view[0]) && faceLib.sideOf(view[0]) === faceLib.FACE) {
     marks.push({ role: 'user', content: faceMarkText(chat.face) });
   }
+  // 文件（4.271）：只有最近一份我发的文件带正文（按「文件正文最多带多少字」截断），更早的只带文件名。
+  // 正文每一轮都带着才填得了，但只带最近那一份，账不会随文件数涨
+  const lastFile = [...view].reverse().find(m => m.kind === 'file' && m.role === 'user' && m.text);
+  const fileCap = Math.max(0, Math.round(Number(s.fileTextMax) || 0));
+  const fileBody = m => {
+    const t = String(m.text || '');
+    return fileCap && t.length > fileCap ? `${t.slice(0, fileCap)}\n(truncated)` : t;
+  };
   const view2 = view.flatMap((m, i) => {
     if (faceLib.isMark(m)) {
       return { role: 'user', content: faceLib.sideOf(m) === faceLib.FACE ? faceMarkText(m.face) : template('skeleton.phone-mark') };
@@ -568,7 +576,7 @@ export function buildHistory(chat, char, msgs, opts = {}) {
     if (m.role === 'user') {
       const gone = !!m.recalled;
       const pic = !gone && pics && pics.get(m.id);
-      const body = gone ? text : text + songLyricOf(m, s);
+      const body = gone ? text : text + songLyricOf(m, s) + (lastFile && m.id === lastFile.id ? `\n${fileBody(m)}` : '');
       return pic ? { role: 'user', content: body, image: pic } : { role: 'user', content: body };
     }
     if (mine) {
