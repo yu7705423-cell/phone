@@ -80,6 +80,20 @@ ok('总结记忆指定主用：走主用', await host('memory.extract') === 'mai
 await route('proactive', ids.half);
 ok('指定的那套没填全：照默认走副用', await host('chat.proactive') === 'side');
 await route('proactive', '');
+// 4.276：线下与长篇正文、长篇简介大纲走向、心声、填文件、工具箱各自一组
+ok('没指定：线下正文走主用', await host('scene.write') === 'main');
+ok('没指定：长篇大纲走副用', await host('work.outline') === 'side');
+await route('scene', ids.third);
+ok('线下正文指定第三套：走第三套', await host('scene.write') === 'third');
+ok('不影响长篇大纲', await host('work.outline') === 'side');
+await route('novel', 'main'); await route('inner', ids.third); await route('fileFill', ids.third); await route('tools', ids.third);
+ok('长篇大纲指定主用', await host('work.outline') === 'main');
+ok('长篇走向同组', await host('work.branch') === 'main');
+ok('心声指定第三套', await host('inner.voice') === 'third');
+ok('填文件指定第三套', await host('file.fill') === 'third');
+ok('工具箱指定第三套', await host('tool.world') === 'third');
+ok('对话回复仍走主用', await host('chat.reply') === 'main');
+await route('scene', ''); await route('novel', ''); await route('inner', ''); await route('fileFill', ''); await route('tools', '');
 
 // 界面：设置 - 接口 - 任务用哪套接口
 await ev(async () => { const n = await import('/src/system/nav.js'); n.unlock(); n.openApp('settings', '/'); n.push('/api'); });

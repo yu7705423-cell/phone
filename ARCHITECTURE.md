@@ -9052,8 +9052,11 @@ iPhone 的 WebKit 上，应用在后台待一阵回来，网页与数据库（In
   **今天已经穿着东西的不碰**，手动勾的、剧情里换上的不被盖掉；失败原因记在 `closetDailyError`，衣帽间页上显示。
 - 两处调它：回复之前（`engine.streamReply`，紧跟身体状态）与主动消息的巡检（`proactive.js`）。
 
-**任务用哪套接口。** `engine.js` 的 `ROUTE_GROUPS` 列出三组：主动发消息（`chat.proactive`）、
-总结记忆（`MEMORY_TASKS` 四项）、每日穿搭（`closet.daily`）。`settings.taskRoutes[组]` 为空照原来的分法；
+**任务用哪套接口。** `engine.js` 的 `ROUTE_GROUPS` 列出八组：主动发消息（`chat.proactive`）、
+总结记忆（`MEMORY_TASKS` 四项）、每日穿搭（`closet.daily`）、线下与长篇的正文（`scene.write`，线下、长篇与番外
+都用这一个任务 id 流式写，默认走主用）、长篇的简介大纲与走向（`work.synopsis` / `work.outline` / `work.branch`）、
+心声单独生成（`inner.voice`）、填写文件（`file.fill`）、工具箱的各个生成器（`tool.*`）。
+用户反馈线下、长篇这类长文的接口没法自己挑，所以后五组一起加上（4.276）。`settings.taskRoutes[组]` 为空照原来的分法；
 `main` / `fallback` / `memory` 指主用、副用、记忆接口；其余是某一套预设的 id。`presetFor` 先问它，
 指定的那套没填全（缺密钥或模型）就照默认走，不因此失败。页面在「设置 - 接口 - 任务用哪套接口」（`RoutesPage.js`）。
 只换用哪一套，不增加调用次数，所以不需要开关。
@@ -9870,3 +9873,14 @@ Chromium 没有这个问题，所以 `backup` 测试一直是过的；安卓那�
 连着两行译文的，是攒在末尾一起写的，只能按顺序一一对上，照旧。译文写在原文上面的那一种照旧挂到下一条。
 
 测试 `tests/transalign.test.mjs`（先在旧代码上跑出错位）。
+
+### 4.276 任务用哪套接口：线下、长篇、心声、填文件、工具箱各自可选
+
+用户反馈：线下与长篇写出来的东西像是走了副用接口，而这几样没法自己挑模型。查下来线下、长篇与番外的正文
+都以 `scene.write` 流式写，它在 `MAIN_TASKS` 里，默认走主用；用户看到的差别来自主用没配全时的回落，
+或者是长篇的简介、大纲、走向那几个 JSON 任务（它们默认走副用）。不管是哪一种，解法都是一样的：
+让这几样各自能指定接口。
+
+`ROUTE_GROUPS` 加五组：`scene`（`scene.write`）、`novel`（`work.synopsis` / `work.outline` / `work.branch`）、
+`inner`（`inner.voice`）、`fileFill`（`file.fill`）、`tools`（`tool.*` 七个生成器）。页面照旧是「设置 - 接口 -
+任务用哪套接口」，每组的说明写明默认走哪一套；不指定就照原来的分法。只换用哪一套，不增加调用次数（第 15 条）。

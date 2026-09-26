@@ -181,6 +181,18 @@ export const ROUTE_GROUPS = [
     def: '默认用记忆接口，没单独配时用副用' },
   { id: 'closetDaily', label: '角色的每日穿搭', tasks: ['closet.daily'],
     def: '默认用副用接口，副用没配时用主用' },
+  // 线下、长篇、番外的正文同一条链路（4.117），所以是一组
+  { id: 'scene', label: '线下、长篇与番外的正文', tasks: ['scene.write'],
+    def: '默认用主用接口，主用没配时用副用' },
+  { id: 'novel', label: '长篇的简介、大纲与走向', tasks: ['work.synopsis', 'work.outline', 'work.branch'],
+    def: '默认用副用接口，副用没配时用主用' },
+  { id: 'inner', label: '心声（单独生成那一档）', tasks: ['inner.voice'],
+    def: '默认用副用接口，副用没配时用主用' },
+  { id: 'fileFill', label: '让角色填写文件', tasks: ['file.fill'],
+    def: '默认用副用接口，副用没配时用主用' },
+  { id: 'tools', label: '工具箱的各个生成器',
+    tasks: ['tool.prompt', 'tool.web', 'tool.npc', 'tool.world', 'tool.lore', 'tool.extra', 'tool.card'],
+    def: '默认用副用接口，副用没配时用主用' },
 ];
 
 function routedPreset(taskId) {
