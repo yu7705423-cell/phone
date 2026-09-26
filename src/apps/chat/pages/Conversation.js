@@ -322,8 +322,16 @@ export const Bubble = memo(function Bubble({ msg, char, chat, frozen, onRetry, o
             tap.current = null;
             if (mine) return;
             const target = innerOf(msg);
-            if (target) { window.dispatchEvent(new CustomEvent('inner-toggle', { detail: target })); return; }
-            toast(extras.innerOn(chat) ? '这一轮没有心声'
+            if (target) {
+              window.dispatchEvent(new CustomEvent('inner-toggle', { detail: target }));
+              // 心声挂在这一轮别的那一条上：把那一条滚到眼前，不然展开了也看不见
+              if (target !== msg.id) {
+                setTimeout(() => document.getElementById(`msg-${target}`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }), 30);
+              }
+              return;
+            }
+            const n = msg.turnId ? db.messagesOf(msg.chatId).filter(m => m.turnId === msg.turnId).length : 0;
+            toast(extras.innerOn(chat) ? `这一轮没有心声${n ? `（这一轮 ${n} 条）` : '（这一条没有轮次信息）'}`
               : '心声未开启，可在会话菜单的「互动」中开启');
           }, 260);
         }}>
