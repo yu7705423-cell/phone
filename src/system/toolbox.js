@@ -16,16 +16,17 @@ import { readText, toDocx } from './doctext.js';
 import { wrap } from './sandbox.js';
 import { zip } from './zip.js';
 
+// tag 是分类（首页按它筛选），out 写这个工具的结果落到哪里（首页卡片上的一行小字）
 export const BUILTINS = [
-  { id: 'npc', name: 'NPC 生成器', icon: 'users', route: '/npc',
+  { id: 'npc', name: 'NPC 生成器', icon: 'users', route: '/npc', tag: '角色', out: '存入联系人',
     desc: '围绕角色生成配角。可选世界观大类、关系标签与禁止项，逐个确认后存入联系人' },
-  { id: 'world', name: '世界观生成器', icon: 'compass', route: '/world',
+  { id: 'world', name: '世界观生成器', icon: 'compass', route: '/world', tag: '设定', out: '存为世界书',
     desc: '按九个模块搭建世界观：从世界基础到日常质感，存为世界书' },
-  { id: 'lore', name: '世界书生成器', icon: 'book', route: '/lore',
+  { id: 'lore', name: '世界书生成器', icon: 'book', route: '/lore', tag: '设定', out: '存为世界书',
     desc: '把需求写成可执行的世界书，附本地审查与逐版修订' },
-  { id: 'extra', name: '番外生成器', icon: 'film', route: '/extra',
+  { id: 'extra', name: '番外生成器', icon: 'film', route: '/extra', tag: '写作', out: '复制或在「我们」中写',
     desc: '把脑洞与标签整理成番外提示词。可复制到别处，也可在「我们」中直接写' },
-  { id: 'imghost', name: '图床搭建教程', icon: 'image', route: '/imghost',
+  { id: 'imghost', name: '图床搭建教程', icon: 'image', route: '/imghost', tag: '教程', out: '不调用接口',
     desc: '自建图床的步骤说明。图片地址可用于美化与头像' },
 ];
 

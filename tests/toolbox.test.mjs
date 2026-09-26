@@ -4,7 +4,7 @@
 //   自己添加的网页工具怕有恶意脚本 —— 关进盒子：读不到应用数据、连不上网、跳不走，
 //   要角色、世界书由用户当场选，要存东西先过确认页，调接口每次先问、计入用量。
 //
-//   一、首页：五个内置工具与「我的工具」
+//   一、首页：五个内置工具与「我的工具」；应用商店的排法，搜索与分类
 //   二、网页工具的盒子：读不到本地存储与外层页面、连不上外网、没开「允许调用接口」时请求一律拒绝
 //   三、开了「允许调用接口」：每次先问；拒绝不花钱；同意才发，顶栏计数；「本次不再询问」之后不再弹
 //   四、网页工具把自己跳走：当场拆掉
@@ -85,6 +85,17 @@ await wait(600);
 let t = await body();
 ok('首页：五个内置工具都在', ['NPC 生成器', '世界观生成器', '世界书生成器', '番外生成器', '图床搭建教程'].every(x => t.includes(x)), t.slice(0, 300));
 ok('首页：「我的工具」为空时给出添加入口', t.includes('我的工具') && t.includes('添加工具'));
+ok('首页：应用商店排法，横滑的大卡片与每行一个「打开」', await page.locator('.tb-hero').count() === 5 && await page.locator('.tb-app .tb-get').count() === 5);
+await page.locator('.tb-search input').fill('世界');
+await wait(300);
+const rows = await page.locator('.tb-app').allInnerTexts();
+ok('首页：搜索只留名字或说明里带关键词的', rows.length === 3 && rows.every(x => x.includes('世界')) && await page.locator('.tb-hero').count() === 0, rows.join(' | '));
+await page.locator('.tb-search input').fill('');
+await page.locator('.tb-tags .chip', { hasText: '写作' }).click();
+await wait(300);
+ok('首页：按分类筛', await page.locator('.tb-app').count() === 1 && (await body()).includes('番外生成器') && !(await body()).includes('我的工具'));
+await page.locator('.tb-tags .chip', { hasText: '全部' }).click();
+await wait(200);
 
 // ---- 二、盒子 ----
 const PROBE = `<!DOCTYPE html><html><head><title>探针</title>
