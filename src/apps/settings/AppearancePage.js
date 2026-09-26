@@ -7,7 +7,7 @@ import { BatchIcons } from './BatchIcons.js';
 import { LookPresets } from './LookPresets.js';
 import { FontPicker } from './FontPicker.js';
 
-const { db, nav, apps: appsApi } = phone;
+const { db, nav, apps: appsApi, look } = phone;
 
 const PRESET_COLORS = ['#000000', '#1A1A1A', '#3D3D3D', '#6B6B6B',
                        '#9A9A9A', '#C4C4C4', '#FFFFFF'];
@@ -179,6 +179,18 @@ export function AppearancePage() {
       </div>
 
       <${FontPicker}/>
+
+      <${List} title="字号">
+        <div class="pad">
+          <${Field} label=${`整体字号　${Math.round(look.fontScaleOf(s.fontScale) * 100)}%`}
+            desc="按比例改变全部界面文字的大小。100% 为默认；气泡、小组件、线下页面一并变化。">
+            <input type="range" min=${Math.round(look.FONT_SCALE_MIN * 100)} max=${Math.round(look.FONT_SCALE_MAX * 100)} step="5"
+              value=${Math.round(look.fontScaleOf(s.fontScale) * 100)}
+              onInput=${e => db.settings.set({ fontScale: parseInt(e.target.value, 10) / 100 })}/>
+          <//>
+          ${look.fontScaleOf(s.fontScale) !== 1 ? html`<${Button} full variant="ghost" onClick=${() => db.settings.set({ fontScale: 1 })}>恢复默认字号<//>` : null}
+        </div>
+      <//>
 
       <${LookPresets}/>
 

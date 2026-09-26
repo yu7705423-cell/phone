@@ -48,6 +48,20 @@ export function FontPicker() {
     } finally { setBusy(false); }
   };
 
+  // 按网址添加：字体文件的外链（自己的图床）下载后存在本机；样式表网址（Google Fonts 那种）存网址
+  const fromUrl = async () => {
+    const url = await prompt({ title: '字体网址', placeholder: 'https://…/font.woff2 或样式表网址', okText: '添加' });
+    if (!url) return;
+    setBusy(true);
+    try {
+      const rec = await fonts.addUrl(url);
+      await fonts.ensureLoaded(rec.id);
+      toast(`已添加 ${rec.name}`, 'ok');
+    } catch (err) {
+      toast(String(err.message || err), 'error', 6000);
+    } finally { setBusy(false); }
+  };
+
   const choose = id => {
     db.settings.set({ [slot]: id });
     setSlot(null);
@@ -99,14 +113,17 @@ export function FontPicker() {
           </div>`)}
       </div>` : null}
 
-    <div class="pad">
-      <${Button} full variant="ghost" icon="upload" disabled=${busy}
+    <div class="pad sheet-acts">
+      <${Button} variant="ghost" icon="upload" disabled=${busy}
         onClick=${() => fileRef.current?.click()}>${busy ? '正在装' : '传一个字体'}<//>
+      <${Button} variant="ghost" icon="link" disabled=${busy} onClick=${fromUrl}>按网址添加<//>
     </div>
     <input type="file" accept=${fonts.ACCEPT} ref=${fileRef} onChange=${upload} style="display:none"/>
 
     <div class="settings-foot">
       支持 ttf / otf / woff / woff2，存在本地。<br/>
+      按网址添加：字体文件的外链（如自己的图床）会下载后存在本地；样式表网址（如 Google Fonts）只存网址，使用时需要联网。
+      外链需允许跨域读取，读不到时可下载后以文件添加。<br/>
       中文字体动辄十几 M，装多了会占空间也会拖慢启动。
     </div>
 

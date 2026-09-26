@@ -162,11 +162,14 @@ import { useFile } from '../system/db/useFile.js';
 import { BLOCKS, DEFAULT_ORDER, resolveOrder } from '../system/ai/context/index.js';
 import { toast, confirm, prompt } from '../ui/overlay.js';
 import { appLook, listAppLooks, iconOverride, setAppIcon, resetAppIcon,
-         setAppIconFile, setAppIconUrl, clearAppIconImage, trimAppIcon, setAppIconScale, ICON_SCALE, autoTrim, setAutoTrim } from '../system/look.js';
+         setAppIconFile, setAppIconUrl, clearAppIconImage, trimAppIcon, setAppIconScale, ICON_SCALE, autoTrim, setAutoTrim,
+         fontScaleOf, FONT_SCALE_MIN, FONT_SCALE_MAX } from '../system/look.js';
 import { registryStore } from '../system/registry.js';
 import { removedApps, restoreApp } from '../screens/home/layout.js';
 
 export const phone = {
+  // 整体字号（look.js applyFontScale）。设置 - 外观里那条滑杆读它的范围
+  look: { fontScaleOf, FONT_SCALE_MIN, FONT_SCALE_MAX },
   nav: {
     push: navApi.push,
     pop: navApi.pop,

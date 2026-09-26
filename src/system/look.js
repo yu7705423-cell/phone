@@ -37,6 +37,25 @@ export function applyLook(s) {
   if (s.iconLabelColor) root.style.setProperty('--ph-tile-name-color', s.iconLabelColor);
   else root.style.removeProperty('--ph-tile-name-color');
   root.dataset.glass = s.glass === true ? 'on' : 'off';
+  applyFontScale(s.fontScale);
+}
+
+// 整体字号。字号令牌都是像素（tokens.css 的 --fs-*），按倍数逐个改写到 :root 上；
+// 倍数为 1 时全部撤掉，令牌回到样式表里的原值。气泡、挂件、线下的字号都从这几个令牌算，一起变
+export const FONT_SIZES = [9, 11, 12, 13, 14, 15, 17, 20, 24, 28, 40, 56];
+export const FONT_SCALE_MIN = 0.8;
+export const FONT_SCALE_MAX = 1.4;
+export const fontScaleOf = v => {
+  const n = Number(v);
+  return Number.isFinite(n) ? Math.min(FONT_SCALE_MAX, Math.max(FONT_SCALE_MIN, n)) : 1;
+};
+export function applyFontScale(v) {
+  const root = document.documentElement;
+  const k = fontScaleOf(v);
+  FONT_SIZES.forEach(n => {
+    if (k === 1) root.style.removeProperty(`--fs-${n}`);
+    else root.style.setProperty(`--fs-${n}`, `${Math.round(n * k * 10) / 10}px`);
+  });
 }
 
 // 用户自定义 CSS。注入到独立的 style 节点，随时可清空。
